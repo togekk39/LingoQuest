@@ -1,0 +1,44 @@
+{
+  "name": "lingoquest",
+  "version": "1.2.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "npm run dev -w @lingoquest/api",
+    "dev:web": "npm run web -w @lingoquest/mobile",
+    "android": "npm run android -w @lingoquest/mobile",
+    "check": "npm run typecheck --workspaces --if-present && npm run lint",
+    "lint": "eslint apps packages --max-warnings 0",
+    "format": "prettier --write apps packages scripts docs README.md",
+    "format:check": "prettier --check apps packages scripts docs README.md",
+    "test": "npm run test --workspaces --if-present",
+    "build:web": "npm run build:web -w @lingoquest/mobile && node scripts/postbuild.mjs",
+    "test:e2e": "playwright test",
+    "test:sql": "bash scripts/test-sql.sh",
+    "build:android": "npm run build:android -w @lingoquest/mobile",
+    "preview": "node scripts/serve-preview.mjs",
+    "packs:build": "tsx scripts/build-course-pack.ts",
+    "packs:verify": "tsx scripts/verify-course-release.ts",
+    "build:apk": "node scripts/build-apk.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "~19.1.10",
+    "concurrently": "^9.2.0",
+    "eslint": "^9.36.0",
+    "typescript-eslint": "^8.44.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.2",
+    "@playwright/test": "^1.55.0"
+  },
+  "overrides": {
+    "expo-asset": "12.0.14",
+    "expo-modules-core": "~3.0.30"
+  }
+}

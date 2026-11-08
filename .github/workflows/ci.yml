@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run packs:build
+      - run: npm run check
+      - run: npm test
+      - run: npm run build:web
+      - run: npm run build:android
+      - run: npx playwright install --with-deps chromium
+      - name: Browser integration tests
+        run: |
+          PORT=3000 npm run preview > /tmp/lingoquest-preview.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/ > /dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:e2e

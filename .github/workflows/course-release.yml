@@ -1,0 +1,44 @@
+name: Publish offline course pack
+
+on:
+  push:
+    tags:
+      - 'course-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish-course:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Verify committed versioned data
+        shell: bash
+        run: |
+          export COURSE_PACK_VERSION="${GITHUB_REF_NAME#course-v}"
+          export COURSE_PACK_REPOSITORY="$GITHUB_REPOSITORY"
+          npm run packs:verify
+          npm run test -w @lingoquest/course-pack
+      - name: Publish immutable course assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#course-v}"
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo 'This release already exists. Publish a new version instead of overwriting course data.'
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            "content/releases/lingoquest-es419-enus-a1a2-${version}.lqp.json" \
+            "content/releases/lingoquest-es419-enus-a1a2-${version}.lqp.json.sha256" \
+            content/releases/catalog.json \
+            --verify-tag \
+            --title "LingoQuest offline course ${version}" \
+            --notes 'Offline es-419 to en-US A1–A2 course data. Original development material awaits editorial review. Import the .lqp.json file from Perfil > Contenido sin conexión. This release does not connect any online learning, speech or account service.'

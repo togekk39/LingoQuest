@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "LingoQuest",
+    "slug": "lingoquest",
+    "version": "1.2.0",
+    "scheme": "lingoquest",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.lingoquest.app",
+      "permissions": ["RECORD_AUDIO"],
+      "allowBackup": false
+    },
+    "ios": {
+      "bundleIdentifier": "com.lingoquest.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Practica tu pronunciación de forma opcional. El audio se elimina al salir."
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "LingoQuest · Tu inglés, a tu ritmo",
+      "shortName": "LingoQuest",
+      "backgroundColor": "#F7FAF7",
+      "themeColor": "#167D72"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-sqlite",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Permite el micrófono para practicar tu pronunciación. Siempre puedes omitirlo."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
