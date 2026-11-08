@@ -1,0 +1,18 @@
+{
+  "format": "lingoquest-course-catalog",
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-08T00:00:00.000Z",
+  "packages": [
+    {
+      "packageId": "es419-enus-a1a2",
+      "version": "1.0.0",
+      "titleEs": "Inglés para tu vida real · A1–A2",
+      "url": "https://raw.githubusercontent.com/togekk39/LingoQuest/course-pack-v1.0.0/content/releases/lingoquest-es419-enus-a1a2-1.0.0.lqp.json",
+      "sha256": "33ffdd17937f9f59d967b69d60e579b116b59f55403689f8bb798a622c7ca904",
+      "sizeBytes": 274765,
+      "minAppVersion": "1.2.0",
+      "locale": "es-419",
+      "targetLanguage": "en-US"
+    }
+  ]
+}
