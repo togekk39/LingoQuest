@@ -382,3 +382,25 @@ export function parseCourseCatalog(text: string): CourseCatalog {
     throw new CoursePackError('El catálogo tiene versiones repetidas.', 'INVALID_CATALOG');
   return result.data;
 }
+
+/** Preserve the validated file path: React Native URL.toString() adds a trailing slash. */
+export function validateGitHubCourseDownloadUrl(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error('Pega el enlace HTTPS del archivo de curso en GitHub.');
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.hash ||
+    (url.port && url.port !== '443') ||
+    !['github.com', 'raw.githubusercontent.com'].includes(url.hostname)
+  )
+    throw new Error('Usa un enlace HTTPS de github.com o raw.githubusercontent.com.');
+  if (url.hostname === 'github.com' && !url.pathname.includes('/releases/download/'))
+    throw new Error('Usa el enlace del archivo en GitHub Releases, no la página del repositorio.');
+  return value.trim();
+}

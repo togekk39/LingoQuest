@@ -6,6 +6,7 @@ import {
   serializeCoursePack,
   utf8Bytes,
   sha256Hex,
+  validateGitHubCourseDownloadUrl,
   type CoursePack,
   type CoursePayload,
 } from '@lingoquest/course-pack';
@@ -97,26 +98,8 @@ export async function restoreBundledCourse() {
   );
   return operation;
 }
-export function validateCourseDownloadUrl(value: string) {
-  let url: URL;
-  try {
-    url = new URL(value.trim());
-  } catch {
-    throw new Error('Pega el enlace HTTPS del archivo de curso en GitHub.');
-  }
-  if (
-    url.protocol !== 'https:' ||
-    url.username ||
-    url.password ||
-    url.hash ||
-    (url.port && url.port !== '443') ||
-    !['github.com', 'raw.githubusercontent.com'].includes(url.hostname)
-  )
-    throw new Error('Usa un enlace HTTPS de github.com o raw.githubusercontent.com.');
-  if (url.hostname === 'github.com' && !url.pathname.includes('/releases/download/'))
-    throw new Error('Usa el enlace del archivo en GitHub Releases, no la página del repositorio.');
-  return url.toString();
-}
+export { validateGitHubCourseDownloadUrl as validateCourseDownloadUrl };
+
 async function boundedText(response: Response) {
   const length = Number(response.headers.get('content-length') ?? 0);
   if (length > MAX_PACK_BYTES) throw new Error('El paquete supera el tamaño permitido de 4 MB.');
@@ -153,7 +136,7 @@ async function boundedText(response: Response) {
 }
 /** The only application network request: an explicit user-started GitHub course download. */
 export async function downloadAndInstallCourse(urlInput: string) {
-  const url = validateCourseDownloadUrl(urlInput);
+  const url = validateGitHubCourseDownloadUrl(urlInput);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);
   try {
