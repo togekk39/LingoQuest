@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { sha256Hex, utf8Bytes } from './hash';
-export { sha256Hex, utf8Bytes } from './hash';
+import { sha256Hex, utf8Bytes } from './hash.ts';
+export { sha256Hex, utf8Bytes } from './hash.ts';
 export const COURSE_PACK_FORMAT = 'lingoquest-course-pack' as const;
-export const COURSE_PACK_SCHEMA_VERSION = 1 as const;
-export const APP_VERSION = '1.2.0';
+export const COURSE_PACK_SCHEMA_VERSION = 2 as const;
+export const APP_VERSION = '1.3.0';
 export const MAX_PACK_BYTES = 4 * 1024 * 1024;
 const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor']);
 const id = z
@@ -12,7 +12,11 @@ const id = z
   .max(100)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
   .refine((value) => !forbiddenKeys.has(value), 'Identificador no permitido.');
-const text = z.string().min(1).max(4000);
+const text = z
+  .string()
+  .min(1)
+  .max(4000)
+  .refine((value) => value.trim().length > 0, 'Falta el texto.');
 const version = z
   .string()
   .max(32)
@@ -22,20 +26,111 @@ const version = z
     'Versión fuera de rango.',
   );
 const option = z.object({ id, text }).strict();
+const translation = z.object({ en: text, es: text }).strict();
+export const evidenceDimensionSchema = z.enum([
+  'vocabulary_recognition',
+  'vocabulary_recall',
+  'grammar_understanding',
+  'grammar_production',
+]);
+export const vocabularyItemSchema = z
+  .object({
+    id,
+    en: text,
+    es: text,
+    partOfSpeech: text,
+    example: translation,
+    status: z.enum(['new', 'review']),
+    audioAssetId: id.optional(),
+    illustrationAssetId: id.optional(),
+  })
+  .strict();
+const grammarSchema = z
+  .object({
+    skillId: id,
+    prerequisiteSkillIds: z.array(id).max(20),
+    explanationEs: text,
+    examples: z.array(translation).min(1).max(10),
+    taughtForms: z.array(translation).max(50).optional(),
+  })
+  .strict();
+const dialogueTurnSchema = z
+  .object({
+    speaker: text,
+    en: text,
+    es: text,
+    glosses: z.array(translation).max(30),
+  })
+  .strict();
+const stageSchema = z
+  .object({
+    type: z.enum(['goal', 'vocabulary', 'grammar', 'dialogue', 'practice', 'speaking', 'recap']),
+    exerciseIds: z.array(id).max(30).optional(),
+  })
+  .strict();
+const assetSchema = z
+  .object({
+    id,
+    kind: z.enum(['audio', 'illustration']),
+    mimeType: z.enum([
+      'audio/mpeg',
+      'audio/ogg',
+      'audio/wav',
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'image/svg+xml',
+    ]),
+    dataBase64: z
+      .string()
+      .min(4)
+      .max(200000)
+      .regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/),
+    provenance: text,
+    license: text,
+  })
+  .strict();
 export const courseExerciseSchema = z
   .object({
     id,
-    type: z.enum(['single_choice', 'cloze', 'reorder', 'correction', 'short_text']),
+    type: z.enum([
+      'single_choice',
+      'meaning',
+      'matching',
+      'cloze',
+      'reorder',
+      'correction',
+      'short_text',
+    ]),
     promptEs: text,
     sentence: text.optional(),
     options: z.array(option).min(2).max(10).optional(),
     tokens: z.array(z.string().min(1).max(200)).min(1).max(60).optional(),
     skillId: id,
     feedbackEs: text,
-    acceptedAnswers: z.array(z.string().min(1).max(2000)).min(1).max(30),
+    acceptedAnswers: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .max(2000)
+          .refine((value) => value.trim().length > 0),
+      )
+      .min(1)
+      .max(30),
     correctOptionId: id.optional(),
     passage: z.string().min(1).max(20000).optional(),
     difficulty: z.number().int().min(1).max(13),
+    vocabularyIds: z.array(id).max(30),
+    dimension: evidenceDimensionSchema,
+    contextualGlosses: z.array(translation).max(50).optional(),
+    optionsLanguage: z.enum(['en', 'es']).optional(),
+    matchingPairs: z
+      .array(z.object({ id, left: text, right: text }).strict())
+      .min(2)
+      .max(10)
+      .optional(),
+    requiredLessonIds: z.array(id).min(1).max(32).optional(),
   })
   .strict();
 export type CourseExercise = z.infer<typeof courseExerciseSchema>;
@@ -58,7 +153,7 @@ const unitSchema = z
     lessons: z.array(lessonSummary).min(1).max(20),
   })
   .strict();
-const lessonSchema = z
+export const lessonSchema = z
   .object({
     id,
     unitId: id,
@@ -71,6 +166,18 @@ const lessonSchema = z
     speakingText: text,
     exercises: z.array(courseExerciseSchema).min(1).max(30),
     estimatedMinutes: z.number().int().min(1).max(120),
+    objectiveEs: text,
+    contextEs: text,
+    cefr: z.enum(['A1', 'A2']),
+    order: z.number().int().min(1).max(1000),
+    properNames: z.array(text).max(50).optional(),
+    vocabulary: z.array(vocabularyItemSchema).min(1).max(15),
+    grammar: grammarSchema,
+    dialogue: z.array(dialogueTurnSchema).min(2).max(20),
+    stages: z.array(stageSchema).length(7),
+    review: z
+      .object({ vocabularyIds: z.array(id).min(1).max(30), skillIds: z.array(id).min(1).max(20) })
+      .strict(),
   })
   .strict();
 const challengeLevel = z
@@ -113,6 +220,7 @@ export const coursePayloadSchema = z
     placementQuestions: z.array(courseExerciseSchema).min(1).max(15),
     missions: z.array(mission).max(20),
     speechDrills: z.array(speech).max(500),
+    assets: z.array(assetSchema).max(100).default([]),
     contentStatus: z
       .object({
         version: text,
@@ -191,47 +299,256 @@ export function compareVersions(a: string, b: string): number {
   }
   return 0;
 }
-function validateReferences(payload: CoursePayload) {
+/** English tokens are checked against explicit teaching, not a hidden English starter list. */
+const englishWords = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/’/g, "'")
+    .match(/[a-z]+(?:'[a-z]+)?/g) ?? [];
+const normalizedChoice = (value: string) =>
+  value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[.,!?;:]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+export function validateReferences(payload: CoursePayload) {
   const errors: string[] = [];
   const unitIds = new Set<string>(),
     lessonIds = new Set<string>(),
     exerciseIds = new Set<string>();
+  const knownVocabulary = new Map<string, { en: string; es: string }>();
+  const knownSkills = new Set<string>();
+  const knownWords = new Set<string>();
+  const assetIds = new Map(payload.assets.map((asset) => [asset.id, asset.kind]));
+  if (assetIds.size !== payload.assets.length) errors.push('Recursos repetidos.');
+  for (const asset of payload.assets)
+    if (!asset.mimeType.startsWith(asset.kind === 'audio' ? 'audio/' : 'image/'))
+      errors.push(`Tipo de recurso incompatible: ${asset.id}`);
+  const addWords = (target: Set<string>, value: string) =>
+    englishWords(value).forEach((word) => target.add(word));
   const checkExercise = (exercise: CourseExercise) => {
     if (exerciseIds.has(exercise.id)) errors.push(`Ejercicio repetido: ${exercise.id}`);
     exerciseIds.add(exercise.id);
+    if (new Set(exercise.vocabularyIds).size !== exercise.vocabularyIds.length)
+      errors.push(`Vocabulario repetido en ejercicio: ${exercise.id}`);
     if (exercise.options) {
       const ids = exercise.options.map((o) => o.id);
-      if (new Set(ids).size !== ids.length) errors.push(`Opciones repetidas: ${exercise.id}`);
+      if (
+        new Set(ids).size !== ids.length ||
+        new Set(exercise.options.map((o) => normalizedChoice(o.text))).size !== ids.length
+      )
+        errors.push(`Opciones repetidas o ambiguas: ${exercise.id}`);
       if (!exercise.correctOptionId || !ids.includes(exercise.correctOptionId))
         errors.push(`Respuesta de opción inválida: ${exercise.id}`);
+      const correct = exercise.options.find((option) => option.id === exercise.correctOptionId);
+      if (
+        correct &&
+        !exercise.acceptedAnswers.some(
+          (answer) =>
+            answer === correct.id || normalizedChoice(answer) === normalizedChoice(correct.text),
+        )
+      )
+        errors.push(`La respuesta no coincide con la opción correcta: ${exercise.id}`);
     } else if (exercise.correctOptionId) errors.push(`Opción sin lista: ${exercise.id}`);
-    if (exercise.type === 'single_choice' && !exercise.options)
+    if (['single_choice', 'meaning'].includes(exercise.type) && !exercise.options)
       errors.push(`Faltan opciones: ${exercise.id}`);
-    if (exercise.type === 'reorder' && !exercise.tokens?.length)
-      errors.push(`Faltan palabras: ${exercise.id}`);
+    if (exercise.type === 'reorder') {
+      if (!exercise.tokens?.length) errors.push(`Faltan palabras: ${exercise.id}`);
+      else if (
+        !exercise.acceptedAnswers.some(
+          (answer) =>
+            englishWords(answer).sort().join('|') ===
+            englishWords(exercise.tokens!.join(' ')).sort().join('|'),
+        )
+      )
+        errors.push(`Las palabras no permiten construir una respuesta: ${exercise.id}`);
+    }
+    if (exercise.type === 'matching') {
+      const pairs = exercise.matchingPairs ?? [];
+      if (
+        pairs.length < 2 ||
+        new Set(pairs.map((p) => p.id)).size !== pairs.length ||
+        new Set(pairs.map((p) => normalizedChoice(p.left))).size !== pairs.length ||
+        new Set(pairs.map((p) => normalizedChoice(p.right))).size !== pairs.length
+      )
+        errors.push(`Parejas incompletas o ambiguas: ${exercise.id}`);
+    } else if (exercise.matchingPairs)
+      errors.push(`Parejas en otro tipo de ejercicio: ${exercise.id}`);
+    if (exercise.dimension.startsWith('vocabulary_') && exercise.vocabularyIds.length === 0)
+      errors.push(`Falta el vocabulario evaluado: ${exercise.id}`);
+    if (
+      ['vocabulary_recall', 'grammar_production'].includes(exercise.dimension) &&
+      ['single_choice', 'meaning', 'matching'].includes(exercise.type)
+    )
+      errors.push(`El reconocimiento no demuestra producción: ${exercise.id}`);
+  };
+  const checkEnglish = (exercise: CourseExercise, words: Set<string>) => {
+    const supported = new Set(words);
+    exercise.contextualGlosses?.forEach((gloss) => addWords(supported, gloss.en));
+    const texts = [
+      exercise.sentence ?? '',
+      exercise.passage ?? '',
+      ...(exercise.tokens ?? []),
+      ...(exercise.matchingPairs?.map((pair) => pair.left) ?? []),
+    ];
+    if (exercise.optionsLanguage !== 'es')
+      texts.push(...(exercise.options?.map((option) => option.text) ?? []));
+    if (exercise.type !== 'matching' && exercise.optionsLanguage !== 'es')
+      texts.push(
+        ...exercise.acceptedAnswers.filter(
+          (answer) => !exercise.options?.some((option) => option.id === answer),
+        ),
+      );
+    const unknown = new Set(texts.flatMap(englishWords).filter((word) => !supported.has(word)));
+    if (unknown.size)
+      errors.push(`Vocabulario sin explicar en ${exercise.id}: ${[...unknown].join(', ')}`);
   };
   if (Object.keys(payload.lessons).length > 1000) errors.push('Demasiadas lecciones.');
+  const orderedLessons: CourseLesson[] = [];
   for (const unit of payload.units) {
     if (unitIds.has(unit.id)) errors.push(`Unidad repetida: ${unit.id}`);
     unitIds.add(unit.id);
     const sequences = new Set<number>();
-    for (const summary of unit.lessons) {
+    for (const [lessonIndex, summary] of unit.lessons.entries()) {
       if (lessonIds.has(summary.id)) errors.push(`Lección repetida: ${summary.id}`);
       lessonIds.add(summary.id);
       if (sequences.has(summary.seq)) errors.push(`Orden repetido: ${unit.id}`);
+      if (summary.seq !== lessonIndex + 1)
+        errors.push(`Secuencia de lección inválida: ${summary.id}`);
       sequences.add(summary.seq);
       const lesson = payload.lessons[summary.id];
       if (!lesson || lesson.id !== summary.id || lesson.unitId !== unit.id)
         errors.push(`Referencia de lección inválida: ${summary.id}`);
+      else {
+        orderedLessons.push(lesson);
+        if (lesson.cefr !== unit.cefr) errors.push(`Nivel de lección incorrecto: ${lesson.id}`);
+        if (!summary.skills.includes(lesson.grammar.skillId))
+          errors.push(`Falta la habilidad principal: ${lesson.id}`);
+      }
     }
   }
-  for (const [key, lesson] of Object.entries(payload.lessons)) {
+  const orders = new Set<number>();
+  const scopeByLesson = new Map<
+    string,
+    { vocabulary: Set<string>; skills: Set<string>; words: Set<string> }
+  >();
+  for (const lesson of orderedLessons) {
+    if (orders.has(lesson.order) || (orders.size > 0 && lesson.order <= Math.max(...orders)))
+      errors.push(`Orden de lección inválido: ${lesson.id}`);
+    orders.add(lesson.order);
+    for (const prerequisite of lesson.grammar.prerequisiteSkillIds)
+      if (!knownSkills.has(prerequisite))
+        errors.push(`Prerrequisito no aprendido: ${prerequisite}`);
+    const localIds = new Set<string>();
+    for (const item of lesson.vocabulary) {
+      if (localIds.has(item.id)) errors.push(`Vocabulario repetido en lección: ${item.id}`);
+      localIds.add(item.id);
+      const previous = knownVocabulary.get(item.id);
+      if (item.status === 'review') {
+        if (!previous || previous.en !== item.en || previous.es !== item.es)
+          errors.push(`Repaso de vocabulario desconocido o distinto: ${item.id}`);
+      } else {
+        if (previous) errors.push(`Vocabulario nuevo repetido: ${item.id}`);
+        knownVocabulary.set(item.id, { en: item.en, es: item.es });
+      }
+      addWords(knownWords, item.en);
+      if (item.audioAssetId && assetIds.get(item.audioAssetId) !== 'audio')
+        errors.push(`Audio no incluido: ${item.audioAssetId}`);
+      if (item.illustrationAssetId && assetIds.get(item.illustrationAssetId) !== 'illustration')
+        errors.push(`Ilustración no incluida: ${item.illustrationAssetId}`);
+    }
+    lesson.grammar.taughtForms?.forEach((form) => addWords(knownWords, form.en));
+    knownSkills.add(lesson.grammar.skillId);
+    const lessonWords = new Set(knownWords);
+    lesson.properNames?.forEach((name) => addWords(lessonWords, name));
+    const expectedStages = [
+      'goal',
+      'vocabulary',
+      'grammar',
+      'dialogue',
+      'practice',
+      'speaking',
+      'recap',
+    ];
+    if (lesson.stages.some((stage, i) => stage.type !== expectedStages[i]))
+      errors.push(`Orden de etapas inválido: ${lesson.id}`);
+    const exerciseMap = new Map(lesson.exercises.map((exercise) => [exercise.id, exercise]));
+    const assigned = new Set<string>();
+    for (const stage of lesson.stages) {
+      if (stage.exerciseIds?.length && !['vocabulary', 'practice'].includes(stage.type))
+        errors.push(`Ejercicios en etapa incompatible: ${lesson.id}`);
+      for (const exerciseId of stage.exerciseIds ?? []) {
+        const exercise = exerciseMap.get(exerciseId);
+        if (!exercise || assigned.has(exerciseId))
+          errors.push(`Ejercicio de etapa inválido: ${exerciseId}`);
+        if (
+          exercise &&
+          stage.type === 'vocabulary' &&
+          !['meaning', 'matching', 'single_choice'].includes(exercise.type)
+        )
+          errors.push(`El vocabulario debe empezar con reconocimiento: ${exerciseId}`);
+        assigned.add(exerciseId);
+      }
+    }
+    if (
+      assigned.size !== lesson.exercises.length ||
+      !lesson.stages.find((stage) => stage.type === 'vocabulary')?.exerciseIds?.length ||
+      !lesson.stages.find((stage) => stage.type === 'practice')?.exerciseIds?.length
+    )
+      errors.push(`Faltan ejercicios en las etapas: ${lesson.id}`);
+    for (const exercise of lesson.exercises) {
+      checkExercise(exercise);
+      if (!knownSkills.has(exercise.skillId))
+        errors.push(`Habilidad desconocida: ${exercise.skillId}`);
+      for (const vocabularyId of exercise.vocabularyIds)
+        if (!knownVocabulary.has(vocabularyId))
+          errors.push(`Vocabulario no aprendido: ${vocabularyId}`);
+      checkEnglish(exercise, lessonWords);
+    }
+    for (const vocabularyId of lesson.review.vocabularyIds)
+      if (!knownVocabulary.has(vocabularyId))
+        errors.push(`Repaso de vocabulario inválido: ${vocabularyId}`);
+    for (const skillId of lesson.review.skillIds)
+      if (!knownSkills.has(skillId)) errors.push(`Repaso de gramática inválido: ${skillId}`);
+    scopeByLesson.set(lesson.id, {
+      vocabulary: new Set(knownVocabulary.keys()),
+      skills: new Set(knownSkills),
+      words: lessonWords,
+    });
+  }
+  for (const [key, lesson] of Object.entries(payload.lessons))
     if (key !== lesson.id || !lessonIds.has(key) || !unitIds.has(lesson.unitId))
       errors.push(`Lección fuera del curso: ${key}`);
-    lesson.exercises.forEach(checkExercise);
-  }
-  Object.values(payload.challengePools).forEach((pool) => pool.forEach(checkExercise));
-  payload.placementQuestions.forEach(checkExercise);
+  Object.values(payload.challengePools).forEach((pool) =>
+    pool.forEach((exercise) => {
+      checkExercise(exercise);
+      if (!exercise.requiredLessonIds?.length)
+        errors.push(`Desafío sin requisitos: ${exercise.id}`);
+      const scopes = (exercise.requiredLessonIds ?? []).map((lessonId) =>
+        scopeByLesson.get(lessonId),
+      );
+      if (scopes.some((scope) => !scope))
+        errors.push(`Requisito de desafío desconocido: ${exercise.id}`);
+      const skills = new Set(scopes.flatMap((scope) => (scope ? [...scope.skills] : [])));
+      const vocabulary = new Set(scopes.flatMap((scope) => (scope ? [...scope.vocabulary] : [])));
+      if (!skills.has(exercise.skillId))
+        errors.push(`Desafío con habilidad no aprendida: ${exercise.id}`);
+      for (const vocabularyId of exercise.vocabularyIds)
+        if (!vocabulary.has(vocabularyId))
+          errors.push(`Desafío con vocabulario no aprendido: ${exercise.id}`);
+      checkEnglish(exercise, new Set(scopes.flatMap((scope) => (scope ? [...scope.words] : []))));
+    }),
+  );
+  payload.placementQuestions.forEach((exercise) => {
+    checkExercise(exercise);
+    if (!knownSkills.has(exercise.skillId))
+      errors.push(`Habilidad de diagnóstico desconocida: ${exercise.id}`);
+    exercise.vocabularyIds.forEach((vocabularyId) => {
+      if (!knownVocabulary.has(vocabularyId))
+        errors.push(`Vocabulario de diagnóstico desconocido: ${vocabularyId}`);
+    });
+  });
   const levels = payload.challengeLevels;
   for (let i = 0; i < 13; i++) {
     if (levels[i].level !== i + 1) errors.push('Los niveles deben ir del 1 al 13.');
@@ -246,24 +563,25 @@ function validateReferences(payload: CoursePayload) {
   for (const item of payload.missions) {
     if (missionIds.has(item.id)) errors.push(`Misión repetida: ${item.id}`);
     missionIds.add(item.id);
-    const steps = new Set(item.steps.map((s) => s.id));
+    const steps = new Set(item.steps.map((step) => step.id));
     if (steps.size !== item.steps.length) errors.push(`Paso repetido: ${item.id}`);
     for (const step of item.steps) {
-      if (new Set(step.options.map((o) => o.id)).size !== step.options.length)
+      if (new Set(step.options.map((option) => option.id)).size !== step.options.length)
         errors.push(`Opciones de misión repetidas: ${item.id}`);
       for (const choice of step.options)
         if (choice.nextStepId && !steps.has(choice.nextStepId))
           errors.push(`Paso de misión desconocido: ${choice.nextStepId}`);
     }
   }
-  if (new Set(payload.speechDrills.map((d) => d.id)).size !== payload.speechDrills.length)
+  if (new Set(payload.speechDrills.map((drill) => drill.id)).size !== payload.speechDrills.length)
     errors.push('Prácticas de voz repetidas.');
   if (errors.length)
     throw new CoursePackError(
-      `El contenido no es válido: ${errors.slice(0, 3).join('; ')}`,
+      `El contenido no es válido: ${errors.slice(0, 8).join('; ')}`,
       'INVALID_REFERENCES',
     );
 }
+
 function checksum(manifest: Omit<CourseManifest, 'sha256'>, payload: CoursePayload) {
   return sha256Hex(canonicalStringify({ manifest, payload }));
 }

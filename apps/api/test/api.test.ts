@@ -31,9 +31,15 @@ async function fixture(t: TestContext) {
   return { app, clock, repo, token, headers };
 }
 const answer = (exercise: PrivateExercise): Answer =>
-  exercise.correctOptionId
-    ? { optionId: exercise.correctOptionId }
-    : { text: exercise.acceptedAnswers[0]! };
+  exercise.type === 'matching'
+    ? {
+        matches: Object.fromEntries(
+          (exercise.matchingPairs ?? []).map((pair) => [pair.id, pair.id]),
+        ),
+      }
+    : exercise.correctOptionId
+      ? { optionId: exercise.correctOptionId }
+      : { text: exercise.acceptedAnswers[0]! };
 const wrong: Answer = { text: 'respuesta incorrecta' };
 const lesson = lessons['u01_l01']!;
 
@@ -45,7 +51,7 @@ test('catalog and public exercises never serialize private answer rules', async 
   assert.equal(units.flatMap((u) => u.lessons).length, 32);
   const response = await app.inject(`/v1/lessons/${lesson.id}`);
   assert.equal(response.statusCode, 200);
-  assert.equal(response.json().exercises.length, 10);
+  assert.equal(response.json().exercises.length, lesson.exercises.length);
   assert.doesNotMatch(response.body, /acceptedAnswers|correctOptionId|feedbackEs/);
   const placement = await app.inject('/v1/placement');
   assert.equal(placement.json().questions.length, 12);
@@ -313,7 +319,7 @@ test('all thirteen practice levels can finish; practice never grants ranked badg
     ).json() as RunView;
     while (run.status === 'active') {
       const item = challengePools.grammar_rush.find((e) => e.id === run.question!.id)!;
-      assert.equal(item.difficulty, level);
+      assert.ok(item.requiredLessonIds?.length, 'Challenge questions declare learned material.');
       const r = await app.inject({
         method: 'POST',
         url: `/v1/challenges/runs/${run.runId}/answers`,

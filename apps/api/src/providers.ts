@@ -22,6 +22,15 @@ export const normalize = (v: string): string =>
     .trim();
 export class DeterministicGradingService implements GradingService {
   grade(exercise: PrivateExercise, answer: Answer): boolean {
+    if (exercise.type === 'matching') {
+      const pairs = exercise.matchingPairs ?? [];
+      return (
+        pairs.length > 0 &&
+        answer.matches !== undefined &&
+        Object.keys(answer.matches).length === pairs.length &&
+        pairs.every((pair) => answer.matches?.[pair.id] === pair.id)
+      );
+    }
     if (answer.optionId !== undefined)
       return (
         exercise.correctOptionId === answer.optionId ||

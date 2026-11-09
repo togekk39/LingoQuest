@@ -61,13 +61,17 @@ function fixture() {
   };
 }
 const wrong = (e: CourseExercise) =>
-  e.options
-    ? { optionId: e.options.find((o) => o.id !== e.correctOptionId)!.id }
-    : { text: 'Deliberately wrong.' };
+  e.type === 'matching'
+    ? { matches: Object.fromEntries((e.matchingPairs ?? []).map((p) => [p.id, 'wrong'])) }
+    : e.options
+      ? { optionId: e.options.find((o) => o.id !== e.correctOptionId)!.id }
+      : { text: 'Deliberately wrong.' };
 const correct = (e: CourseExercise) =>
-  e.options
-    ? { optionId: e.correctOptionId! }
-    : { text: e.acceptedAnswers.find((a) => a !== e.correctOptionId)! };
+  e.type === 'matching'
+    ? { matches: Object.fromEntries((e.matchingPairs ?? []).map((p) => [p.id, p.id])) }
+    : e.options
+      ? { optionId: e.correctOptionId! }
+      : { text: e.acceptedAnswers.find((a) => a !== e.correctOptionId)! };
 async function solve(engine: OfflineEngine, lessonId: string, right = false, prefix = lessonId) {
   const lesson = source.lessons[lessonId];
   for (const [i, e] of lesson.exercises.entries())
@@ -83,6 +87,11 @@ async function solve(engine: OfflineEngine, lessonId: string, right = false, pre
   );
 }
 
+async function unlock(engine: OfflineEngine) {
+  for (const unit of source.units.slice(0, 2))
+    for (const lesson of unit.lessons) await solve(engine, lesson.id);
+}
+
 test('fresh install has all text course content without ever contacting a service', async () => {
   const { engine, store } = fixture();
   const p = await engine.initialize();
@@ -93,7 +102,7 @@ test('fresh install has all text course content without ever contacting a servic
   const lesson = await engine.request<{ exercises: Record<string, unknown>[] }>(
     '/v1/lessons/u01_l01',
   );
-  assert.equal(lesson.exercises.length, 10);
+  assert.ok(lesson.exercises.length >= 6);
   assert.ok(!('acceptedAnswers' in lesson.exercises[0]));
   assert.ok(store.data.has(OFFLINE_STATE_KEY));
 });
@@ -130,7 +139,7 @@ test('attempt replay and concurrent writes are serial and idempotent; changed re
     /otra respuesta/,
   );
 });
-test('all 32 lessons and 320 exercises complete fully offline without any challenge', async () => {
+test('all 32 integrated lessons complete fully offline without any challenge', async () => {
   const { engine } = fixture();
   for (const unit of source.units)
     for (const lesson of unit.lessons) await solve(engine, lesson.id);
@@ -154,8 +163,9 @@ test('local progress survives engine restart and content updates with stable ide
   assert.equal(p.xp, 25);
   assert.deepEqual(p.completedLessons, ['u01_l01']);
 });
-test('three required lessons keep standard track locked; fourth unlocks introduction independently of challenge play', async () => {
+test('related units keep standard track locked until all taught prerequisites are completed', async () => {
   const { engine } = fixture();
+  for (const lesson of source.units[0].lessons) await solve(engine, lesson.id);
   for (const id of ['u02_l01', 'u02_l02', 'u02_l03']) await solve(engine, id);
   const locked = await engine.request<{ tracks: { id: string; unlocked: boolean }[] }>(
     '/v1/challenges/tracks',
@@ -166,7 +176,7 @@ test('three required lessons keep standard track locked; fourth unlocks introduc
     '/v1/challenges/tracks',
   );
   assert.equal(open.tracks[0].unlocked, true);
-  assert.equal((await engine.request<Progress>('/v1/me/progress')).xp, 100);
+  assert.equal((await engine.request<Progress>('/v1/me/progress')).xp, 200);
 });
 test('thirteen local practice levels are available; official online/ranked modes are disabled', async () => {
   const { engine } = fixture();
@@ -188,7 +198,7 @@ test('thirteen local practice levels are available; official online/ranked modes
 });
 test('challenge wrong answers, timeout and request replay change only local challenge records', async () => {
   const f = fixture();
-  await solve(f.engine, 'u01_l01');
+  await unlock(f.engine);
   const before = await f.engine.request<Progress>('/v1/me/progress');
   const input = {
     clientRequestId: 'local-challenge-13',
@@ -230,6 +240,7 @@ test('challenge wrong answers, timeout and request replay change only local chal
 });
 test('reading and cloze budgets remain independent of grammar rush', async () => {
   const { engine } = fixture();
+  await unlock(engine);
   for (const [type, min] of [
     ['reading_quest', 180],
     ['cloze_battle', 150],
@@ -281,6 +292,8 @@ test('failed device writes do not falsely award or discard progress', async () =
 
 test('all thirteen local levels finish with personal records and never grant official badges or learning XP', async () => {
   const f = fixture();
+  await unlock(f.engine);
+  const before = await f.engine.initialize();
   for (let level = 1; level <= 13; level++) {
     let run = await f.engine.request<RunView>('/v1/challenges/runs', {
       clientRequestId: `complete-local-level-${level}`,
@@ -303,9 +316,9 @@ test('all thirteen local levels finish with personal records and never grant off
   const p = await f.engine.initialize();
   assert.equal(p.challengeProgress[0].highestLevel, 13);
   assert.equal(p.challengeProgress[0].badge, false);
-  assert.equal(p.xp, 0);
-  assert.deepEqual(p.mastery, []);
-  assert.deepEqual(p.completedLessons, []);
+  assert.equal(p.xp, before.xp);
+  assert.deepEqual(p.mastery, before.mastery);
+  assert.deepEqual(p.completedLessons, before.completedLessons);
 });
 
 test('confirmed reset recovers unreadable local JSON without needing to load the old state or course', async () => {
@@ -348,4 +361,221 @@ test('untrusted backup dictionary keys stay data and cannot change object protot
   assert.deepEqual(stored.visitedExercises.constructor, ['ordinary-data']);
   await solve(f.engine, 'u01_l01');
   assert.equal((await f.engine.initialize()).xp, 25);
+});
+
+test('recognition, vocabulary recall and grammar evidence have separate targets and never become mastered from one choice', async () => {
+  const f = fixture();
+  const content = structuredClone(source);
+  const lesson = content.lessons.u01_l01;
+  const base = lesson.exercises[0];
+  const recognition: CourseExercise = {
+    ...base,
+    id: 'evidence-recognition',
+    type: 'meaning',
+    dimension: 'vocabulary_recognition',
+    vocabularyIds: ['v.hello'],
+    options: [
+      { id: 'a', text: 'hola' },
+      { id: 'b', text: 'adiós' },
+    ],
+    correctOptionId: 'a',
+    acceptedAnswers: ['a'],
+    skillId: 'grammar.be_first',
+  };
+  const recall: CourseExercise = {
+    ...base,
+    id: 'evidence-recall',
+    type: 'short_text',
+    dimension: 'vocabulary_recall',
+    vocabularyIds: ['v.hello'],
+    options: undefined,
+    correctOptionId: undefined,
+    acceptedAnswers: ['hello'],
+    skillId: 'grammar.be_first',
+  };
+  const grammar: CourseExercise = {
+    ...recall,
+    id: 'evidence-grammar',
+    dimension: 'grammar_production',
+    acceptedAnswers: ['I am Ana'],
+  };
+  const understanding: CourseExercise = {
+    ...recognition,
+    id: 'evidence-understanding',
+    dimension: 'grammar_understanding',
+  };
+  lesson.exercises = [recognition, recall, understanding, grammar];
+  f.content(content);
+  for (const e of lesson.exercises)
+    await f.engine.request('/v1/attempts', {
+      clientAttemptId: `dimension-${e.id}`,
+      lessonId: lesson.id,
+      exerciseId: e.id,
+      answer: correct(e),
+    });
+  const p = await f.engine.initialize();
+  assert.equal(p.mastery.length, 4);
+  assert.deepEqual(
+    new Set(p.mastery.map((m) => m.dimension)),
+    new Set([
+      'vocabulary_recognition',
+      'vocabulary_recall',
+      'grammar_understanding',
+      'grammar_production',
+    ]),
+  );
+  assert.equal(
+    p.mastery.find((m) => m.dimension === 'vocabulary_recognition')?.unpromptedSuccessCount,
+    0,
+  );
+  assert.equal(
+    p.mastery.find((m) => m.dimension === 'vocabulary_recall')?.unpromptedSuccessCount,
+    1,
+  );
+  assert.ok(p.mastery.every((m) => m.value < 0.2 && m.lastDelayedSuccessAt === null));
+  const reviews = await f.engine.request<{
+    reviews: { key: string; targetId: string; dimension: string }[];
+  }>('/v1/reviews/today?all=true');
+  assert.equal(new Set(reviews.reviews.map((r) => r.key)).size, 4);
+  assert.equal((await f.engine.request<{ total: number }>('/v1/reviews/today')).total, 0);
+});
+
+test('matching is graded as a complete one-to-one mapping and wrong retries remain friendly', async () => {
+  const f = fixture();
+  const content = structuredClone(source);
+  const lesson = content.lessons.u01_l01;
+  const exercise: CourseExercise = {
+    ...lesson.exercises[0],
+    type: 'matching',
+    matchingPairs: [
+      { id: 'hello', left: 'hello', right: 'hola' },
+      { id: 'bye', left: 'goodbye', right: 'adiós' },
+    ],
+    acceptedAnswers: [],
+    correctOptionId: undefined,
+    options: undefined,
+    dimension: 'vocabulary_recognition',
+    vocabularyIds: ['v.hello', 'v.bye'],
+  };
+  lesson.exercises = [exercise];
+  f.content(content);
+  const submit = (answer: unknown, id: string) =>
+    f.engine.request<AttemptResult>('/v1/attempts', {
+      clientAttemptId: `matching-${id}`,
+      lessonId: lesson.id,
+      exerciseId: exercise.id,
+      answer,
+    });
+  assert.equal((await submit({ matches: { hello: 'hello' } }, 'incomplete')).correct, false);
+  assert.equal((await submit({ matches: { hello: 'bye', bye: 'hello' } }, 'wrong')).correct, false);
+  const result = await submit({ matches: { hello: 'hello', bye: 'bye' } }, 'retry');
+  assert.equal(result.correct, true);
+  assert.match(result.acceptedAnswer!, /hello = hola/);
+  assert.equal((await f.engine.initialize()).xp, 0);
+});
+
+test('direct challenge calls cannot bypass related learning even in relaxed mode', async () => {
+  const f = fixture();
+  await assert.rejects(
+    f.engine.request('/v1/challenges/runs', {
+      clientRequestId: 'locked-challenge-direct',
+      trackId: 'present_simple',
+      type: 'grammar_rush',
+      level: 1,
+      mode: 'practice',
+      relaxed: true,
+    }),
+    (error: unknown) =>
+      error instanceof Error && 'code' in error && error.code === 'CHALLENGE_LOCKED',
+  );
+  const levels = await f.engine.request<{ levels: { unlocked: boolean }[] }>(
+    '/v1/challenges/tracks/present_simple/levels',
+  );
+  assert.equal(levels.levels.length, 13);
+  assert.ok(levels.levels.every((l) => !l.unlocked));
+});
+
+test('challenge pools exclude questions linked to unfinished lessons', async () => {
+  const f = fixture();
+  await unlock(f.engine);
+  const content = structuredClone(source);
+  content.challengePools.grammar_rush.unshift({
+    ...content.challengePools.grammar_rush[0],
+    id: 'unlearned-future-question',
+    difficulty: 1,
+    requiredLessonIds: ['u08_l04'],
+  });
+  f.content(content);
+  const run = await f.engine.request<RunView>('/v1/challenges/runs', {
+    clientRequestId: 'learned-pool-only',
+    trackId: 'present_simple',
+    type: 'grammar_rush',
+    level: 1,
+    mode: 'practice',
+    relaxed: true,
+  });
+  const state = JSON.parse(f.store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  assert.ok(state.runs[run.runId].items.every((e) => e.id !== 'unlearned-future-question'));
+});
+
+test('previous development state stays untouched until a deliberate reset; previous backups are rejected clearly', async () => {
+  const f = fixture();
+  const oldState = JSON.stringify({
+    formatVersion: 1,
+    user: { name: 'Previous learner' },
+    completedLessons: ['old_lesson'],
+    xp: 250,
+  });
+  f.store.data.set(OFFLINE_STATE_KEY, oldState);
+  await assert.rejects(
+    f.engine.initialize(),
+    (error: unknown) =>
+      error instanceof Error && 'code' in error && error.code === 'LOCAL_DATA_RESET_REQUIRED',
+  );
+  assert.equal(f.store.data.get(OFFLINE_STATE_KEY), oldState);
+  await f.engine.request('/v1/me', undefined, 'DELETE');
+  assert.equal((await f.engine.initialize()).xp, 0);
+  const backup = await f.engine.request<any>('/v1/me/export');
+  assert.equal(backup.formatVersion, 2);
+  backup.formatVersion = 1;
+  await assert.rejects(
+    f.engine.request('/v1/me/import', { backup }),
+    /curso de desarrollo anterior/,
+  );
+  assert.equal((await f.engine.initialize()).xp, 0);
+});
+
+test('repeating one recognition question on later days cannot stand in for varied recall or production', async () => {
+  const f = fixture();
+  const content = structuredClone(source);
+  const lesson = content.lessons.u01_l01;
+  const exercise: CourseExercise = {
+    ...lesson.exercises[0],
+    type: 'meaning',
+    dimension: 'vocabulary_recognition',
+    vocabularyIds: ['v.hello'],
+    options: [
+      { id: 'a', text: 'hola' },
+      { id: 'b', text: 'adiós' },
+    ],
+    correctOptionId: 'a',
+    acceptedAnswers: ['a'],
+  };
+  lesson.exercises = [exercise];
+  f.content(content);
+  for (let day = 0; day < 20; day++) {
+    await f.engine.request('/v1/attempts', {
+      clientAttemptId: `single-format-day-${day}`,
+      lessonId: lesson.id,
+      exerciseId: exercise.id,
+      answer: { optionId: 'a' },
+    });
+    f.advance(2 * 86400000);
+  }
+  const p = await f.engine.initialize();
+  assert.equal(p.mastery.length, 1);
+  assert.equal(p.mastery[0].dimension, 'vocabulary_recognition');
+  assert.equal(p.mastery[0].value, 0.65);
+  assert.equal(p.mastery[0].unpromptedSuccessCount, 0);
+  assert.equal(p.xp, 0);
 });

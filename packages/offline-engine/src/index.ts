@@ -12,6 +12,9 @@ import {
   type Mastery,
   type Progress,
   type PublicExercise,
+  type PublicLesson,
+  type EvidenceDimension,
+  type ExerciseType,
   type RunView,
   type User,
 } from '@lingoquest/contracts';
@@ -22,16 +25,17 @@ export interface CourseExercise extends PublicExercise {
   acceptedAnswers: string[];
   correctOptionId?: string;
 }
-export interface CourseLesson {
-  id: string;
-  unitId: string;
-  title: string;
-  introEs: string;
-  examples: { en: string; es: string }[];
-  speakingText: string;
+export interface CourseLesson extends PublicLesson {
   exercises: CourseExercise[];
   estimatedMinutes: number;
 }
+interface LearningMastery extends Mastery {
+  targetId: string;
+  dimension: EvidenceDimension;
+  practicedFormats: ExerciseType[];
+  practicedExerciseIds: string[];
+}
+
 export interface CourseUnit {
   id: string;
   title: string;
@@ -94,12 +98,12 @@ interface StoredRun {
   submissions: Record<string, { fingerprint: string; result: RunView }>;
 }
 export interface OfflineState {
-  formatVersion: 1;
+  formatVersion: 2;
   user: User;
   completedLessons: string[];
   xp: number;
   learningDays: string[];
-  mastery: Mastery[];
+  mastery: LearningMastery[];
   attempts: Record<string, { fingerprint: string; result: AttemptResult }>;
   visitedExercises: Record<string, string[]>;
   runs: Record<string, StoredRun>;
@@ -141,6 +145,17 @@ export const normalize = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 export function grade(exercise: CourseExercise, answer: Answer) {
+  if (exercise.type === 'matching') {
+    const pairs = exercise.matchingPairs ?? [];
+    return (
+      pairs.length > 0 &&
+      answer.matches !== undefined &&
+      Object.keys(answer.matches).length === pairs.length &&
+      pairs.every(
+        (pair) => Object.hasOwn(answer.matches!, pair.id) && answer.matches![pair.id] === pair.id,
+      )
+    );
+  }
   if (answer.optionId !== undefined)
     return (
       exercise.correctOptionId === answer.optionId ||
@@ -151,6 +166,8 @@ export function grade(exercise: CourseExercise, answer: Answer) {
   );
 }
 function displayedAnswer(e: CourseExercise) {
+  if (e.type === 'matching')
+    return (e.matchingPairs ?? []).map((p) => `${p.left} = ${p.right}`).join('; ');
   return (
     e.acceptedAnswers.find((a) => a !== e.correctOptionId) ??
     e.options?.find((o) => o.id === e.correctOptionId)?.text ??
@@ -169,12 +186,18 @@ export function publicExercise(e: CourseExercise): PublicExercise {
     skillId: e.skillId,
     passage: e.passage,
     difficulty: e.difficulty,
+    dimension: e.dimension,
+    vocabularyIds: e.vocabularyIds,
+    contextualGlosses: e.contextualGlosses,
+    optionsLanguage: e.optionsLanguage,
+    matchingPairs: e.matchingPairs,
+    requiredLessonIds: e.requiredLessonIds,
   };
 }
 const tracks = [
   {
     id: 'present_simple',
-    titleEs: 'Daily routines',
+    titleEs: 'Rutinas de cada día',
     descriptionEs: 'Pon en práctica el presente simple y la tercera persona.',
     requiredUnitId: 'u02',
     defaultType: 'grammar_rush',
@@ -218,11 +241,39 @@ export function timeBudget(
         Math.ceil(((words / 130) * 60 + items.length * 20) * rule.cloze_clock_multiplier),
       );
 }
-function questions(content: CourseData, type: StoredRun['type'], level: number) {
-  return [...content.challengePools[type]]
+function requiredLessons(content: CourseData, requiredUnitId: string) {
+  const unitIndex = content.units.findIndex((u) => u.id === requiredUnitId);
+  return unitIndex < 0
+    ? []
+    : content.units.slice(0, unitIndex + 1).flatMap((u) => u.lessons.map((l) => l.id));
+}
+function trackUnlocked(state: OfflineState, content: CourseData, requiredUnitId: string) {
+  const required = requiredLessons(content, requiredUnitId);
+  return required.length > 0 && required.every((id) => state.completedLessons.includes(id));
+}
+function questions(
+  content: CourseData,
+  type: StoredRun['type'],
+  level: number,
+  state: OfflineState,
+) {
+  const learned = Object.values(content.lessons).filter((l) =>
+    state.completedLessons.includes(l.id),
+  );
+  const vocabulary = new Set(learned.flatMap((l) => (l.vocabulary ?? []).map((v) => v.id)));
+  const skills = new Set(learned.flatMap((l) => l.exercises.map((e) => e.skillId)));
+  return content.challengePools[type]
+    .filter(
+      (e) =>
+        e.requiredLessonIds?.length &&
+        e.requiredLessonIds.every((id) => state.completedLessons.includes(id)) &&
+        skills.has(e.skillId) &&
+        (e.vocabularyIds ?? []).every((id) => vocabulary.has(id)),
+    )
     .sort((a, b) => Math.abs(a.difficulty - level) - Math.abs(b.difficulty - level))
     .slice(0, type === 'grammar_rush' ? 10 : type === 'cloze_battle' ? 5 : 4);
 }
+
 function progress(state: OfflineState, now: number): Progress {
   const days = new Set(state.learningDays);
   let current = today(now);
@@ -329,6 +380,27 @@ const userSchema = z
 const masterySchema = z
   .object({
     skillId: z.string().max(100),
+    targetId: z.string().min(1).max(100),
+    dimension: z.enum([
+      'vocabulary_recognition',
+      'vocabulary_recall',
+      'grammar_understanding',
+      'grammar_production',
+    ]),
+    practicedFormats: z
+      .array(
+        z.enum([
+          'single_choice',
+          'meaning',
+          'matching',
+          'cloze',
+          'reorder',
+          'correction',
+          'short_text',
+        ]),
+      )
+      .max(20),
+    practicedExerciseIds: z.array(z.string().min(1).max(100)).max(10000),
     value: z.number().min(0).max(1),
     evidenceCount: z.number().int().min(0).max(10000000),
     unpromptedSuccessCount: z.number().int().min(0).max(10000000),
@@ -340,7 +412,7 @@ const masterySchema = z
 /** Backups contain learning evidence only. Challenge snapshots and provider settings are not restored. */
 const backupStateSchema = z
   .object({
-    formatVersion: z.literal(1),
+    formatVersion: z.literal(2),
     user: userSchema,
     completedLessons: z.array(z.string().max(100)).max(10000),
     xp: z.number().int().min(0).max(1000000000),
@@ -366,7 +438,7 @@ const backupStateSchema = z
           .strict(),
       )
       .max(1000),
-    reviewRewards: z.array(z.string().max(250)).max(200000),
+    reviewRewards: z.array(z.string().max(500)).max(200000),
     skillDayBaseline: z.record(
       z.object({ day: z.string().max(10), lastPracticedAt: iso.nullable() }).strict(),
     ),
@@ -375,7 +447,7 @@ const backupStateSchema = z
 const backupSchema = z
   .object({
     format: z.literal('lingoquest-backup'),
-    formatVersion: z.literal(1),
+    formatVersion: z.literal(2),
     exportedAt: iso,
     state: backupStateSchema,
     progress: z.unknown().optional(),
@@ -398,7 +470,7 @@ export class OfflineEngine {
   }
   private initial(): OfflineState {
     return {
-      formatVersion: 1,
+      formatVersion: 2,
       user: {
         id: this.id(),
         name: 'Explorador',
@@ -438,9 +510,15 @@ export class OfflineEngine {
         if (raw) {
           try {
             state = JSON.parse(raw) as OfflineState;
-            if (state.formatVersion !== 1 || !state.user || !Array.isArray(state.completedLessons))
-              throw new Error();
-          } catch {
+            if (state.formatVersion !== 2)
+              throw new LocalError(
+                'El curso de desarrollo cambió. Tus datos anteriores siguen guardados. Exporta una copia y restablece el progreso para empezar el nuevo curso; los respaldos de la versión anterior no se pueden restaurar aquí.',
+                409,
+                'LOCAL_DATA_RESET_REQUIRED',
+              );
+            if (!state.user || !Array.isArray(state.completedLessons)) throw new Error();
+          } catch (error) {
+            if (error instanceof LocalError) throw error;
             throw new LocalError(
               'No pudimos abrir tus datos locales. Conserva una copia antes de restablecerlos.',
               500,
@@ -496,52 +574,71 @@ export class OfflineEngine {
     }
     if (!visited.includes(exercise.id)) visited.push(exercise.id);
     if (!state.learningDays.includes(date)) state.learningDays.push(date);
-    let mastery = state.mastery.find((m) => m.skillId === exercise.skillId);
-    if (!mastery) {
-      mastery = {
-        skillId: exercise.skillId,
-        value: 0,
-        evidenceCount: 0,
-        unpromptedSuccessCount: 0,
-        lastPracticedAt: new Date(now).toISOString(),
-        nextReviewAt: new Date(now + dayMs).toISOString(),
-        lastDelayedSuccessAt: null,
-      };
-      state.mastery.push(mastery);
-    }
-    if (own(state.skillDayBaseline, exercise.skillId)?.day !== date)
-      set(state.skillDayBaseline, exercise.skillId, {
-        day: date,
-        lastPracticedAt: mastery.evidenceCount ? mastery.lastPracticedAt : null,
-      });
-    const evidenceKey = `evidence:${date}:${exercise.id}`;
     let xpAwarded = 0;
-    if (!state.reviewRewards.includes(evidenceKey)) {
-      const unprompted = exercise.type === 'short_text' && !parsed.hintUsed;
-      const baseline = own(state.skillDayBaseline, exercise.skillId)!.lastPracticedAt;
-      const delayed =
-        correct && unprompted && baseline !== null && Date.parse(baseline) < now - dayMs;
+    const dimension = exercise.dimension ?? 'grammar_understanding';
+    const targets = dimension.startsWith('vocabulary_')
+      ? (exercise.vocabularyIds ?? [])
+      : [exercise.skillId];
+    for (const targetId of new Set(targets)) {
+      const key = `${dimension}:${targetId}`;
+      let mastery = state.mastery.find((m) => m.targetId === targetId && m.dimension === dimension);
+      if (!mastery) {
+        mastery = {
+          skillId: exercise.skillId,
+          targetId,
+          dimension,
+          practicedFormats: [],
+          practicedExerciseIds: [],
+          value: 0,
+          evidenceCount: 0,
+          unpromptedSuccessCount: 0,
+          lastPracticedAt: new Date(now).toISOString(),
+          nextReviewAt: new Date(now + dayMs).toISOString(),
+          lastDelayedSuccessAt: null,
+        };
+        state.mastery.push(mastery);
+      }
+      if (own(state.skillDayBaseline, key)?.day !== date)
+        set(state.skillDayBaseline, key, {
+          day: date,
+          lastPracticedAt: mastery.evidenceCount ? mastery.lastPracticedAt : null,
+        });
+      const evidenceKey = `evidence:${date}:${exercise.id}:${key}`;
+      if (state.reviewRewards.includes(evidenceKey)) continue;
+      const independent =
+        (dimension === 'vocabulary_recall' || dimension === 'grammar_production') &&
+        exercise.type === 'short_text' &&
+        !parsed.hintUsed;
+      const baseline = own(state.skillDayBaseline, key)!.lastPracticedAt;
+      const delayed = correct && baseline !== null && Date.parse(baseline) <= now - dayMs;
       mastery.evidenceCount++;
-      if (correct && unprompted) mastery.unpromptedSuccessCount++;
+      if (correct && independent) mastery.unpromptedSuccessCount++;
+      if (correct && !mastery.practicedFormats.includes(exercise.type))
+        mastery.practicedFormats.push(exercise.type);
+      if (correct && !mastery.practicedExerciseIds.includes(exercise.id))
+        mastery.practicedExerciseIds.push(exercise.id);
+      if (delayed) mastery.lastDelayedSuccessAt = new Date(now).toISOString();
+      // Delayed successes and varied evidence are both needed beyond the initial range.
+      // Recognition and independent production remain different targets at every stage.
+      const varied =
+        mastery.practicedFormats.length >= 2 || mastery.practicedExerciseIds.length >= 2;
+      const ceiling = mastery.lastDelayedSuccessAt && varied ? 0.95 : 0.65;
       mastery.value = Math.max(
         0,
-        Math.min(
-          mastery.lastDelayedSuccessAt !== null || delayed ? 0.95 : 0.85,
-          mastery.value + (correct ? (unprompted ? 0.14 : 0.07) : -0.03),
-        ),
+        Math.min(ceiling, mastery.value + (correct ? (independent ? 0.12 : 0.06) : -0.03)),
       );
-      if (delayed) {
-        mastery.lastDelayedSuccessAt = new Date(now).toISOString();
-        const reward = `review:${date}:${exercise.skillId}`;
+      if (delayed && independent) {
+        const reward = `review:${date}:${key}`;
         if (!state.reviewRewards.includes(reward)) {
           state.reviewRewards.push(reward);
           state.xp += 5;
-          xpAwarded = 5;
+          xpAwarded += 5;
         }
       }
-      const interval = correct
-        ? [1, 3, 7, 14][Math.min(3, Math.floor(mastery.unpromptedSuccessCount / 2))]
-        : 1;
+      const interval =
+        correct && mastery.lastDelayedSuccessAt
+          ? [1, 3, 7, 14][Math.min(3, Math.floor(mastery.evidenceCount / 3))]
+          : 1;
       mastery.lastPracticedAt = new Date(now).toISOString();
       mastery.nextReviewAt = new Date(now + interval * dayMs).toISOString();
       state.reviewRewards.push(evidenceKey);
@@ -587,7 +684,7 @@ export class OfflineEngine {
     if (route === '/v1/me/export')
       return done({
         format: 'lingoquest-backup',
-        formatVersion: 1,
+        formatVersion: 2,
         exportedAt: new Date(now).toISOString(),
         state,
         progress: progress(state, now),
@@ -597,6 +694,17 @@ export class OfflineEngine {
       const input = z.object({ backup: z.unknown() }).strict().parse(body);
       if (JSON.stringify(input.backup).length > 10000000)
         throw new LocalError('La copia supera el tamaño permitido.');
+      if (
+        typeof input.backup === 'object' &&
+        input.backup !== null &&
+        'formatVersion' in input.backup &&
+        input.backup.formatVersion !== 2
+      )
+        throw new LocalError(
+          'Este respaldo pertenece al curso de desarrollo anterior. Conserva el archivo; el nuevo curso necesita progreso nuevo.',
+          409,
+          'BACKUP_VERSION_UNSUPPORTED',
+        );
       const imported = backupSchema.parse(input.backup);
       const next = {
         ...imported.state,
@@ -652,20 +760,46 @@ export class OfflineEngine {
         .filter((m) => params.get('all') === 'true' || Date.parse(m.nextReviewAt) <= now)
         .sort((a, b) => a.value - b.value)
         .map((m) => {
-          const lesson = Object.values(content.lessons).find((l) =>
-            l.exercises.some((e) => e.skillId === m.skillId),
+          const related = Object.values(content.lessons).filter(
+            (lesson) =>
+              own(state.visitedExercises, lesson.id)?.length &&
+              lesson.exercises.some(
+                (e) =>
+                  e.dimension === m.dimension &&
+                  (m.dimension.startsWith('vocabulary_')
+                    ? e.vocabularyIds?.includes(m.targetId)
+                    : e.skillId === m.targetId),
+              ),
           );
+          const lesson =
+            [...related].reverse().find((l) => state.completedLessons.includes(l.id)) ?? related[0];
+          const vocabulary = Object.values(content.lessons)
+            .flatMap((l) => l.vocabulary ?? [])
+            .find((v) => v.id === m.targetId);
           return {
+            key: `${m.dimension}:${m.targetId}`,
             skillId: m.skillId,
+            targetId: m.targetId,
+            dimension: m.dimension,
+            targetLabelEs: vocabulary
+              ? `${vocabulary.en} · ${vocabulary.es}`
+              : (lesson?.title ?? m.skillId),
             mastery: m.value,
             dueAt: m.nextReviewAt,
             due: Date.parse(m.nextReviewAt) <= now,
             lessonId: lesson?.id,
-            exercises:
-              lesson?.exercises
-                .filter((e) => e.skillId === m.skillId)
-                .slice(0, 3)
-                .map(publicExercise) ?? [],
+            exercises: related
+              .flatMap((l) =>
+                l.exercises.filter(
+                  (e) =>
+                    e.dimension === m.dimension &&
+                    (m.dimension.startsWith('vocabulary_')
+                      ? e.vocabularyIds?.includes(m.targetId)
+                      : e.skillId === m.targetId),
+                ),
+              )
+              .slice(0, 4)
+              .map(publicExercise),
           };
         });
       return done({ reviews, total: reviews.length });
@@ -722,12 +856,11 @@ export class OfflineEngine {
     if (route === '/v1/challenges/tracks')
       return done({
         tracks: tracks.map((track) => {
-          const required = content.units.find((u) => u.id === track.requiredUnitId)?.lessons ?? [];
+          const required = requiredLessons(content, track.requiredUnitId);
           return {
             ...track,
-            unlocked:
-              required.length > 0 && required.every((l) => state.completedLessons.includes(l.id)),
-            completedLessons: required.filter((l) => state.completedLessons.includes(l.id)).length,
+            unlocked: trackUnlocked(state, content, track.requiredUnitId),
+            completedLessons: required.filter((id) => state.completedLessons.includes(id)).length,
             requiredLessons: required.length,
             available: track.id === 'present_simple',
             published: false,
@@ -745,8 +878,8 @@ export class OfflineEngine {
       });
     const levelMatch = route.match(/^\/v1\/challenges\/tracks\/([^/]+)\/levels$/);
     if (levelMatch) {
-      if (!tracks.some((t) => t.id === levelMatch[1]))
-        throw new LocalError('Tema no disponible.', 404);
+      const track = tracks.find((t) => t.id === levelMatch[1]);
+      if (!track) throw new LocalError('Tema no disponible.', 404);
       const type = z
         .enum(['grammar_rush', 'cloze_battle', 'reading_quest'])
         .parse(params.get('type') ?? 'grammar_rush');
@@ -758,8 +891,14 @@ export class OfflineEngine {
           level: level.level,
           nameEs: level.name_es,
           hearts: level.hearts,
-          seconds: timeBudget(content, type, level.level, questions(content, type, level.level)),
-          unlocked: true,
+          seconds: timeBudget(
+            content,
+            type,
+            level.level,
+            questions(content, type, level.level, state),
+          ),
+          unlocked:
+            track.id === 'present_simple' && trackUnlocked(state, content, track.requiredUnitId),
           bestScore: record?.bestScores[String(level.level)] ?? 0,
         })),
         practiceOnly: true,
@@ -779,6 +918,13 @@ export class OfflineEngine {
           404,
           'CONTENT_UNAVAILABLE',
         );
+      const track = tracks.find((t) => t.id === input.trackId)!;
+      if (!trackUnlocked(state, content, track.requiredUnitId))
+        throw new LocalError(
+          'Primero completa las lecciones relacionadas. Los desafíos son opcionales y solo usan material aprendido.',
+          403,
+          'CHALLENGE_LOCKED',
+        );
       const fingerprint = JSON.stringify(input);
       const previous = own(state.runRequests, input.clientRequestId);
       if (previous) {
@@ -793,7 +939,7 @@ export class OfflineEngine {
         finish(state, run, now);
         return done(view(run, now));
       }
-      const items = copy(questions(content, input.type, input.level));
+      const items = copy(questions(content, input.type, input.level, state));
       const needed = input.type === 'grammar_rush' ? 10 : input.type === 'cloze_battle' ? 5 : 4;
       if (items.length < needed) throw new LocalError('Faltan preguntas para esta práctica.', 404);
       const config = content.challengeLevels.find((l) => l.level === input.level)!;

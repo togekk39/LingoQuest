@@ -227,6 +227,7 @@ export function ChallengesScreen({
     }
   }, []);
   function openTrack(selectedTrack: Track) {
+    if (!selectedTrack.unlocked || selectedTrack.available === false) return;
     setTrack(selectedTrack);
     setView('track');
     setType('grammar_rush');
@@ -455,8 +456,8 @@ export function ChallengesScreen({
                   )}
                   <Text style={s.requirementText}>
                     {item.unlocked
-                      ? 'Unidad completada'
-                      : `Unidad ${Number(item.requiredUnitId.replace('u', ''))} · ${item.completedLessons} de ${item.requiredLessons} lecciones`}
+                      ? 'Material relacionado aprendido'
+                      : `${item.completedLessons} de ${item.requiredLessons} lecciones necesarias`}
                   </Text>
                 </View>
                 <Text style={s.previewCopy}>
@@ -464,15 +465,17 @@ export function ChallengesScreen({
                     ? 'Este paquete todavía no incluye preguntas para este tema.'
                     : item.unlocked
                       ? 'Ya aprendiste las bases. Practica a tu ritmo, sin conexión.'
-                      : 'Te recomendamos completar la unidad para conocer las bases. También puedes explorar la práctica.'}
+                      : 'Completa primero las lecciones relacionadas. Después podrás practicar estos retos.'}
                 </Text>
                 <Action
                   label={
                     (item.available ?? item.id === 'present_simple')
-                      ? 'Explorar práctica'
+                      ? item.unlocked
+                        ? 'Explorar práctica'
+                        : 'Completa las lecciones primero'
                       : 'En preparación'
                   }
-                  disabled={!(item.available ?? item.id === 'present_simple')}
+                  disabled={!(item.available ?? item.id === 'present_simple') || !item.unlocked}
                   secondary
                   onPress={() => openTrack(item)}
                 />
@@ -528,10 +531,9 @@ export function ChallengesScreen({
           <View style={s.notice}>
             <LockKeyhole color={C.teal} size={18} />
             <Text style={s.noticeText}>
-              Te recomendamos practicar primero las{' '}
+              Completa primero las{' '}
               {Math.max(0, (track?.requiredLessons ?? 4) - (track?.completedLessons ?? 0))}{' '}
-              lecciones de la unidad {Number(track?.requiredUnitId.replace('u', ''))} para conocer
-              las bases. También puedes explorar estos retos sin conexión.
+              lecciones relacionadas para desbloquear estos retos sin conexión.
             </Text>
           </View>
         )}
@@ -553,6 +555,8 @@ export function ChallengesScreen({
               <Pressable
                 key={item.level}
                 accessibilityRole="button"
+                disabled={!item.unlocked}
+                accessibilityState={{ disabled: !item.unlocked }}
                 accessibilityLabel={`Nivel ${item.level}: ${item.nameEs}. ${item.hearts} corazones. ${clock(item.seconds)} minutos.`}
                 onPress={() => {
                   setLevel(item);

@@ -19,7 +19,7 @@ import {
 } from '../packages/course-pack/src/index.ts';
 async function main() {
   const root = resolve(process.cwd());
-  const version = process.env.COURSE_PACK_VERSION ?? '1.0.0';
+  const version = process.env.COURSE_PACK_VERSION ?? '2.0.0';
   const repository = process.env.COURSE_PACK_REPOSITORY ?? 'togekk39/LingoQuest';
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository))
     throw new Error('COURSE_PACK_REPOSITORY must be owner/repository.');
@@ -38,7 +38,7 @@ async function main() {
     {
       packageId: 'es419-enus-a1a2',
       version,
-      minAppVersion: '1.2.0',
+      minAppVersion: '1.3.0',
       titleEs: 'Inglés para tu vida real · A1–A2',
       locale: 'es-419',
       targetLanguage: 'en-US',
@@ -53,6 +53,24 @@ async function main() {
   await writeFile(resolve(releaseDir, fileName), serialized);
   await writeFile(resolve(root, 'apps/mobile/src/content/bundled-course.json'), serialized);
   const fileDigest = sha256Hex(serialized);
+  // A built artifact is not a published release. Keep the optional download
+  // field empty until an immutable URL is verified by the release maintainer.
+  await writeFile(
+    resolve(root, 'apps/mobile/src/content/course-source.json'),
+    `${JSON.stringify(
+      {
+        packageId: pack.manifest.packageId,
+        version,
+        repository,
+        published: false,
+        url: '',
+        sha256: fileDigest,
+        sizeBytes: utf8Bytes(serialized).length,
+      },
+      null,
+      2,
+    )}\n`,
+  );
   await writeFile(resolve(releaseDir, `${fileName}.sha256`), `${fileDigest}  ${fileName}\n`);
   const catalog = courseCatalogSchema.parse({
     format: 'lingoquest-course-catalog',

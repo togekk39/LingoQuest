@@ -19,7 +19,7 @@ const bundled = JSON.parse(
 );
 function upgradedPack() {
   const payload = structuredClone(bundled.payload);
-  payload.lessons.u01_l02.introEs =
+  payload.lessons.u01_l02.contextEs =
     'Este concepto actualizado viene de un paquete local verificado.';
   const [major, minor, patch] = bundled.manifest.version.split('.').map(Number);
   return createCoursePack(payload, {
@@ -77,7 +77,7 @@ test('course files update offline, preserve progress and reject corrupt content 
   ).toBeVisible();
   await page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }).click();
   await expect(
-    page.getByText(updated.payload.lessons.u01_l02.introEs, { exact: true }),
+    page.getByText(updated.payload.lessons.u01_l02.contextEs, { exact: true }),
   ).toBeVisible();
 });
 

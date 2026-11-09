@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseCoursePack, parseCourseCatalog, sha256Hex, utf8Bytes } from '@lingoquest/course-pack';
 async function main() {
-  const version = process.env.COURSE_PACK_VERSION ?? '1.0.0';
+  const version = process.env.COURSE_PACK_VERSION ?? '2.0.0';
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version))
     throw new Error('Invalid release version.');
   const root = resolve('content/releases');

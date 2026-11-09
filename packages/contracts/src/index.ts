@@ -5,6 +5,13 @@ export const answerSchema = z
     optionId: z.string().max(100).optional(),
     text: z.string().max(2000).optional(),
     tokens: z.array(z.string().max(200)).max(60).optional(),
+    matches: z
+      .record(z.string().min(1).max(100), z.string().min(1).max(100))
+      .refine(
+        (pairs) => Object.keys(pairs).length > 0 && Object.keys(pairs).length <= 10,
+        'Relaciona entre una y diez parejas.',
+      )
+      .optional(),
   })
   .strict()
   .refine(
@@ -60,7 +67,39 @@ export const credentialsSchema = z
   })
   .strict();
 
-export type ExerciseType = 'single_choice' | 'cloze' | 'reorder' | 'correction' | 'short_text';
+export type ExerciseType =
+  'single_choice' | 'meaning' | 'matching' | 'cloze' | 'reorder' | 'correction' | 'short_text';
+export type EvidenceDimension =
+  'vocabulary_recognition' | 'vocabulary_recall' | 'grammar_understanding' | 'grammar_production';
+export interface Translation {
+  en: string;
+  es: string;
+}
+export interface VocabularyItem {
+  id: string;
+  en: string;
+  es: string;
+  partOfSpeech: string;
+  example: Translation;
+  status: 'new' | 'review';
+  audioAssetId?: string;
+  illustrationAssetId?: string;
+}
+export interface LessonGrammar {
+  skillId: string;
+  prerequisiteSkillIds: string[];
+  explanationEs: string;
+  examples: Translation[];
+  taughtForms?: Translation[];
+}
+export interface DialogueTurn extends Translation {
+  speaker: string;
+  glosses: Translation[];
+}
+export interface LessonStage {
+  type: 'goal' | 'vocabulary' | 'grammar' | 'dialogue' | 'practice' | 'speaking' | 'recap';
+  exerciseIds?: string[];
+}
 export interface PublicExercise {
   id: string;
   type: ExerciseType;
@@ -71,6 +110,12 @@ export interface PublicExercise {
   skillId: string;
   passage?: string;
   difficulty: number;
+  vocabularyIds?: string[];
+  dimension?: EvidenceDimension;
+  contextualGlosses?: Translation[];
+  optionsLanguage?: 'en' | 'es';
+  matchingPairs?: { id: string; left: string; right: string }[];
+  requiredLessonIds?: string[];
 }
 export interface PublicLesson {
   id: string;
@@ -81,6 +126,16 @@ export interface PublicLesson {
   speakingText: string;
   exercises: PublicExercise[];
   estimatedMinutes?: number;
+  objectiveEs?: string;
+  contextEs?: string;
+  cefr?: 'A1' | 'A2';
+  order?: number;
+  properNames?: string[];
+  vocabulary?: VocabularyItem[];
+  grammar?: LessonGrammar;
+  dialogue?: DialogueTurn[];
+  stages?: LessonStage[];
+  review?: { vocabularyIds: string[]; skillIds: string[] };
 }
 export interface User {
   id: string;
@@ -93,6 +148,9 @@ export interface User {
 }
 export interface Mastery {
   skillId: string;
+  targetId?: string;
+  dimension?: EvidenceDimension;
+  practicedFormats?: ExerciseType[];
   value: number;
   evidenceCount: number;
   unpromptedSuccessCount: number;
