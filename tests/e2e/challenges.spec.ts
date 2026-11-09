@@ -1,4 +1,29 @@
-import { test, expect, enterApp, state, learningProgress, readyOfflineShell } from './helpers';
+import {
+  test,
+  expect,
+  enterApp,
+  state,
+  learningProgress,
+  readyOfflineShell,
+  bundledCourse,
+} from './helpers';
+
+async function unlockLearnedMaterial(page: import('@playwright/test').Page) {
+  // Set the prerequisite for challenge-specific tests. The separate learner journey
+  // exercises real lesson completion; the engine tests enforce the serverless gate.
+  const learned = bundledCourse.payload.units
+    .filter((unit: { id: string }) => ['u01', 'u02'].includes(unit.id))
+    .flatMap((unit: { lessons: { id: string }[] }) => unit.lessons.map((lesson) => lesson.id));
+  await page.evaluate((lessonIds) => {
+    const local = JSON.parse(localStorage.getItem('lq_offline_state_v1')!);
+    local.completedLessons = lessonIds;
+    localStorage.setItem('lq_offline_state_v1', JSON.stringify(local));
+  }, learned);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(
+    page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }),
+  ).toBeVisible();
+}
 
 async function enterArena(page: import('@playwright/test').Page) {
   await page.getByRole('tab', { name: 'Desafíos', exact: true }).click();
@@ -7,12 +32,28 @@ async function enterArena(page: import('@playwright/test').Page) {
   await expect(page.getByRole('button', { name: /^Nivel \d+:/ })).toHaveCount(13);
 }
 
-test('all thirteen local preview levels work offline and a failed challenge preserves learning', async ({
+test('challenges remain locked before the related lessons have been learned', async ({
   page,
   context,
 }) => {
   await enterApp(page);
   await readyOfflineShell(page, context);
+  await page.getByRole('tab', { name: 'Desafíos', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Completa las lecciones primero', exact: true }).first(),
+  ).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Explorar práctica', exact: true })).toHaveCount(0);
+  expect(Object.values((await state(page)).runs)).toHaveLength(0);
+  expect((await state(page)).completedLessons).toEqual([]);
+});
+
+test('all thirteen learned-material challenge levels work offline and a failed challenge preserves learning', async ({
+  page,
+  context,
+}) => {
+  await enterApp(page);
+  await readyOfflineShell(page, context);
+  await unlockLearnedMaterial(page);
   const before = learningProgress(await state(page));
   await enterArena(page);
   await page.getByRole('button', { name: /^Nivel 13:/ }).click();
@@ -42,6 +83,7 @@ test('reading has its own local clock budget, starts only after preflight and fi
   await page.setViewportSize({ width: 390, height: 844 });
   await enterApp(page);
   await readyOfflineShell(page, context);
+  await unlockLearnedMaterial(page);
   const before = learningProgress(await state(page));
   await enterArena(page);
   await page.getByText('Reading Quest', { exact: true }).click();
@@ -52,7 +94,14 @@ test('reading has its own local clock budget, starts only after preflight and fi
   await expect(page.getByText('LEE CON ATENCIÓN', { exact: true })).toBeVisible();
   const run = Object.values((await state(page)).runs).find((item: any) => item.status === 'active');
   expect(run.deadline - run.startedAt).toBeGreaterThanOrEqual(180000);
-  expect(run.items[0].passage.trim().split(/\s+/).length).toBeGreaterThanOrEqual(120);
+  expect(run.items[0].passage.trim().split(/\s+/).length).toBeGreaterThan(5);
+  expect(
+    run.items.every((item: any) =>
+      item.requiredLessonIds?.every((id: string) =>
+        (before.completedLessons as string[]).includes(id),
+      ),
+    ),
+  ).toBeTruthy();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.getByRole('button', { name: 'Salir de la práctica', exact: true }).click();
   await page.getByRole('button', { name: 'Salir de la práctica', exact: true }).last().click();

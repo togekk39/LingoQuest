@@ -48,6 +48,9 @@ import { PronunciationFlow } from './features/PronunciationFlow';
 import { ChallengesScreen } from './challenges/ChallengesScreen';
 import { OfflineProfile as Profile } from './content-manager/OfflineProfile';
 import { speakOffline } from './features/offlineSpeech';
+import { getRaw } from './lib/storage';
+import { saveTextFile } from './lib/localFiles';
+import { OFFLINE_STATE_KEY } from '@lingoquest/offline-engine';
 
 type Tab = 'Inicio' | 'Aprender' | 'Desafíos' | 'Perfil';
 const tabs: { id: Tab; icon: typeof House; subtitle: string }[] = [
@@ -57,7 +60,7 @@ const tabs: { id: Tab; icon: typeof House; subtitle: string }[] = [
   { id: 'Perfil', icon: UserRound, subtitle: 'Tu progreso' },
 ];
 const unitNames = [
-  'Primeras palabras',
+  '¡Hola! Mucho gusto',
   'Tu día a día',
   'Pregunta sin miedo',
   'Historias de ayer',
@@ -150,13 +153,7 @@ export default function App() {
   };
   if (flow?.type === 'lesson')
     return <LearningFlow lessonId={flow.id!} onClose={() => setFlow(null)} onComplete={complete} />;
-  if (flow?.type === 'reviews')
-    return (
-      <ReviewsFlow
-        onClose={() => setFlow(null)}
-        onStartLesson={(id: string) => setFlow({ type: 'lesson', id })}
-      />
-    );
+  if (flow?.type === 'reviews') return <ReviewsFlow onClose={complete} />;
   if (flow?.type === 'placement')
     return <PlacementFlow onClose={() => setFlow(null)} onComplete={complete} />;
   if (flow?.type === 'mission')
@@ -273,6 +270,22 @@ export default function App() {
               <Card>
                 <Heading>No pudimos abrir tus datos</Heading>
                 <Label>{error}</Label>
+                <Button
+                  variant="secondary"
+                  onPress={() => {
+                    void getRaw(OFFLINE_STATE_KEY)
+                      .then(async (raw) => {
+                        if (!raw) throw new Error('No hay datos guardados para conservar.');
+                        await saveTextFile('lingoquest-datos-anteriores.json', raw);
+                        setNotice(
+                          'Copia guardada. Los datos del prototipo anterior son solo para consulta.',
+                        );
+                      })
+                      .catch((e) => setNotice(e.message));
+                  }}
+                >
+                  Guardar copia de los datos anteriores
+                </Button>
                 <Button
                   onPress={() => {
                     setLoading(true);
@@ -608,116 +621,149 @@ export default function App() {
         onRequestClose={() => setWelcome(false)}
       >
         <View style={s.modalShade}>
-          <Card style={s.welcomeCard}>
-            <View style={s.sectionTitle}>
-              <Brand small />
-              <Pressable
-                onPress={() => {
-                  setWelcome(false);
-                  void localSettings.set('onboarded', true);
-                }}
-                accessibilityLabel="Explorar primero"
-                style={s.dismiss}
-              >
-                <X size={20} color={C.muted} />
-              </Pressable>
-            </View>
-            {welcomeStep === 0 ? (
-              <>
-                <View style={{ alignItems: 'center', marginVertical: 8 }}>
-                  <JourneyArt width={230} />
-                </View>
-                <Pill>EL MUNDO TE ESPERA</Pill>
-                <Heading style={{ fontSize: 32, marginTop: 15 }}>Inglés para tu vida real.</Heading>
-                <Label style={{ marginTop: 10, marginBottom: 24 }}>
-                  Pequeños pasos, nuevas posibilidades. Aprende sin presión y descubre tu propio
-                  camino.
-                </Label>
-                <Button onPress={() => setWelcomeStep(1)} icon={ArrowRight}>
-                  Crear mi camino
-                </Button>
-                <Button
-                  variant="ghost"
+          <ScrollView style={{ flexGrow: 0, maxHeight: '100%', maxWidth: 480, width: '100%' }}>
+            <Card style={s.welcomeCard}>
+              <View style={s.sectionTitle}>
+                <Brand small />
+                <Pressable
                   onPress={() => {
                     setWelcome(false);
                     void localSettings.set('onboarded', true);
                   }}
+                  accessibilityLabel="Explorar primero"
+                  style={s.dismiss}
                 >
-                  Explorar primero
-                </Button>
-              </>
-            ) : (
-              <>
-                <Heading style={{ marginVertical: 20 }}>Hagámoslo tuyo.</Heading>
-                <Label>¿Cómo te llamas?</Label>
-                <TextInput
-                  style={s.input}
-                  placeholder="Tu nombre"
-                  placeholderTextColor="#95A39C"
-                  value={name}
-                  onChangeText={setName}
-                  maxLength={40}
-                />
-                <Label style={{ marginTop: 15 }}>¿Cuánto tiempo te gustaría dedicar?</Label>
-                <View style={[s.row, { marginVertical: 12 }]}>
-                  {[5, 10, 15].map((n) => (
-                    <Pressable
-                      key={n}
-                      style={[s.goalOption, goal === n && s.optionActive]}
-                      onPress={() => setGoal(n)}
-                    >
-                      <Text style={s.optionText}>{n} min</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Label>Tu motivo para aprender</Label>
-                <View style={[s.row, { flexWrap: 'wrap', marginVertical: 12 }]}>
-                  {['Vida diaria', 'Viajes', 'Trabajo'].map((m) => (
-                    <Pressable
-                      key={m}
-                      onPress={() => setMotivation(m)}
-                      style={[s.goalOption, motivation === m && s.optionActive]}
-                    >
-                      <Text style={s.optionText}>{m}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Button
-                  onPress={() => {
-                    void api('/v1/me/settings', {
-                      name: name.trim() || 'Explorador',
-                      goalMinutes: goal,
-                      motivation:
-                        motivation === 'Viajes'
-                          ? 'travel'
-                          : motivation === 'Trabajo'
-                            ? 'work'
-                            : 'life',
-                    })
-                      .then(() => refresh())
-                      .then(() => {
-                        setWelcome(false);
-                        void localSettings.set('onboarded', true);
+                  <X size={20} color={C.muted} />
+                </Pressable>
+              </View>
+              {welcomeStep === 0 ? (
+                <>
+                  <View style={{ alignItems: 'center', marginVertical: 8 }}>
+                    <JourneyArt width={230} />
+                  </View>
+                  <Pill>EL MUNDO TE ESPERA</Pill>
+                  <Heading style={{ fontSize: 32, marginTop: 15 }}>
+                    Inglés para tu vida real.
+                  </Heading>
+                  <Label style={{ marginTop: 10, marginBottom: 24 }}>
+                    Pequeños pasos, nuevas posibilidades. Aprende sin presión y descubre tu propio
+                    camino.
+                  </Label>
+                  <Button
+                    onPress={() => {
+                      void localSettings
+                        .set('onboarded', true)
+                        .then(() => {
+                          setWelcome(false);
+                          const first = units[0]?.lessons[0];
+                          if (first) setFlow({ type: 'lesson', id: first.id });
+                        })
+                        .catch((e) => setNotice(e.message));
+                    }}
+                    icon={ArrowRight}
+                  >
+                    Empiezo desde cero
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onPress={() => {
+                      void localSettings
+                        .set('onboarded', true)
+                        .then(() => {
+                          setWelcome(false);
+                          setFlow({ type: 'placement' });
+                        })
+                        .catch((e) => setNotice(e.message));
+                    }}
+                  >
+                    Ya sé algo de inglés
+                  </Button>
+                  <Button variant="ghost" onPress={() => setWelcomeStep(1)}>
+                    Personalizar mi camino
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onPress={() => {
+                      setWelcome(false);
+                      void localSettings.set('onboarded', true);
+                    }}
+                  >
+                    Explorar primero
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Heading style={{ marginVertical: 20 }}>Hagámoslo tuyo.</Heading>
+                  <Label>¿Cómo te llamas?</Label>
+                  <TextInput
+                    style={s.input}
+                    placeholder="Tu nombre"
+                    placeholderTextColor="#95A39C"
+                    value={name}
+                    onChangeText={setName}
+                    maxLength={40}
+                  />
+                  <Label style={{ marginTop: 15 }}>¿Cuánto tiempo te gustaría dedicar?</Label>
+                  <View style={[s.row, { marginVertical: 12 }]}>
+                    {[5, 10, 15].map((n) => (
+                      <Pressable
+                        key={n}
+                        style={[s.goalOption, goal === n && s.optionActive]}
+                        onPress={() => setGoal(n)}
+                      >
+                        <Text style={s.optionText}>{n} min</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Label>Tu motivo para aprender</Label>
+                  <View style={[s.row, { flexWrap: 'wrap', marginVertical: 12 }]}>
+                    {['Vida diaria', 'Viajes', 'Trabajo'].map((m) => (
+                      <Pressable
+                        key={m}
+                        onPress={() => setMotivation(m)}
+                        style={[s.goalOption, motivation === m && s.optionActive]}
+                      >
+                        <Text style={s.optionText}>{m}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Button
+                    onPress={() => {
+                      void api('/v1/me/settings', {
+                        name: name.trim() || 'Explorador',
+                        goalMinutes: goal,
+                        motivation:
+                          motivation === 'Viajes'
+                            ? 'travel'
+                            : motivation === 'Trabajo'
+                              ? 'work'
+                              : 'life',
                       })
-                      .catch((e) => setNotice(e.message));
-                  }}
-                  icon={ArrowRight}
-                >
-                  Empezar mi aventura
-                </Button>
-                <Button
-                  variant="ghost"
-                  onPress={() => {
-                    setWelcome(false);
-                    void localSettings.set('onboarded', true);
-                    setFlow({ type: 'placement' });
-                  }}
-                >
-                  Ya sé un poco de inglés · Explorar mi nivel
-                </Button>
-              </>
-            )}
-          </Card>
+                        .then(() => refresh())
+                        .then(() => {
+                          setWelcome(false);
+                          void localSettings.set('onboarded', true);
+                        })
+                        .catch((e) => setNotice(e.message));
+                    }}
+                    icon={ArrowRight}
+                  >
+                    Empezar mi aventura
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onPress={() => {
+                      setWelcome(false);
+                      void localSettings.set('onboarded', true);
+                      setFlow({ type: 'placement' });
+                    }}
+                  >
+                    Ya sé algo de inglés
+                  </Button>
+                </>
+              )}
+            </Card>
+          </ScrollView>
         </View>
       </Modal>
       <Modal visible={recoveryReset} transparent onRequestClose={() => setRecoveryReset(false)}>
@@ -726,7 +772,9 @@ export default function App() {
             <Heading>¿Restablecer los datos locales?</Heading>
             <Label style={{ marginVertical: 20 }}>
               Se borrará el progreso de este dispositivo. Los cursos instalados se conservan. Si
-              tienes un respaldo podrás restaurarlo después.
+              tienes un respaldo de esta versión podrás restaurarlo después. El nuevo curso
+              integrado usa un formato de progreso diferente: las copias del prototipo anterior se
+              pueden conservar para consulta, pero no restaurar en esta versión.
             </Label>
             <Button
               variant="danger"
@@ -735,7 +783,11 @@ export default function App() {
                 setLoading(true);
                 void api('/v1/me', undefined, 'DELETE')
                   .then(refresh)
-                  .then(() => setRecoveryReset(false))
+                  .then(() => {
+                    setRecoveryReset(false);
+                    setWelcomeStep(0);
+                    setWelcome(true);
+                  })
                   .catch((e) => setError(e.message))
                   .finally(() => setLoading(false));
               }}

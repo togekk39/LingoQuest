@@ -6,7 +6,8 @@ import {
   enterApp,
   state,
   beginFirstLesson,
-  finishAllWrong,
+  chooseCorrectAnswer,
+  finishLesson,
   readyOfflineShell,
   type ExerciseFixture,
 } from './helpers';
@@ -16,29 +17,94 @@ const pack = JSON.parse(
 );
 const exercises = pack.payload.lessons.u01_l01.exercises as ExerciseFixture[];
 
-test('fresh installation completes a lesson fully offline with immediate local feedback and persistent XP', async ({
+test('fresh zero-knowledge learner completes the integrated lesson offline, retries safely and returns for review', async ({
   page,
   context,
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await enterApp(page);
-  expect((await state(page)).xp).toBe(0);
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Empiezo desde cero', exact: true })).toBeVisible();
   await readyOfflineShell(page, context);
-  await beginFirstLesson(page);
-  await finishAllWrong(page, exercises);
+  await page.getByRole('button', { name: 'Empiezo desde cero', exact: true }).click();
+  await expect(page.getByTestId('lesson-stage-goal')).toBeVisible();
+  await expect(page.getByText('Meta de hoy', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Pregunta \d+ de/)).toHaveCount(0);
+  expect((await state(page)).xp).toBe(0);
+  await page.getByRole('button', { name: 'Conocer las palabras', exact: true }).click();
+  await expect(page.getByTestId('lesson-stage-vocabulary')).toBeVisible();
+  await expect(page.getByText('Palabras para esta situación', { exact: true })).toBeVisible();
+  await finishLesson(page, exercises, { correct: true, retryFirst: true });
   const completed = await state(page);
+  expect(completed.formatVersion).toBe(2);
   expect(completed.completedLessons).toEqual(['u01_l01']);
   expect(completed.xp).toBe(25);
   expect(completed.mastery.every((skill) => skill.value < 1)).toBeTruthy();
+  expect(new Set(completed.mastery.map((skill) => skill.dimension))).toEqual(
+    new Set([
+      'vocabulary_recognition',
+      'vocabulary_recall',
+      'grammar_understanding',
+      'grammar_production',
+    ]),
+  );
   await page.getByRole('button', { name: 'Volver a mi camino', exact: true }).click();
+  await page.clock.install({ time: new Date(Date.now() + 86_400_000) });
   await page.reload();
   await expect(
     page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }),
   ).toBeVisible();
   expect((await state(page)).xp).toBe(25);
-  await page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }).click();
-  await expect(page.getByText('Pronombres personales', { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Repasar un poquito', exact: true }).click();
+  await expect(
+    page.getByText('Un buen momento para recordar', { exact: true }).first(),
+  ).toBeVisible();
+  await page.getByRole('tab', { name: 'Todas mis habilidades', exact: true }).click();
+  await expect(page.getByText('Reconocer palabras', { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText('Recordar palabras sin opciones', { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Usar la gramática al escribir', { exact: true }).first(),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Practicar esta habilidad', exact: true }).first().click();
+  await expect(page.getByTestId('lesson-stage-goal')).toBeVisible();
+  await expect(page.getByText(/corazones|tiempo restante/i)).toHaveCount(0);
+  await finishLesson(page, exercises, { correct: true });
+  const reviewed = await state(page);
+  expect(reviewed.xp).toBeGreaterThan(completed.xp);
+  expect(
+    reviewed.mastery.some((skill, index) => skill.value > completed.mastery[index].value),
+  ).toBeTruthy();
+  await page.getByRole('button', { name: 'Volver a mi camino', exact: true }).click();
+  await expect(
+    page.getByText('Un pequeño repaso hace la diferencia.', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar y volver', exact: true }).click();
+  // The parent must reflect saved review results without a page reload.
+  await expect(page.getByText(`${reviewed.xp} XP`, { exact: true })).toBeVisible();
+  await expect(page.getByText('2 días', { exact: true })).toBeVisible();
+  await expect(page.getByText('A tu ritmo', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Aprender', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Repasar · 0 pendientes', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('tab', { name: 'Perfil', exact: true }).click();
+  await expect(
+    page
+      .getByText('XP de aprendizaje', { exact: true })
+      .locator('..')
+      .getByText(String(reviewed.xp), { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByText('Días consecutivos', { exact: true })
+      .locator('..')
+      .getByText('2', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/^\d+% · Evidencia de práctica$/)).toHaveText(
+    reviewed.mastery.map((skill) => `${Math.round(skill.value * 100)}% · Evidencia de práctica`),
+  );
   expect(errors).toEqual([]);
 });
 
@@ -61,11 +127,14 @@ test('the bundled course cold-reloads offline without signing in, downloading le
   await expect(
     page.getByRole('button', { name: 'Siguiente ejercicio', exact: true }),
   ).toBeVisible();
-  expect((await state(page)).mastery).toHaveLength(1);
+  expect((await state(page)).mastery.length).toBeGreaterThan(0);
+  expect(
+    (await state(page)).mastery.every((item) => item.dimension === 'vocabulary_recognition'),
+  ).toBeTruthy();
   expect((await state(page)).xp).toBe(0);
   await page.getByRole('button', { name: 'Cerrar y volver', exact: true }).click();
   await page.getByRole('tab', { name: 'Aprender', exact: true }).click();
-  await expect(page.getByText('Real-life missions', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Preparar mi viaje', exact: true })).toBeVisible();
 });
 
 test('phone layout exposes all four destinations and practice without horizontal overflow', async ({
@@ -124,12 +193,15 @@ test('placement and a complete airport mission run locally without altering cour
   await page.getByRole('tab', { name: 'Aprender', exact: true }).click();
   await page.getByRole('button', { name: 'Explorar mi nivel', exact: true }).click();
   await page.getByRole('button', { name: 'Explorar mi nivel', exact: true }).click();
-  for (let index = 0; index < 12; index++) {
-    await expect(page.getByText(`Pregunta ${index + 1} de 12`, { exact: true })).toBeVisible();
-    await page.getByRole('radio').first().click();
+  const questions = pack.payload.placementQuestions as ExerciseFixture[];
+  for (let index = 0; index < questions.length; index++) {
+    await expect(
+      page.getByText(`Pregunta ${index + 1} de ${questions.length}`, { exact: true }),
+    ).toBeVisible();
+    await chooseCorrectAnswer(page, questions[index]);
     await page
       .getByRole('button', {
-        name: index === 11 ? 'Ver mi orientación' : 'Siguiente pregunta',
+        name: index + 1 === questions.length ? 'Ver mi orientación' : 'Siguiente pregunta',
         exact: true,
       })
       .click();
@@ -213,9 +285,83 @@ test('local review finds a practiced skill and opens untimed practice without a 
   await page.getByRole('button', { name: 'Cerrar y volver', exact: true }).click();
   await page.getByRole('button', { name: 'Repasar un poquito', exact: true }).click();
   await page.getByRole('tab', { name: 'Todas mis habilidades', exact: true }).click();
-  await expect(page.getByText('Verbo be', { exact: true })).toBeVisible();
+  await expect(page.getByText('Reconocer palabras', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Practicar esta habilidad', exact: true }).first().click();
-  await expect(page.getByText('Una idea que abre puertas', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('lesson-stage-goal')).toBeVisible();
   await expect(page.getByText(/corazones|tiempo restante/i)).toHaveCount(0);
+  expect((await state(page)).xp).toBe(0);
+});
+
+test('optional recording and replay stay local without a fabricated pronunciation score', async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() => {
+    // A generated tone tests MediaRecorder/replay without requesting a real microphone.
+    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+      configurable: true,
+      value: async () => {
+        const audio = new AudioContext();
+        const oscillator = audio.createOscillator();
+        const destination = audio.createMediaStreamDestination();
+        oscillator.connect(destination);
+        oscillator.start();
+        await audio.resume();
+        return destination.stream;
+      },
+    });
+  });
+  await enterApp(page);
+  await readyOfflineShell(page, context);
+  await page.getByRole('button', { name: 'Practicar pronunciación', exact: true }).click();
+  await page
+    .getByRole('button', { name: /^Practicar: / })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
+  await page.getByRole('button', { name: 'Terminar grabación', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Escuchar mi grabación', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Escuchar mi grabación', exact: true }).click();
+  await expect(
+    page.getByText(/no genera una calificación automática de pronunciación/),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Continuar con mi lección', exact: true }).click();
+  await expect(page.getByText('Tu inglés tiene algo que decir.', { exact: true })).toBeVisible();
+  expect(JSON.stringify(await state(page))).not.toMatch(/blob:|recordingUri|pronunciationScore/);
+});
+
+test('development progress reset is explicit and the original local data can be saved first', async ({
+  page,
+}) => {
+  const previous = {
+    formatVersion: 1,
+    user: { name: 'Prototipo' },
+    completedLessons: ['u01_l01'],
+    xp: 75,
+  };
+  await page.addInitScript((original) => {
+    localStorage.setItem('lq_setting:onboarded', 'true');
+    localStorage.setItem('lq_offline_state_v1', JSON.stringify(original));
+  }, previous);
+  await page.goto('/');
+  await expect(page.getByText('No pudimos abrir tus datos', { exact: true })).toBeVisible();
+  expect(await state(page)).toEqual(previous);
+  const downloaded = page.waitForEvent('download');
+  await page
+    .getByRole('button', { name: 'Guardar copia de los datos anteriores', exact: true })
+    .click();
+  const file = await downloaded;
+  expect(JSON.parse(readFileSync((await file.path())!, 'utf8'))).toEqual(previous);
+  await page.getByRole('button', { name: 'Restablecer datos locales', exact: true }).click();
+  await expect(page.getByText('¿Restablecer los datos locales?', { exact: true })).toBeVisible();
+  expect(await state(page)).toEqual(previous);
+  await page
+    .getByRole('button', { name: 'Borrar progreso de este dispositivo', exact: true })
+    .click();
+  await expect(page.getByRole('button', { name: 'Empiezo desde cero', exact: true })).toBeVisible();
+  expect((await state(page)).formatVersion).toBe(2);
+  expect((await state(page)).completedLessons).toEqual([]);
   expect((await state(page)).xp).toBe(0);
 });

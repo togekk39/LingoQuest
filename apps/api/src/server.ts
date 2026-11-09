@@ -94,6 +94,11 @@ export function publicExercise(e: PrivateExercise): PublicExercise {
     skillId: e.skillId,
     passage: e.passage,
     difficulty: e.difficulty,
+    vocabularyIds: e.vocabularyIds,
+    dimension: e.dimension,
+    contextualGlosses: e.contextualGlosses,
+    optionsLanguage: e.optionsLanguage,
+    matchingPairs: e.matchingPairs,
   };
 }
 function streak(days: string[], now: number): number {

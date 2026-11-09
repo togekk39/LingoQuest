@@ -1,45 +1,67 @@
-# LingoQuest offline course pack v1
+# LingoQuest offline course pack v2
 
-`.lqp.json` 是 UTF-8 JSON 檔案，封裝教材、離線判分答案、發音文字練習、情境分支與挑戰參數。App 內建完整基礎包，第一次啟動也不必連線；更新包可由 GitHub Releases 下載，或透過 Android 系統選檔器匯入。
+`.lqp.json` 是 UTF-8 JSON，包含整合情境課程、本機判分規則、發音文字、情境分支與 13 級挑戰。App 內建完整基礎包，首次啟動不需連線或登入；使用者也可主動從 GitHub 下載或由系統選檔器匯入更新。
 
-目前教材約 275 KB，沒有大型影片／音訊檔，JSON 比 OBB 更適合獨立更新與驗證。OBB 與 APK expansion／特定發行流程綁定，對這版小型文字課程沒有實益。未來若加入大量離線音訊，可定義 v2 ZIP／媒體資產格式；v1 不會解壓縮、執行程式碼或解讀任意檔案路徑。
+這版以小型文字課程為主，沒有外部媒體請求，也沒有 OBB、ZIP 解壓縮、程式碼執行或任意檔案路徑。容量上限為 4 MiB。`assets` 預設為空；若未來加入媒體，必須把 Base64 內容、MIME 類型、來源與授權一起封裝。音訊與插圖引用必須對應包內同類型資產，不能放遠端 URL。沒有參考音訊時，介面必須明示限制；裝置本機錄音／重播不依賴教材音訊。
 
 ## 資料格式
 
 ```text
 manifest
   format: "lingoquest-course-pack"
-  schemaVersion: 1
+  schemaVersion: 2
   packageId: 穩定課程識別碼
-  version: 課程內容版本（例如 1.0.0）
-  minAppVersion: 最低 App 版本（目前 1.2.0）
-  titleEs / locale / targetLanguage / createdAt
-  sha256: 下述 canonical metadata + payload 的雜湊
+  version: 課程內容版本（例如 2.0.0）
+  minAppVersion: 最低 App 版本（目前 1.3.0）
+  titleEs / locale: es-419 / targetLanguage: en-US / createdAt
+  sha256: canonical manifest（不含 sha256）+ payload 摘要
 payload
   units / lessons / challengePools / challengeLevels
-  placementQuestions / missions / speechDrills / contentStatus
+  placementQuestions / missions / speechDrills / contentStatus / assets
+lesson
+  id / unitId / order / cefr / title / objectiveEs / contextEs / estimatedMinutes
+  vocabulary: id / en / es / partOfSpeech / example / status（new 或 review）
+  grammar: skillId / prerequisiteSkillIds / explanationEs / examples / taughtForms
+  dialogue: speaker / en / es / glosses
+  stages: goal → vocabulary → grammar → dialogue → practice → speaking → recap
+  exercises: 明確題型、答案、回饋、difficulty、vocabularyIds、dimension
+  review: vocabularyIds / skillIds
 ```
 
-- 摘要計算：將 `{manifest: 不含 sha256 的 manifest, payload}` 以 `canonicalStringify()` 排序物件鍵，保留陣列順序，轉 UTF-8，再計算 SHA-256。
-- `catalog.json` 另列每個完整 `.lqp.json` 檔案的 **原始位元組 SHA-256 與大小**。這份外部摘要供發布管理／人工核對；目前 App 的下載入口直接安裝課程檔，驗證其內部摘要與結構，不會先請求 catalog。
-- 容量上限 4 MiB；課程數、題數、字串長度、物件深度也有上限。
-- Zod 嚴格 schema 拒絕未知欄位；拒絕 prototype keys、重複 ID、失效課程／情境引用、無效選項答案、不完整 13 級與不相容 App 版本。
-- 只有資料，沒有 JavaScript、SQL、外掛程式或任意執行入口。
-- SHA-256 用於驗證完整性，不是來源簽章。來源信任依賴使用者選擇的 HTTPS GitHub 位置；不要把摘要聲稱為作者身分驗證。
+`vocabulary` 與 `practice` 階段以 `exerciseIds` 指向該課題目，每題只能安排一次。單字階段先用 `meaning`、`matching` 或選擇題辨識意思；後續可使用填空、重排、改錯及短句產出。`matchingPairs` 的左側是英語、右側是西語；作答的 `matches` 為「左側 ID → 右側 ID」對應表。
 
-## 版本與進度
+每題的 `dimension` 必須明確標記為 `vocabulary_recognition`、`vocabulary_recall`、`grammar_understanding` 或 `grammar_production`。選擇／配對題不能宣稱提供獨立產出證據。字彙題以 `vocabularyIds` 指向被練習的詞；文法題使用 `skillId`。這些標籤提供本機引擎分開累積證據，不把課程完成、XP 或挑戰等級當成長期掌握。
 
-App 的個人進度、XP、技能證據與挑戰結果存放於獨立的本機儲存，**不寫入課程包**。同一 `packageId` 的更新需沿用既有 unit、lesson、exercise ID；改標題或新增課程不應清除進度。App 安裝流程先完整驗證新包，成功後才以單次儲存切換活動版本。匯入失敗必須保留舊包與個人紀錄。
+## 編寫驗證
 
-離線判分需要把答案包含在裝置內容中，因此這版只提供個人練習／自我挑戰，不聲稱有可信的線上排名、官方成績或不可竄改的獎章。
+- 嚴格 Zod schema 拒絕未知欄位、缺少翻譯或答案、空白文字、不相容 schema／App 版本及超量內容。
+- 引用驗證拒絕重複 ID、未知課程／技能／單字、尚未學過的文法前置技能、錯誤課序、缺題或順序錯誤的階段。
+- 選項 ID 與正確答案必須一致；重複或標點／大小寫不同但意義相同的選項、重複配對內容與無法由詞塊組成的答案會被拒絕。
+- 英語題幹、閱讀段落、詞塊、英語選項及文字答案的詞彙，必須已由當課或前課的 `vocabulary`／`grammar.taughtForms` 教過，或由該題 `contextualGlosses` 明確提供西語意思。人名、地名使用 `properNames` 宣告。西語選項必須標記 `optionsLanguage: es`。
+- 同一單字以原 ID、相同英／西語文字及 `status: review` 重複練習；不能把未知 ID 宣稱為已學字彙。
+- 挑戰題必須宣告 `requiredLessonIds`，技能與字彙不能超出這些課程累積教過的範圍。引擎另外檢查使用者確實完成所需課程。
+- 媒體引用必須存在於 `assets`，類型必須正確，並有來源與授權資料。
+
+驗證能攔截可機械判斷的缺漏，不能證明翻譯、教學難度或語境自然。新增教材仍需人工語言與教育審查；測試通過不會把 `draft_needs_human_review` 改成已審查。
+
+## 摘要與來源
+
+`canonicalStringify()` 將物件鍵排序，保留陣列順序，對 `{manifest: 不含 sha256 的 manifest, payload}` 的 UTF-8 位元組計算 SHA-256。`catalog.json` 與 `.sha256` 另外記錄完整發布檔的原始位元組摘要和大小；App 的直接匯入入口驗證包內摘要與內容，沒有背景 catalog 請求。
+
+SHA-256 驗證完整性，並非作者簽章。使用者選擇的 HTTPS GitHub 來源決定來源信任。包內沒有 JavaScript、SQL、外掛或任意執行入口，也會拒絕 prototype keys 及過深物件。
+
+## 版本與開發資料
+
+v2 是開發中的破壞性課綱與資料格式更新，不支援 v1 課程包，也沒有雙課綱或相容層。舊開發版學習資料不會自動轉成新課綱進度；App 會說明開發版重設，舊備份格式不能還原為新版。詳見根目錄 README 的開發資料說明。
+
+新版個人進度、XP、字彙／文法證據與挑戰結果仍獨立儲存於裝置，**不寫入課程包**。同一新版課綱內更新應維持 ID 穩定。安裝新包前完整驗證，成功後才切換活動包；匯入失敗保留目前內容和資料。離線答案必須存在裝置內，因此只供個人練習，不宣稱可信線上排名、官方成績或不可修改的獎章。
 
 ## 對外介面
 
-- `parseCoursePack(text, appVersion?)`：限制大小、解析、結構與引用驗證、最低版本與摘要驗證。
-- `createCoursePack(payload, metadata)`：建立經驗證的新包；以完整舊 manifest spread 再改 `version` 也可使用。
-- `serializeCoursePack(pack)`：canonical JSON + 最後一個換行，輸出可重現發布檔。
+- `parseCoursePack(text, appVersion?)`：限制大小、解析、schema／引用／詞彙／最低版本／摘要驗證。
+- `createCoursePack(payload, metadata)`：建立經驗證的新包。
+- `serializeCoursePack(pack)`：canonical JSON 加最後換行，輸出可重現檔案。
+- `validateReferences(payload)`：供編寫工具進行內容關聯驗證。
 - `compareVersions(a, b)`：三段數字版本比較。
-- `parseCourseCatalog(text)`：限制 catalog 大小及 HTTPS GitHub URL。
-- `sha256Hex()`／`utf8Bytes()`：不依賴 Node、原生付費服務或網路的可攜實作。
-
-新增教材仍需教育／語言人工審查。內建包目前如實標示 `draft_needs_human_review`，不因打包或測試通過而改成已審查。
+- `parseCourseCatalog(text)`：驗證 catalog 大小、重複版本及 HTTPS GitHub URL。
+- `sha256Hex()`／`utf8Bytes()`：不依賴 Node、付費原生服務或網路的可攜實作。

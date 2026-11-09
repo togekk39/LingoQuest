@@ -14,6 +14,12 @@ import { api, type Progress } from '../lib/api';
 import { C, Button, Card, Heading, Label, Pill, ProgressBar } from '../ui';
 import { pickTextFile, saveTextFile } from '../lib/localFiles';
 import { ContentManager } from './ContentManager';
+const dimensionLabels = {
+  vocabulary_recognition: 'Reconocer palabras',
+  vocabulary_recall: 'Recordar palabras',
+  grammar_understanding: 'Entender la estructura',
+  grammar_production: 'Usar la estructura',
+};
 export function OfflineProfile({
   progress,
   onRefresh,
@@ -33,6 +39,19 @@ export function OfflineProfile({
   const [pendingBackup, setPendingBackup] = useState<any>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [targetLabels, setTargetLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let active = true;
+    void api<{ reviews: { key: string; targetLabelEs: string }[] }>('/v1/reviews/today?all=true')
+      .then(({ reviews }) => {
+        if (active)
+          setTargetLabels(Object.fromEntries(reviews.map((r) => [r.key, r.targetLabelEs])));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [progress.mastery]);
   useEffect(() => {
     setName(progress.user.name);
     setGoal(progress.user.goalMinutes || 10);
@@ -142,18 +161,18 @@ export function OfflineProfile({
         <Heading style={{ fontSize: 22 }}>Lo que estás construyendo</Heading>
         {progress.mastery.length ? (
           progress.mastery.map((m) => (
-            <View key={m.skillId} style={{ marginTop: 18 }}>
+            <View key={`${m.dimension}:${m.targetId}`} style={{ marginTop: 18 }}>
               <View style={[s.row, { justifyContent: 'space-between' }]}>
                 <Text style={s.title}>
-                  {m.skillId
-                    .replace('grammar.', '')
-                    .replace('communication.', '')
-                    .replaceAll('_', ' ')}
+                  {targetLabels[`${m.dimension}:${m.targetId}`] ?? 'Práctica en contexto'}
                 </Text>
                 <Label style={{ fontSize: 10 }}>
                   {Math.round(m.value * 100)}% · Evidencia de práctica
                 </Label>
               </View>
+              <Label style={{ fontSize: 11 }}>
+                {m.dimension ? dimensionLabels[m.dimension] : 'Práctica en contexto'}
+              </Label>
               <ProgressBar value={m.value} />
             </View>
           ))
@@ -205,8 +224,10 @@ export function OfflineProfile({
                 } catch {
                   throw new Error('El archivo no es un respaldo JSON válido.');
                 }
-                if (backup?.format !== 'lingoquest-backup' || backup?.formatVersion !== 1)
-                  throw new Error('Selecciona un respaldo de LingoQuest compatible.');
+                if (backup?.format !== 'lingoquest-backup' || backup?.formatVersion !== 2)
+                  throw new Error(
+                    'Selecciona un respaldo del curso integrado (formato 2). Los respaldos del prototipo anterior no son compatibles.',
+                  );
                 setPendingBackup(backup);
               })
             }

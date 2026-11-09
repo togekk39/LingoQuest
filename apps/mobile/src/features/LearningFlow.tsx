@@ -1,27 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
-import { BookOpen, Check, CheckCheck, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
+import type { AttemptResult, Progress } from '@lingoquest/contracts';
+import { stopOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
 import { Action, ErrorCard, f, FlowFrame, newEventId, palette } from './FeatureUI';
-import { ExerciseInput, hasAnswer, type Exercise, type ExerciseAnswer } from './ExerciseInput';
+import { ExerciseInput, hasAnswer, type ExerciseAnswer } from './ExerciseInput';
 import { SpeakingPanel } from './SpeakingPractice';
-interface Lesson {
-  id: string;
-  unitId: string;
-  title: string;
-  introEs: string;
-  examples: { en: string; es: string }[];
-  speakingText: string;
-  exercises: Exercise[];
-}
-interface AttemptResult {
-  correct: boolean;
-  feedbackEs: string;
-  acceptedAnswer?: string;
-  xpAwarded: number;
-}
-type Stage = 'intro' | 'exercise' | 'speak' | 'complete';
+import {
+  AnswerFeedback,
+  DialogueStage,
+  GoalStage,
+  GrammarStage,
+  RecapStage,
+  StageProgress,
+  VocabularyCard,
+  type IntegratedLesson,
+} from './LessonStages';
+
 export default function LearningFlow({
   lessonId,
   onClose,
@@ -33,22 +28,38 @@ export default function LearningFlow({
   onComplete: () => void;
   review?: boolean;
 }) {
-  const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [lesson, setLesson] = useState<IntegratedLesson | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [stage, setStage] = useState<Stage>('intro');
-  const [position, setPosition] = useState(0);
+  const [stagePosition, setStagePosition] = useState(0);
+  const [vocabularyPosition, setVocabularyPosition] = useState(0);
+  const [exercisePosition, setExercisePosition] = useState(-1);
   const [answer, setAnswer] = useState<ExerciseAnswer>({});
   const [result, setResult] = useState<AttemptResult | null>(null);
   const [xp, setXp] = useState(0);
-  const { playOffline, speechMessage } = useOfflineSpeech();
+  const [weakExerciseIds, setWeakExerciseIds] = useState<string[]>([]);
+  const [nextReviewAt, setNextReviewAt] = useState<string | null>(null);
+  const [hintUsed, setHintUsed] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const eventId = useRef(newEventId());
   async function load() {
     setLoading(true);
     setError('');
     try {
-      setLesson(await api<Lesson>(`/v1/lessons/${lessonId}`));
+      const nextLesson = await api<IntegratedLesson>(`/v1/lessons/${lessonId}`);
+      setLesson(nextLesson);
+      setStagePosition(0);
+      setVocabularyPosition(0);
+      setExercisePosition(-1);
+      setAnswer({});
+      setResult(null);
+      setXp(0);
+      setWeakExerciseIds([]);
+      setNextReviewAt(null);
+      setHintUsed(false);
+      setHelpOpen(false);
+      eventId.current = newEventId();
     } catch (e) {
       setError(
         e instanceof Error ? e.message : 'Esta lección no está disponible. Intenta de nuevo.',
@@ -63,9 +74,37 @@ export default function LearningFlow({
       void stopOfflineSpeech();
     };
   }, [lessonId]);
-  const exercise = lesson?.exercises[position];
+  const stage = lesson?.stages[stagePosition];
+  const stageExercises = (stage?.exerciseIds ?? []).map((id) =>
+    lesson!.exercises.find((item) => item.id === id)!,
+  );
+  const exercise = exercisePosition >= 0 ? stageExercises[exercisePosition] : undefined;
+  const globalExercisePosition = exercise
+    ? lesson!.exercises.findIndex((item) => item.id === exercise.id)
+    : -1;
+  function clearAnswer() {
+    setAnswer({});
+    setResult(null);
+    setHintUsed(false);
+    setHelpOpen(false);
+    eventId.current = newEventId();
+  }
+  function advanceStage() {
+    void stopOfflineSpeech();
+    clearAnswer();
+    const nextPosition = stagePosition + 1;
+    setStagePosition(nextPosition);
+    setVocabularyPosition(0);
+    setExercisePosition(lesson?.stages[nextPosition]?.type === 'practice' ? 0 : -1);
+  }
+  function finishTeaching() {
+    if (stageExercises.length) {
+      clearAnswer();
+      setExercisePosition(0);
+    } else advanceStage();
+  }
   async function check() {
-    if (!exercise || !hasAnswer(answer)) return;
+    if (!exercise || !hasAnswer(answer, exercise)) return;
     setBusy(true);
     setError('');
     try {
@@ -74,9 +113,12 @@ export default function LearningFlow({
         lessonId,
         exerciseId: exercise.id,
         answer,
+        hintUsed,
       });
       setResult(response);
-      setXp((v) => v + (response.xpAwarded ?? 0));
+      setXp((value) => value + response.xpAwarded);
+      if (!response.correct)
+        setWeakExerciseIds((ids) => (ids.includes(exercise.id) ? ids : [...ids, exercise.id]));
     } catch (e) {
       setError(
         e instanceof Error
@@ -87,30 +129,41 @@ export default function LearningFlow({
       setBusy(false);
     }
   }
-  function retry() {
-    setResult(null);
-    setAnswer({});
-    eventId.current = newEventId();
+  function nextExercise() {
+    clearAnswer();
+    if (exercisePosition + 1 < stageExercises.length) setExercisePosition(exercisePosition + 1);
+    else advanceStage();
   }
-  function next() {
-    setResult(null);
-    setAnswer({});
-    eventId.current = newEventId();
-    if (lesson && position + 1 < lesson.exercises.length) setPosition(position + 1);
-    else setStage('speak');
+  function nextVocabulary() {
+    void stopOfflineSpeech();
+    if (lesson && vocabularyPosition + 1 < lesson.vocabulary.length)
+      setVocabularyPosition(vocabularyPosition + 1);
+    else if (stageExercises.length) {
+      clearAnswer();
+      setExercisePosition(0);
+    } else advanceStage();
   }
   async function complete() {
     setBusy(true);
     setError('');
     try {
-      const response = await api<{ completed: boolean; xpAwarded: number }>(
+      const response = await api<{ completed: boolean; xpAwarded: number; progress: Progress }>(
         `/v1/lessons/${lessonId}/complete`,
         {},
       );
       if (!response.completed)
         throw new Error('No pudimos completar esta lección. Intenta guardar otra vez.');
-      setXp((v) => v + (response.xpAwarded ?? 0));
-      setStage('complete');
+      setXp((value) => value + response.xpAwarded);
+      const targets = new Set([
+        ...(lesson?.review.vocabularyIds ?? []),
+        ...(lesson?.review.skillIds ?? []),
+      ]);
+      const reviews = response.progress.mastery
+        .filter((item) => targets.has(item.targetId ?? item.skillId))
+        .map((item) => item.nextReviewAt)
+        .sort();
+      setNextReviewAt(reviews[0] ?? null);
+      advanceStage();
     } catch (e) {
       setError(
         e instanceof Error
@@ -121,46 +174,71 @@ export default function LearningFlow({
       setBusy(false);
     }
   }
+  const withinStage = !lesson
+    ? 0
+    : stage?.type === 'vocabulary'
+      ? (exercise
+          ? lesson.vocabulary.length + exercisePosition + (result ? 1 : 0)
+          : vocabularyPosition) / Math.max(1, lesson.vocabulary.length + stageExercises.length)
+      : exercise
+        ? (exercisePosition + (result ? 1 : 0)) / Math.max(stageExercises.length, 1)
+        : 0;
   const progress = !lesson
     ? 0
-    : stage === 'intro'
-      ? 0
-      : stage === 'speak' || stage === 'complete'
-        ? 1
-        : (position + (result ? 1 : 0)) / lesson.exercises.length;
+    : stage?.type === 'recap'
+      ? 1
+      : (stagePosition + withinStage) / lesson.stages.length;
   let footer: React.ReactNode;
-  if (stage === 'intro' && lesson)
-    footer = (
-      <Action onPress={() => setStage('exercise')}>
-        {review ? 'Empezar a repasar' : 'Vamos a practicar'}
-      </Action>
-    );
-  if (stage === 'exercise' && exercise)
-    footer = result ? (
-      <View style={{ gap: 12 }}>
-        {!result.correct && (
-          <Action secondary onPress={retry}>
-            Intentar otra vez
+  if (lesson && stage) {
+    if (exercise)
+      footer = result ? (
+        <View style={{ gap: 12 }}>
+          {!result.correct && (
+            <Action secondary onPress={clearAnswer}>
+              Intentar otra vez
+            </Action>
+          )}
+          <Action onPress={nextExercise}>
+            {exercisePosition + 1 === stageExercises.length ? 'Continuar' : 'Siguiente ejercicio'}
           </Action>
-        )}
-        <Action onPress={next}>
-          {position + 1 === lesson?.exercises.length ? 'Continuar' : 'Siguiente ejercicio'}
+        </View>
+      ) : (
+        <Action
+          busy={busy}
+          disabled={!hasAnswer(answer, exercise)}
+          onPress={() => {
+            void check();
+          }}
+        >
+          Comprobar respuesta
         </Action>
-      </View>
-    ) : (
-      <Action
-        busy={busy}
-        disabled={!hasAnswer(answer)}
-        onPress={() => {
-          void check();
-        }}
-      >
-        Comprobar respuesta
-      </Action>
-    );
-  if (stage === 'complete') footer = <Action onPress={onComplete}>Volver a mi camino</Action>;
+      );
+    else if (stage.type === 'goal')
+      footer = <Action onPress={finishTeaching}>Conocer las palabras</Action>;
+    else if (stage.type === 'vocabulary')
+      footer = (
+        <Action onPress={nextVocabulary}>
+          {vocabularyPosition + 1 < lesson.vocabulary.length
+            ? 'Siguiente palabra'
+            : stageExercises.length
+              ? 'Practicar estas palabras'
+              : 'Ver la gramática'}
+        </Action>
+      );
+    else if (stage.type === 'grammar')
+      footer = <Action onPress={finishTeaching}>Leer la conversación</Action>;
+    else if (stage.type === 'dialogue')
+      footer = (
+        <Action onPress={finishTeaching}>
+          {review ? 'Empezar a repasar' : 'Vamos a practicar'}
+        </Action>
+      );
+    else if (stage.type === 'recap')
+      footer = <Action onPress={onComplete}>Volver a mi camino</Action>;
+  }
   return (
     <FlowFrame
+      key={`${lessonId}-${stagePosition}-${vocabularyPosition}-${exercisePosition}`}
       title={lesson?.title ?? 'Preparando tu lección'}
       eyebrow={review ? 'Repasar · Sin prisa' : 'Aprender · Paso a paso'}
       onClose={onClose}
@@ -168,7 +246,7 @@ export default function LearningFlow({
       footer={footer}
     >
       {loading && (
-        <View style={s.loading}>
+        <View style={{ alignItems: 'center', paddingVertical: 70, gap: 20 }}>
           <ActivityIndicator color={palette.teal} size="large" />
           <Text style={f.body}>Preparando tu próximo paso…</Text>
         </View>
@@ -185,204 +263,87 @@ export default function LearningFlow({
           }
         />
       )}
-      {!loading && lesson && stage === 'intro' && (
-        <>
-          <View style={s.lessonIcon}>
-            <BookOpen color={palette.teal} size={35} strokeWidth={1.5} />
-          </View>
-          <Text style={f.eyebrow}>Una idea que abre puertas</Text>
-          <Text style={f.title}>{lesson.title}</Text>
-          <Text style={f.body}>{lesson.introEs}</Text>
-          <View style={f.card}>
-            <View style={f.row}>
-              <Lightbulb size={19} color={palette.teal} />
-              <Text style={f.cardTitle}>Mira cómo funciona</Text>
-            </View>
-            {lesson.examples.map((example, index) => (
-              <View key={`${example.en}-${index}`} style={s.example}>
-                <View style={{ flex: 1, gap: 5 }}>
-                  <Text style={s.english}>{example.en}</Text>
-                  <Text style={f.body}>{example.es}</Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Escuchar: ${example.en}`}
-                  style={s.sound}
+      {!loading && lesson && stage && (
+        <View testID={`lesson-stage-${stage.type}`} style={{ gap: 22 }}>
+          <StageProgress lesson={lesson} position={stagePosition} />
+          {exercise ? (
+            <View testID="lesson-exercise" style={{ gap: 22 }}>
+              <Text style={f.eyebrow}>
+                Práctica {globalExercisePosition + 1} de {lesson.exercises.length}
+              </Text>
+              <ExerciseInput
+                key={exercise.id}
+                exercise={exercise}
+                answer={answer}
+                setAnswer={setAnswer}
+                disabled={!!result || busy}
+              />
+              {!result && stage.type === 'practice' && (
+                <Action
+                  secondary
                   onPress={() => {
-                    void playOffline(example.en, 0.85);
+                    setHelpOpen((open) => !open);
+                    setHintUsed(true);
                   }}
                 >
-                  <Volume2 size={20} color={palette.teal} />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-          {!!speechMessage && (
-            <Text accessibilityRole="alert" style={f.quiet}>
-              {speechMessage}
-            </Text>
-          )}
-          <View style={s.supportive}>
-            <Sparkles size={18} color={palette.teal} />
-            <Text style={[f.quiet, { flex: 1 }]}>
-              Puedes equivocarte y volver a intentar. Cada intento es parte del camino.
-            </Text>
-          </View>
-        </>
-      )}
-      {!loading && lesson && stage === 'exercise' && exercise && (
-        <>
-          <View style={s.exerciseHeading}>
-            <Text style={f.eyebrow}>
-              Práctica {position + 1} de {lesson.exercises.length}
-            </Text>
-            <View style={s.smallPill}>
-              <Text style={s.smallPillText}>Inglés · {lesson.unitId.toUpperCase()}</Text>
-            </View>
-          </View>
-          <ExerciseInput
-            exercise={exercise}
-            answer={answer}
-            setAnswer={setAnswer}
-            disabled={!!result || busy}
-          />
-          {result && (
-            <View
-              accessibilityRole="alert"
-              style={[
-                s.feedback,
-                result.correct
-                  ? { backgroundColor: '#E6F5EB', borderColor: '#B8DBC6' }
-                  : { backgroundColor: '#FFF3E7', borderColor: '#ECD2B6' },
-              ]}
-            >
-              <View style={f.row}>
-                {result.correct ? (
-                  <Check size={23} color={palette.teal} />
-                ) : (
-                  <Lightbulb size={23} color="#B17734" />
-                )}
-                <Text style={f.cardTitle}>
-                  {result.correct ? '¡Muy bien!' : 'Buen intento. Veamos por qué…'}
-                </Text>
-              </View>
-              <Text style={[f.body, { color: palette.ink }]}>{result.feedbackEs}</Text>
-              {result.acceptedAnswer && !result.correct && (
-                <Text style={s.accepted}>Una respuesta posible: {result.acceptedAnswer}</Text>
+                  {helpOpen ? 'Ocultar la ayuda' : 'Volver a ver las palabras'}
+                </Action>
               )}
-              {!result.correct && (
-                <Text style={f.quiet}>
-                  Puedes volver a intentar o continuar. Aquí se aprende practicando.
-                </Text>
+              {helpOpen && (
+                <View style={f.card}>
+                  <Text style={f.cardTitle}>Una ayuda para seguir</Text>
+                  {lesson.vocabulary.map((item) => (
+                    <Text key={item.id} style={f.body}>
+                      {item.en} · {item.es}
+                    </Text>
+                  ))}
+                  {lesson.grammar.examples.map((example) => (
+                    <Text key={example.en} style={f.body}>
+                      {example.en} · {example.es}
+                    </Text>
+                  ))}
+                  <Text style={f.quiet}>
+                    Usar esta ayuda también es aprender. En el repaso volverás a intentarlo sin
+                    apoyo.
+                  </Text>
+                </View>
               )}
+              {result && <AnswerFeedback result={result} />}
             </View>
-          )}
-        </>
-      )}
-      {!loading && lesson && stage === 'speak' && (
-        <SpeakingPanel
-          text={lesson.speakingText}
-          onDone={() => {
-            void complete();
-          }}
-        />
-      )}
-      {!loading && stage === 'speak' && busy && <ActivityIndicator color={palette.teal} />}
-      {stage === 'complete' && (
-        <View style={{ alignItems: 'center', gap: 23, paddingVertical: 18 }}>
-          <View style={s.completeIcon}>
-            <CheckCheck color={palette.teal} size={44} />
-          </View>
-          <Text style={[f.eyebrow, { textAlign: 'center' }]}>Un paso más en tu camino</Text>
-          <Text style={[f.title, { textAlign: 'center' }]}>¡Lección completada!</Text>
-          <Text style={[f.body, { textAlign: 'center', maxWidth: 480 }]}>
-            Tu progreso está guardado en este dispositivo. Repasar en los próximos días te ayudará a
-            recordar lo que aprendiste.
-          </Text>
-          <View style={s.xp}>
-            <Sparkles size={23} color="#BC8130" />
-            <Text style={s.xpText}>+{xp} XP de aprendizaje</Text>
-          </View>
-          <View style={[f.card, { width: '100%' }]}>
-            <Text style={f.cardTitle}>Aprender hoy. Recordar mañana.</Text>
-            <Text style={f.body}>
-              Agregamos estas habilidades a tu plan de repaso local. Completar una lección es el
-              comienzo; recordarla con el tiempo es el siguiente paso.
-            </Text>
-          </View>
+          ) : stage.type === 'goal' ? (
+            <GoalStage lesson={lesson} review={review} />
+          ) : stage.type === 'vocabulary' ? (
+            <VocabularyCard
+              key={lesson.vocabulary[vocabularyPosition].id}
+              item={lesson.vocabulary[vocabularyPosition]}
+              position={vocabularyPosition}
+              total={lesson.vocabulary.length}
+            />
+          ) : stage.type === 'grammar' ? (
+            <GrammarStage lesson={lesson} />
+          ) : stage.type === 'dialogue' ? (
+            <DialogueStage lesson={lesson} />
+          ) : stage.type === 'speaking' ? (
+            <>
+              <SpeakingPanel
+                text={lesson.speakingText}
+                onDone={() => {
+                  if (!busy) void complete();
+                }}
+              />
+              {busy && <ActivityIndicator color={palette.teal} />}
+            </>
+          ) : stage.type === 'recap' ? (
+            <RecapStage
+              lesson={lesson}
+              xp={xp}
+              nextReviewAt={nextReviewAt}
+              weakExerciseIds={weakExerciseIds}
+            />
+          ) : null}
         </View>
       )}
     </FlowFrame>
   );
 }
-const s = StyleSheet.create({
-  loading: { alignItems: 'center', paddingVertical: 70, gap: 20 },
-  lessonIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 25,
-    backgroundColor: palette.mint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  example: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-    paddingVertical: 13,
-    borderTopWidth: 1,
-    borderTopColor: '#EDF1EC',
-  },
-  english: { fontFamily: 'Outfit', fontSize: 23, color: palette.ink },
-  sound: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    backgroundColor: '#EDF6EF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  supportive: { flexDirection: 'row', gap: 13, alignItems: 'center', padding: 17 },
-  exerciseHeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 5,
-  },
-  smallPill: {
-    backgroundColor: '#E9F1E9',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  smallPillText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 10 },
-  feedback: { padding: 23, gap: 13, borderRadius: 19, borderWidth: 1, marginTop: 8 },
-  accepted: {
-    fontFamily: 'Manrope',
-    fontSize: 15,
-    color: palette.ink,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  completeIcon: {
-    height: 104,
-    width: 104,
-    borderRadius: 36,
-    backgroundColor: palette.mint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  xp: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    backgroundColor: '#FAEDCE',
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 25,
-  },
-  xpText: { fontFamily: 'Outfit', color: '#956924', fontSize: 22 },
-});
-
 export { LearningFlow };

@@ -19,9 +19,9 @@ async function playVerifiedOfflineVoice(
   try {
     const voices = (await Speech.getAvailableVoicesAsync()) as Speech.WebVoice[];
     const localVoices = voices.filter(
-      (voice) => voice.localService === true && /^en(?:-|$)/i.test(voice.language),
+      (voice) => voice.localService === true && /^en-US$/i.test(voice.language),
     );
-    const voice = localVoices.find((item) => /^en-US$/i.test(item.language)) ?? localVoices[0];
+    const voice = localVoices[0];
     if (!voice) return { played: false, message: OFFLINE_AUDIO_NOTICE };
     await Speech.stop();
     Speech.speak(text, { language: voice.language, voice: voice.identifier, rate });

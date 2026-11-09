@@ -76,7 +76,7 @@ export default function PlacementFlow({
           <View style={{ gap: 9 }}>
             <Action onPress={() => setPosition(0)}>Explorar mi nivel</Action>
             <Action secondary onPress={onClose}>
-              Prefiero empezar desde el principio
+              Empiezo desde cero
             </Action>
           </View>
         ) : questions[position] ? (

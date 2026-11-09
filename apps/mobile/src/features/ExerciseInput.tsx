@@ -1,32 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
+import type { PublicExercise, Answer } from '@lingoquest/contracts';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Check, CornerDownLeft, RotateCcw } from 'lucide-react-native';
 import { f, palette } from './FeatureUI';
-export interface Exercise {
-  id: string;
-  type: 'single_choice' | 'cloze' | 'reorder' | 'correction' | 'short_text';
-  promptEs: string;
-  sentence?: string;
-  options?: { id: string; text: string }[];
-  tokens?: string[];
-  skillId: string;
-  passage?: string;
-  difficulty: number;
-}
-export interface ExerciseAnswer {
-  optionId?: string;
-  text?: string;
-  tokens?: string[];
-}
+export type Exercise = PublicExercise;
+export type ExerciseAnswer = Partial<Answer>;
 export const kindLabels: Record<Exercise['type'], string> = {
   single_choice: 'Elige una respuesta',
+  meaning: 'Reconoce el significado',
+  matching: 'Relaciona palabras y significados',
   cloze: 'Completa la idea',
   reorder: 'Construye la oración',
   correction: 'Encuentra una mejor forma',
   short_text: 'Ahora, con tus palabras',
 };
-export function hasAnswer(answer: ExerciseAnswer) {
-  return !!(answer.optionId || answer.text?.trim() || answer.tokens?.length);
+export function hasAnswer(answer: ExerciseAnswer, exercise?: Exercise) {
+  if (exercise?.type === 'matching')
+    return Object.keys(answer.matches ?? {}).length === (exercise.matchingPairs?.length ?? 0);
+  return !!(
+    answer.optionId ||
+    answer.text?.trim() ||
+    answer.tokens?.length ||
+    Object.keys(answer.matches ?? {}).length
+  );
 }
 export function ExerciseInput({
   exercise,
@@ -39,7 +35,13 @@ export function ExerciseInput({
   setAnswer: (a: ExerciseAnswer) => void;
   disabled?: boolean;
 }) {
+  const [selectedPair, setSelectedPair] = useState<string | null>(null);
   const selectedTokens = answer.tokens ?? [];
+  const pairs = exercise.matchingPairs ?? [];
+  // Keep the meaning order stable, and different from the authored word order.
+  const meanings = pairs.length > 1 ? [...pairs.slice(1), pairs[0]] : pairs;
+  const matchingComplete =
+    pairs.length > 0 && Object.keys(answer.matches ?? {}).length === pairs.length;
   const remainingTokens = (exercise.tokens ?? []).map((text, index) => ({ text, index }));
   const used: number[] = [];
   for (const token of selectedTokens) {
@@ -47,7 +49,7 @@ export function ExerciseInput({
     if (item) used.push(item.index);
   }
   return (
-    <View style={{ gap: 22 }}>
+    <View testID={`exercise-${exercise.id}`} style={{ gap: 22 }}>
       {exercise.passage && (
         <View style={s.passage}>
           <Text style={f.eyebrow}>Lee con calma</Text>
@@ -59,7 +61,87 @@ export function ExerciseInput({
         <Text style={s.prompt}>{exercise.promptEs}</Text>
         {exercise.sentence && <Text style={s.sentence}>{exercise.sentence}</Text>}
       </View>
-      {exercise.options?.length ? (
+      {!!exercise.contextualGlosses?.length && (
+        <View style={s.glosses}>
+          <Text style={f.eyebrow}>Ayuda para esta situación</Text>
+          {exercise.contextualGlosses.map((gloss) => (
+            <Text key={gloss.en} style={f.body}>
+              <Text style={{ color: palette.ink }}>{gloss.en}</Text> · {gloss.es}
+            </Text>
+          ))}
+        </View>
+      )}
+      {exercise.type === 'matching' ? (
+        <View style={{ gap: 14 }}>
+          <Text style={f.body}>
+            Toca una palabra y después su significado. Puedes cambiar tus parejas.
+          </Text>
+          <View style={s.matchingColumns}>
+            <View style={s.matchingColumn}>
+              {pairs.map((pair) => {
+                const active = selectedPair === pair.id;
+                const linked = answer.matches?.[pair.id];
+                const meaning = pairs.find((item) => item.id === linked);
+                return (
+                  <Pressable
+                    key={pair.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Relacionar: ${pair.left}`}
+                    accessibilityState={{ selected: active, disabled }}
+                    disabled={disabled}
+                    onPress={() => setSelectedPair(pair.id)}
+                    style={[s.matchingItem, !!linked && s.linked, active && s.selected]}
+                  >
+                    <Text style={s.optionText}>{pair.left}</Text>
+                    {meaning && <Text style={f.quiet}>↔ {meaning.right}</Text>}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={s.matchingColumn}>
+              {meanings.map((pair) => (
+                <Pressable
+                  key={pair.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Significado: ${pair.right}`}
+                  accessibilityState={{ disabled: disabled || !selectedPair }}
+                  disabled={disabled || !selectedPair}
+                  onPress={() => {
+                    if (!selectedPair) return;
+                    const matches = { ...answer.matches };
+                    for (const [left, right] of Object.entries(matches))
+                      if (right === pair.id) delete matches[left];
+                    matches[selectedPair] = pair.id;
+                    setAnswer({ matches });
+                    setSelectedPair(null);
+                  }}
+                  style={[s.matchingItem, !selectedPair && { opacity: 0.72 }]}
+                >
+                  <Text style={s.optionText}>{pair.right}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Text accessibilityLiveRegion="polite" style={f.quiet}>
+            {matchingComplete
+              ? 'Ya relacionaste todas las palabras. Comprueba tus respuestas cuando quieras.'
+              : `${Object.keys(answer.matches ?? {}).length} de ${pairs.length} parejas listas.`}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reiniciar las parejas"
+            disabled={disabled}
+            onPress={() => {
+              setSelectedPair(null);
+              setAnswer({ matches: {} });
+            }}
+            style={f.back}
+          >
+            <RotateCcw size={15} color={palette.muted} />
+            <Text style={f.quiet}>Empezar de nuevo</Text>
+          </Pressable>
+        </View>
+      ) : exercise.options?.length ? (
         <View style={{ gap: 12 }}>
           {exercise.options.map((option, index) => {
             const selected = answer.optionId === option.id;
@@ -67,6 +149,7 @@ export function ExerciseInput({
               <Pressable
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selected, disabled }}
+                accessibilityLabel={option.text}
                 disabled={disabled}
                 key={option.id}
                 onPress={() => setAnswer({ optionId: option.id })}
@@ -93,6 +176,8 @@ export function ExerciseInput({
               selectedTokens.map((token, index) => (
                 <Pressable
                   disabled={disabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Quitar palabra: ${token}`}
                   key={`${index}-${token}`}
                   onPress={() =>
                     setAnswer({ tokens: selectedTokens.filter((_, i) => i !== index) })
@@ -110,6 +195,8 @@ export function ExerciseInput({
             {remainingTokens.map(({ text, index }) => (
               <Pressable
                 disabled={disabled || used.includes(index)}
+                accessibilityRole="button"
+                accessibilityLabel={`Agregar palabra: ${text}`}
                 key={`${index}-${text}`}
                 onPress={() => setAnswer({ tokens: [...selectedTokens, text] })}
                 style={[s.token, used.includes(index) && { opacity: 0.25 }]}
@@ -147,6 +234,20 @@ export function ExerciseInput({
   );
 }
 const s = StyleSheet.create({
+  glosses: { backgroundColor: '#F2F6F1', padding: 17, borderRadius: 15, gap: 6 },
+  matchingColumns: { flexDirection: 'row', gap: 12 },
+  matchingColumn: { flex: 1, gap: 12 },
+  matchingItem: {
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: 15,
+    backgroundColor: 'white',
+    padding: 14,
+    minHeight: 78,
+    justifyContent: 'center',
+    gap: 5,
+  },
+  linked: { borderColor: '#A7CEC0', backgroundColor: '#F0F8F2' },
   prompt: { fontFamily: 'Outfit', fontSize: 29, lineHeight: 37, color: palette.ink },
   sentence: {
     fontFamily: 'Outfit',

@@ -5,37 +5,24 @@ import { api } from '../lib/api';
 import { Action, ErrorCard, f, FlowFrame, palette } from './FeatureUI';
 import LearningFlow from './LearningFlow';
 interface Review {
+  key: string;
   skillId: string;
+  targetId: string;
+  targetLabelEs: string;
+  dimension:
+    'vocabulary_recognition' | 'vocabulary_recall' | 'grammar_understanding' | 'grammar_production';
   mastery: number;
   dueAt: string;
   lessonId?: string;
   due?: boolean;
 }
-const skillNames: Record<string, string> = {
-  'grammar.be': 'Verbo be',
-  'grammar.pronouns': 'Pronombres personales',
-  'grammar.present_simple': 'Rutinas en presente',
-  'grammar.third_person_s': 'Tercera persona',
-  'grammar.questions': 'Hacer preguntas',
-  'grammar.negation': 'Expresar negaciones',
-  'grammar.past_simple': 'Contar el pasado',
-  'grammar.irregular_verbs': 'Verbos irregulares',
-  'grammar.present_continuous': 'Lo que pasa ahora',
-  'grammar.tense_choice': 'Elegir el tiempo verbal',
-  'grammar.going_to': 'Planes a futuro',
-  'grammar.will': 'Decisiones y predicciones',
-  'grammar.present_perfect': 'Hablar de experiencias',
-  'grammar.past_vs_perfect': 'Pasado y experiencias',
-  'communication.travel': 'Inglés para viajar',
-  'communication.work': 'Inglés para el trabajo',
+const dimensionNames: Record<Review['dimension'], string> = {
+  vocabulary_recognition: 'Reconocer palabras',
+  vocabulary_recall: 'Recordar palabras sin opciones',
+  grammar_understanding: 'Entender la gramática en contexto',
+  grammar_production: 'Usar la gramática al escribir',
 };
-export default function ReviewsFlow({
-  onClose,
-  onStartLesson,
-}: {
-  onClose: () => void;
-  onStartLesson?: (lessonId: string) => void;
-}) {
+export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -125,16 +112,14 @@ export default function ReviewsFlow({
       )}
       {!loading &&
         reviews.map((review) => (
-          <View style={f.card} key={review.skillId}>
+          <View style={f.card} key={review.key}>
             <View style={s.cardTop}>
               <View style={s.skillIcon}>
                 <BookOpen color={palette.teal} size={22} />
               </View>
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={f.cardTitle}>
-                  {skillNames[review.skillId] ??
-                    review.skillId.split('.').pop()?.replaceAll('_', ' ')}
-                </Text>
+                <Text style={f.cardTitle}>{review.targetLabelEs}</Text>
+                <Text style={f.quiet}>{dimensionNames[review.dimension]}</Text>
                 <Text style={f.quiet}>
                   {review.due
                     ? 'Un buen momento para recordar'
@@ -159,9 +144,7 @@ export default function ReviewsFlow({
               <Pressable
                 accessibilityRole="button"
                 style={s.practice}
-                onPress={() =>
-                  onStartLesson ? onStartLesson(review.lessonId!) : setLessonId(review.lessonId!)
-                }
+                onPress={() => setLessonId(review.lessonId!)}
               >
                 <Text style={s.practiceText}>Practicar esta habilidad</Text>
                 <ArrowRight color={palette.teal} size={17} />

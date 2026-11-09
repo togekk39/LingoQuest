@@ -1,36 +1,20 @@
-# Offline course release artifacts
+# 課程包發布產物
 
-本目錄保存可上傳到 GitHub Releases 的課程包與靜態目錄。產生檔案不會自動上傳、建立 release、推送 Git 或呼叫線上 API。課程 1.0.0 現已獨立發布至 `course-pack-v1.0.0` 分支，固定 commit 為 `f3e609e468a69630e14b544197a346dca79a093e`；可用對應 raw.githubusercontent.com 檔案網址下載。本文的 GitHub Releases URL 仍是後續 tag 發行目標。
-
-在 repository 根目錄執行：
+新版預設為整合課程 `2.0.0`，LQP schema 2，最低 App `1.3.0`。本機產生包不會上傳、推送 Git、建立 release 或連線。
 
 ```bash
 npm run packs:build
+npm run packs:verify
 ```
 
-也可直接執行 `npx tsx scripts/build-course-pack.ts`。預設會產生：
+產物：
 
-- `lingoquest-es419-enus-a1a2-1.0.0.lqp.json`：完整課程包。
-- 同名 `.sha256`：發布檔案摘要，供手動核對。
-- `catalog.json`：App 可讀的靜態版本、下載位置、大小與摘要。
-- `apps/mobile/src/content/bundled-course.json`：與發布檔相同的內建包。
+- `lingoquest-es419-enus-a1a2-2.0.0.lqp.json`：完整原創草稿教材、離線答案與 13 級挑戰。
+- 同名 `.sha256`：完整檔案 SHA-256。
+- `catalog.json`：版本、大小、最低 App 與目標下載網址。
 
-首次課程包目標為 `https://github.com/togekk39/LingoQuest/releases/tag/course-v1.0.0`。以這個 tag 建立 GitHub Release，將上述三個 release artifacts 作為附件上傳，靜態 catalog 的發布位置為：
+`apps/mobile/src/content/bundled-course.json` 是相同內建副本。舊文法優先 schema 1 檔案不再附帶，避免兩套課程並存。
 
-```text
-https://github.com/togekk39/LingoQuest/releases/download/course-v1.0.0/catalog.json
-```
+新版尚未遠端發布，catalog 的 `course-v2.0.0` 網址只是發布目標；App 預設下載欄位保持空白。可先透過本機檔案匯入使用。發布者確認教材後，可建立 `togekk39/LingoQuest` 的 `course-v2.0.0` GitHub Release，將包、摘要檔、catalog 放在同一次 release。發布後先下載並驗證不可變檔案的大小與摘要，再設定 `apps/mobile/src/content/course-source.json` 的 `url` 和 `published:true`；不要把尚未存在的網址標成已發布。重新執行 builder 會把這份來源 metadata 重設成未發布。
 
-目前 App 直接下載 `.lqp.json` 檔，不會先讀 catalog 或背景查詢 release。App 不需要 GitHub API token，也不應呼叫 GitHub REST API 搜尋帳號或 release。使用者可自行下載 `.lqp.json` 後離線匯入。
-
-更新例子：
-
-```bash
-COURSE_PACK_VERSION=1.0.1 \
-COURSE_PACK_CREATED_AT=2026-11-09T00:00:00.000Z \
-npm run packs:build
-```
-
-然後以 `course-v1.0.1` 發佈新包與 catalog。更換來源 repo 可設定 `COURSE_PACK_REPOSITORY=owner/repository`。相同版本的已發布檔應保留原始位元組，不要只為改縮排重新儲存；真正內容變動要升版本並重新產生摘要。
-
-本版不包含預先錄製的聲音或影片。瀏覽器僅在能驗證本機離線語音時播放示範；Android 目前不啟用無法確認離線的系統 TTS，仍可讀文字、自行錄音與重播。
+更換版本用 `COURSE_PACK_VERSION`；更換目標 repository 用 `COURSE_PACK_REPOSITORY=owner/repository`。發布 artifacts、catalog 與內建副本必須來自同一次 build，驗證後一起提交。版本 2 內的更新需保留當前 lesson IDs；不接受降版或同版不同內容。格式 1 的舊進度需經 App 明確重設流程，不能用新包匯入繞過格式檢查。
