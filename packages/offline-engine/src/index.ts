@@ -618,11 +618,15 @@ export class OfflineEngine {
       if (correct && !mastery.practicedExerciseIds.includes(exercise.id))
         mastery.practicedExerciseIds.push(exercise.id);
       if (delayed) mastery.lastDelayedSuccessAt = new Date(now).toISOString();
-      // Delayed successes and varied evidence are both needed beyond the initial range.
+      // Delayed success is always needed beyond the initial range. A production
+      // target with one authored prompt can also qualify through repeated unaided
+      // answers; evidence deduplication still counts that prompt only once per day.
       // Recognition and independent production remain different targets at every stage.
       const varied =
         mastery.practicedFormats.length >= 2 || mastery.practicedExerciseIds.length >= 2;
-      const ceiling = mastery.lastDelayedSuccessAt && varied ? 0.95 : 0.65;
+      const repeatedProduction =
+        dimension === 'grammar_production' && mastery.unpromptedSuccessCount >= 3;
+      const ceiling = mastery.lastDelayedSuccessAt && (varied || repeatedProduction) ? 0.95 : 0.65;
       mastery.value = Math.max(
         0,
         Math.min(ceiling, mastery.value + (correct ? (independent ? 0.12 : 0.06) : -0.03)),

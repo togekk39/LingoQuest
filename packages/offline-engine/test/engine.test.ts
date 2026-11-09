@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import {
   OfflineEngine,
   OFFLINE_STATE_KEY,
@@ -578,4 +579,89 @@ test('repeating one recognition question on later days cannot stand in for varie
   assert.equal(p.mastery[0].value, 0.65);
   assert.equal(p.mastery[0].unpromptedSuccessCount, 0);
   assert.equal(p.xp, 0);
+});
+
+test('all bundled grammar-production targets reach 95% through scheduled reviews', async () => {
+  const f = fixture();
+  const bundled = JSON.parse(
+    readFileSync(
+      new URL('../../../apps/mobile/src/content/bundled-course.json', import.meta.url),
+      'utf8',
+    ),
+  ).payload as CourseData;
+  f.content(bundled);
+  const targets = Object.values(bundled.lessons).flatMap((lesson) =>
+    lesson.exercises
+      .filter((exercise) => exercise.dimension === 'grammar_production')
+      .map((exercise) => ({ lesson, exercise })),
+  );
+  assert.equal(new Set(targets.map(({ exercise }) => exercise.skillId)).size, 32);
+  for (const { lesson, exercise } of targets)
+    await f.engine.request('/v1/attempts', {
+      clientAttemptId: `initial-${exercise.id}`,
+      lessonId: lesson.id,
+      exerciseId: exercise.id,
+      answer: correct(exercise),
+    });
+  for (let session = 1; session <= 7; session++) {
+    f.advance(14 * 86400000);
+    const { reviews } = await f.engine.request<{
+      reviews: { dimension: string; targetId: string; lessonId: string }[];
+    }>('/v1/reviews/today');
+    const productionReviews = reviews.filter((review) => review.dimension === 'grammar_production');
+    assert.equal(productionReviews.length, 32);
+    for (const review of productionReviews) {
+      const lesson = bundled.lessons[review.lessonId];
+      for (const exercise of lesson.exercises.filter(
+        (e) => e.dimension === 'grammar_production' && e.skillId === review.targetId,
+      ))
+        await f.engine.request('/v1/attempts', {
+          clientAttemptId: `review-${session}-${exercise.id}`,
+          lessonId: lesson.id,
+          exerciseId: exercise.id,
+          answer: correct(exercise),
+        });
+    }
+  }
+  const p = await f.engine.initialize();
+  assert.equal(p.mastery.length, 32);
+  for (const mastery of p.mastery) {
+    assert.equal(mastery.dimension, 'grammar_production');
+    assert.equal(mastery.value, 0.95, mastery.targetId);
+    assert.ok(mastery.lastDelayedSuccessAt);
+  }
+});
+
+test('single-exercise production needs three unprompted successes and counts only once per day', async () => {
+  const f = fixture();
+  const lesson = source.lessons.u01_l01;
+  const exercise = lesson.exercises.find((e) => e.dimension === 'grammar_production')!;
+  const attempt = (id: string, hintUsed: boolean) =>
+    f.engine.request('/v1/attempts', {
+      clientAttemptId: id,
+      lessonId: lesson.id,
+      exerciseId: exercise.id,
+      answer: correct(exercise),
+      hintUsed,
+    });
+  for (let day = 0; day < 12; day++) {
+    await attempt(`hinted-${day}`, true);
+    f.advance(86400000);
+  }
+  let mastery = (await f.engine.initialize()).mastery[0];
+  assert.equal(mastery.value, 0.65);
+  assert.equal(mastery.unpromptedSuccessCount, 0);
+  for (let repeat = 0; repeat < 20; repeat++) await attempt(`same-day-${repeat}`, false);
+  mastery = (await f.engine.initialize()).mastery[0];
+  assert.equal(mastery.unpromptedSuccessCount, 1);
+  assert.equal(mastery.value, 0.65);
+  f.advance(86400000);
+  await attempt('second-independent-day', false);
+  assert.equal((await f.engine.initialize()).mastery[0].value, 0.65);
+  f.advance(86400000);
+  await attempt('third-independent-day', false);
+  mastery = (await f.engine.initialize()).mastery[0];
+  assert.equal(mastery.unpromptedSuccessCount, 3);
+  assert.ok(mastery.value > 0.65);
+  assert.ok(mastery.lastDelayedSuccessAt);
 });
