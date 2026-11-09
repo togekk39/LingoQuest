@@ -9,10 +9,12 @@
     "newArchEnabled": true,
     "android": {
       "package": "com.lingoquest.app",
-      "permissions": [
-        "RECORD_AUDIO"
-      ],
-      "allowBackup": false
+      "permissions": ["RECORD_AUDIO"],
+      "allowBackup": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#167D72"
+      }
     },
     "ios": {
       "bundleIdentifier": "com.lingoquest.app",
@@ -41,6 +43,7 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "icon": "./assets/icon.png"
   }
 }
