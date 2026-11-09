@@ -200,7 +200,7 @@ export default function MissionsFlow({
                 accessibilityRole="button"
                 style={s.sound}
                 onPress={() => {
-                  void playOffline(step.promptEn, 0.85);
+                  void playOffline(step.promptEn);
                 }}
               >
                 <Volume2 color={palette.teal} size={19} />

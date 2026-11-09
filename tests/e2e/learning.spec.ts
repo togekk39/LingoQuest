@@ -263,7 +263,7 @@ test('reference audio never selects a network-only browser speech voice', async 
   await page.getByText('Escuchar ejemplo', { exact: true }).click();
   await expect(
     page.getByText(
-      'Audio de referencia no incluido en este paquete. Puedes seguir leyendo, grabarte y escuchar tu práctica.',
+      'No hay una voz de inglés sin conexión disponible. Revisa la voz elegida en Configuración de voz o instala una voz sin conexión en los ajustes TTS del sistema. Puedes seguir leyendo, grabarte y escuchar tu práctica.',
       { exact: true },
     ),
   ).toBeVisible();

@@ -49,6 +49,9 @@ jobs:
       - run: npm test
       - name: Build standalone preview APK
         run: node scripts/build-apk.mjs 2>&1 | tee apk-build.log
+      - name: Test native English voice configuration
+        working-directory: apps/mobile/android
+        run: ./gradlew :offline-tts:testReleaseUnitTest --no-daemon --max-workers=2 --console=plain
       - name: Verify APK signatures
         run: |
           for apk in work/apk/*.apk; do

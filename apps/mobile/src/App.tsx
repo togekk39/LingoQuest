@@ -32,7 +32,7 @@ import {
   MapPin,
   Briefcase,
   RefreshCw,
-  HelpCircle,
+  Settings2,
   Sparkles,
   ArrowUpRight,
   CheckCircle2,
@@ -53,6 +53,7 @@ import { speakOffline } from './features/offlineSpeech';
 import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
 import { OFFLINE_STATE_KEY } from '@lingoquest/offline-engine';
+import { SpeechSettings } from './features/SpeechSettings';
 
 type Tab = 'Inicio' | 'Aprender' | 'Desafíos' | 'Perfil';
 const tabs: { id: Tab; icon: typeof House; subtitle: string }[] = [
@@ -207,9 +208,14 @@ export default function App() {
                   Cada pequeño paso te lleva más lejos.
                 </Label>
               </View>
-              <Pressable onPress={() => setSettings(true)} style={s.sideSettings}>
-                <HelpCircle size={17} color={C.muted} />
-                <Label style={{ fontSize: 12 }}>Ayuda y privacidad</Label>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Configuración"
+                onPress={() => setSettings(true)}
+                style={s.sideSettings}
+              >
+                <Settings2 size={17} color={C.muted} />
+                <Label style={{ fontSize: 12 }}>Configuración y privacidad</Label>
                 <ArrowUpRight size={14} color={C.muted} />
               </Pressable>
               <Pressable onPress={() => go('Perfil')} style={s.sideProfile}>
@@ -238,13 +244,23 @@ export default function App() {
                 <Text style={s.breadcrumbCurrent}>{tab}</Text>
               </View>
             )}
-            <View style={[s.row, { gap: desktop ? 18 : 8 }]}>
+            <View style={[s.row, { gap: desktop ? 18 : 6 }]}>
               <ThemeButton />
+              {!desktop && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Configuración"
+                  onPress={() => setSettings(true)}
+                  style={s.dismiss}
+                >
+                  <Settings2 size={20} color={C.teal} />
+                </Pressable>
+              )}
               <View style={s.row}>
                 <Flame size={17} color="#DA9460" />
                 <Text style={s.topStat}>
                   {progress?.streak || 0}
-                  <Text style={s.topStatCaption}> días</Text>
+                  {desktop && <Text style={s.topStatCaption}> días</Text>}
                 </Text>
               </View>
               <View style={s.topDivider} />
@@ -252,7 +268,7 @@ export default function App() {
                 <Zap size={17} color={C.teal} />
                 <Text style={s.topStat}>
                   {progress?.xp || 0}
-                  <Text style={s.topStatCaption}> XP</Text>
+                  {desktop && <Text style={s.topStatCaption}> XP</Text>}
                 </Text>
               </View>
               {desktop && (
@@ -824,33 +840,39 @@ export default function App() {
         onRequestClose={() => setSettings(false)}
       >
         <View style={s.modalShade}>
-          <Card style={s.welcomeCard}>
+          <Card style={[s.welcomeCard, { maxHeight: '90%', padding: 20 }]}>
             <View style={s.sectionTitle}>
-              <Heading>Tu privacidad, primero</Heading>
+              <Heading>Configuración</Heading>
               <Pressable
                 onPress={() => setSettings(false)}
                 style={s.dismiss}
-                accessibilityLabel="Cerrar"
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar configuración"
               >
                 <X color={C.muted} />
               </Pressable>
             </View>
-            <Label style={{ marginVertical: 20 }}>
-              Tu audio permanece en tu dispositivo y se elimina al salir de la práctica. El servicio
-              de evaluación de pronunciación no está conectado: nunca inventamos una calificación.
-              {'\n\n'}Puedes aprender sin micrófono. Las respuestas, los XP y el progreso se guardan
-              y se revisan en este dispositivo, sin cuentas ni servicios en línea.{'\n\n'}Esta
-              edición incluye contenido original de demostración pendiente de revisión editorial.
-              Los desafíos no cuentan para un ranking.
-            </Label>
-            <Button
-              onPress={() => {
-                setSettings(false);
-                go('Perfil');
-              }}
-            >
-              Ver mi perfil y mis datos
-            </Button>
+            <ScrollView contentContainerStyle={{ gap: 16, paddingTop: 16 }}>
+              {settings && <SpeechSettings />}
+              <Heading style={{ fontSize: 22 }}>Tu privacidad, primero</Heading>
+              <Label>
+                Tu audio permanece en tu dispositivo y se elimina al salir de la práctica. El
+                servicio de evaluación de pronunciación no está conectado: nunca inventamos una
+                calificación.
+                {'\n\n'}Puedes aprender sin micrófono. Las respuestas, los XP y el progreso se
+                guardan y se revisan en este dispositivo, sin cuentas ni servicios en línea.{'\n\n'}
+                Esta edición incluye contenido original de demostración pendiente de revisión
+                editorial. Los desafíos no cuentan para un ranking.
+              </Label>
+              <Button
+                onPress={() => {
+                  setSettings(false);
+                  go('Perfil');
+                }}
+              >
+                Ver mi perfil y mis datos
+              </Button>
+            </ScrollView>
           </Card>
         </View>
       </Modal>
@@ -1389,7 +1411,7 @@ export function useStyles() {
       position: 'absolute',
       bottom: 90,
       alignSelf: 'center',
-      backgroundColor: C.ink,
+      backgroundColor: '#173F43',
       borderRadius: 14,
       padding: 17,
       maxWidth: '90%',
