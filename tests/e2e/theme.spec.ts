@@ -1,4 +1,4 @@
-import { test, expect, enterApp } from './helpers';
+import { test, expect, enterApp, bundledCourse } from './helpers';
 
 for (const viewport of [
   { width: 1280, height: 900 },
@@ -44,5 +44,43 @@ for (const viewport of [
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
+  });
+}
+
+for (const mode of ['light', 'dark', 'oled']) {
+  test(`challenge primary foregrounds stay white in ${mode} mode`, async ({ page }) => {
+    await page.addInitScript((theme) => localStorage.setItem('lq_theme', theme), mode);
+    await enterApp(page);
+    const lessonIds = bundledCourse.payload.units
+      .filter((unit: { id: string }) => ['u01', 'u02'].includes(unit.id))
+      .flatMap((unit: { lessons: { id: string }[] }) => unit.lessons.map((lesson) => lesson.id));
+    await page.evaluate((completedLessons) => {
+      const local = JSON.parse(localStorage.getItem('lq_offline_state_v1')!);
+      local.completedLessons = completedLessons;
+      localStorage.setItem('lq_offline_state_v1', JSON.stringify(local));
+    }, lessonIds);
+    await page.reload();
+    await page.getByRole('tab', { name: 'Desafíos', exact: true }).click();
+    await page.getByRole('button', { name: 'Explorar práctica', exact: true }).click();
+    await page.getByRole('button', { name: /^Nivel 1:/ }).click();
+    await page.getByRole('switch', { name: 'Practicar sin reloj' }).check();
+    const start = page.getByRole('button', { name: 'Empezar práctica', exact: true });
+    await expect(start).toHaveCSS('background-color', 'rgb(22, 125, 114)');
+    await expect(start.getByText('Empezar práctica', { exact: true })).toHaveCSS(
+      'color',
+      'rgb(255, 255, 255)',
+    );
+    await expect(start.locator('svg')).toHaveCSS('stroke', 'rgb(255, 255, 255)');
+    await start.click();
+    const answer = page.getByRole('radio').first();
+    await answer.click();
+    const letter = answer.getByText('A', { exact: true });
+    await expect(letter).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(letter.locator('..')).toHaveCSS('background-color', 'rgb(22, 125, 114)');
+    await expect(
+      page
+        .getByRole('button', { name: 'Enviar respuesta', exact: true })
+        .getByText('Enviar respuesta', { exact: true }),
+    ).toHaveCSS('color', 'rgb(255, 255, 255)');
   });
 }

@@ -8,6 +8,7 @@ const light = {
   ink: '#173F43',
   teal: '#167D72',
   primary: '#167D72',
+  onPrimary: '#FFFFFF',
   mint: '#DCF3E9',
   orange: '#EFA055',
   paper: '#F7FAF7',

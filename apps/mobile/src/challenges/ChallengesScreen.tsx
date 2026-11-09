@@ -113,11 +113,11 @@ function Action({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={secondary ? C.teal : C.white} size="small" />
+        <ActivityIndicator color={secondary ? C.teal : C.onPrimary} size="small" />
       ) : (
         <>
           <Text style={[s.actionText, secondary && { color: C.ink }]}>{label}</Text>
-          {icon && <ArrowRight size={17} color={secondary ? C.ink : C.white} />}
+          {icon && <ArrowRight size={17} color={secondary ? C.ink : C.onPrimary} />}
         </>
       )}
     </Pressable>
@@ -667,7 +667,7 @@ export function ChallengesScreen({
                 createId.current = uid();
               }}
               trackColor={{ false: '#CCDAD3', true: C.teal }}
-              thumbColor={C.white}
+              thumbColor={C.onPrimary}
             />
           </View>
           <View style={s.rules}>
@@ -812,7 +812,9 @@ export function ChallengesScreen({
                     style={[s.option, option === item.id && s.optionSelected]}
                   >
                     <View style={[s.optionLetter, option === item.id && s.optionLetterSelected]}>
-                      <Text style={[s.optionLetterText, option === item.id && { color: C.white }]}>
+                      <Text
+                        style={[s.optionLetterText, option === item.id && { color: C.onPrimary }]}
+                      >
                         {String.fromCharCode(65 + i)}
                       </Text>
                     </View>
@@ -1132,7 +1134,7 @@ export function useStyles() {
       borderWidth: 1,
       borderColor: tone('#DFE9E1', 'border'),
     },
-    actionText: { fontFamily: 'ManropeBold', color: C.white, fontSize: 12 },
+    actionText: { fontFamily: 'ManropeBold', color: C.onPrimary, fontSize: 12 },
     learnLink: {
       flexDirection: 'row',
       alignItems: 'center',
