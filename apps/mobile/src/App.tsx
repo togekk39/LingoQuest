@@ -153,7 +153,7 @@ export default function App() {
   };
   if (flow?.type === 'lesson')
     return <LearningFlow lessonId={flow.id!} onClose={() => setFlow(null)} onComplete={complete} />;
-  if (flow?.type === 'reviews') return <ReviewsFlow onClose={() => setFlow(null)} />;
+  if (flow?.type === 'reviews') return <ReviewsFlow onClose={complete} />;
   if (flow?.type === 'placement')
     return <PlacementFlow onClose={() => setFlow(null)} onComplete={complete} />;
   if (flow?.type === 'mission')

@@ -49,7 +49,7 @@ test('fresh zero-knowledge learner completes the integrated lesson offline, retr
     ]),
   );
   await page.getByRole('button', { name: 'Volver a mi camino', exact: true }).click();
-  await page.clock.install({ time: new Date(Date.now() + 2 * 86_400_000) });
+  await page.clock.install({ time: new Date(Date.now() + 86_400_000) });
   await page.reload();
   await expect(
     page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }),
@@ -70,6 +70,41 @@ test('fresh zero-knowledge learner completes the integrated lesson offline, retr
   await page.getByRole('button', { name: 'Practicar esta habilidad', exact: true }).first().click();
   await expect(page.getByTestId('lesson-stage-goal')).toBeVisible();
   await expect(page.getByText(/corazones|tiempo restante/i)).toHaveCount(0);
+  await finishLesson(page, exercises, { correct: true });
+  const reviewed = await state(page);
+  expect(reviewed.xp).toBeGreaterThan(completed.xp);
+  expect(
+    reviewed.mastery.some((skill, index) => skill.value > completed.mastery[index].value),
+  ).toBeTruthy();
+  await page.getByRole('button', { name: 'Volver a mi camino', exact: true }).click();
+  await expect(
+    page.getByText('Un pequeño repaso hace la diferencia.', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Cerrar y volver', exact: true }).click();
+  // The parent must reflect saved review results without a page reload.
+  await expect(page.getByText(`${reviewed.xp} XP`, { exact: true })).toBeVisible();
+  await expect(page.getByText('2 días', { exact: true })).toBeVisible();
+  await expect(page.getByText('A tu ritmo', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Aprender', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Repasar · 0 pendientes', exact: true }),
+  ).toBeVisible();
+  await page.getByRole('tab', { name: 'Perfil', exact: true }).click();
+  await expect(
+    page
+      .getByText('XP de aprendizaje', { exact: true })
+      .locator('..')
+      .getByText(String(reviewed.xp), { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByText('Días consecutivos', { exact: true })
+      .locator('..')
+      .getByText('2', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/^\d+% · Evidencia de práctica$/)).toHaveText(
+    reviewed.mastery.map((skill) => `${Math.round(skill.value * 100)}% · Evidencia de práctica`),
+  );
   expect(errors).toEqual([]);
 });
 
