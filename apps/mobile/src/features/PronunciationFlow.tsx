@@ -1,9 +1,10 @@
+import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { ArrowRight, AudioLines, Info, Volume2 } from 'lucide-react-native';
 import { api } from '../lib/api';
-import { ErrorCard, f, FlowFrame, palette } from './FeatureUI';
+import { ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
 import SpeakingPractice from './SpeakingPractice';
 interface SpeechDrill {
   id: string;
@@ -13,6 +14,10 @@ interface SpeechDrill {
   tipEs: string;
 }
 export default function PronunciationFlow({ onClose }: { onClose: () => void }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const { playOffline, speechMessage } = useOfflineSpeech();
   const [drills, setDrills] = useState<SpeechDrill[]>([]);
   const [category, setCategory] = useState('');
@@ -135,7 +140,7 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
                       void stopOfflineSpeech();
                       setSelected(drill);
                     }}
-                    style={[s.control, { backgroundColor: palette.teal }]}
+                    style={[s.control, { backgroundColor: palette.primary }]}
                   >
                     <ArrowRight size={18} color="white" />
                   </Pressable>
@@ -151,59 +156,62 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
     </FlowFrame>
   );
 }
-const s = StyleSheet.create({
-  icon: {
-    width: 82,
-    height: 82,
-    borderRadius: 26,
-    backgroundColor: palette.mint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disclosure: {
-    flexDirection: 'row',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#D5E5D8',
-    borderRadius: 16,
-    padding: 18,
-    backgroundColor: '#EFF6EE',
-  },
-  categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  category: {
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: '#DAE5DB',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-  },
-  activeCategory: { backgroundColor: palette.mint, borderColor: '#86B8A0' },
-  categoryText: { fontFamily: 'Manrope', fontSize: 12, color: palette.muted },
-  tip: { gap: 11, paddingTop: 10, paddingBottom: 5 },
-  drill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-    padding: 17,
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: palette.line,
-    borderRadius: 18,
-  },
-  index: { width: 32, alignItems: 'center' },
-  indexText: { fontFamily: 'Outfit', fontSize: 19, color: '#94AD9A' },
-  drillText: { fontFamily: 'Outfit', fontSize: 19, lineHeight: 27, color: palette.ink },
-  controls: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', maxWidth: 96 },
-  control: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: '#EDF5EC',
-  },
-});
+export function useStyles() {
+  const { colors: palette, tone } = useTheme();
+  return StyleSheet.create({
+    icon: {
+      width: 82,
+      height: 82,
+      borderRadius: 26,
+      backgroundColor: palette.mint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    disclosure: {
+      flexDirection: 'row',
+      gap: 12,
+      borderWidth: 1,
+      borderColor: tone('#D5E5D8', 'border'),
+      borderRadius: 16,
+      padding: 18,
+      backgroundColor: tone('#EFF6EE', 'background'),
+    },
+    categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+    category: {
+      minHeight: 44,
+      borderWidth: 1,
+      borderColor: tone('#DAE5DB', 'border'),
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 15,
+      backgroundColor: tone('white', 'background'),
+      justifyContent: 'center',
+    },
+    activeCategory: { backgroundColor: palette.mint, borderColor: tone('#86B8A0', 'border') },
+    categoryText: { fontFamily: 'Manrope', fontSize: 12, color: palette.muted },
+    tip: { gap: 11, paddingTop: 10, paddingBottom: 5 },
+    drill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 13,
+      padding: 17,
+      backgroundColor: tone('white', 'background'),
+      borderWidth: 1,
+      borderColor: palette.line,
+      borderRadius: 18,
+    },
+    index: { width: 32, alignItems: 'center' },
+    indexText: { fontFamily: 'Outfit', fontSize: 19, color: tone('#94AD9A', 'text') },
+    drillText: { fontFamily: 'Outfit', fontSize: 19, lineHeight: 27, color: palette.ink },
+    controls: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', maxWidth: 96 },
+    control: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 14,
+      backgroundColor: tone('#EDF5EC', 'background'),
+    },
+  });
+}
 export { PronunciationFlow };

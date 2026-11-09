@@ -1,8 +1,9 @@
+import { useTheme } from '../theme';
 import React, { useState } from 'react';
 import type { PublicExercise, Answer } from '@lingoquest/contracts';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Check, CornerDownLeft, RotateCcw } from 'lucide-react-native';
-import { f, palette } from './FeatureUI';
+import { useFeatureStyles } from './FeatureUI';
 export type Exercise = PublicExercise;
 export type ExerciseAnswer = Partial<Answer>;
 export const kindLabels: Record<Exercise['type'], string> = {
@@ -35,6 +36,10 @@ export function ExerciseInput({
   setAnswer: (a: ExerciseAnswer) => void;
   disabled?: boolean;
 }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const [selectedPair, setSelectedPair] = useState<string | null>(null);
   const selectedTokens = answer.tokens ?? [];
   const pairs = exercise.matchingPairs ?? [];
@@ -155,7 +160,7 @@ export function ExerciseInput({
                 onPress={() => setAnswer({ optionId: option.id })}
                 style={[s.option, selected && s.selected]}
               >
-                <View style={[s.optionIndex, selected && { backgroundColor: palette.teal }]}>
+                <View style={[s.optionIndex, selected && { backgroundColor: palette.primary }]}>
                   {selected ? (
                     <Check color="white" size={15} />
                   ) : (
@@ -233,89 +238,118 @@ export function ExerciseInput({
     </View>
   );
 }
-const s = StyleSheet.create({
-  glosses: { backgroundColor: '#F2F6F1', padding: 17, borderRadius: 15, gap: 6 },
-  matchingColumns: { flexDirection: 'row', gap: 12 },
-  matchingColumn: { flex: 1, gap: 12 },
-  matchingItem: {
-    borderWidth: 1,
-    borderColor: palette.line,
-    borderRadius: 15,
-    backgroundColor: 'white',
-    padding: 14,
-    minHeight: 78,
-    justifyContent: 'center',
-    gap: 5,
-  },
-  linked: { borderColor: '#A7CEC0', backgroundColor: '#F0F8F2' },
-  prompt: { fontFamily: 'Outfit', fontSize: 29, lineHeight: 37, color: palette.ink },
-  sentence: {
-    fontFamily: 'Outfit',
-    fontSize: 24,
-    lineHeight: 34,
-    color: palette.teal,
-    paddingVertical: 12,
-  },
-  passage: { backgroundColor: '#EFF5EF', padding: 22, borderRadius: 18, gap: 10 },
-  passageText: { fontFamily: 'Manrope', fontSize: 15, lineHeight: 26, color: palette.ink },
-  option: {
-    borderWidth: 1,
-    borderColor: palette.line,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 17,
-    minHeight: 66,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  selected: { borderColor: palette.teal, backgroundColor: '#ECF7F0', borderWidth: 2, padding: 16 },
-  optionIndex: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0F4EF',
-  },
-  optionIndexText: { color: palette.muted, fontFamily: 'Manrope', fontWeight: '700', fontSize: 12 },
-  optionText: { color: palette.ink, fontFamily: 'Manrope', fontSize: 16, flex: 1 },
-  textInput: {
-    minHeight: 120,
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#C6D8CE',
-    borderRadius: 17,
-    padding: 20,
-    fontFamily: 'Manrope',
-    fontSize: 18,
-    lineHeight: 28,
-    color: palette.ink,
-    textAlignVertical: 'top',
-  },
-  tokenAnswer: {
-    minHeight: 94,
-    padding: 18,
-    backgroundColor: '#EFF5EF',
-    borderRadius: 17,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#BCCFC4',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 9,
-    alignItems: 'center',
-  },
-  tokenList: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  token: {
-    paddingVertical: 13,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D2DFD5',
-    backgroundColor: 'white',
-    minHeight: 46,
-  },
-  selectedToken: { borderColor: '#B0CFC0', backgroundColor: '#FFFFFF' },
-  tokenText: { fontFamily: 'Manrope', fontSize: 16, color: palette.ink },
-});
+export function useStyles() {
+  const { colors: palette, tone } = useTheme();
+  return StyleSheet.create({
+    glosses: {
+      backgroundColor: tone('#F2F6F1', 'background'),
+      padding: 17,
+      borderRadius: 15,
+      gap: 6,
+    },
+    matchingColumns: { flexDirection: 'row', gap: 12 },
+    matchingColumn: { flex: 1, gap: 12 },
+    matchingItem: {
+      borderWidth: 1,
+      borderColor: palette.line,
+      borderRadius: 15,
+      backgroundColor: tone('white', 'background'),
+      padding: 14,
+      minHeight: 78,
+      justifyContent: 'center',
+      gap: 5,
+    },
+    linked: {
+      borderColor: tone('#A7CEC0', 'border'),
+      backgroundColor: tone('#F0F8F2', 'background'),
+    },
+    prompt: { fontFamily: 'Outfit', fontSize: 29, lineHeight: 37, color: palette.ink },
+    sentence: {
+      fontFamily: 'Outfit',
+      fontSize: 24,
+      lineHeight: 34,
+      color: palette.teal,
+      paddingVertical: 12,
+    },
+    passage: {
+      backgroundColor: tone('#EFF5EF', 'background'),
+      padding: 22,
+      borderRadius: 18,
+      gap: 10,
+    },
+    passageText: { fontFamily: 'Manrope', fontSize: 15, lineHeight: 26, color: palette.ink },
+    option: {
+      borderWidth: 1,
+      borderColor: palette.line,
+      backgroundColor: tone('white', 'background'),
+      borderRadius: 16,
+      padding: 17,
+      minHeight: 66,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    selected: {
+      borderColor: palette.teal,
+      backgroundColor: tone('#ECF7F0', 'background'),
+      borderWidth: 2,
+      padding: 16,
+    },
+    optionIndex: {
+      width: 28,
+      height: 28,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: tone('#F0F4EF', 'background'),
+    },
+    optionIndexText: {
+      color: palette.muted,
+      fontFamily: 'Manrope',
+      fontWeight: '700',
+      fontSize: 12,
+    },
+    optionText: { color: palette.ink, fontFamily: 'Manrope', fontSize: 16, flex: 1 },
+    textInput: {
+      minHeight: 120,
+      backgroundColor: tone('white', 'background'),
+      borderWidth: 1,
+      borderColor: tone('#C6D8CE', 'border'),
+      borderRadius: 17,
+      padding: 20,
+      fontFamily: 'Manrope',
+      fontSize: 18,
+      lineHeight: 28,
+      color: palette.ink,
+      textAlignVertical: 'top',
+    },
+    tokenAnswer: {
+      minHeight: 94,
+      padding: 18,
+      backgroundColor: tone('#EFF5EF', 'background'),
+      borderRadius: 17,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: tone('#BCCFC4', 'border'),
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 9,
+      alignItems: 'center',
+    },
+    tokenList: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    token: {
+      paddingVertical: 13,
+      paddingHorizontal: 18,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: tone('#D2DFD5', 'border'),
+      backgroundColor: tone('white', 'background'),
+      minHeight: 46,
+    },
+    selectedToken: {
+      borderColor: tone('#B0CFC0', 'border'),
+      backgroundColor: tone('#FFFFFF', 'background'),
+    },
+    tokenText: { fontFamily: 'Manrope', fontSize: 16, color: palette.ink },
+  });
+}

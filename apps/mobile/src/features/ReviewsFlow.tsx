@@ -1,8 +1,9 @@
+import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowRight, BookOpen, CalendarCheck, Check, Sprout } from 'lucide-react-native';
 import { api } from '../lib/api';
-import { Action, ErrorCard, f, FlowFrame, palette } from './FeatureUI';
+import { Action, ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
 import LearningFlow from './LearningFlow';
 interface Review {
   key: string;
@@ -23,6 +24,10 @@ const dimensionNames: Record<Review['dimension'], string> = {
   grammar_production: 'Usar la gramática al escribir',
 };
 export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -128,7 +133,19 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
               </View>
               {review.due ? <View style={s.dueDot} /> : <Check color={palette.muted} size={18} />}
             </View>
-            <View style={s.progressTrack}>
+            <View
+              accessibilityRole="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(Math.min(0.95, Math.max(0, review.mastery)) * 100)}
+              accessibilityLabel={`Dominio: ${review.targetLabelEs}`}
+              accessibilityValue={{
+                min: 0,
+                max: 100,
+                now: Math.round(Math.min(0.95, Math.max(0, review.mastery)) * 100),
+              }}
+              style={s.progressTrack}
+            >
               <View
                 style={[
                   s.progressFill,
@@ -162,49 +179,62 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
     </FlowFrame>
   );
 }
-const s = StyleSheet.create({
-  headerIcon: {
-    width: 82,
-    height: 82,
-    backgroundColor: palette.mint,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  switcher: {
-    flexDirection: 'row',
-    gap: 4,
-    padding: 5,
-    backgroundColor: '#E9F0E8',
-    borderRadius: 13,
-  },
-  tab: {
-    flex: 1,
-    minHeight: 44,
-    paddingVertical: 12,
-    paddingHorizontal: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 9,
-  },
-  activeTab: { backgroundColor: 'white' },
-  tabText: { color: palette.muted, fontFamily: 'Manrope', fontSize: 12 },
-  activeTabText: { color: palette.teal, fontWeight: '700' },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  skillIcon: {
-    width: 45,
-    height: 45,
-    borderRadius: 13,
-    backgroundColor: '#EDF5EC',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dueDot: { width: 9, height: 9, backgroundColor: palette.orange, borderRadius: 5 },
-  progressTrack: { height: 6, borderRadius: 5, backgroundColor: '#EAF0E7', overflow: 'hidden' },
-  progressFill: { height: 6, backgroundColor: '#82BDA2', borderRadius: 5 },
-  practice: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
-  practiceText: { fontFamily: 'Manrope', fontSize: 13, fontWeight: '700', color: palette.teal },
-  note: { backgroundColor: '#EDF4EB', borderRadius: 20, padding: 23, gap: 10 },
-});
+export function useStyles() {
+  const { colors: palette, tone } = useTheme();
+  return StyleSheet.create({
+    headerIcon: {
+      width: 82,
+      height: 82,
+      backgroundColor: palette.mint,
+      borderRadius: 25,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    switcher: {
+      flexDirection: 'row',
+      gap: 4,
+      padding: 5,
+      backgroundColor: tone('#E9F0E8', 'background'),
+      borderRadius: 13,
+    },
+    tab: {
+      flex: 1,
+      minHeight: 44,
+      paddingVertical: 12,
+      paddingHorizontal: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 9,
+    },
+    activeTab: { backgroundColor: tone('white', 'background') },
+    tabText: { color: palette.muted, fontFamily: 'Manrope', fontSize: 12 },
+    activeTabText: { color: palette.teal, fontWeight: '700' },
+    cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    skillIcon: {
+      width: 45,
+      height: 45,
+      borderRadius: 13,
+      backgroundColor: tone('#EDF5EC', 'background'),
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    dueDot: { width: 9, height: 9, backgroundColor: palette.orange, borderRadius: 5 },
+    progressTrack: {
+      height: 6,
+      borderRadius: 5,
+      backgroundColor: tone('#EAF0E7', 'background'),
+      overflow: 'hidden',
+    },
+    progressFill: { height: 6, backgroundColor: palette.teal, borderRadius: 5 },
+    practice: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+    practiceText: { fontFamily: 'Manrope', fontSize: 13, fontWeight: '700', color: palette.teal },
+    note: {
+      backgroundColor: tone('#EDF4EB', 'background'),
+      borderRadius: 20,
+      padding: 23,
+      gap: 10,
+    },
+  });
+}
 
 export { ReviewsFlow };

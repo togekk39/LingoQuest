@@ -1,3 +1,4 @@
+import { useTheme } from '../theme';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { C, Button, Heading, Label } from '../ui';
+import { Button, Heading, Label } from '../ui';
 import {
   getOfflineVoices,
   getSpeechPreferences,
@@ -21,6 +22,7 @@ import { openDeviceSpeechSettings } from './tts/deviceSpeech';
 import { DEFAULT_SPEECH_PREFERENCES, type OfflineVoice, type SpeechPreferences } from './tts/types';
 
 export function SpeechSettings() {
+  const { colors: C } = useTheme();
   const [preferences, setPreferences] = useState<SpeechPreferences>(DEFAULT_SPEECH_PREFERENCES);
   const [voices, setVoices] = useState<OfflineVoice[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,9 +1,10 @@
+import { useTheme } from '../theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import type { AttemptResult, Progress } from '@lingoquest/contracts';
 import { stopOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
-import { Action, ErrorCard, f, FlowFrame, newEventId, palette } from './FeatureUI';
+import { Action, ErrorCard, useFeatureStyles, FlowFrame, newEventId } from './FeatureUI';
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from './ExerciseInput';
 import { SpeakingPanel } from './SpeakingPractice';
 import {
@@ -28,6 +29,9 @@ export default function LearningFlow({
   onComplete: () => void;
   review?: boolean;
 }) {
+  const { colors: palette } = useTheme();
+  const f = useFeatureStyles();
+
   const [lesson, setLesson] = useState<IntegratedLesson | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);

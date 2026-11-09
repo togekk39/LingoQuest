@@ -1,3 +1,4 @@
+import { useTheme } from './theme';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -9,21 +10,15 @@ import {
   type StyleProp,
 } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
-export const C = {
-  ink: '#173F43',
-  teal: '#167D72',
-  mint: '#DCF3E9',
-  orange: '#EFA055',
-  paper: '#F7FAF7',
-  muted: '#6F8380',
-  line: '#E3EBE5',
-  white: '#FFFFFF',
-  red: '#B84B50',
-};
+
 export function Label({ children, style }: { children: React.ReactNode; style?: any }) {
+  const u = useStyles();
+
   return <Text style={[u.label, style]}>{children}</Text>;
 }
 export function Heading({ children, style }: { children: React.ReactNode; style?: any }) {
+  const u = useStyles();
+
   return <Text style={[u.heading, style]}>{children}</Text>;
 }
 export function Card({
@@ -33,6 +28,8 @@ export function Card({
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const u = useStyles();
+
   return <View style={[u.card, style]}>{children}</View>;
 }
 export function Button({
@@ -52,6 +49,9 @@ export function Button({
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors: C, tone } = useTheme();
+  const u = useStyles();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -60,11 +60,11 @@ export function Button({
       style={({ pressed }) => [
         u.button,
         variant === 'primary'
-          ? { backgroundColor: C.teal }
+          ? { backgroundColor: C.primary }
           : variant === 'secondary'
             ? { backgroundColor: C.mint }
             : variant === 'danger'
-              ? { backgroundColor: '#FBEAEB' }
+              ? { backgroundColor: tone('#FBEAEB', 'background') }
               : { backgroundColor: 'transparent' },
         style,
         { opacity: disabled ? 0.45 : pressed ? 0.8 : 1 },
@@ -78,7 +78,14 @@ export function Button({
           <Text
             style={[
               u.buttonText,
-              { color: variant === 'primary' ? 'white' : variant === 'danger' ? C.red : C.teal },
+              {
+                color:
+                  variant === 'primary'
+                    ? tone('white', 'text')
+                    : variant === 'danger'
+                      ? C.red
+                      : C.teal,
+              },
             ]}
           >
             {children}
@@ -90,13 +97,17 @@ export function Button({
 }
 export function Pill({
   children,
-  color = C.teal,
-  bg = C.mint,
+  color,
+  bg,
 }: {
   children: React.ReactNode;
   color?: string;
   bg?: string;
 }) {
+  const { colors: C } = useTheme();
+  color ??= C.teal;
+  bg ??= C.mint;
+
   return (
     <View
       style={{
@@ -115,13 +126,16 @@ export function Pill({
 }
 export function ProgressBar({
   value,
-  color = C.teal,
+  color,
   height = 7,
 }: {
   value: number;
   color?: string;
   height?: number;
 }) {
+  const { colors: C } = useTheme();
+  color ??= C.teal;
+
   return (
     <View
       accessibilityRole="progressbar"
@@ -139,25 +153,28 @@ export function ProgressBar({
     </View>
   );
 }
-const u = StyleSheet.create({
-  label: { fontFamily: 'Manrope', fontSize: 13, color: C.muted, lineHeight: 21 },
-  heading: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink },
-  card: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 20,
-    padding: 24,
-  },
-  button: {
-    minHeight: 47,
-    borderRadius: 12,
-    paddingHorizontal: 21,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-  },
-  buttonText: { fontFamily: 'ManropeBold', fontSize: 12 },
-});
+export function useStyles() {
+  const { colors: C, tone } = useTheme();
+  return StyleSheet.create({
+    label: { fontFamily: 'Manrope', fontSize: 13, color: C.muted, lineHeight: 21 },
+    heading: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink },
+    card: {
+      backgroundColor: tone('white', 'background'),
+      borderWidth: 1,
+      borderColor: C.line,
+      borderRadius: 20,
+      padding: 24,
+    },
+    button: {
+      minHeight: 47,
+      borderRadius: 12,
+      paddingHorizontal: 21,
+      paddingVertical: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 9,
+    },
+    buttonText: { fontFamily: 'ManropeBold', fontSize: 12 },
+  });
+}

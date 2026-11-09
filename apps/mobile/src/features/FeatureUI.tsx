@@ -1,3 +1,4 @@
+import { useTheme } from '../theme';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -11,17 +12,6 @@ import {
 } from 'react-native';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
 
-export const palette = {
-  ink: '#173F43',
-  teal: '#167D72',
-  mint: '#DCF3E9',
-  orange: '#EFA055',
-  paper: '#F7FAF7',
-  muted: '#6F8380',
-  line: '#DFE8E2',
-  white: '#FFFFFF',
-  red: '#B84C47',
-};
 export const newEventId = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -42,6 +32,9 @@ export function Action({
   busy?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors: palette } = useTheme();
+  const f = useFeatureStyles();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -79,6 +72,9 @@ export function FlowFrame({
   footer?: React.ReactNode;
   progress?: number;
 }) {
+  const { colors: palette } = useTheme();
+  const f = useFeatureStyles();
+
   return (
     <View style={f.frame}>
       <View style={f.topbar}>
@@ -121,6 +117,8 @@ export function FlowFrame({
   );
 }
 export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const f = useFeatureStyles();
+
   return (
     <View accessibilityRole="alert" style={f.error}>
       <Text style={f.errorTitle}>No pudimos conectar</Text>
@@ -133,89 +131,101 @@ export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () 
     </View>
   );
 }
-export const f = StyleSheet.create({
-  frame: { flex: 1, backgroundColor: palette.paper },
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 22,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: palette.line,
-  },
-  close: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderColor: palette.line,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  eyebrow: {
-    fontFamily: 'Manrope',
-    fontSize: 10,
-    letterSpacing: 1.6,
-    fontWeight: '700',
-    color: palette.muted,
-    textTransform: 'uppercase',
-  },
-  topTitle: { fontFamily: 'Outfit', fontSize: 19, color: palette.ink, marginTop: 3 },
-  safetyDot: { flexDirection: 'row', gap: 7, alignItems: 'center' },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.teal },
-  safetyText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 11 },
-  progressTrack: { height: 5, backgroundColor: '#E5EEE7' },
-  progressFill: { height: 5, backgroundColor: palette.teal },
-  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 38 },
-  content: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 22 },
-  footer: {
-    paddingHorizontal: 24,
-    paddingVertical: 18,
-    borderTopWidth: 1,
-    borderTopColor: palette.line,
-    backgroundColor: 'white',
-  },
-  footerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 12 },
-  action: {
-    minHeight: 52,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 15,
-    flexDirection: 'row',
-    gap: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionPrimary: { backgroundColor: palette.teal },
-  actionSecondary: { borderWidth: 1, borderColor: '#BED9CD', backgroundColor: '#F8FCF9' },
-  actionText: { fontFamily: 'Manrope', color: 'white', fontSize: 14, fontWeight: '700' },
-  title: { fontFamily: 'Outfit', fontSize: 36, lineHeight: 43, color: palette.ink },
-  body: { fontFamily: 'Manrope', fontSize: 15, lineHeight: 25, color: palette.muted },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: palette.line,
-    padding: 25,
-    gap: 15,
-  },
-  cardTitle: { fontFamily: 'Outfit', fontSize: 22, color: palette.ink },
-  error: {
-    padding: 22,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E8CEC5',
-    backgroundColor: '#FFF8F3',
-    gap: 14,
-  },
-  errorTitle: { fontFamily: 'Outfit', fontSize: 20, color: palette.ink },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  quiet: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 20, color: palette.muted },
-  back: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 44 },
-  backText: { fontFamily: 'Manrope', color: palette.teal, fontSize: 13, fontWeight: '700' },
-});
+export function useFeatureStyles() {
+  const { colors: palette, tone } = useTheme();
+  return StyleSheet.create({
+    frame: { flex: 1, backgroundColor: palette.paper },
+    topbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+      paddingHorizontal: 24,
+      paddingVertical: 22,
+      backgroundColor: tone('white', 'background'),
+      borderBottomWidth: 1,
+      borderBottomColor: palette.line,
+    },
+    close: {
+      width: 44,
+      height: 44,
+      borderWidth: 1,
+      borderColor: palette.line,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    eyebrow: {
+      fontFamily: 'Manrope',
+      fontSize: 10,
+      letterSpacing: 1.6,
+      fontWeight: '700',
+      color: palette.muted,
+      textTransform: 'uppercase',
+    },
+    topTitle: { fontFamily: 'Outfit', fontSize: 19, color: palette.ink, marginTop: 3 },
+    safetyDot: { flexDirection: 'row', gap: 7, alignItems: 'center' },
+    dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.primary },
+    safetyText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 11 },
+    progressTrack: { height: 5, backgroundColor: tone('#E5EEE7', 'background') },
+    progressFill: { height: 5, backgroundColor: palette.primary },
+    scroll: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 38 },
+    content: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 22 },
+    footer: {
+      paddingHorizontal: 24,
+      paddingVertical: 18,
+      borderTopWidth: 1,
+      borderTopColor: palette.line,
+      backgroundColor: tone('white', 'background'),
+    },
+    footerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 12 },
+    action: {
+      minHeight: 52,
+      paddingHorizontal: 22,
+      paddingVertical: 14,
+      borderRadius: 15,
+      flexDirection: 'row',
+      gap: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionPrimary: { backgroundColor: palette.primary },
+    actionSecondary: {
+      borderWidth: 1,
+      borderColor: tone('#BED9CD', 'border'),
+      backgroundColor: tone('#F8FCF9', 'background'),
+    },
+    actionText: {
+      fontFamily: 'Manrope',
+      color: tone('white', 'text'),
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    title: { fontFamily: 'Outfit', fontSize: 36, lineHeight: 43, color: palette.ink },
+    body: { fontFamily: 'Manrope', fontSize: 15, lineHeight: 25, color: palette.muted },
+    card: {
+      backgroundColor: tone('white', 'background'),
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: palette.line,
+      padding: 25,
+      gap: 15,
+    },
+    cardTitle: { fontFamily: 'Outfit', fontSize: 22, color: palette.ink },
+    error: {
+      padding: 22,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: tone('#E8CEC5', 'border'),
+      backgroundColor: tone('#FFF8F3', 'background'),
+      gap: 14,
+    },
+    errorTitle: { fontFamily: 'Outfit', fontSize: 20, color: palette.ink },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    quiet: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 20, color: palette.muted },
+    back: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 44 },
+    backText: { fontFamily: 'Manrope', color: palette.teal, fontSize: 13, fontWeight: '700' },
+  });
+}
 export function BackLink({
   onPress,
   children = 'Volver a aprender',
@@ -223,6 +233,9 @@ export function BackLink({
   onPress: () => void;
   children?: React.ReactNode;
 }) {
+  const { colors: palette } = useTheme();
+  const f = useFeatureStyles();
+
   return (
     <Pressable style={f.back} onPress={onPress}>
       <ArrowLeft color={palette.teal} size={17} />

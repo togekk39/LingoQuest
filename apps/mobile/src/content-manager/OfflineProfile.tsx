@@ -1,3 +1,5 @@
+import { ThemePicker } from '../ThemePicker';
+import { useTheme } from '../theme';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, Switch, Modal, StyleSheet } from 'react-native';
 import {
@@ -11,7 +13,7 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { api, type Progress } from '../lib/api';
-import { C, Button, Card, Heading, Label, Pill, ProgressBar } from '../ui';
+import { Button, Card, Heading, Label, Pill, ProgressBar } from '../ui';
 import { pickTextFile, saveTextFile } from '../lib/localFiles';
 import { ContentManager } from './ContentManager';
 const dimensionLabels = {
@@ -31,6 +33,9 @@ export function OfflineProfile({
   onNotice: (message: string) => void;
   onPlacement: () => void;
 }) {
+  const { colors: C } = useTheme();
+  const s = useStyles();
+
   const [name, setName] = useState(progress.user.name);
   const [goal, setGoal] = useState(progress.user.goalMinutes || 10);
   const [reduced, setReduced] = useState(progress.user.reducedMotion || false);
@@ -85,6 +90,9 @@ export function OfflineProfile({
         <Heading style={{ fontSize: 32, marginTop: 7 }}>Tu historia hasta aquí</Heading>
         <Label>Tu camino vive en este dispositivo. No necesitas una cuenta.</Label>
       </View>
+      <Card>
+        <ThemePicker />
+      </Card>
       <Card>
         <View style={[s.row, { gap: 17 }]}>
           <View style={s.avatar}>
@@ -314,58 +322,66 @@ export function OfflineProfile({
     </View>
   );
 }
-const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eyebrow: { fontFamily: 'ManropeBold', fontSize: 9, letterSpacing: 1.1, color: '#789583' },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    backgroundColor: '#E9EEDF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { fontFamily: 'OutfitMedium', fontSize: 26, color: '#69805F' },
-  statsGrid: { flexDirection: 'row', gap: 10, marginTop: 25, marginBottom: 18 },
-  profileStat: {
-    flex: 1,
-    backgroundColor: '#F5F8F3',
-    padding: 18,
-    borderRadius: 13,
-    alignItems: 'center',
-    gap: 7,
-  },
-  statNumber: { fontFamily: 'OutfitSemiBold', fontSize: 28, color: C.ink },
-  title: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
-  input: {
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 11,
-    padding: 13,
-    fontFamily: 'Manrope',
-    fontSize: 13,
-    color: C.ink,
-    marginTop: 8,
-    minHeight: 47,
-    backgroundColor: '#FBFDFB',
-  },
-  goalOption: {
-    paddingHorizontal: 15,
-    minHeight: 44,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 10,
-    backgroundColor: 'white',
-  },
-  optionActive: { backgroundColor: C.mint, borderColor: C.teal },
-  optionText: { fontFamily: 'ManropeBold', fontSize: 11, color: C.teal },
-  error: { fontFamily: 'Manrope', fontSize: 12, color: C.red, marginTop: 15 },
-  modal: {
-    flex: 1,
-    backgroundColor: '#122D3977',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-});
+export function useStyles() {
+  const { colors: C, tone } = useTheme();
+  return StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    eyebrow: {
+      fontFamily: 'ManropeBold',
+      fontSize: 9,
+      letterSpacing: 1.1,
+      color: tone('#789583', 'text'),
+    },
+    avatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 22,
+      backgroundColor: tone('#E9EEDF', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: { fontFamily: 'OutfitMedium', fontSize: 26, color: tone('#69805F', 'text') },
+    statsGrid: { flexDirection: 'row', gap: 10, marginTop: 25, marginBottom: 18 },
+    profileStat: {
+      flex: 1,
+      backgroundColor: tone('#F5F8F3', 'background'),
+      padding: 18,
+      borderRadius: 13,
+      alignItems: 'center',
+      gap: 7,
+    },
+    statNumber: { fontFamily: 'OutfitSemiBold', fontSize: 28, color: C.ink },
+    title: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
+    input: {
+      borderWidth: 1,
+      borderColor: C.line,
+      borderRadius: 11,
+      padding: 13,
+      fontFamily: 'Manrope',
+      fontSize: 13,
+      color: C.ink,
+      marginTop: 8,
+      minHeight: 47,
+      backgroundColor: tone('#FBFDFB', 'background'),
+    },
+    goalOption: {
+      paddingHorizontal: 15,
+      minHeight: 44,
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: C.line,
+      borderRadius: 10,
+      backgroundColor: tone('white', 'background'),
+    },
+    optionActive: { backgroundColor: C.mint, borderColor: C.teal },
+    optionText: { fontFamily: 'ManropeBold', fontSize: 11, color: C.teal },
+    error: { fontFamily: 'Manrope', fontSize: 12, color: C.red, marginTop: 15 },
+    modal: {
+      flex: 1,
+      backgroundColor: '#122D3977',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
+  });
+}
