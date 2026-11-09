@@ -24,3 +24,6 @@ credentials.json
 .gradle/
 
 /artifacts/
+
+# Generated outputs for local Expo modules.
+/apps/mobile/modules/*/android/build/

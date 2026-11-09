@@ -122,7 +122,7 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
                     accessibilityRole="button"
                     accessibilityLabel={`Escuchar: ${drill.textEn}`}
                     onPress={() => {
-                      void playOffline(drill.textEn, 0.8);
+                      void playOffline(drill.textEn);
                     }}
                     style={s.control}
                   >

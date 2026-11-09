@@ -1,50 +1,66 @@
 import { useState } from 'react';
-import { Platform } from 'react-native';
-import * as Speech from 'expo-speech';
+import { localSettings } from '../lib/api';
+import { getOfflineVoices, playDeviceSpeech, stopDeviceSpeech } from './tts/deviceSpeech';
+import {
+  DEFAULT_SPEECH_PREFERENCES,
+  normalizeSpeechPreferences,
+  type SpeechPreferences,
+} from './tts/types';
 
+export { getOfflineVoices };
 export const OFFLINE_AUDIO_NOTICE =
-  'Audio de referencia no incluido en este paquete. Puedes seguir leyendo, grabarte y escuchar tu práctica.';
-
-/** Never fall back to an unverified/network speech voice. */
-async function playVerifiedOfflineVoice(
+  'No hay una voz de inglés sin conexión disponible. Revisa la voz elegida en Configuración de voz o instala una voz sin conexión en los ajustes TTS del sistema. Puedes seguir leyendo, grabarte y escuchar tu práctica.';
+export async function getSpeechPreferences() {
+  return normalizeSpeechPreferences(
+    await localSettings.get<unknown>('speech', DEFAULT_SPEECH_PREFERENCES),
+  );
+}
+export async function saveSpeechPreferences(value: SpeechPreferences) {
+  await localSettings.set('speech', normalizeSpeechPreferences(value));
+}
+let request = 0;
+async function playOfflineVoice(
   text: string,
-  rate = 0.85,
+  override?: SpeechPreferences,
 ): Promise<{ played: boolean; message: string }> {
-  if (Platform.OS !== 'web') {
-    // Expo's native Voice metadata does not expose Android's
-    // isNetworkConnectionRequired. Leave native demo speech disabled until an
-    // offline voice bridge or a locally installed audio pack can prove locality.
-    return { played: false, message: OFFLINE_AUDIO_NOTICE };
-  }
+  const ticket = ++request;
   try {
-    const voices = (await Speech.getAvailableVoicesAsync()) as Speech.WebVoice[];
-    const localVoices = voices.filter(
-      (voice) => voice.localService === true && /^en-US$/i.test(voice.language),
-    );
-    const voice = localVoices[0];
-    if (!voice) return { played: false, message: OFFLINE_AUDIO_NOTICE };
-    await Speech.stop();
-    Speech.speak(text, { language: voice.language, voice: voice.identifier, rate });
-    return { played: true, message: '' };
+    const preferences = override ?? (await getSpeechPreferences());
+    // Resolve delayed voice lists before checking whether the screen was closed.
+    const voices = await getOfflineVoices();
+    if (ticket !== request) return { played: false, message: '' };
+    const played = await playDeviceSpeech(text, preferences, voices, () => ticket === request);
+    return { played, message: '' };
   } catch {
-    return { played: false, message: OFFLINE_AUDIO_NOTICE };
+    return { played: false, message: ticket === request ? OFFLINE_AUDIO_NOTICE : '' };
   }
+}
+export async function previewOfflineSpeech(
+  text: string,
+  preferences: SpeechPreferences,
+  onUnavailable: (message: string) => void,
+) {
+  const result = await playOfflineVoice(text, preferences);
+  if (result.message) onUnavailable(result.message);
+  return result.played;
 }
 export async function speakOffline(
   text: string,
   onUnavailable?: (message: string) => void,
 ): Promise<boolean> {
-  const result = await playVerifiedOfflineVoice(text);
-  if (!result.played) onUnavailable?.(result.message);
+  const result = await playOfflineVoice(text);
+  if (result.message) onUnavailable?.(result.message);
   return result.played;
 }
 export async function stopOfflineSpeech() {
-  if (Platform.OS === 'web') await Speech.stop();
+  request++;
+  await stopDeviceSpeech();
 }
 export function useOfflineSpeech() {
   const [speechMessage, setSpeechMessage] = useState('');
-  async function playOffline(text: string, rate = 0.85) {
-    const result = await playVerifiedOfflineVoice(text, rate);
+  async function playOffline(text: string) {
+    setSpeechMessage('');
+    const result = await playOfflineVoice(text);
     setSpeechMessage(result.message);
   }
   return { playOffline, speechMessage };
