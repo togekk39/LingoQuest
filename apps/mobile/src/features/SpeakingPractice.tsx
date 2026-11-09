@@ -130,7 +130,7 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
           accessibilityRole="button"
           style={s.listen}
           onPress={() => {
-            void playOffline(text, 0.82);
+            void playOffline(text);
           }}
         >
           <Volume2 color={palette.teal} size={19} />

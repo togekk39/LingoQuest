@@ -4,7 +4,7 @@ import type { CourseLesson } from '@lingoquest/course-pack';
 import type { AttemptResult, PublicExercise } from '@lingoquest/contracts';
 import { BookOpen, Check, CheckCheck, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
 import { f, palette } from './FeatureUI';
-import { OFFLINE_AUDIO_NOTICE, useOfflineSpeech } from './offlineSpeech';
+import { useOfflineSpeech } from './offlineSpeech';
 
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
 export type StageKind = CourseLesson['stages'][number]['type'];
@@ -105,7 +105,8 @@ export function VocabularyCard({
         </View>
       </View>
       <Text accessibilityLiveRegion="polite" style={f.quiet}>
-        {speechMessage || OFFLINE_AUDIO_NOTICE}
+        {speechMessage ||
+          'Escucha con la voz sin conexión del dispositivo. Puedes cambiar la voz y la velocidad en Configuración.'}
       </Text>
       <Text style={f.body}>
         Mira el significado y el ejemplo. Primero reconocerás estas palabras; después las
@@ -114,20 +115,14 @@ export function VocabularyCard({
     </>
   );
 }
-function AudioButton({
-  text,
-  onPlay,
-}: {
-  text: string;
-  onPlay: (text: string, rate?: number) => Promise<void>;
-}) {
+function AudioButton({ text, onPlay }: { text: string; onPlay: (text: string) => Promise<void> }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Escuchar: ${text}`}
       style={s.sound}
       onPress={() => {
-        void onPlay(text, 0.82);
+        void onPlay(text);
       }}
     >
       <Volume2 size={20} color={palette.teal} />
