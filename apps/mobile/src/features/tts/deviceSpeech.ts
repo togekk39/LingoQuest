@@ -37,8 +37,7 @@ export async function playDeviceSpeech(
   return new Promise<boolean>((resolve, reject) => {
     Speech.speak(text, {
       language: voice.language,
-      // Let iOS choose its preferred installed English voice by default.
-      ...(preferences.voice ? { voice: voice.identifier } : {}),
+      voice: voice.identifier,
       ...(preferences.rate === null ? {} : { rate: preferences.rate }),
       onDone: () => resolve(true),
       onStopped: () => resolve(false),

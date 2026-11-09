@@ -48,10 +48,10 @@ class OfflineTtsModule : Module() {
           else voices.find { it.name == engine.defaultVoice?.name }
             ?: voices.find { it.locale.toLanguageTag().equals("en-US", true) }
             ?: voices.firstOrNull()
-        if (voice == null || engine.setVoice(voice) != TextToSpeech.SUCCESS) {
+        cancelUtterances()
+        if (voice == null || !configureEnglishVoice(engine, voice)) {
           promise.reject("NO_OFFLINE_VOICE", "Install an offline English voice in system TTS settings.", null)
         } else {
-          cancelUtterances()
           val systemRate = Settings.Secure.getInt(context().contentResolver, "tts_default_rate", 100) / 100.0
           val speed = (rate ?: systemRate).coerceAtLeast(0.1).toFloat()
           if (engine.setSpeechRate(speed) != TextToSpeech.SUCCESS) {
@@ -85,10 +85,7 @@ class OfflineTtsModule : Module() {
   private fun context() = appContext.reactContext ?: error("React context unavailable")
 
   private fun offlineVoices(engine: TextToSpeech): List<Voice> =
-    (engine.voices ?: emptySet()).filter {
-      it.locale.language == "en" && !it.isNetworkConnectionRequired &&
-        !it.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
-    }.sortedBy { it.name }
+    (engine.voices ?: emptySet()).filter { it.isOfflineEnglish() }.sortedBy { it.name }
 
   private fun cancelUtterances() {
     utterances.values.forEach { it.resolve(false) }

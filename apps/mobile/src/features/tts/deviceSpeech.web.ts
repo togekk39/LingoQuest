@@ -44,7 +44,12 @@ export async function playDeviceSpeech(
   // Recheck locality at playback; never allow the browser's implicit cloud fallback.
   const voice = synth
     .getVoices()
-    .find((item) => item.voiceURI === selected.identifier && item.localService === true);
+    .find(
+      (item) =>
+        item.voiceURI === selected.identifier &&
+        item.localService === true &&
+        /^en(?:-|$)/i.test(item.lang),
+    );
   if (!voice) throw new Error('Voice unavailable');
   void stopDeviceSpeech();
   return new Promise<boolean>((resolve, reject) => {

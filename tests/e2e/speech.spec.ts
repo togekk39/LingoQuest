@@ -60,6 +60,7 @@ async function installSpeechFixture(page: Page) {
           fixture.__speechCalls.push({
             text: utterance.text,
             voice: utterance.voice?.voiceURI,
+            language: utterance.lang,
             rate: utterance.rate,
           });
           setTimeout(
@@ -96,7 +97,7 @@ test('system default local English voice works offline; saved voice and speed pe
   await openDrill(page);
   await expect
     .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
-    .toMatchObject({ voice: 'local-gb', rate: 1 });
+    .toMatchObject({ voice: 'local-gb', language: 'en-GB', rate: 1 });
   await page.reload();
   await page.getByRole('button', { name: 'Configuración', exact: true }).click();
   await expect(
@@ -108,7 +109,7 @@ test('system default local English voice works offline; saved voice and speed pe
   await page.getByRole('button', { name: 'Probar voz', exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
-    .toMatchObject({ voice: 'local-us', rate: 0.75 });
+    .toMatchObject({ voice: 'local-us', language: 'en-US', rate: 0.75 });
   await page.getByRole('button', { name: 'Guardar configuración de voz', exact: true }).click();
   await expect(
     page.getByText('Configuración de voz guardada en este dispositivo.', { exact: true }),
@@ -117,7 +118,7 @@ test('system default local English voice works offline; saved voice and speed pe
   await openDrill(page);
   await expect
     .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
-    .toMatchObject({ voice: 'local-us', rate: 0.75 });
+    .toMatchObject({ voice: 'local-us', language: 'en-US', rate: 0.75 });
   await page.reload();
   await page.getByRole('button', { name: 'Configuración', exact: true }).click();
   await expect(page.getByRole('radio', { name: /English US local/ })).toBeChecked();
@@ -132,7 +133,30 @@ test('system default local English voice works offline; saved voice and speed pe
   await openDrill(page);
   await expect
     .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
-    .toMatchObject({ voice: 'local-gb', rate: 1 });
+    .toMatchObject({ voice: 'local-gb', language: 'en-GB', rate: 1 });
+});
+
+test('Spanish system defaults cannot change English playback or enable Spanish-only voices', async ({
+  page,
+}) => {
+  await installSpeechFixture(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'language', { value: 'es-MX', configurable: true });
+    Object.defineProperty(navigator, 'languages', { value: ['es-MX'], configurable: true });
+    for (const voice of (window as any).__speechVoices) voice.default = voice.lang === 'es-MX';
+  });
+  await enterApp(page);
+  await openDrill(page);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
+    .toMatchObject({ voice: 'local-us', language: 'en-US' });
+  await page.evaluate(() => {
+    const fixture = window as any;
+    fixture.__speechVoices = fixture.__speechVoices.filter((voice: any) => voice.lang === 'es-MX');
+  });
+  await page.getByText('Escuchar ejemplo', { exact: true }).click();
+  await expect(page.getByText(/No hay una voz de inglés sin conexión disponible/)).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__speechCalls.length)).toBe(1);
 });
 
 test('removed or network-only saved voices are not silently replaced; playback errors have feedback', async ({

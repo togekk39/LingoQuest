@@ -18,10 +18,11 @@ export function normalizeSpeechPreferences(value: unknown): SpeechPreferences {
   };
 }
 export function selectOfflineVoice(voices: OfflineVoice[], identifier: string | null) {
+  const englishVoices = voices.filter((voice) => /^en(?:-|$)/i.test(voice.language));
   // A removed user-selected voice requires attention, not a silent voice change.
   return identifier
-    ? voices.find((voice) => voice.identifier === identifier)
-    : (voices.find((voice) => voice.isDefault) ??
-        voices.find((voice) => /^en-US$/i.test(voice.language)) ??
-        voices[0]);
+    ? englishVoices.find((voice) => voice.identifier === identifier)
+    : (englishVoices.find((voice) => voice.isDefault) ??
+        englishVoices.find((voice) => /^en-US$/i.test(voice.language)) ??
+        englishVoices[0]);
 }
