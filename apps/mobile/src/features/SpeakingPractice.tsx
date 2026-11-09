@@ -1,3 +1,4 @@
+import { useTheme } from '../theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
@@ -11,8 +12,12 @@ import {
 import { File } from 'expo-file-system';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { AudioLines, ShieldCheck, Volume2 } from 'lucide-react-native';
-import { Action, f, FlowFrame, palette } from './FeatureUI';
+import { Action, useFeatureStyles, FlowFrame } from './FeatureUI';
 export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => void }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const player = useAudioPlayer(null);
@@ -214,20 +219,23 @@ export default function SpeakingPractice({
     </FlowFrame>
   );
 }
-const s = StyleSheet.create({
-  speechIcon: {
-    width: 84,
-    height: 84,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 28,
-    backgroundColor: palette.mint,
-  },
-  reference: { fontFamily: 'Outfit', fontSize: 28, lineHeight: 38, color: palette.ink },
-  listen: { flexDirection: 'row', gap: 9, alignItems: 'center', minHeight: 44 },
-  listenText: { fontFamily: 'Manrope', fontSize: 14, color: palette.teal, fontWeight: '700' },
-  privacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  neutral: { padding: 20, backgroundColor: '#EEF5F0', borderRadius: 17 },
-});
+export function useStyles() {
+  const { colors: palette, tone } = useTheme();
+  return StyleSheet.create({
+    speechIcon: {
+      width: 84,
+      height: 84,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 28,
+      backgroundColor: palette.mint,
+    },
+    reference: { fontFamily: 'Outfit', fontSize: 28, lineHeight: 38, color: palette.ink },
+    listen: { flexDirection: 'row', gap: 9, alignItems: 'center', minHeight: 44 },
+    listenText: { fontFamily: 'Manrope', fontSize: 14, color: palette.teal, fontWeight: '700' },
+    privacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+    neutral: { padding: 20, backgroundColor: tone('#EEF5F0', 'background'), borderRadius: 17 },
+  });
+}
 
 export { SpeakingPractice };

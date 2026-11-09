@@ -1,9 +1,10 @@
+import { useTheme } from '../theme';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CourseLesson } from '@lingoquest/course-pack';
 import type { AttemptResult, PublicExercise } from '@lingoquest/contracts';
 import { BookOpen, Check, CheckCheck, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
-import { f, palette } from './FeatureUI';
+import { useFeatureStyles } from './FeatureUI';
 import { OFFLINE_AUDIO_NOTICE, useOfflineSpeech } from './offlineSpeech';
 
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
@@ -24,6 +25,10 @@ export function StageProgress({
   lesson: IntegratedLesson;
   position: number;
 }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   return (
     <View style={{ gap: 10 }}>
       <Text accessibilityLiveRegion="polite" style={f.eyebrow}>
@@ -43,6 +48,10 @@ export function StageProgress({
   );
 }
 export function GoalStage({ lesson, review }: { lesson: IntegratedLesson; review: boolean }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   return (
     <>
       <View style={s.lessonIcon}>
@@ -80,6 +89,9 @@ export function VocabularyCard({
   position: number;
   total: number;
 }) {
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const { playOffline, speechMessage } = useOfflineSpeech();
   return (
     <>
@@ -121,6 +133,9 @@ function AudioButton({
   text: string;
   onPlay: (text: string, rate?: number) => Promise<void>;
 }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -135,6 +150,10 @@ function AudioButton({
   );
 }
 export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const { playOffline, speechMessage } = useOfflineSpeech();
   return (
     <>
@@ -175,6 +194,10 @@ export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
   );
 }
 export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
+  const { tone } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const { playOffline, speechMessage } = useOfflineSpeech();
   return (
     <>
@@ -184,7 +207,7 @@ export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
       {lesson.dialogue.map((turn, index) => (
         <View
           key={`${turn.speaker}-${index}`}
-          style={[f.card, index % 2 === 1 && { backgroundColor: '#EEF7F0' }]}
+          style={[f.card, index % 2 === 1 && { backgroundColor: tone('#EEF7F0', 'background') }]}
         >
           <Text style={f.eyebrow}>{turn.speaker}</Text>
           <View style={s.exampleRow}>
@@ -208,12 +231,19 @@ export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
   );
 }
 export function AnswerFeedback({ result }: { result: AttemptResult }) {
+  const { colors: palette, tone } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   return (
     <View
       accessibilityRole="alert"
       style={[
         s.feedback,
-        !result.correct && { backgroundColor: '#FFF3E7', borderColor: '#ECD2B6' },
+        !result.correct && {
+          backgroundColor: tone('#FFF3E7', 'background'),
+          borderColor: tone('#ECD2B6', 'border'),
+        },
       ]}
     >
       <View style={f.row}>
@@ -249,6 +279,10 @@ export function RecapStage({
   nextReviewAt: string | null;
   weakExerciseIds: string[];
 }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const vocabulary = lesson.vocabulary.filter((item) =>
     lesson.review.vocabularyIds.includes(item.id),
   );
@@ -309,76 +343,88 @@ export function RecapStage({
     </>
   );
 }
-const s = StyleSheet.create({
-  stageList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  stagePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: 9,
-    backgroundColor: '#EDF2ED',
-    paddingVertical: 6,
-    paddingHorizontal: 9,
-  },
-  currentStage: { backgroundColor: palette.mint, borderWidth: 1, borderColor: '#B0D3C5' },
-  stageText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 10 },
-  lessonIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 25,
-    backgroundColor: palette.mint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  supportive: { flexDirection: 'row', gap: 13, alignItems: 'center', padding: 12 },
-  wordHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  word: { fontFamily: 'Outfit', color: palette.teal, fontSize: 40, lineHeight: 48 },
-  meaning: { fontFamily: 'Outfit', color: palette.ink, fontSize: 27, lineHeight: 34 },
-  english: { fontFamily: 'Outfit', fontSize: 23, lineHeight: 32, color: palette.ink },
-  sound: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    backgroundColor: '#E0F1E7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  example: { borderTopWidth: 1, borderTopColor: palette.line, paddingTop: 18, gap: 9 },
-  exampleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  forms: { backgroundColor: '#EFF6EF', padding: 16, borderRadius: 15, gap: 8 },
-  feedback: {
-    padding: 22,
-    gap: 13,
-    borderRadius: 19,
-    borderWidth: 1,
-    borderColor: '#B8DBC6',
-    backgroundColor: '#E6F5EB',
-    marginTop: 8,
-  },
-  accepted: {
-    fontFamily: 'Manrope',
-    fontSize: 15,
-    color: palette.ink,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  completeHeading: { alignItems: 'center', gap: 22, paddingVertical: 12 },
-  completeIcon: {
-    height: 104,
-    width: 104,
-    borderRadius: 36,
-    backgroundColor: palette.mint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  xp: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    backgroundColor: '#FAEDCE',
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 25,
-  },
-  xpText: { fontFamily: 'Outfit', color: '#956924', fontSize: 22 },
-});
+export function useStyles() {
+  const { colors: palette, tone } = useTheme();
+  return StyleSheet.create({
+    stageList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    stagePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      borderRadius: 9,
+      backgroundColor: tone('#EDF2ED', 'background'),
+      paddingVertical: 6,
+      paddingHorizontal: 9,
+    },
+    currentStage: {
+      backgroundColor: palette.mint,
+      borderWidth: 1,
+      borderColor: tone('#B0D3C5', 'border'),
+    },
+    stageText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 10 },
+    lessonIcon: {
+      width: 80,
+      height: 80,
+      borderRadius: 25,
+      backgroundColor: palette.mint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    supportive: { flexDirection: 'row', gap: 13, alignItems: 'center', padding: 12 },
+    wordHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    word: { fontFamily: 'Outfit', color: palette.teal, fontSize: 40, lineHeight: 48 },
+    meaning: { fontFamily: 'Outfit', color: palette.ink, fontSize: 27, lineHeight: 34 },
+    english: { fontFamily: 'Outfit', fontSize: 23, lineHeight: 32, color: palette.ink },
+    sound: {
+      width: 46,
+      height: 46,
+      borderRadius: 15,
+      backgroundColor: tone('#E0F1E7', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    example: { borderTopWidth: 1, borderTopColor: palette.line, paddingTop: 18, gap: 9 },
+    exampleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    forms: {
+      backgroundColor: tone('#EFF6EF', 'background'),
+      padding: 16,
+      borderRadius: 15,
+      gap: 8,
+    },
+    feedback: {
+      padding: 22,
+      gap: 13,
+      borderRadius: 19,
+      borderWidth: 1,
+      borderColor: tone('#B8DBC6', 'border'),
+      backgroundColor: tone('#E6F5EB', 'background'),
+      marginTop: 8,
+    },
+    accepted: {
+      fontFamily: 'Manrope',
+      fontSize: 15,
+      color: palette.ink,
+      fontWeight: '700',
+      lineHeight: 24,
+    },
+    completeHeading: { alignItems: 'center', gap: 22, paddingVertical: 12 },
+    completeIcon: {
+      height: 104,
+      width: 104,
+      borderRadius: 36,
+      backgroundColor: palette.mint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    xp: {
+      flexDirection: 'row',
+      gap: 12,
+      alignItems: 'center',
+      backgroundColor: tone('#FAEDCE', 'background'),
+      borderRadius: 18,
+      paddingVertical: 16,
+      paddingHorizontal: 25,
+    },
+    xpText: { fontFamily: 'Outfit', color: tone('#956924', 'text'), fontSize: 22 },
+  });
+}

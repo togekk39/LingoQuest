@@ -1,8 +1,9 @@
+import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Compass, Sparkles } from 'lucide-react-native';
 import { api } from '../lib/api';
-import { Action, ErrorCard, f, FlowFrame, palette } from './FeatureUI';
+import { Action, ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
 import { ExerciseInput, hasAnswer, type Exercise, type ExerciseAnswer } from './ExerciseInput';
 interface PlacementResult {
   level: 'A1' | 'A2';
@@ -17,6 +18,10 @@ export default function PlacementFlow({
   onClose: () => void;
   onComplete?: () => void;
 }) {
+  const { colors: palette } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const [questions, setQuestions] = useState<Exercise[]>([]);
   const [position, setPosition] = useState(-1);
   const [answer, setAnswer] = useState<ExerciseAnswer>({});
@@ -165,24 +170,27 @@ export default function PlacementFlow({
     </FlowFrame>
   );
 }
-const s = StyleSheet.create({
-  icon: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.mint,
-  },
-  levelBadge: {
-    padding: 23,
-    alignItems: 'center',
-    backgroundColor: '#EAF4E9',
-    width: '100%',
-    borderRadius: 23,
-    gap: 7,
-  },
-  levelText: { fontFamily: 'Outfit', fontSize: 50, color: palette.teal },
-});
+export function useStyles() {
+  const { colors: palette, tone } = useTheme();
+  return StyleSheet.create({
+    icon: {
+      width: 88,
+      height: 88,
+      borderRadius: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: palette.mint,
+    },
+    levelBadge: {
+      padding: 23,
+      alignItems: 'center',
+      backgroundColor: tone('#EAF4E9', 'background'),
+      width: '100%',
+      borderRadius: 23,
+      gap: 7,
+    },
+    levelText: { fontFamily: 'Outfit', fontSize: 50, color: palette.teal },
+  });
+}
 
 export { PlacementFlow };

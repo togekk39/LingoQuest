@@ -1,3 +1,5 @@
+import { ThemeButton } from './ThemePicker';
+import { useTheme } from './theme';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -38,7 +40,7 @@ import {
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, bootstrap, localSettings, type Unit, type Progress } from './lib/api';
-import { C, Button, Card, Label, Heading, Pill, ProgressBar } from './ui';
+import { Button, Card, Label, Heading, Pill, ProgressBar } from './ui';
 import { JourneyArt } from './JourneyArt';
 import { ReviewsFlow } from './features/ReviewsFlow';
 import { LearningFlow } from './features/LearningFlow';
@@ -80,6 +82,9 @@ const unitColors = [
   '#E0EFE9',
 ];
 export default function App() {
+  const { colors: C, tone } = useTheme();
+  const s = useStyles();
+
   const { width } = useWindowDimensions();
   const desktop = width >= 1050;
   const wide = width >= 1280;
@@ -233,7 +238,8 @@ export default function App() {
                 <Text style={s.breadcrumbCurrent}>{tab}</Text>
               </View>
             )}
-            <View style={[s.row, { gap: 18 }]}>
+            <View style={[s.row, { gap: desktop ? 18 : 8 }]}>
+              <ThemeButton />
               <View style={s.row}>
                 <Flame size={17} color="#DA9460" />
                 <Text style={s.topStat}>
@@ -329,7 +335,9 @@ export default function App() {
                             Un poco de inglés.{'\n'}Un mundo de{'\n'}
                             <Text style={{ color: C.teal }}>posibilidades.</Text>
                           </Text>
-                          <Label style={{ color: '#567869', fontSize: 12, maxWidth: 270 }}>
+                          <Label
+                            style={{ color: tone('#567869', 'text'), fontSize: 12, maxWidth: 270 }}
+                          >
                             Aprende sin prisa, equivócate sin miedo y descubre hasta dónde puedes
                             llegar.
                           </Label>
@@ -470,7 +478,10 @@ export default function App() {
                               )
                                 ? '1'
                                 : '0'}
-                              <Text style={{ fontSize: 18, color: '#A5B6AA' }}> / 1</Text>
+                              <Text style={{ fontSize: 18, color: tone('#A5B6AA', 'text') }}>
+                                {' '}
+                                / 1
+                              </Text>
                             </Text>
                             <Text style={s.goalLabel}>práctica de hoy</Text>
                           </View>
@@ -490,7 +501,7 @@ export default function App() {
                                 <View
                                   style={[
                                     s.weekDot,
-                                    done && { backgroundColor: C.teal },
+                                    done && { backgroundColor: C.primary },
                                     i === today && { borderColor: C.teal, borderWidth: 1.5 },
                                   ]}
                                 >
@@ -502,7 +513,7 @@ export default function App() {
                                         width: 5,
                                         height: 5,
                                         borderRadius: 3,
-                                        backgroundColor: C.teal,
+                                        backgroundColor: C.primary,
                                       }}
                                     />
                                   ) : null}
@@ -522,7 +533,13 @@ export default function App() {
                         </View>
                         <Text style={s.quoteCaption}>UNA FRASE PARA LLEVAR</Text>
                         <Text style={s.quote}>“Every journey begins{'\n'}with a single step.”</Text>
-                        <Label style={{ fontSize: 11, color: '#8C826A', textAlign: 'center' }}>
+                        <Label
+                          style={{
+                            fontSize: 11,
+                            color: tone('#8C826A', 'text'),
+                            textAlign: 'center',
+                          }}
+                        >
                           Cada viaje comienza con un solo paso.
                         </Label>
                         <Pressable
@@ -841,6 +858,9 @@ export default function App() {
   );
 }
 function Brand({ small = false }: { small?: boolean }) {
+  const { colors: C, tone } = useTheme();
+  const s = useStyles();
+
   return (
     <View style={[s.row, { gap: 10 }]}>
       <View style={[s.logo, small && { width: 31, height: 31, borderRadius: 10 }]}>
@@ -848,16 +868,19 @@ function Brand({ small = false }: { small?: boolean }) {
       </View>
       <Text style={[s.brand, small && { fontSize: 20 }]}>
         lingo<Text style={{ color: C.teal }}>quest</Text>
-        <Text style={{ color: '#DAA76D' }}>.</Text>
+        <Text style={{ color: tone('#DAA76D', 'text') }}>.</Text>
       </Text>
     </View>
   );
 }
 function PracticeCard({ icon: Icon, badge, title, text, action, onPress, color, iconColor }: any) {
+  const { colors: C, tone } = useTheme();
+  const s = useStyles();
+
   return (
     <Card style={{ flex: 1, padding: 20 }}>
       <View style={s.sectionTitle}>
-        <View style={[s.practiceIcon, { backgroundColor: color }]}>
+        <View style={[s.practiceIcon, { backgroundColor: tone(color, 'background') }]}>
           <Icon color={iconColor} size={21} />
         </View>
         <Text style={s.subtleBadge}>{badge}</Text>
@@ -872,6 +895,8 @@ function PracticeCard({ icon: Icon, badge, title, text, action, onPress, color, 
   );
 }
 function SvgGoal({ value }: { value: number }) {
+  const { colors: C, tone } = useTheme();
+
   return (
     <View
       style={{
@@ -879,7 +904,7 @@ function SvgGoal({ value }: { value: number }) {
         height: 140,
         borderRadius: 70,
         borderWidth: 8,
-        borderColor: '#EBF1EB',
+        borderColor: tone('#EBF1EB', 'border'),
         borderTopColor: C.teal,
         transform: [{ rotate: '-38deg' }],
       }}
@@ -899,6 +924,9 @@ function SvgGoal({ value }: { value: number }) {
   );
 }
 function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission }: any) {
+  const { colors: C, tone } = useTheme();
+  const s = useStyles();
+
   const [expanded, setExpanded] = useState('u01');
 
   return (
@@ -927,10 +955,23 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ expanded: open }}
+              aria-expanded={open}
               onPress={() => setExpanded(open ? '' : unit.id)}
-              style={[s.unitHeader, { backgroundColor: open ? unitColors[i] : 'white' }]}
+              style={[
+                s.unitHeader,
+                {
+                  backgroundColor: open
+                    ? tone(unitColors[i], 'background')
+                    : tone('white', 'background'),
+                },
+              ]}
             >
-              <View style={[s.unitNumber, { backgroundColor: open ? '#FFFFFF99' : unitColors[i] }]}>
+              <View
+                style={[
+                  s.unitNumber,
+                  { backgroundColor: open ? C.white : tone(unitColors[i], 'background') },
+                ]}
+              >
                 <Text style={{ fontFamily: 'OutfitSemiBold', fontSize: 23, color: C.teal }}>
                   {String(i + 1).padStart(2, '0')}
                 </Text>
@@ -962,7 +1003,7 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
                       onPress={() => onLesson(l.id)}
                       style={s.lessonRow}
                     >
-                      <View style={[s.lessonCircle, completed && { backgroundColor: C.teal }]}>
+                      <View style={[s.lessonCircle, completed && { backgroundColor: C.primary }]}>
                         {completed ? (
                           <Check size={18} color="white" />
                         ) : (
@@ -1028,379 +1069,417 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
     </View>
   );
 }
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.paper },
-  shell: { flex: 1, flexDirection: 'row' },
-  sidebar: {
-    width: 228,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingTop: 31,
-    borderRightWidth: 1,
-    borderRightColor: C.line,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logo: {
-    width: 37,
-    height: 37,
-    borderRadius: 12,
-    backgroundColor: C.teal,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brand: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink, letterSpacing: -1 },
-  navCaption: {
-    fontFamily: 'ManropeBold',
-    fontSize: 9,
-    letterSpacing: 1.6,
-    color: '#9BAEA4',
-    marginTop: 51,
-    marginBottom: 17,
-    paddingLeft: 13,
-  },
-  navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 49,
-    borderRadius: 11,
-    paddingHorizontal: 15,
-    gap: 13,
-  },
-  navActive: { backgroundColor: '#EAF3EC' },
-  navLabel: { fontFamily: 'ManropeMedium', fontSize: 12, color: C.muted, flex: 1 },
-  tinyDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#D9B47B' },
-  sidebarBottom: { flex: 1, justifyContent: 'flex-end', paddingBottom: 22 },
-  sidebarTip: { backgroundColor: '#F6F8F1', padding: 16, borderRadius: 14, marginBottom: 22 },
-  leaf: {
-    width: 35,
-    height: 35,
-    borderRadius: 11,
-    backgroundColor: '#E6EEE0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 13,
-  },
-  tipTitle: { fontFamily: 'OutfitMedium', fontSize: 16, color: C.ink, marginBottom: 5 },
-  sideSettings: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 15,
-    paddingHorizontal: 5,
-  },
-  sideProfile: {
-    borderTopWidth: 1,
-    borderColor: C.line,
-    paddingTop: 19,
-    marginTop: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: '#E9EEDF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { fontFamily: 'OutfitMedium', fontSize: 17, color: '#69805F' },
-  profileName: { fontFamily: 'ManropeBold', fontSize: 11, color: C.ink },
-  profileSub: { fontFamily: 'Manrope', fontSize: 9, color: C.muted, marginTop: 3 },
-  topbar: {
-    height: 79,
-    borderBottomWidth: 1,
-    borderBottomColor: C.line,
-    paddingHorizontal: 37,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF88',
-  },
-  breadcrumb: { fontFamily: 'Manrope', fontSize: 10, color: '#99A99F' },
-  breadcrumbCurrent: { fontFamily: 'ManropeSemiBold', fontSize: 10, color: C.ink },
-  topStat: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
-  topStatCaption: { fontFamily: 'Manrope', fontSize: 10, color: C.muted },
-  topDivider: { height: 17, width: 1, backgroundColor: C.line },
-  language: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginLeft: 7,
-    paddingLeft: 20,
-    borderLeftWidth: 1,
-    borderLeftColor: C.line,
-  },
-  languageText: { fontFamily: 'ManropeSemiBold', fontSize: 10, color: C.muted },
-  content: { flexGrow: 1, width: '100%', maxWidth: 1500, alignSelf: 'center' },
-  dashboard: { gap: 27 },
-  eyebrow: { fontFamily: 'ManropeBold', fontSize: 9, letterSpacing: 1.1, color: '#789583' },
-  greetingDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#C0A974' },
-  hero: {
-    backgroundColor: '#E9F1DF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#DBE8D2',
-    overflow: 'hidden',
-    minHeight: 350,
-    paddingTop: 28,
-    paddingHorizontal: 29,
-    paddingBottom: 68,
-    position: 'relative',
-  },
-  heroWords: { zIndex: 2 },
-  heroTitle: {
-    fontFamily: 'OutfitMedium',
-    color: C.ink,
-    lineHeight: 43,
-    letterSpacing: -0.6,
-    marginTop: 17,
-    marginBottom: 12,
-  },
-  heroArt: { position: 'absolute', right: -8, top: 42, zIndex: 1 },
-  heroFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
-    borderColor: '#D6E5CD',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#E3EDD680',
-  },
-  heroFootText: { fontFamily: 'ManropeMedium', fontSize: 10, color: '#66806C' },
-  sectionTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  link: { fontFamily: 'ManropeBold', fontSize: 10, color: C.teal },
-  unitIcon: {
-    width: 53,
-    height: 53,
-    borderRadius: 14,
-    backgroundColor: '#EAF2E5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 6,
-  },
-  cardTitle: { fontFamily: 'OutfitMedium', fontSize: 21, color: C.ink, marginTop: 3 },
-  circleButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    backgroundColor: '#EDF5EE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextTag: { fontFamily: 'ManropeMedium', fontSize: 9, color: '#8AA391' },
-  quickGrid: { flexDirection: 'row', gap: 16 },
-  practiceIcon: {
-    width: 41,
-    height: 41,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  subtleBadge: { fontFamily: 'ManropeMedium', fontSize: 9, color: '#95A397' },
-  challengeNudge: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#D8E1D2',
-    borderRadius: 13,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  nudgeTitle: { fontFamily: 'ManropeBold', fontSize: 10, color: '#7B795F' },
-  smallTitle: { fontFamily: 'OutfitMedium', fontSize: 16, color: C.ink },
-  goalCircle: { alignItems: 'center', justifyContent: 'center', marginTop: 27, marginBottom: 16 },
-  goalCenter: { position: 'absolute', alignItems: 'center' },
-  goalNumber: { fontFamily: 'OutfitMedium', fontSize: 37, color: C.ink },
-  goalLabel: { fontFamily: 'ManropeMedium', fontSize: 9, color: C.muted, marginTop: 3 },
-  goalSub: { fontFamily: 'Manrope', fontSize: 9, color: C.muted, textAlign: 'center' },
-  week: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 23, marginBottom: 22 },
-  weekDay: { fontFamily: 'Manrope', fontSize: 9, color: '#91A197' },
-  weekDot: {
-    width: 23,
-    height: 23,
-    borderRadius: 9,
-    backgroundColor: '#F0F4EF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goalNote: {
-    borderTopWidth: 1,
-    borderTopColor: C.line,
-    paddingTop: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    justifyContent: 'center',
-  },
-  quoteCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#EBE8DB',
-    backgroundColor: '#F5F2E9',
-    padding: 22,
-    alignItems: 'center',
-  },
-  quoteIcon: {
-    width: 33,
-    height: 33,
-    borderRadius: 12,
-    backgroundColor: '#ECE6D5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  quoteCaption: { fontFamily: 'ManropeBold', fontSize: 8, letterSpacing: 1.3, color: '#A19175' },
-  quote: {
-    fontFamily: 'Outfit',
-    fontSize: 23,
-    color: '#6C6A51',
-    textAlign: 'center',
-    lineHeight: 30,
-    marginTop: 14,
-    marginBottom: 9,
-  },
-  listen: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 17, minHeight: 28 },
-  listenText: { fontFamily: 'ManropeBold', fontSize: 9, color: '#927A55' },
-  quietTitle: { fontFamily: 'ManropeBold', fontSize: 10, color: '#819285' },
-  footer: {
-    marginTop: 31,
-    borderTopWidth: 1,
-    borderTopColor: C.line,
-    paddingTop: 22,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  footerText: { fontFamily: 'Manrope', fontSize: 9, color: '#97A89C' },
-  bottomNav: {
-    height: 74,
-    borderTopWidth: 1,
-    borderTopColor: C.line,
-    backgroundColor: 'white',
-    flexDirection: 'row',
-    paddingTop: 6,
-  },
-  bottomTab: { flex: 1, alignItems: 'center', gap: 4 },
-  bottomIcon: {
-    width: 54,
-    height: 32,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bottomText: { fontFamily: 'ManropeBold', fontSize: 9, color: C.muted },
-  loading: { minHeight: 350, alignItems: 'center', justifyContent: 'center', gap: 20 },
-  offline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    backgroundColor: '#E9F2E9',
-    paddingVertical: 11,
-    paddingHorizontal: 24,
-  },
-  offlineText: { fontFamily: 'Manrope', fontSize: 10, color: C.teal, flex: 1 },
-  toast: {
-    position: 'absolute',
-    bottom: 90,
-    alignSelf: 'center',
-    backgroundColor: C.ink,
-    borderRadius: 14,
-    padding: 17,
-    maxWidth: '90%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  toastText: { fontFamily: 'ManropeMedium', fontSize: 11, color: 'white', flexShrink: 1 },
-  modalShade: {
-    flex: 1,
-    backgroundColor: '#122D3977',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  welcomeCard: { maxWidth: 480, width: '100%', padding: 26 },
-  dismiss: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  input: {
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 11,
-    padding: 13,
-    fontFamily: 'Manrope',
-    fontSize: 13,
-    color: C.ink,
-    marginTop: 8,
-    minHeight: 47,
-    backgroundColor: '#FBFDFB',
-  },
-  goalOption: {
-    paddingHorizontal: 15,
-    minHeight: 44,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 10,
-    backgroundColor: 'white',
-  },
-  optionActive: { backgroundColor: C.mint, borderColor: C.teal },
-  optionText: { fontFamily: 'ManropeBold', fontSize: 11, color: C.teal },
-  unitHeader: { padding: 23, flexDirection: 'row', alignItems: 'center', gap: 18 },
-  unitNumber: {
-    width: 57,
-    height: 57,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unitCount: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 11 },
-  lessonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-    paddingVertical: 13,
-    paddingHorizontal: 13,
-    backgroundColor: '#F7FAF6',
-    borderRadius: 12,
-    minHeight: 64,
-  },
-  lessonCircle: {
-    width: 35,
-    height: 35,
-    borderRadius: 12,
-    backgroundColor: '#E9F1E8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lessonTitle: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
-  statsGrid: { flexDirection: 'row', gap: 10, marginTop: 25, marginBottom: 18 },
-  profileStat: {
-    flex: 1,
-    backgroundColor: '#F5F8F3',
-    padding: 18,
-    borderRadius: 13,
-    alignItems: 'center',
-    gap: 7,
-  },
-  statNumber: { fontFamily: 'OutfitSemiBold', fontSize: 28, color: C.ink },
-  errorText: { fontFamily: 'Manrope', fontSize: 12, color: C.red, marginTop: 15 },
-  exportText: {
-    fontFamily: 'monospace',
-    fontSize: 10,
-    maxHeight: 200,
-    marginVertical: 14,
-    color: C.ink,
-  },
-});
+export function useStyles() {
+  const { colors: C, tone } = useTheme();
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: C.paper },
+    shell: { flex: 1, flexDirection: 'row' },
+    sidebar: {
+      width: 228,
+      backgroundColor: tone('#FFFFFF', 'background'),
+      paddingHorizontal: 20,
+      paddingTop: 31,
+      borderRightWidth: 1,
+      borderRightColor: C.line,
+    },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    logo: {
+      width: 37,
+      height: 37,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    brand: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink, letterSpacing: -1 },
+    navCaption: {
+      fontFamily: 'ManropeBold',
+      fontSize: 9,
+      letterSpacing: 1.6,
+      color: tone('#9BAEA4', 'text'),
+      marginTop: 51,
+      marginBottom: 17,
+      paddingLeft: 13,
+    },
+    navItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: 49,
+      borderRadius: 11,
+      paddingHorizontal: 15,
+      gap: 13,
+    },
+    navActive: { backgroundColor: tone('#EAF3EC', 'background') },
+    navLabel: { fontFamily: 'ManropeMedium', fontSize: 12, color: C.muted, flex: 1 },
+    tinyDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: tone('#D9B47B', 'background'),
+    },
+    sidebarBottom: { flex: 1, justifyContent: 'flex-end', paddingBottom: 22 },
+    sidebarTip: {
+      backgroundColor: tone('#F6F8F1', 'background'),
+      padding: 16,
+      borderRadius: 14,
+      marginBottom: 22,
+    },
+    leaf: {
+      width: 35,
+      height: 35,
+      borderRadius: 11,
+      backgroundColor: tone('#E6EEE0', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 13,
+    },
+    tipTitle: { fontFamily: 'OutfitMedium', fontSize: 16, color: C.ink, marginBottom: 5 },
+    sideSettings: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 15,
+      paddingHorizontal: 5,
+    },
+    sideProfile: {
+      borderTopWidth: 1,
+      borderColor: C.line,
+      paddingTop: 19,
+      marginTop: 5,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    avatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: tone('#E9EEDF', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: { fontFamily: 'OutfitMedium', fontSize: 17, color: tone('#69805F', 'text') },
+    profileName: { fontFamily: 'ManropeBold', fontSize: 11, color: C.ink },
+    profileSub: { fontFamily: 'Manrope', fontSize: 9, color: C.muted, marginTop: 3 },
+    topbar: {
+      height: 79,
+      borderBottomWidth: 1,
+      borderBottomColor: C.line,
+      paddingHorizontal: 37,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: tone('#FFFFFF88', 'background'),
+    },
+    breadcrumb: { fontFamily: 'Manrope', fontSize: 10, color: tone('#99A99F', 'text') },
+    breadcrumbCurrent: { fontFamily: 'ManropeSemiBold', fontSize: 10, color: C.ink },
+    topStat: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
+    topStatCaption: { fontFamily: 'Manrope', fontSize: 10, color: C.muted },
+    topDivider: { height: 17, width: 1, backgroundColor: C.line },
+    language: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginLeft: 7,
+      paddingLeft: 20,
+      borderLeftWidth: 1,
+      borderLeftColor: C.line,
+    },
+    languageText: { fontFamily: 'ManropeSemiBold', fontSize: 10, color: C.muted },
+    content: { flexGrow: 1, width: '100%', maxWidth: 1500, alignSelf: 'center' },
+    dashboard: { gap: 27 },
+    eyebrow: {
+      fontFamily: 'ManropeBold',
+      fontSize: 9,
+      letterSpacing: 1.1,
+      color: tone('#789583', 'text'),
+    },
+    greetingDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: tone('#C0A974', 'background'),
+    },
+    hero: {
+      backgroundColor: tone('#E9F1DF', 'background'),
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: tone('#DBE8D2', 'border'),
+      overflow: 'hidden',
+      minHeight: 350,
+      paddingTop: 28,
+      paddingHorizontal: 29,
+      paddingBottom: 68,
+      position: 'relative',
+    },
+    heroWords: { zIndex: 2 },
+    heroTitle: {
+      fontFamily: 'OutfitMedium',
+      color: C.ink,
+      lineHeight: 43,
+      letterSpacing: -0.6,
+      marginTop: 17,
+      marginBottom: 12,
+    },
+    heroArt: { position: 'absolute', right: -8, top: 42, zIndex: 1 },
+    heroFooter: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      borderTopWidth: 1,
+      borderColor: tone('#D6E5CD', 'border'),
+      paddingHorizontal: 24,
+      paddingVertical: 14,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      backgroundColor: tone('#E3EDD680', 'background'),
+    },
+    heroFootText: { fontFamily: 'ManropeMedium', fontSize: 10, color: tone('#66806C', 'text') },
+    sectionTitle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    link: { fontFamily: 'ManropeBold', fontSize: 10, color: C.teal },
+    unitIcon: {
+      width: 53,
+      height: 53,
+      borderRadius: 14,
+      backgroundColor: tone('#EAF2E5', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 6,
+    },
+    cardTitle: { fontFamily: 'OutfitMedium', fontSize: 21, color: C.ink, marginTop: 3 },
+    circleButton: {
+      width: 38,
+      height: 38,
+      borderRadius: 13,
+      backgroundColor: tone('#EDF5EE', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nextTag: { fontFamily: 'ManropeMedium', fontSize: 9, color: tone('#8AA391', 'text') },
+    quickGrid: { flexDirection: 'row', gap: 16 },
+    practiceIcon: {
+      width: 41,
+      height: 41,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    subtleBadge: { fontFamily: 'ManropeMedium', fontSize: 9, color: tone('#95A397', 'text') },
+    challengeNudge: {
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: tone('#D8E1D2', 'border'),
+      borderRadius: 13,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flexWrap: 'wrap',
+    },
+    nudgeTitle: { fontFamily: 'ManropeBold', fontSize: 10, color: tone('#7B795F', 'text') },
+    smallTitle: { fontFamily: 'OutfitMedium', fontSize: 16, color: C.ink },
+    goalCircle: { alignItems: 'center', justifyContent: 'center', marginTop: 27, marginBottom: 16 },
+    goalCenter: { position: 'absolute', alignItems: 'center' },
+    goalNumber: { fontFamily: 'OutfitMedium', fontSize: 37, color: C.ink },
+    goalLabel: { fontFamily: 'ManropeMedium', fontSize: 9, color: C.muted, marginTop: 3 },
+    goalSub: { fontFamily: 'Manrope', fontSize: 9, color: C.muted, textAlign: 'center' },
+    week: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 23,
+      marginBottom: 22,
+    },
+    weekDay: { fontFamily: 'Manrope', fontSize: 9, color: tone('#91A197', 'text') },
+    weekDot: {
+      width: 23,
+      height: 23,
+      borderRadius: 9,
+      backgroundColor: tone('#F0F4EF', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    goalNote: {
+      borderTopWidth: 1,
+      borderTopColor: C.line,
+      paddingTop: 15,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      justifyContent: 'center',
+    },
+    quoteCard: {
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: tone('#EBE8DB', 'border'),
+      backgroundColor: tone('#F5F2E9', 'background'),
+      padding: 22,
+      alignItems: 'center',
+    },
+    quoteIcon: {
+      width: 33,
+      height: 33,
+      borderRadius: 12,
+      backgroundColor: tone('#ECE6D5', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 14,
+    },
+    quoteCaption: {
+      fontFamily: 'ManropeBold',
+      fontSize: 8,
+      letterSpacing: 1.3,
+      color: tone('#A19175', 'text'),
+    },
+    quote: {
+      fontFamily: 'Outfit',
+      fontSize: 23,
+      color: tone('#6C6A51', 'text'),
+      textAlign: 'center',
+      lineHeight: 30,
+      marginTop: 14,
+      marginBottom: 9,
+    },
+    listen: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 17, minHeight: 28 },
+    listenText: { fontFamily: 'ManropeBold', fontSize: 9, color: tone('#927A55', 'text') },
+    quietTitle: { fontFamily: 'ManropeBold', fontSize: 10, color: tone('#819285', 'text') },
+    footer: {
+      marginTop: 31,
+      borderTopWidth: 1,
+      borderTopColor: C.line,
+      paddingTop: 22,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    footerText: { fontFamily: 'Manrope', fontSize: 9, color: tone('#97A89C', 'text') },
+    bottomNav: {
+      height: 74,
+      borderTopWidth: 1,
+      borderTopColor: C.line,
+      backgroundColor: tone('white', 'background'),
+      flexDirection: 'row',
+      paddingTop: 6,
+    },
+    bottomTab: { flex: 1, alignItems: 'center', gap: 4 },
+    bottomIcon: {
+      width: 54,
+      height: 32,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    bottomText: { fontFamily: 'ManropeBold', fontSize: 9, color: C.muted },
+    loading: { minHeight: 350, alignItems: 'center', justifyContent: 'center', gap: 20 },
+    offline: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      backgroundColor: tone('#E9F2E9', 'background'),
+      paddingVertical: 11,
+      paddingHorizontal: 24,
+    },
+    offlineText: { fontFamily: 'Manrope', fontSize: 10, color: C.teal, flex: 1 },
+    toast: {
+      position: 'absolute',
+      bottom: 90,
+      alignSelf: 'center',
+      backgroundColor: C.ink,
+      borderRadius: 14,
+      padding: 17,
+      maxWidth: '90%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    toastText: {
+      fontFamily: 'ManropeMedium',
+      fontSize: 11,
+      color: tone('white', 'text'),
+      flexShrink: 1,
+    },
+    modalShade: {
+      flex: 1,
+      backgroundColor: '#122D3977',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    welcomeCard: { maxWidth: 480, width: '100%', padding: 26 },
+    dismiss: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    input: {
+      borderWidth: 1,
+      borderColor: C.line,
+      borderRadius: 11,
+      padding: 13,
+      fontFamily: 'Manrope',
+      fontSize: 13,
+      color: C.ink,
+      marginTop: 8,
+      minHeight: 47,
+      backgroundColor: tone('#FBFDFB', 'background'),
+    },
+    goalOption: {
+      paddingHorizontal: 15,
+      minHeight: 44,
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: C.line,
+      borderRadius: 10,
+      backgroundColor: tone('white', 'background'),
+    },
+    optionActive: { backgroundColor: C.mint, borderColor: C.teal },
+    optionText: { fontFamily: 'ManropeBold', fontSize: 11, color: C.teal },
+    unitHeader: { padding: 23, flexDirection: 'row', alignItems: 'center', gap: 18 },
+    unitNumber: {
+      width: 57,
+      height: 57,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    unitCount: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 11 },
+    lessonRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 13,
+      paddingVertical: 13,
+      paddingHorizontal: 13,
+      backgroundColor: tone('#F7FAF6', 'background'),
+      borderRadius: 12,
+      minHeight: 64,
+    },
+    lessonCircle: {
+      width: 35,
+      height: 35,
+      borderRadius: 12,
+      backgroundColor: tone('#E9F1E8', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    lessonTitle: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
+    statsGrid: { flexDirection: 'row', gap: 10, marginTop: 25, marginBottom: 18 },
+    profileStat: {
+      flex: 1,
+      backgroundColor: tone('#F5F8F3', 'background'),
+      padding: 18,
+      borderRadius: 13,
+      alignItems: 'center',
+      gap: 7,
+    },
+    statNumber: { fontFamily: 'OutfitSemiBold', fontSize: 28, color: C.ink },
+    errorText: { fontFamily: 'Manrope', fontSize: 12, color: C.red, marginTop: 15 },
+    exportText: {
+      fontFamily: 'monospace',
+      fontSize: 10,
+      maxHeight: 200,
+      marginVertical: 14,
+      color: C.ink,
+    },
+  });
+}

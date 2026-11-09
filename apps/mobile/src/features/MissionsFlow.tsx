@@ -1,9 +1,10 @@
+import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BriefcaseBusiness, CheckCheck, MessageCircle, Plane, Volume2 } from 'lucide-react-native';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
-import { Action, ErrorCard, f, FlowFrame, palette } from './FeatureUI';
+import { Action, ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
 interface MissionStep {
   id: string;
   speaker: string;
@@ -29,6 +30,10 @@ export default function MissionsFlow({
   missionId?: string;
   onClose: () => void;
 }) {
+  const { colors: palette, tone } = useTheme();
+  const s = useStyles();
+  const f = useFeatureStyles();
+
   const { playOffline, speechMessage } = useOfflineSpeech();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [selected, setSelected] = useState<Mission | null>(null);
@@ -221,7 +226,15 @@ export default function MissionsFlow({
         </>
       )}
       {done && (
-        <View style={[f.card, { backgroundColor: '#ECF6ED', borderColor: '#C4DECA' }]}>
+        <View
+          style={[
+            f.card,
+            {
+              backgroundColor: tone('#ECF6ED', 'background'),
+              borderColor: tone('#C4DECA', 'border'),
+            },
+          ]}
+        >
           <CheckCheck color={palette.teal} size={31} />
           <Text style={f.cardTitle}>¡Acabas de usar tu inglés!</Text>
           <Text style={f.body}>
@@ -236,57 +249,66 @@ export default function MissionsFlow({
     </FlowFrame>
   );
 }
-const s = StyleSheet.create({
-  icon: {
-    width: 84,
-    height: 84,
-    borderRadius: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.mint,
-  },
-  link: { fontFamily: 'Manrope', fontWeight: '700', color: palette.teal, fontSize: 13 },
-  promptBubble: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: palette.line,
-    borderRadius: 21,
-    borderBottomLeftRadius: 4,
-    padding: 23,
-    gap: 12,
-    marginRight: 30,
-  },
-  promptText: { fontFamily: 'Outfit', fontSize: 23, lineHeight: 31, color: palette.ink },
-  replyBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#E3F0E7',
-    borderRadius: 20,
-    borderBottomRightRadius: 4,
-    paddingVertical: 17,
-    paddingHorizontal: 22,
-    marginLeft: 40,
-  },
-  replyText: { fontFamily: 'Manrope', fontSize: 15, color: palette.teal, lineHeight: 23 },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#CCDDD2',
-    borderRadius: 15,
-    padding: 19,
-    minHeight: 58,
-  },
-  optionText: { fontFamily: 'Manrope', fontSize: 15, color: palette.ink, flex: 1, lineHeight: 24 },
-  sound: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F1F7EF',
-  },
-});
+export function useStyles() {
+  const { colors: palette, tone } = useTheme();
+  return StyleSheet.create({
+    icon: {
+      width: 84,
+      height: 84,
+      borderRadius: 27,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: palette.mint,
+    },
+    link: { fontFamily: 'Manrope', fontWeight: '700', color: palette.teal, fontSize: 13 },
+    promptBubble: {
+      backgroundColor: tone('white', 'background'),
+      borderWidth: 1,
+      borderColor: palette.line,
+      borderRadius: 21,
+      borderBottomLeftRadius: 4,
+      padding: 23,
+      gap: 12,
+      marginRight: 30,
+    },
+    promptText: { fontFamily: 'Outfit', fontSize: 23, lineHeight: 31, color: palette.ink },
+    replyBubble: {
+      alignSelf: 'flex-end',
+      backgroundColor: tone('#E3F0E7', 'background'),
+      borderRadius: 20,
+      borderBottomRightRadius: 4,
+      paddingVertical: 17,
+      paddingHorizontal: 22,
+      marginLeft: 40,
+    },
+    replyText: { fontFamily: 'Manrope', fontSize: 15, color: palette.teal, lineHeight: 23 },
+    option: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: tone('white', 'background'),
+      borderWidth: 1,
+      borderColor: tone('#CCDDD2', 'border'),
+      borderRadius: 15,
+      padding: 19,
+      minHeight: 58,
+    },
+    optionText: {
+      fontFamily: 'Manrope',
+      fontSize: 15,
+      color: palette.ink,
+      flex: 1,
+      lineHeight: 24,
+    },
+    sound: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: tone('#F1F7EF', 'background'),
+    },
+  });
+}
 
 export { MissionsFlow };

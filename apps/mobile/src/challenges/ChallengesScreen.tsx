@@ -1,3 +1,4 @@
+import { useTheme } from '../theme';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -29,17 +30,6 @@ import {
 import type { Answer, RunView } from '@lingoquest/contracts';
 import { api } from '../lib/api';
 
-const C = {
-  ink: '#173F43',
-  teal: '#167D72',
-  mint: '#DCF3E9',
-  orange: '#EFA055',
-  paper: '#F7FAF7',
-  muted: '#6F8380',
-  line: '#E3EBE6',
-  white: '#FFFFFF',
-  coral: '#C96867',
-};
 type GameType = 'grammar_rush' | 'cloze_battle' | 'reading_quest';
 type Track = {
   id: string;
@@ -106,6 +96,9 @@ function Action({
   busy?: boolean;
   icon?: boolean;
 }) {
+  const { colors: C } = useTheme();
+  const s = useStyles();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -131,6 +124,9 @@ function Action({
   );
 }
 function Back({ label, onPress }: { label: string; onPress: () => void }) {
+  const { colors: C } = useTheme();
+  const s = useStyles();
+
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={s.back}>
       <ArrowLeft color={C.teal} size={18} />
@@ -139,6 +135,9 @@ function Back({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 function ErrorBox({ message, retry }: { message: string; retry?: () => void }) {
+  const { colors: C } = useTheme();
+  const s = useStyles();
+
   return (
     <View accessibilityRole="alert" style={s.errorBox}>
       <Text style={s.errorText}>{message}</Text>
@@ -151,7 +150,11 @@ function ErrorBox({ message, retry }: { message: string; retry?: () => void }) {
     </View>
   );
 }
-function SmallLabel({ children, color = C.teal }: { children: React.ReactNode; color?: string }) {
+function SmallLabel({ children, color }: { children: React.ReactNode; color?: string }) {
+  const { colors: C } = useTheme();
+  const s = useStyles();
+  color ??= C.teal;
+
   return <Text style={[s.label, { color }]}>{children}</Text>;
 }
 
@@ -162,6 +165,9 @@ export function ChallengesScreen({
   onLearn: () => void;
   onRefresh: () => void;
 }) {
+  const { colors: C, tone } = useTheme();
+  const s = useStyles();
+
   const { width } = useWindowDimensions();
   const narrow = width < 760;
   const [view, setView] = useState<ViewName>('hub');
@@ -427,7 +433,13 @@ export function ChallengesScreen({
                   <View
                     style={[
                       s.trackIcon,
-                      { backgroundColor: ['#E1F0E8', '#FFF0DC', '#E9EEF7'][i % 3] },
+                      {
+                        backgroundColor: [
+                          tone('#E1F0E8', 'background'),
+                          tone('#FFF0DC', 'background'),
+                          tone('#E9EEF7', 'background'),
+                        ][i % 3],
+                      },
                     ]}
                   >
                     {i === 0 ? (
@@ -720,7 +732,12 @@ export function ChallengesScreen({
               />
             ))}
           </View>
-          <View style={[s.timer, remaining < 20 && !run.relaxed && { backgroundColor: '#FCEAE4' }]}>
+          <View
+            style={[
+              s.timer,
+              remaining < 20 && !run.relaxed && { backgroundColor: tone('#FCEAE4', 'background') },
+            ]}
+          >
             <Clock3 size={17} color={C.ink} />
             <Text
               accessibilityLabel={
@@ -851,7 +868,9 @@ export function ChallengesScreen({
     return (
       <View style={[s.page, s.focused]}>
         <View style={s.preflightCard}>
-          <View style={[s.largeIcon, !passed && { backgroundColor: '#FFF0DC' }]}>
+          <View
+            style={[s.largeIcon, !passed && { backgroundColor: tone('#FFF0DC', 'background') }]}
+          >
             {passed ? (
               <Trophy size={42} color={C.teal} strokeWidth={1.5} />
             ) : (
@@ -902,7 +921,7 @@ export function ChallengesScreen({
                   <View
                     style={[
                       s.feedbackMarker,
-                      { backgroundColor: item.correct ? C.mint : '#FFF0DC' },
+                      { backgroundColor: item.correct ? C.mint : tone('#FFF0DC', 'background') },
                     ]}
                   >
                     {item.correct ? (
@@ -944,397 +963,422 @@ export function ChallengesScreen({
   );
 }
 
-const s = StyleSheet.create({
-  page: { gap: 23, paddingBottom: 30 },
-  focused: { width: '100%', maxWidth: 790, alignSelf: 'center' },
-  pageHeading: { gap: 10 },
-  label: {
-    fontFamily: 'ManropeBold',
-    fontSize: 10,
-    letterSpacing: 1.7,
-    textTransform: 'uppercase',
-  },
-  title: { fontFamily: 'OutfitSemiBold', color: C.ink, fontSize: 37, letterSpacing: -1.1 },
-  subtitle: { fontFamily: 'Manrope', fontSize: 14, lineHeight: 23, color: C.muted },
-  body: {
-    fontFamily: 'Manrope',
-    fontSize: 13,
-    lineHeight: 22,
-    color: C.ink,
-    flexShrink: 1,
-  },
-  muted: {
-    fontFamily: 'Manrope',
-    fontSize: 12,
-    lineHeight: 20,
-    color: C.muted,
-    flexShrink: 1,
-  },
-  hero: {
-    padding: 30,
-    borderRadius: 23,
-    backgroundColor: '#E8F3EA',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-    overflow: 'hidden',
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    gap: 7,
-    alignItems: 'center',
-    backgroundColor: '#D8ECDC',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  badgeText: { fontFamily: 'ManropeBold', fontSize: 9, letterSpacing: 1.2, color: C.teal },
-  heroTitle: {
-    fontFamily: 'OutfitMedium',
-    color: C.ink,
-    fontSize: 31,
-    lineHeight: 37,
-    letterSpacing: -0.7,
-  },
-  heroCopy: {
-    fontFamily: 'Manrope',
-    fontSize: 13,
-    lineHeight: 22,
-    color: '#4E7168',
-    maxWidth: 480,
-  },
-  inline: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  inlineWrap: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  safetyText: { fontFamily: 'ManropeSemiBold', fontSize: 11, color: C.teal },
-  trophyArt: { width: 185, height: 145, justifyContent: 'center', alignItems: 'center' },
-  artCircle: {
-    width: 134,
-    height: 134,
-    borderRadius: 70,
-    backgroundColor: '#D6E9D8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-8deg' }],
-  },
-  artSpark: { position: 'absolute', right: 8, top: 3, transform: [{ rotate: '10deg' }] },
-  artMedal: {
-    position: 'absolute',
-    left: 13,
-    bottom: 1,
-    padding: 10,
-    backgroundColor: '#FAF9ED',
-    borderRadius: 16,
-    transform: [{ rotate: '-12deg' }],
-  },
-  sectionHeading: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  sectionTitle: { fontFamily: 'OutfitSemiBold', fontSize: 22, color: C.ink },
-  sectionNote: { fontFamily: 'Manrope', fontSize: 11, color: C.muted },
-  notice: {
-    flexDirection: 'row',
-    gap: 11,
-    alignItems: 'flex-start',
-    padding: 15,
-    borderRadius: 12,
-    backgroundColor: '#EBF4EE',
-    width: '100%',
-  },
-  noticeText: {
-    flex: 1,
-    color: '#4A6F63',
-    fontFamily: 'Manrope',
-    fontSize: 11,
-    lineHeight: 19,
-  },
-  trackGrid: { flexDirection: 'row', gap: 16 },
-  trackCard: {
-    padding: 21,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: C.line,
-    backgroundColor: C.white,
-    gap: 13,
-  },
-  trackTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  trackIcon: {
-    width: 49,
-    height: 49,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  draftTag: { backgroundColor: C.paper, borderRadius: 6, padding: 6 },
-  draftText: { fontFamily: 'ManropeBold', fontSize: 8, letterSpacing: 0.6, color: C.muted },
-  trackTitle: { fontFamily: 'OutfitSemiBold', fontSize: 22, color: C.ink },
-  trackDescription: {
-    fontFamily: 'Manrope',
-    color: C.muted,
-    fontSize: 12,
-    lineHeight: 20,
-    minHeight: 45,
-  },
-  requirement: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderTopWidth: 1,
-    borderTopColor: C.line,
-    paddingTop: 14,
-  },
-  requirementText: { fontFamily: 'ManropeSemiBold', fontSize: 11, color: C.muted },
-  previewCopy: {
-    fontFamily: 'Manrope',
-    fontSize: 10,
-    lineHeight: 17,
-    color: C.muted,
-    minHeight: 35,
-  },
-  action: {
-    backgroundColor: C.teal,
-    minHeight: 48,
-    borderRadius: 11,
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionSecondary: { backgroundColor: '#F1F6F1', borderWidth: 1, borderColor: '#DFE9E1' },
-  actionText: { fontFamily: 'ManropeBold', color: C.white, fontSize: 12 },
-  learnLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    minHeight: 45,
-  },
-  link: { fontFamily: 'ManropeSemiBold', fontSize: 12, color: C.teal },
-  back: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: 44,
-  },
-  backText: { fontFamily: 'ManropeSemiBold', fontSize: 12, color: C.teal },
-  errorBox: {
-    backgroundColor: '#FFF1E9',
-    borderColor: '#F0D8C6',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 15,
-    gap: 10,
-    width: '100%',
-  },
-  errorText: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 20, color: '#854F37' },
-  inlineButton: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 34 },
-  loading: { alignItems: 'center', justifyContent: 'center', padding: 45, gap: 15 },
-  typeSelector: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  typeTab: {
-    flex: 1,
-    minWidth: 130,
-    gap: 5,
-    borderWidth: 1,
-    borderColor: C.line,
-    padding: 17,
-    borderRadius: 13,
-    backgroundColor: C.white,
-  },
-  typeTabSelected: { borderColor: C.teal, backgroundColor: '#EEF7F0' },
-  typeText: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
-  typeCaption: { fontFamily: 'Manrope', fontSize: 10, color: C.muted },
-  levelGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15 },
-  levelCard: {
-    padding: 18,
-    gap: 13,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: C.line,
-    backgroundColor: C.white,
-    minWidth: 115,
-  },
-  levelExtreme: { backgroundColor: '#FFF8ED', borderColor: '#EEDDC3' },
-  levelTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  levelNumber: { fontFamily: 'OutfitMedium', fontSize: 27, color: C.teal },
-  levelName: { fontFamily: 'ManropeBold', fontSize: 11, lineHeight: 18, color: C.ink },
-  levelDetail: { fontFamily: 'ManropeMedium', fontSize: 10, color: C.muted },
-  levelDot: { color: '#B1BEB5', fontSize: 12 },
-  bestScore: { fontFamily: 'Manrope', fontSize: 9, color: C.muted },
-  softFooter: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingTop: 6 },
-  preflightCard: {
-    backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 22,
-    padding: 28,
-    gap: 20,
-    alignItems: 'stretch',
-  },
-  largeIcon: {
-    alignSelf: 'center',
-    width: 86,
-    height: 86,
-    borderRadius: 27,
-    backgroundColor: C.mint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerTitle: {
-    fontFamily: 'OutfitMedium',
-    fontSize: 34,
-    lineHeight: 39,
-    letterSpacing: -0.8,
-    textAlign: 'center',
-    color: C.ink,
-  },
-  centerBody: {
-    fontFamily: 'Manrope',
-    fontSize: 13,
-    lineHeight: 22,
-    textAlign: 'center',
-    color: C.muted,
-  },
-  preflightStats: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 9, gap: 22 },
-  preflightStat: { alignItems: 'center', gap: 7, minWidth: 80 },
-  statValue: { fontFamily: 'OutfitSemiBold', fontSize: 28, color: C.ink },
-  statDivider: { width: 1, backgroundColor: C.line },
-  setting: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: C.paper,
-  },
-  settingTitle: { fontFamily: 'ManropeBold', fontSize: 13, color: C.ink },
-  rules: { gap: 10 },
-  rule: { fontFamily: 'Manrope', color: C.muted, fontSize: 12, lineHeight: 19 },
-  runHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  runTitle: { fontFamily: 'OutfitSemiBold', fontSize: 24, color: C.ink },
-  close: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#EDF3EE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  runStats: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heartRow: { flexDirection: 'row', gap: 6 },
-  timer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: '#EAF3EB',
-    borderRadius: 9,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-  },
-  timerText: { fontFamily: 'ManropeBold', fontSize: 15, color: C.ink },
-  progressTrack: { height: 7, backgroundColor: '#E4EDE5', borderRadius: 5, overflow: 'hidden' },
-  progressFill: { height: 7, borderRadius: 5, backgroundColor: C.teal },
-  questionCount: { marginTop: -12, flexDirection: 'row', justifyContent: 'space-between' },
-  questionCard: {
-    padding: 26,
-    backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 20,
-    gap: 23,
-  },
-  passage: { backgroundColor: '#F3F7F2', borderRadius: 13, padding: 20, gap: 12 },
-  passageText: { fontFamily: 'Manrope', color: C.ink, fontSize: 14, lineHeight: 25 },
-  questionPrompt: { fontFamily: 'ManropeSemiBold', fontSize: 15, lineHeight: 24, color: C.ink },
-  questionSentence: { fontFamily: 'OutfitMedium', fontSize: 26, lineHeight: 35, color: C.ink },
-  answers: { gap: 11 },
-  option: {
-    borderWidth: 1.3,
-    borderColor: C.line,
-    borderRadius: 12,
-    minHeight: 59,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  optionSelected: { borderColor: C.teal, backgroundColor: '#F0F8F2' },
-  optionLetter: {
-    borderWidth: 1,
-    borderColor: '#D5E0D8',
-    borderRadius: 7,
-    width: 28,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  optionLetterSelected: { backgroundColor: C.teal, borderColor: C.teal },
-  optionLetterText: { fontFamily: 'ManropeSemiBold', fontSize: 11, color: C.muted },
-  optionText: {
-    flex: 1,
-    fontFamily: 'ManropeMedium',
-    fontSize: 14,
-    color: C.ink,
-    lineHeight: 22,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#C9DBCE',
-    borderRadius: 11,
-    paddingHorizontal: 17,
-    paddingVertical: 17,
-    minHeight: 56,
-    color: C.ink,
-    fontFamily: 'Manrope',
-    fontSize: 15,
-  },
-  centerNote: {
-    fontFamily: 'Manrope',
-    fontSize: 11,
-    lineHeight: 18,
-    color: C.muted,
-    textAlign: 'center',
-  },
-  exitBox: {
-    gap: 16,
-    padding: 20,
-    backgroundColor: '#FFF6E9',
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#EBD6B9',
-  },
-  resultStats: { flexDirection: 'row', gap: 15, justifyContent: 'center' },
-  resultStat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: C.paper,
-    paddingVertical: 20,
-    paddingHorizontal: 7,
-    borderRadius: 14,
-  },
-  feedbackList: { gap: 15 },
-  feedbackItem: {
-    flexDirection: 'row',
-    gap: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: C.line,
-    paddingBottom: 14,
-  },
-  feedbackMarker: {
-    width: 29,
-    height: 29,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  feedbackText: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 20, color: C.ink },
-  accepted: { fontFamily: 'ManropeSemiBold', fontSize: 12, lineHeight: 19, color: C.teal },
-});
+export function useStyles() {
+  const { colors: C, tone } = useTheme();
+  return StyleSheet.create({
+    page: { gap: 23, paddingBottom: 30 },
+    focused: { width: '100%', maxWidth: 790, alignSelf: 'center' },
+    pageHeading: { gap: 10 },
+    label: {
+      fontFamily: 'ManropeBold',
+      fontSize: 10,
+      letterSpacing: 1.7,
+      textTransform: 'uppercase',
+    },
+    title: { fontFamily: 'OutfitSemiBold', color: C.ink, fontSize: 37, letterSpacing: -1.1 },
+    subtitle: { fontFamily: 'Manrope', fontSize: 14, lineHeight: 23, color: C.muted },
+    body: {
+      fontFamily: 'Manrope',
+      fontSize: 13,
+      lineHeight: 22,
+      color: C.ink,
+      flexShrink: 1,
+    },
+    muted: {
+      fontFamily: 'Manrope',
+      fontSize: 12,
+      lineHeight: 20,
+      color: C.muted,
+      flexShrink: 1,
+    },
+    hero: {
+      padding: 30,
+      borderRadius: 23,
+      backgroundColor: tone('#E8F3EA', 'background'),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 20,
+      overflow: 'hidden',
+    },
+    badge: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      gap: 7,
+      alignItems: 'center',
+      backgroundColor: tone('#D8ECDC', 'background'),
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+    },
+    badgeText: { fontFamily: 'ManropeBold', fontSize: 9, letterSpacing: 1.2, color: C.teal },
+    heroTitle: {
+      fontFamily: 'OutfitMedium',
+      color: C.ink,
+      fontSize: 31,
+      lineHeight: 37,
+      letterSpacing: -0.7,
+    },
+    heroCopy: {
+      fontFamily: 'Manrope',
+      fontSize: 13,
+      lineHeight: 22,
+      color: tone('#4E7168', 'text'),
+      maxWidth: 480,
+    },
+    inline: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+    inlineWrap: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+    safetyText: { fontFamily: 'ManropeSemiBold', fontSize: 11, color: C.teal },
+    trophyArt: { width: 185, height: 145, justifyContent: 'center', alignItems: 'center' },
+    artCircle: {
+      width: 134,
+      height: 134,
+      borderRadius: 70,
+      backgroundColor: tone('#D6E9D8', 'background'),
+      alignItems: 'center',
+      justifyContent: 'center',
+      transform: [{ rotate: '-8deg' }],
+    },
+    artSpark: { position: 'absolute', right: 8, top: 3, transform: [{ rotate: '10deg' }] },
+    artMedal: {
+      position: 'absolute',
+      left: 13,
+      bottom: 1,
+      padding: 10,
+      backgroundColor: tone('#FAF9ED', 'background'),
+      borderRadius: 16,
+      transform: [{ rotate: '-12deg' }],
+    },
+    sectionHeading: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+    },
+    sectionTitle: { fontFamily: 'OutfitSemiBold', fontSize: 22, color: C.ink },
+    sectionNote: { fontFamily: 'Manrope', fontSize: 11, color: C.muted },
+    notice: {
+      flexDirection: 'row',
+      gap: 11,
+      alignItems: 'flex-start',
+      padding: 15,
+      borderRadius: 12,
+      backgroundColor: tone('#EBF4EE', 'background'),
+      width: '100%',
+    },
+    noticeText: {
+      flex: 1,
+      color: tone('#4A6F63', 'text'),
+      fontFamily: 'Manrope',
+      fontSize: 11,
+      lineHeight: 19,
+    },
+    trackGrid: { flexDirection: 'row', gap: 16 },
+    trackCard: {
+      padding: 21,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: C.line,
+      backgroundColor: C.white,
+      gap: 13,
+    },
+    trackTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    trackIcon: {
+      width: 49,
+      height: 49,
+      borderRadius: 15,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    draftTag: { backgroundColor: C.paper, borderRadius: 6, padding: 6 },
+    draftText: { fontFamily: 'ManropeBold', fontSize: 8, letterSpacing: 0.6, color: C.muted },
+    trackTitle: { fontFamily: 'OutfitSemiBold', fontSize: 22, color: C.ink },
+    trackDescription: {
+      fontFamily: 'Manrope',
+      color: C.muted,
+      fontSize: 12,
+      lineHeight: 20,
+      minHeight: 45,
+    },
+    requirement: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderTopWidth: 1,
+      borderTopColor: C.line,
+      paddingTop: 14,
+    },
+    requirementText: { fontFamily: 'ManropeSemiBold', fontSize: 11, color: C.muted },
+    previewCopy: {
+      fontFamily: 'Manrope',
+      fontSize: 10,
+      lineHeight: 17,
+      color: C.muted,
+      minHeight: 35,
+    },
+    action: {
+      backgroundColor: C.primary,
+      minHeight: 48,
+      borderRadius: 11,
+      paddingHorizontal: 18,
+      paddingVertical: 13,
+      flexDirection: 'row',
+      gap: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    actionSecondary: {
+      backgroundColor: tone('#F1F6F1', 'background'),
+      borderWidth: 1,
+      borderColor: tone('#DFE9E1', 'border'),
+    },
+    actionText: { fontFamily: 'ManropeBold', color: C.white, fontSize: 12 },
+    learnLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      minHeight: 45,
+    },
+    link: { fontFamily: 'ManropeSemiBold', fontSize: 12, color: C.teal },
+    back: {
+      flexDirection: 'row',
+      gap: 8,
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      minHeight: 44,
+    },
+    backText: { fontFamily: 'ManropeSemiBold', fontSize: 12, color: C.teal },
+    errorBox: {
+      backgroundColor: tone('#FFF1E9', 'background'),
+      borderColor: tone('#F0D8C6', 'border'),
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 15,
+      gap: 10,
+      width: '100%',
+    },
+    errorText: {
+      fontFamily: 'Manrope',
+      fontSize: 12,
+      lineHeight: 20,
+      color: tone('#854F37', 'text'),
+    },
+    inlineButton: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 34 },
+    loading: { alignItems: 'center', justifyContent: 'center', padding: 45, gap: 15 },
+    typeSelector: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+    typeTab: {
+      flex: 1,
+      minWidth: 130,
+      gap: 5,
+      borderWidth: 1,
+      borderColor: C.line,
+      padding: 17,
+      borderRadius: 13,
+      backgroundColor: C.white,
+    },
+    typeTabSelected: { borderColor: C.teal, backgroundColor: tone('#EEF7F0', 'background') },
+    typeText: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
+    typeCaption: { fontFamily: 'Manrope', fontSize: 10, color: C.muted },
+    levelGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15 },
+    levelCard: {
+      padding: 18,
+      gap: 13,
+      borderRadius: 15,
+      borderWidth: 1,
+      borderColor: C.line,
+      backgroundColor: C.white,
+      minWidth: 115,
+    },
+    levelExtreme: {
+      backgroundColor: tone('#FFF8ED', 'background'),
+      borderColor: tone('#EEDDC3', 'border'),
+    },
+    levelTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    levelNumber: { fontFamily: 'OutfitMedium', fontSize: 27, color: C.teal },
+    levelName: { fontFamily: 'ManropeBold', fontSize: 11, lineHeight: 18, color: C.ink },
+    levelDetail: { fontFamily: 'ManropeMedium', fontSize: 10, color: C.muted },
+    levelDot: { color: tone('#B1BEB5', 'text'), fontSize: 12 },
+    bestScore: { fontFamily: 'Manrope', fontSize: 9, color: C.muted },
+    softFooter: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingTop: 6 },
+    preflightCard: {
+      backgroundColor: C.white,
+      borderWidth: 1,
+      borderColor: C.line,
+      borderRadius: 22,
+      padding: 28,
+      gap: 20,
+      alignItems: 'stretch',
+    },
+    largeIcon: {
+      alignSelf: 'center',
+      width: 86,
+      height: 86,
+      borderRadius: 27,
+      backgroundColor: C.mint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    centerTitle: {
+      fontFamily: 'OutfitMedium',
+      fontSize: 34,
+      lineHeight: 39,
+      letterSpacing: -0.8,
+      textAlign: 'center',
+      color: C.ink,
+    },
+    centerBody: {
+      fontFamily: 'Manrope',
+      fontSize: 13,
+      lineHeight: 22,
+      textAlign: 'center',
+      color: C.muted,
+    },
+    preflightStats: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 9, gap: 22 },
+    preflightStat: { alignItems: 'center', gap: 7, minWidth: 80 },
+    statValue: { fontFamily: 'OutfitSemiBold', fontSize: 28, color: C.ink },
+    statDivider: { width: 1, backgroundColor: C.line },
+    setting: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 15,
+      padding: 16,
+      borderRadius: 12,
+      backgroundColor: C.paper,
+    },
+    settingTitle: { fontFamily: 'ManropeBold', fontSize: 13, color: C.ink },
+    rules: { gap: 10 },
+    rule: { fontFamily: 'Manrope', color: C.muted, fontSize: 12, lineHeight: 19 },
+    runHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    runTitle: { fontFamily: 'OutfitSemiBold', fontSize: 24, color: C.ink },
+    close: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: tone('#EDF3EE', 'background'),
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    runStats: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    heartRow: { flexDirection: 'row', gap: 6 },
+    timer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      backgroundColor: tone('#EAF3EB', 'background'),
+      borderRadius: 9,
+      paddingHorizontal: 11,
+      paddingVertical: 8,
+    },
+    timerText: { fontFamily: 'ManropeBold', fontSize: 15, color: C.ink },
+    progressTrack: {
+      height: 7,
+      backgroundColor: tone('#E4EDE5', 'background'),
+      borderRadius: 5,
+      overflow: 'hidden',
+    },
+    progressFill: { height: 7, borderRadius: 5, backgroundColor: C.primary },
+    questionCount: { marginTop: -12, flexDirection: 'row', justifyContent: 'space-between' },
+    questionCard: {
+      padding: 26,
+      backgroundColor: C.white,
+      borderWidth: 1,
+      borderColor: C.line,
+      borderRadius: 20,
+      gap: 23,
+    },
+    passage: {
+      backgroundColor: tone('#F3F7F2', 'background'),
+      borderRadius: 13,
+      padding: 20,
+      gap: 12,
+    },
+    passageText: { fontFamily: 'Manrope', color: C.ink, fontSize: 14, lineHeight: 25 },
+    questionPrompt: { fontFamily: 'ManropeSemiBold', fontSize: 15, lineHeight: 24, color: C.ink },
+    questionSentence: { fontFamily: 'OutfitMedium', fontSize: 26, lineHeight: 35, color: C.ink },
+    answers: { gap: 11 },
+    option: {
+      borderWidth: 1.3,
+      borderColor: C.line,
+      borderRadius: 12,
+      minHeight: 59,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+    },
+    optionSelected: { borderColor: C.teal, backgroundColor: tone('#F0F8F2', 'background') },
+    optionLetter: {
+      borderWidth: 1,
+      borderColor: tone('#D5E0D8', 'border'),
+      borderRadius: 7,
+      width: 28,
+      height: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    optionLetterSelected: { backgroundColor: C.primary, borderColor: C.teal },
+    optionLetterText: { fontFamily: 'ManropeSemiBold', fontSize: 11, color: C.muted },
+    optionText: {
+      flex: 1,
+      fontFamily: 'ManropeMedium',
+      fontSize: 14,
+      color: C.ink,
+      lineHeight: 22,
+    },
+    textInput: {
+      borderWidth: 1,
+      borderColor: tone('#C9DBCE', 'border'),
+      borderRadius: 11,
+      paddingHorizontal: 17,
+      paddingVertical: 17,
+      minHeight: 56,
+      color: C.ink,
+      fontFamily: 'Manrope',
+      fontSize: 15,
+    },
+    centerNote: {
+      fontFamily: 'Manrope',
+      fontSize: 11,
+      lineHeight: 18,
+      color: C.muted,
+      textAlign: 'center',
+    },
+    exitBox: {
+      gap: 16,
+      padding: 20,
+      backgroundColor: tone('#FFF6E9', 'background'),
+      borderRadius: 15,
+      borderWidth: 1,
+      borderColor: tone('#EBD6B9', 'border'),
+    },
+    resultStats: { flexDirection: 'row', gap: 15, justifyContent: 'center' },
+    resultStat: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: C.paper,
+      paddingVertical: 20,
+      paddingHorizontal: 7,
+      borderRadius: 14,
+    },
+    feedbackList: { gap: 15 },
+    feedbackItem: {
+      flexDirection: 'row',
+      gap: 11,
+      borderBottomWidth: 1,
+      borderBottomColor: C.line,
+      paddingBottom: 14,
+    },
+    feedbackMarker: {
+      width: 29,
+      height: 29,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    feedbackText: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 20, color: C.ink },
+    accepted: { fontFamily: 'ManropeSemiBold', fontSize: 12, lineHeight: 19, color: C.teal },
+  });
+}

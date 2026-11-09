@@ -1,3 +1,4 @@
+import { ThemeProvider, useTheme } from '../src/theme';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -14,6 +15,17 @@ import {
   Outfit_600SemiBold,
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit';
+function ThemedStack() {
+  const { mode, colors } = useTheme();
+  return (
+    <>
+      <StatusBar style={mode === 'light' ? 'dark' : 'light'} backgroundColor={colors.paper} />
+      <Stack
+        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}
+      />
+    </>
+  );
+}
 export default function Layout() {
   const [ready, error] = useFonts({
     Manrope: Manrope_400Regular,
@@ -28,9 +40,8 @@ export default function Layout() {
   });
   if (!ready && !error) return null;
   return (
-    <>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F7FAF7' } }} />
-    </>
+    <ThemeProvider>
+      <ThemedStack />
+    </ThemeProvider>
   );
 }

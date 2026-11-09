@@ -1,7 +1,8 @@
+import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { BookOpen, Download, FolderOpen, PackageCheck, RotateCcw } from 'lucide-react-native';
-import { C, Button, Card, Heading, Label, Pill } from '../ui';
+import { Button, Card, Heading, Label, Pill } from '../ui';
 import {
   getCoursePackInfo,
   installCoursePackText,
@@ -17,6 +18,8 @@ export function ContentManager({
   onRefresh: () => Promise<void>;
   onNotice: (message: string) => void;
 }) {
+  const { colors: C, tone } = useTheme();
+
   const [info, setInfo] = useState<Awaited<ReturnType<typeof getCoursePackInfo>> | null>(null);
   const [url, setUrl] = useState(courseSource.url);
   const [busy, setBusy] = useState(false);
@@ -67,7 +70,7 @@ export function ContentManager({
             marginVertical: 18,
             padding: 17,
             borderRadius: 13,
-            backgroundColor: '#F2F7F0',
+            backgroundColor: tone('#F2F7F0', 'background'),
             gap: 9,
           }}
         >
