@@ -1,4 +1,4 @@
-import { test, expect, enterApp, bundledCourse } from './helpers';
+import { test, expect, enterApp, bundledCourse, beginFirstLesson } from './helpers';
 
 for (const viewport of [
   { width: 1280, height: 900 },
@@ -82,5 +82,46 @@ for (const mode of ['light', 'dark', 'oled']) {
         .getByRole('button', { name: 'Enviar respuesta', exact: true })
         .getByText('Enviar respuesta', { exact: true }),
     ).toHaveCSS('color', 'rgb(255, 255, 255)');
+  });
+}
+
+for (const mode of ['light', 'dark', 'oled']) {
+  test(`review mastery fill stays visible in ${mode} mode`, async ({ page }) => {
+    await page.addInitScript((theme) => localStorage.setItem('lq_theme', theme), mode);
+    await enterApp(page);
+    await beginFirstLesson(page);
+    await page.getByRole('radio').first().click();
+    await page.getByRole('button', { name: 'Comprobar respuesta', exact: true }).click();
+    await expect(
+      page.getByRole('button', { name: 'Siguiente ejercicio', exact: true }),
+    ).toBeVisible();
+    await page.evaluate(() => {
+      const local = JSON.parse(localStorage.getItem('lq_offline_state_v1')!);
+      local.mastery.forEach((skill: { value: number }) => {
+        skill.value = 0.25;
+      });
+      localStorage.setItem('lq_offline_state_v1', JSON.stringify(local));
+    });
+    await page.reload();
+    await page.getByRole('button', { name: 'Repasar un poquito', exact: true }).click();
+    await page.getByRole('tab', { name: 'Todas mis habilidades', exact: true }).click();
+    const track = page.getByRole('progressbar').first();
+    await expect(track).toBeVisible();
+    await expect(track).toHaveAttribute('aria-valuenow', '25');
+    const fill = track.locator(':scope > div');
+    await expect(fill).toHaveCSS(
+      'background-color',
+      mode === 'light' ? 'rgb(22, 125, 114)' : 'rgb(121, 217, 195)',
+    );
+    const colors = await track.evaluate((el) => [
+      getComputedStyle(el).backgroundColor,
+      getComputedStyle(el.firstElementChild!).backgroundColor,
+    ]);
+    expect(colors[0]).not.toBe(colors[1]);
+    const ratio = await track.evaluate(
+      (el) =>
+        el.firstElementChild!.getBoundingClientRect().width / el.getBoundingClientRect().width,
+    );
+    expect(ratio).toBeCloseTo(0.25, 2);
   });
 }

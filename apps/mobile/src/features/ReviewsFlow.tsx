@@ -133,7 +133,19 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
               </View>
               {review.due ? <View style={s.dueDot} /> : <Check color={palette.muted} size={18} />}
             </View>
-            <View style={s.progressTrack}>
+            <View
+              accessibilityRole="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(Math.min(0.95, Math.max(0, review.mastery)) * 100)}
+              accessibilityLabel={`Dominio: ${review.targetLabelEs}`}
+              accessibilityValue={{
+                min: 0,
+                max: 100,
+                now: Math.round(Math.min(0.95, Math.max(0, review.mastery)) * 100),
+              }}
+              style={s.progressTrack}
+            >
               <View
                 style={[
                   s.progressFill,
@@ -213,7 +225,7 @@ export function useStyles() {
       backgroundColor: tone('#EAF0E7', 'background'),
       overflow: 'hidden',
     },
-    progressFill: { height: 6, backgroundColor: tone('#82BDA2', 'background'), borderRadius: 5 },
+    progressFill: { height: 6, backgroundColor: palette.teal, borderRadius: 5 },
     practice: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
     practiceText: { fontFamily: 'Manrope', fontSize: 13, fontWeight: '700', color: palette.teal },
     note: {
