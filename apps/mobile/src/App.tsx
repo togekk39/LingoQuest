@@ -876,9 +876,10 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
               {settings && <SpeechSettings />}
               <Heading style={{ fontSize: 22 }}>Tu privacidad, primero</Heading>
               <Label>
-                Tu audio permanece en tu dispositivo y se elimina al salir de la práctica. El
-                servicio de evaluación de pronunciación no está conectado: nunca inventamos una
-                calificación.
+                En el modo solo grabar, tu audio permanece en el dispositivo y se elimina al salir.
+                Si eliges reconocimiento, el servicio de voz del sistema o del navegador puede
+                procesar tu audio en línea. No guardamos el audio ni el texto del reconocimiento y
+                no generamos una calificación de pronunciación.
                 {'\n\n'}Puedes aprender sin micrófono. Las respuestas, los XP y el progreso se
                 guardan y se revisan en este dispositivo, sin cuentas ni servicios en línea.{'\n\n'}
                 Esta edición incluye contenido original de demostración pendiente de revisión

@@ -422,7 +422,9 @@ test('optional recording and replay stay local without a fabricated pronunciatio
     .getByRole('button', { name: /^Practicar: / })
     .first()
     .click();
-  await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Solo grabar y escuchar (sin reconocimiento)', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Terminar grabación', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Escuchar mi grabación', exact: true }),

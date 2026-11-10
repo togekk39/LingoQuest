@@ -1,4 +1,5 @@
 import { useTheme } from '../theme';
+import { useSystemSTT } from './useSystemSTT';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
@@ -18,6 +19,7 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
   const s = useStyles();
   const f = useFeatureStyles();
 
+  const stt = useSystemSTT();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const player = useAudioPlayer(null);
@@ -27,6 +29,7 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
   const [busy, setBusy] = useState(false);
   const [permission, setPermission] = useState(false);
   const recordingUri = useRef<string | null>(null);
+  const mounted = useRef(true);
   const recorderRef = useRef(recorder);
   recorderRef.current = recorder;
   const removeRecording = (path: string | null) => {
@@ -42,8 +45,10 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
       /* The recording may already have been released by the recorder. */
     }
   };
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       void stopOfflineSpeech();
       const activeRecorder = recorderRef.current;
       void (async () => {
@@ -53,15 +58,23 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
           /* The native recorder may already be released. */
         }
         removeRecording(recordingUri.current ?? activeRecorder.uri);
+        try {
+          await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+        } catch {
+          /* Audio resources may already be released. */
+        }
       })();
-    },
-    [],
-  );
+    };
+  }, []);
   async function startRecording() {
     setBusy(true);
     setMessage('');
     try {
+      stt.cancel();
+      await stopOfflineSpeech();
+      if (!mounted.current) return;
       const result = await AudioModule.requestRecordingPermissionsAsync();
+      if (!mounted.current) return;
       if (!result.granted) {
         setMessage(
           'El micrófono está desactivado. Puedes seguir aprendiendo y volver cuando quieras.',
@@ -76,14 +89,23 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
       recordingUri.current = null;
       setUri(null);
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      if (!mounted.current) return;
       await recorder.prepareToRecordAsync();
+      if (!mounted.current) {
+        await recorder.stop();
+        removeRecording(recorder.uri);
+        return;
+      }
       recorder.record();
     } catch {
+      if (!mounted.current) return;
       setMessage(
-        'No pudimos abrir el micrófono. Revisa el permiso del navegador o del dispositivo, o continúa sin grabar.',
+        Platform.OS === 'web'
+          ? 'No pudimos iniciar la grabación. Comprueba que el navegador admita grabación de audio, usa HTTPS y revisa si otra aplicación está usando el micrófono.'
+          : 'No pudimos iniciar la grabación. Revisa si otra aplicación está usando el micrófono y vuelve a intentarlo.',
       );
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
   async function stopRecording() {
@@ -91,6 +113,10 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
     try {
       await recorder.stop();
       const path = recorder.uri;
+      if (!mounted.current) {
+        removeRecording(path);
+        return;
+      }
       recordingUri.current = path;
       setUri(path);
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
@@ -102,14 +128,16 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
         'No pudimos guardar la grabación. Puedes intentarlo otra vez o continuar sin grabar.',
       );
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
   async function finish() {
+    stt.cancel();
     try {
       if (recorder.isRecording) await recorder.stop();
       player.pause();
       player.replace(null);
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
     } catch {
       /* Closing practice should always work. */
     }
@@ -134,8 +162,12 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
         <Pressable
           accessibilityRole="button"
           style={s.listen}
+          disabled={busy || stt.phase !== 'idle' || recorderState.isRecording}
+          accessibilityState={{
+            disabled: busy || stt.phase !== 'idle' || recorderState.isRecording,
+          }}
           onPress={() => {
-            void playOffline(text);
+            if (stt.phase === 'idle' && !recorderState.isRecording && !busy) void playOffline(text);
           }}
         >
           <Volume2 color={palette.teal} size={19} />
@@ -147,9 +179,50 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
           {speechMessage}
         </Text>
       )}
+      <Text style={f.quiet}>
+        Al practicar con reconocimiento, el servicio de voz del sistema o del navegador puede
+        procesar tu audio en línea. El texto es orientativo y no es una nota de pronunciación. Si
+        prefieres practicar sin conexión, elige solo grabar.
+      </Text>
+      <Action
+        disabled={busy || recorderState.isRecording || stt.phase === 'stopping'}
+        busy={stt.phase === 'starting'}
+        onPress={() => {
+          if (stt.phase === 'listening') stt.stop();
+          else {
+            player.pause();
+            player.replace(null);
+            setMessage('');
+            void stt.start();
+          }
+        }}
+      >
+        {stt.phase === 'listening' ? 'Terminar reconocimiento' : 'Practicar con mi voz'}
+      </Action>
+      {stt.phase === 'listening' && (
+        <Text accessibilityLiveRegion="polite" style={f.quiet}>
+          Te escuchamos. Lee la frase en inglés.
+        </Text>
+      )}
+      {!!stt.transcript && (
+        <View accessibilityLiveRegion="polite" style={f.card}>
+          <Text style={f.eyebrow}>Esto entendió el sistema</Text>
+          <Text style={f.body}>{stt.transcript}</Text>
+          <Text style={f.quiet}>
+            Compara el texto con la frase y vuelve a practicar cuando quieras.
+          </Text>
+        </View>
+      )}
+      {!!stt.message && (
+        <Text accessibilityRole="alert" style={f.body}>
+          {stt.message}
+        </Text>
+      )}
       {recorderState.isRecording ? (
         <Action
+          secondary
           busy={busy}
+          disabled={stt.phase !== 'idle'}
           onPress={() => {
             void stopRecording();
           }}
@@ -158,17 +231,22 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
         </Action>
       ) : (
         <Action
+          secondary
           busy={busy}
+          disabled={stt.phase !== 'idle'}
           onPress={() => {
             void startRecording();
           }}
         >
-          {uri ? 'Grabar otra vez' : 'Practicar con mi voz'}
+          {uri
+            ? 'Grabar otra vez sin reconocimiento'
+            : 'Solo grabar y escuchar (sin reconocimiento)'}
         </Action>
       )}
       {uri && (
         <Action
           secondary
+          disabled={busy || stt.phase !== 'idle' || recorderState.isRecording}
           onPress={() => {
             player.replace({ uri });
             player.play();
@@ -185,8 +263,9 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
       <View style={s.privacy}>
         <ShieldCheck size={19} color={palette.muted} />
         <Text style={[f.quiet, { flex: 1 }]}>
-          Tu audio permanece en este dispositivo durante la práctica y se elimina al salir. No se
-          envía a terceros. {permission ? '' : 'Tú decides si activas el micrófono.'}
+          En el modo solo grabar, tu audio permanece en este dispositivo y se elimina al salir. No
+          guardamos el audio ni el texto del reconocimiento.{' '}
+          {permission ? '' : 'Tú decides si activas el micrófono.'}
         </Text>
       </View>
       <Action
@@ -195,7 +274,7 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
           void finish();
         }}
       >
-        {uri ? 'Continuar con mi lección' : 'Ahora no puedo hablar'}
+        {uri || stt.transcript ? 'Continuar con mi lección' : 'Ahora no puedo hablar'}
       </Action>
     </View>
   );
