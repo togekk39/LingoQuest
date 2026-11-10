@@ -1,4 +1,4 @@
-import { test, expect, enterApp, readyOfflineShell } from './helpers';
+import { test, expect, enterApp, readyOfflineShell, firstLesson } from './helpers';
 import type { Page } from '@playwright/test';
 
 async function installSpeechFixture(page: Page) {
@@ -86,6 +86,37 @@ async function openDrill(page: Page) {
     .click();
   await page.getByText('Escuchar ejemplo', { exact: true }).click();
 }
+
+test('each vocabulary card plays once on entry and still allows manual replay', async ({
+  page,
+}) => {
+  await installSpeechFixture(page);
+  await enterApp(page);
+  await page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }).click();
+  await expect(page.getByTestId('lesson-stage-goal')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__speechCalls)).toEqual([]);
+  await page.getByRole('button', { name: 'Conocer las palabras', exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__speechCalls))
+    .toEqual([expect.objectContaining({ text: firstLesson.vocabulary[0].en })]);
+  // Let completion update the component without triggering another automatic play.
+  await page.clock.install();
+  await page.clock.runFor(1000);
+  expect(await page.evaluate(() => (window as any).__speechCalls.length)).toBe(1);
+  await page
+    .getByRole('button', { name: `Escuchar: ${firstLesson.vocabulary[0].en}`, exact: true })
+    .click();
+  await expect.poll(() => page.evaluate(() => (window as any).__speechCalls.length)).toBe(2);
+  await page.getByRole('button', { name: 'Siguiente palabra', exact: true }).click();
+  await page.clock.runFor(1000);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__speechCalls))
+    .toEqual([
+      expect.objectContaining({ text: firstLesson.vocabulary[0].en }),
+      expect.objectContaining({ text: firstLesson.vocabulary[0].en }),
+      expect.objectContaining({ text: firstLesson.vocabulary[1].en }),
+    ]);
+});
 
 test('system default local English voice works offline; saved voice and speed persist and apply to practice', async ({
   page,

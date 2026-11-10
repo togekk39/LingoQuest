@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { localSettings } from '../lib/api';
 import { getOfflineVoices, playDeviceSpeech, stopDeviceSpeech } from './tts/deviceSpeech';
 import {
@@ -58,10 +58,10 @@ export async function stopOfflineSpeech() {
 }
 export function useOfflineSpeech() {
   const [speechMessage, setSpeechMessage] = useState('');
-  async function playOffline(text: string) {
+  const playOffline = useCallback(async (text: string) => {
     setSpeechMessage('');
     const result = await playOfflineVoice(text);
     setSpeechMessage(result.message);
-  }
+  }, []);
   return { playOffline, speechMessage };
 }
