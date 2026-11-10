@@ -1,4 +1,5 @@
 import { useTheme } from '../theme';
+import { pausePracticePlayback } from './pausePracticePlayback';
 import { useSystemSTT } from './useSystemSTT';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -83,8 +84,7 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
         return;
       }
       setPermission(true);
-      player.pause();
-      player.replace(null);
+      pausePracticePlayback(player, Platform.OS);
       removeRecording(recordingUri.current);
       recordingUri.current = null;
       setUri(null);
@@ -135,8 +135,7 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
     stt.cancel();
     try {
       if (recorder.isRecording) await recorder.stop();
-      player.pause();
-      player.replace(null);
+      pausePracticePlayback(player, Platform.OS);
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
     } catch {
       /* Closing practice should always work. */
@@ -190,10 +189,8 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
         onPress={() => {
           if (stt.phase === 'listening') stt.stop();
           else {
-            player.pause();
-            player.replace(null);
             setMessage('');
-            void stt.start();
+            void stt.start(() => pausePracticePlayback(player, Platform.OS));
           }
         }}
       >

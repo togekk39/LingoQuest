@@ -175,3 +175,32 @@ test('local recording starts, saves, allows replay and revokes the recording on 
     ),
   ).toBe(true);
 });
+
+test('audio preparation failure is recoverable instead of escaping the speaking button', async ({
+  page,
+}) => {
+  const uncaught: string[] = [];
+  page.on('pageerror', (error) => uncaught.push(error.message));
+  await installRecognition(page);
+  await page.addInitScript(() => {
+    const pause = HTMLMediaElement.prototype.pause;
+    HTMLMediaElement.prototype.pause = function () {
+      if ((window as any).__failPracticePause) throw new Error('Audio preparation failed');
+      pause.call(this);
+    };
+  });
+  await openPractice(page);
+  await page.evaluate(() => {
+    (window as any).__failPracticePause = true;
+  });
+  await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
+  await expect(page.getByText(/No pudimos preparar el audio/)).toBeVisible();
+  expect(uncaught).toEqual([]);
+  await page.evaluate(() => {
+    (window as any).__failPracticePause = false;
+  });
+  await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Terminar reconocimiento', exact: true }),
+  ).toBeVisible();
+});

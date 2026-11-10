@@ -4,10 +4,15 @@ import {
   ExpoSpeechRecognitionModule as recognition,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
+import { selectedRecognitionService } from './recognitionService';
 import { stopOfflineSpeech } from './offlineSpeech';
 
 export function recognitionError(code: string) {
   switch (code) {
+    case 'audio-preparation':
+      return 'No pudimos preparar el audio para la práctica. Vuelve a intentarlo o continúa sin micrófono.';
+    case 'service-unavailable':
+      return 'El servicio de voz seleccionado no está disponible. Selecciona un servicio STT compatible con Android en los ajustes del sistema. Puedes seguir con solo grabar.';
     case 'not-allowed':
     case 'service-not-allowed':
       return 'Permite el micrófono y el reconocimiento de voz en los ajustes del navegador o del sistema. También puedes practicar solo con una grabación.';
@@ -69,7 +74,7 @@ export function useSystemSTT() {
     setPhase('idle');
     if (!hasResult.current && !hasError.current) setMessage(recognitionError('no-speech'));
   });
-  async function start() {
+  async function start(prepareAudio?: () => void) {
     if (active.current) return;
     active.current = true;
     hasResult.current = false;
@@ -78,6 +83,11 @@ export function useSystemSTT() {
     setMessage('');
     setPhase('starting');
     try {
+      try {
+        prepareAudio?.();
+      } catch {
+        throw new Error('audio-preparation');
+      }
       if (!recognition.isRecognitionAvailable()) throw new Error('unavailable');
       await stopOfflineSpeech();
       if (!mounted.current || !active.current) return;
@@ -87,7 +97,10 @@ export function useSystemSTT() {
         if (!mounted.current || !active.current) return;
         if (!permission.granted) throw new Error('not-allowed');
       }
+      const androidRecognitionServicePackage =
+        Platform.OS === 'android' ? selectedRecognitionService(recognition) : undefined;
       recognition.start({
+        ...(androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {}),
         lang: 'en-US',
         interimResults: true,
         continuous: false,

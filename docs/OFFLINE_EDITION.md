@@ -18,7 +18,7 @@ Android 不依賴 Expo Go／開發伺服器的正式安裝產物須由 APK 工�
 
 麥克風／辨識權限拒絕、沒有英文模型、服務不可用、網路錯誤及未收到語音都有可重試提示。另可選「Solo grabar y escuchar (sin reconocimiento)」完全離線錄音與重播，離開即刪除。辨識、錄音及範例播放不會同時占用音訊。
 
-需安裝重新建置的 APK／原生開發版；Expo Go 與舊 APK 不含此原生模組。Config plugin 設定 iOS 麥克風／語音辨識權限及 Android 系統語音服務可見性。裝置需啟用系統辨識服務，並具備英文支援。`npm run build:android` 只驗證 Hermes bundle，APK 由 Android APK workflow 產生。
+需安裝重新建置的 APK／原生開發版；Expo Go 與舊 APK 不含此原生模組。Config plugin 設定 iOS 麥克風／語音辨識權限及 Android 系統語音服務可見性。裝置需啟用系統辨識服務，並具備英文支援。Android 每次啟動會讀取系統目前選定的辨識服務，確認它可用後明確指定該套件；支援 Marmalade STT（`app.marmalade.stt`）等標準 `RecognitionService`，不要求啟用 Google。預設服務已停用或未設定時顯示提示，不會偷偷改用另一服務。只啟用 Marmalade 鍵盤不代表已將它設為系統語音辨識服務，需在 Marmalade 的設定引導中確認。`npm run build:android` 只驗證 Hermes bundle，APK 由 Android APK workflow 產生。
 
 瀏覽器整合測試使用 Web Speech fixture 驗證辨識文字、錯誤、重試及離開時中止，並用瀏覽器 MediaRecorder 驗證錄音重播與清除；不代表真機辨識準確度。真機驗收需確認實際收音、權限拒絕／恢復、斷網與權限提示中離開頁面。
 
@@ -27,3 +27,5 @@ Android 不依賴 Expo Go／開發伺服器的正式安裝產物須由 APK 工�
 整合課程的本機狀態／備份格式為 2，舊原型格式 1 明確拒絕讀寫並要求使用者決定是否重設。舊 bytes 不會自動刪除；錯誤頁可先匯出留存，再確認重設。這份留存不能還原成格式 2。新版備份則照常透過 Perfil 匯出、挑檔及確認覆蓋。還原不恢復進行中的挑戰。
 
 目前沒有登入、Supabase、VPS、線上 AI、遙測或外部語音評估。舊 `apps/api`／SQL 保留作歷史原型，沒有接入離線版。
+
+Android 音訊注意事項：`expo-audio` 1.1.1 的 Android `replace` 參數不可為 null。練習啟動與離開時，原生平台只暫停播放器，僅 web 清除音源；STT 前置音訊準備也包含在錯誤處理內。`npm run test:stt` 驗證原生平台不呼叫 `replace(null)`、非 Google 預設服務選擇與實際產生的 Android manifest。仍需以安裝新 APK 的真機驗證 Marmalade；JS／manifest 測試不等於已執行 Android 原生程式。
