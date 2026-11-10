@@ -282,7 +282,10 @@ test('all forty pronunciation drills are reachable offline with recording option
     .first()
     .click();
   await expect(page.getByText('Dale voz a lo que aprendiste.', { exact: true })).toBeVisible();
-  await expect(page.getByText(/No se envía a terceros/)).toBeVisible();
+  await expect(page.getByText(/puede procesar tu audio en línea/)).toBeVisible();
+  await expect(
+    page.getByText(/En el modo solo grabar, tu audio permanece en este dispositivo/),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Ahora no puedo hablar', exact: true }).click();
   await expect(page.getByText('Tu inglés tiene algo que decir.', { exact: true })).toBeVisible();
   expect((await state(page)).xp).toBe(0);
@@ -422,7 +425,9 @@ test('optional recording and replay stay local without a fabricated pronunciatio
     .getByRole('button', { name: /^Practicar: / })
     .first()
     .click();
-  await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Solo grabar y escuchar (sin reconocimiento)', exact: true })
+    .click();
   await page.getByRole('button', { name: 'Terminar grabación', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Escuchar mi grabación', exact: true }),
