@@ -2,7 +2,7 @@ import { useTheme } from '../theme';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CourseLesson } from '@lingoquest/course-pack';
-import type { AttemptResult, PublicExercise } from '@lingoquest/contracts';
+import type { Answer, AttemptResult, PublicExercise } from '@lingoquest/contracts';
 import { BookOpen, Check, CheckCheck, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
 import { useFeatureStyles } from './FeatureUI';
 import { useOfflineSpeech } from './offlineSpeech';
@@ -225,14 +225,37 @@ export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
     </>
   );
 }
-export function AnswerFeedback({ result }: { result: AttemptResult }) {
+export function AnswerFeedback({
+  result,
+  exercise,
+  answer,
+}: {
+  result: AttemptResult;
+  exercise: PublicExercise;
+  answer: Partial<Answer>;
+}) {
   const { colors: palette, tone } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
+  const submittedAnswer = exercise.matchingPairs?.length
+    ? exercise.matchingPairs
+        .map((pair) => {
+          const meaning = exercise.matchingPairs!.find(
+            (item) => item.id === answer.matches?.[pair.id],
+          );
+          return `${pair.left} → ${meaning?.right ?? '—'}`;
+        })
+        .join('\n')
+    : (exercise.options?.find((option) => option.id === answer.optionId)?.text ??
+      answer.tokens?.join(' ') ??
+      answer.text ??
+      '');
 
   return (
     <View
+      testID="answer-feedback"
       accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
       style={[
         s.feedback,
         !result.correct && {
@@ -251,15 +274,20 @@ export function AnswerFeedback({ result }: { result: AttemptResult }) {
           {result.correct ? '¡Muy bien!' : 'Buen intento. Veamos por qué…'}
         </Text>
       </View>
-      <Text style={[f.body, { color: palette.ink }]}>{result.feedbackEs}</Text>
+      {!result.correct && (
+        <View style={{ gap: 8 }}>
+          {!!exercise.sentence && (
+            <Text style={[f.body, { color: palette.ink }]}>{exercise.sentence}</Text>
+          )}
+          <Text testID="submitted-answer" style={[f.body, { color: palette.ink }]}>
+            Tu respuesta: {submittedAnswer}
+          </Text>
+        </View>
+      )}
       {result.acceptedAnswer && !result.correct && (
         <Text style={s.accepted}>Una respuesta posible: {result.acceptedAnswer}</Text>
       )}
-      {!result.correct && (
-        <Text style={f.quiet}>
-          Puedes volver a intentar o continuar. Aquí se aprende practicando.
-        </Text>
-      )}
+      <Text style={[f.body, { color: palette.ink }]}>{result.feedbackEs}</Text>
     </View>
   );
 }
