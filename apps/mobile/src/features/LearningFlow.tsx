@@ -1,6 +1,6 @@
 import { useTheme } from '../theme';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Text, View } from 'react-native';
 import type { AttemptResult, Progress } from '@lingoquest/contracts';
 import { stopOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
@@ -109,6 +109,7 @@ export default function LearningFlow({
   }
   async function check() {
     if (!exercise || !hasAnswer(answer, exercise)) return;
+    Keyboard.dismiss();
     setBusy(true);
     setError('');
     try {
@@ -242,12 +243,17 @@ export default function LearningFlow({
   }
   return (
     <FlowFrame
-      key={`${lessonId}-${stagePosition}-${vocabularyPosition}-${exercisePosition}`}
+      stepKey={`${lessonId}-${stagePosition}-${vocabularyPosition}-${exercisePosition}`}
       title={lesson?.title ?? 'Preparando tu lección'}
       eyebrow={review ? 'Repasar · Sin prisa' : 'Aprender · Paso a paso'}
       onClose={onClose}
       progress={progress}
       footer={footer}
+      feedback={
+        result && exercise ? (
+          <AnswerFeedback result={result} exercise={exercise} answer={answer} />
+        ) : null
+      }
     >
       {loading && (
         <View style={{ alignItems: 'center', paddingVertical: 70, gap: 20 }}>
@@ -312,7 +318,6 @@ export default function LearningFlow({
                   </Text>
                 </View>
               )}
-              {result && <AnswerFeedback result={result} />}
             </View>
           ) : stage.type === 'goal' ? (
             <GoalStage lesson={lesson} review={review} />

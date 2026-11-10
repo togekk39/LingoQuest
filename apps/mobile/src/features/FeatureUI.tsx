@@ -1,16 +1,25 @@
 import { useTheme } from '../theme';
-import React from 'react';
+import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
+import { useKeyboardOverlap } from './useKeyboardOverlap';
+import { MotionEntrance, MotionPressable } from '../motion';
+import { ProgressBar } from '../ui';
+
+export const InputViewportContext = createContext<{
+  revealInput: (input: TextInput | null) => void;
+  maxHeight: number;
+}>({ revealInput: () => {}, maxHeight: 200 });
 
 export const newEventId = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -36,8 +45,9 @@ export function Action({
   const f = useFeatureStyles();
 
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || busy, busy }}
       disabled={disabled || busy}
       onPress={onPress}
       style={({ pressed }) => [
@@ -54,7 +64,7 @@ export function Action({
         <Text style={[f.actionText, secondary && { color: palette.teal }]}>{children}</Text>
       )}
       {!secondary && !busy && <ArrowRight color="white" size={18} />}
-    </Pressable>
+    </MotionPressable>
   );
 }
 export function FlowFrame({
@@ -63,20 +73,75 @@ export function FlowFrame({
   onClose,
   children,
   footer,
+  feedback,
   progress,
+  stepKey,
 }: {
   title: string;
   eyebrow: string;
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  feedback?: React.ReactNode;
   progress?: number;
+  stepKey?: string;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
+  const frame = useRef<View>(null);
+  const scroll = useRef<ScrollView>(null);
+  const { overlap, measureOverlap } = useKeyboardOverlap(frame);
+  const focusedInput = useRef<TextInput | null>(null);
+  const scrollOffset = useRef(0);
+  const pendingFrame = useRef<number | null>(null);
+  const [inputMaxHeight, setInputMaxHeight] = useState(200);
+  const revealFocusedInput = useCallback(() => {
+    if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
+    pendingFrame.current = requestAnimationFrame(() => {
+      pendingFrame.current = null;
+      const input = focusedInput.current;
+      if (!input) return;
+      // Measure the actual scroll viewport: it excludes the header, footer and keyboard.
+      scroll.current?.getNativeScrollRef()?.measureInWindow((_x, top, _width, height) => {
+        input.measureInWindow((_inputX, inputTop, _inputWidth, inputHeight) => {
+          if (focusedInput.current !== input || height <= 0) return;
+          const bottom = top + height - 16;
+          const delta =
+            inputTop < top + 16
+              ? inputTop - top - 16
+              : Math.max(0, inputTop + inputHeight - bottom);
+          if (Math.abs(delta) > 1)
+            scroll.current?.scrollTo({
+              y: Math.max(0, scrollOffset.current + delta),
+              animated: false,
+            });
+        });
+      });
+    });
+  }, []);
+  const revealInput = useCallback(
+    (input: TextInput | null) => {
+      focusedInput.current = input;
+      if (input) revealFocusedInput();
+    },
+    [revealFocusedInput],
+  );
+  useEffect(() => {
+    return () => {
+      focusedInput.current = null;
+      if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
+    };
+  }, [revealFocusedInput]);
+  const contentTop = useRef(0);
+  const hasFeedback = !!feedback;
+
+  useEffect(() => {
+    // Retrying returns to the question instead of leaving it above the viewport.
+    if (!hasFeedback) scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [hasFeedback, stepKey]);
 
   return (
-    <View style={f.frame}>
+    <View ref={frame} style={f.frame} onLayout={measureOverlap}>
       <View style={f.topbar}>
         <Pressable
           accessibilityLabel="Cerrar y volver"
@@ -96,23 +161,63 @@ export function FlowFrame({
         </View>
       </View>
       {progress !== undefined && (
-        <View
+        <ProgressBar
           accessibilityLabel={`Progreso: ${Math.round(progress * 100)} por ciento`}
-          style={f.progressTrack}
-        >
-          <View
-            style={[f.progressFill, { width: `${Math.max(0, Math.min(1, progress)) * 100}%` }]}
-          />
-        </View>
+          value={progress}
+          height={5}
+          color={palette.primary}
+        />
       )}
-      <ScrollView contentContainerStyle={f.scroll} keyboardShouldPersistTaps="handled">
-        <View style={f.content}>{children}</View>
+      <ScrollView
+        ref={scroll}
+        testID="flow-scroll"
+        style={{ flex: 1 }}
+        contentContainerStyle={f.scroll}
+        keyboardShouldPersistTaps="handled"
+        onLayout={(event) => {
+          // Leave space around the field; long answers scroll inside the input.
+          setInputMaxHeight(Math.max(1, event.nativeEvent.layout.height - 32));
+          revealFocusedInput();
+        }}
+        onScroll={(event) => {
+          scrollOffset.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+      >
+        <InputViewportContext.Provider value={{ revealInput, maxHeight: inputMaxHeight }}>
+          <View
+            style={f.content}
+            onLayout={(event) => {
+              contentTop.current = event.nativeEvent.layout.y;
+            }}
+          >
+            <MotionEntrance key={stepKey} style={{ gap: 22 }}>
+              {children}
+              {hasFeedback && (
+                <View
+                  onLayout={(event) => {
+                    // Layout coordinates include all teaching content and expanded help.
+                    // Align the start, so even a tall explanation begins on screen.
+                    scroll.current?.scrollTo({
+                      y: Math.max(0, contentTop.current + event.nativeEvent.layout.y - 12),
+                      animated: false,
+                    });
+                  }}
+                >
+                  {feedback}
+                </View>
+              )}
+            </MotionEntrance>
+          </View>
+        </InputViewportContext.Provider>
       </ScrollView>
       {footer && (
-        <View style={f.footer}>
+        <View testID="flow-footer" style={f.footer}>
           <View style={f.footerContent}>{footer}</View>
         </View>
       )}
+      {/* A real layout spacer creates scroll room even when the OS overlays the keyboard. */}
+      <View testID="keyboard-spacer" style={{ height: overlap, flexShrink: 0 }} />
     </View>
   );
 }
@@ -166,8 +271,6 @@ export function useFeatureStyles() {
     safetyDot: { flexDirection: 'row', gap: 7, alignItems: 'center' },
     dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.primary },
     safetyText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 11 },
-    progressTrack: { height: 5, backgroundColor: tone('#E5EEE7', 'background') },
-    progressFill: { height: 5, backgroundColor: palette.primary },
     scroll: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 38 },
     content: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 22 },
     footer: {
@@ -188,7 +291,11 @@ export function useFeatureStyles() {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    actionPrimary: { backgroundColor: palette.primary },
+    actionPrimary: {
+      backgroundColor: palette.primary,
+      borderBottomWidth: 4,
+      borderBottomColor: '#105B54',
+    },
     actionSecondary: {
       borderWidth: 1,
       borderColor: tone('#BED9CD', 'border'),
