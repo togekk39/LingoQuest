@@ -1,5 +1,5 @@
 import { useTheme } from '../theme';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,6 +11,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
+import { MotionEntrance, MotionPressable } from '../motion';
+import { ProgressBar } from '../ui';
 
 export const newEventId = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -36,8 +38,9 @@ export function Action({
   const f = useFeatureStyles();
 
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || busy, busy }}
       disabled={disabled || busy}
       onPress={onPress}
       style={({ pressed }) => [
@@ -54,7 +57,7 @@ export function Action({
         <Text style={[f.actionText, secondary && { color: palette.teal }]}>{children}</Text>
       )}
       {!secondary && !busy && <ArrowRight color="white" size={18} />}
-    </Pressable>
+    </MotionPressable>
   );
 }
 export function FlowFrame({
@@ -64,6 +67,7 @@ export function FlowFrame({
   children,
   footer,
   progress,
+  stepKey,
 }: {
   title: string;
   eyebrow: string;
@@ -71,9 +75,14 @@ export function FlowFrame({
   children: React.ReactNode;
   footer?: React.ReactNode;
   progress?: number;
+  stepKey?: string;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
+  const scroll = useRef<ScrollView>(null);
+  useEffect(() => {
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [stepKey]);
 
   return (
     <View style={f.frame}>
@@ -96,17 +105,17 @@ export function FlowFrame({
         </View>
       </View>
       {progress !== undefined && (
-        <View
+        <ProgressBar
           accessibilityLabel={`Progreso: ${Math.round(progress * 100)} por ciento`}
-          style={f.progressTrack}
-        >
-          <View
-            style={[f.progressFill, { width: `${Math.max(0, Math.min(1, progress)) * 100}%` }]}
-          />
-        </View>
+          value={progress}
+          height={5}
+          color={palette.primary}
+        />
       )}
-      <ScrollView contentContainerStyle={f.scroll} keyboardShouldPersistTaps="handled">
-        <View style={f.content}>{children}</View>
+      <ScrollView ref={scroll} contentContainerStyle={f.scroll} keyboardShouldPersistTaps="handled">
+        <MotionEntrance key={stepKey} style={f.content}>
+          {children}
+        </MotionEntrance>
       </ScrollView>
       {footer && (
         <View style={f.footer}>
@@ -166,8 +175,6 @@ export function useFeatureStyles() {
     safetyDot: { flexDirection: 'row', gap: 7, alignItems: 'center' },
     dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.primary },
     safetyText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 11 },
-    progressTrack: { height: 5, backgroundColor: tone('#E5EEE7', 'background') },
-    progressFill: { height: 5, backgroundColor: palette.primary },
     scroll: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 38 },
     content: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 22 },
     footer: {
@@ -188,7 +195,11 @@ export function useFeatureStyles() {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    actionPrimary: { backgroundColor: palette.primary },
+    actionPrimary: {
+      backgroundColor: palette.primary,
+      borderBottomWidth: 4,
+      borderBottomColor: '#105B54',
+    },
     actionSecondary: {
       borderWidth: 1,
       borderColor: tone('#BED9CD', 'border'),

@@ -54,6 +54,8 @@ import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
 import { OFFLINE_STATE_KEY } from '@lingoquest/offline-engine';
 import { SpeechSettings } from './features/SpeechSettings';
+import { MotionEntrance, MotionPressable, MotionProvider, useReducedMotion } from './motion';
+import { QuestBuddy } from './QuestBuddy';
 
 type Tab = 'Inicio' | 'Aprender' | 'Desafíos' | 'Perfil';
 const tabs: { id: Tab; icon: typeof House; subtitle: string }[] = [
@@ -83,7 +85,17 @@ const unitColors = [
   '#E0EFE9',
 ];
 export default function App() {
+  const [reducedMotion, setReducedMotion] = useState(true);
+  return (
+    <MotionProvider reducedMotion={reducedMotion}>
+      <AppContent onMotionPreference={setReducedMotion} />
+    </MotionProvider>
+  );
+}
+
+function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolean) => void }) {
   const { colors: C, tone } = useTheme();
+  const reducedMotion = useReducedMotion();
   const s = useStyles();
 
   const { width } = useWindowDimensions();
@@ -113,8 +125,9 @@ export default function App() {
     ]);
     setUnits(catalog.units);
     setProgress(p);
+    onMotionPreference(!!p.user.reducedMotion);
     setError('');
-  }, []);
+  }, [onMotionPreference]);
   useEffect(() => {
     let active = true;
     (async () => {
@@ -342,7 +355,7 @@ export default function App() {
                           Tu mundo crece con cada palabra. ¿Damos el siguiente paso?
                         </Label>
                       </View>
-                      <View style={s.hero}>
+                      <MotionEntrance style={s.hero}>
                         <View style={[s.heroWords, { maxWidth: wide ? 340 : 450 }]}>
                           <Pill color="#497B64" bg="#D9EBD8">
                             TU AVENTURA CONTINÚA
@@ -379,6 +392,13 @@ export default function App() {
                             </Text>
                           </View>
                           <Text style={s.heroFootText}>~ 7 min</Text>
+                        </View>
+                      </MotionEntrance>
+                      <View style={[s.row, { gap: 14, paddingHorizontal: 8 }]}>
+                        <QuestBuddy size={68} />
+                        <View style={{ flex: 1, gap: 3 }}>
+                          <Text style={s.cardTitle}>¡Vamos paso a paso!</Text>
+                          <Label style={{ fontSize: 12 }}>Cada palabra cuenta. Tú puedes.</Label>
                         </View>
                       </View>
                       <View>
@@ -650,7 +670,7 @@ export default function App() {
       <Modal
         visible={welcome}
         transparent
-        animationType={progress?.user.reducedMotion ? 'none' : 'fade'}
+        animationType={reducedMotion ? 'none' : 'fade'}
         onRequestClose={() => setWelcome(false)}
       >
         <View style={s.modalShade}>
@@ -836,7 +856,7 @@ export default function App() {
       <Modal
         visible={settings}
         transparent
-        animationType={progress?.user.reducedMotion ? 'none' : 'fade'}
+        animationType={reducedMotion ? 'none' : 'fade'}
         onRequestClose={() => setSettings(false)}
       >
         <View style={s.modalShade}>
@@ -1015,11 +1035,11 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
               </View>
             </Pressable>
             {open && (
-              <View style={{ padding: 20, gap: 10 }}>
+              <MotionEntrance style={{ padding: 20, gap: 10 }}>
                 {unit.lessons.map((l, j) => {
                   const completed = progress.completedLessons.includes(l.id);
                   return (
-                    <Pressable
+                    <MotionPressable
                       accessibilityRole="button"
                       key={l.id}
                       onPress={() => onLesson(l.id)}
@@ -1043,7 +1063,7 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
                         </Label>
                       </View>
                       <ChevronRight size={17} color={C.muted} />
-                    </Pressable>
+                    </MotionPressable>
                   );
                 })}
                 <View
@@ -1060,7 +1080,7 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
                   </View>
                   <Pill>DISPONIBLE SIN CONEXIÓN</Pill>
                 </View>
-              </View>
+              </MotionEntrance>
             )}
           </Card>
         );

@@ -1,8 +1,9 @@
 import { useTheme } from './theme';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
+  Animated,
+  Easing,
   StyleSheet,
   Text,
   View,
@@ -10,6 +11,7 @@ import {
   type StyleProp,
 } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { MotionPressable, useReducedMotion } from './motion';
 
 export function Label({ children, style }: { children: React.ReactNode; style?: any }) {
   const u = useStyles();
@@ -53,8 +55,9 @@ export function Button({
   const u = useStyles();
 
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
       disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [
@@ -67,7 +70,8 @@ export function Button({
               ? { backgroundColor: tone('#FBEAEB', 'background') }
               : { backgroundColor: 'transparent' },
         style,
-        { opacity: disabled ? 0.45 : pressed ? 0.8 : 1 },
+        { opacity: disabled || loading ? 0.45 : pressed ? 0.9 : 1 },
+        variant === 'primary' && { borderBottomWidth: 4, borderBottomColor: '#105B54' },
       ]}
     >
       {loading ? (
@@ -92,7 +96,7 @@ export function Button({
           </Text>
         </>
       )}
-    </Pressable>
+    </MotionPressable>
   );
 }
 export function Pill({
@@ -128,24 +132,48 @@ export function ProgressBar({
   value,
   color,
   height = 7,
+  accessibilityLabel,
 }: {
   value: number;
   color?: string;
   height?: number;
+  accessibilityLabel?: string;
 }) {
   const { colors: C } = useTheme();
   color ??= C.teal;
+  const reduced = useReducedMotion();
+  const target = Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+  const fill = useRef(new Animated.Value(target)).current;
+  useEffect(() => {
+    if (reduced) {
+      fill.setValue(target);
+      return;
+    }
+    const animation = Animated.timing(fill, {
+      toValue: target,
+      duration: 420,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+      isInteraction: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [target, reduced, fill]);
 
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(target * 100) }}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(target * 100)}
       style={{ height, backgroundColor: C.line, borderRadius: 8, overflow: 'hidden' }}
     >
-      <View
+      <Animated.View
         style={{
           height: '100%',
-          width: `${Math.max(0, Math.min(1, value)) * 100}%`,
+          width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
           backgroundColor: color,
           borderRadius: 8,
         }}

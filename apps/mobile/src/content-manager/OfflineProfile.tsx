@@ -1,5 +1,6 @@
 import { ThemePicker } from '../ThemePicker';
 import { useTheme } from '../theme';
+import { useReducedMotion } from '../motion';
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, Switch, Modal, StyleSheet } from 'react-native';
 import {
@@ -34,6 +35,7 @@ export function OfflineProfile({
   onPlacement: () => void;
 }) {
   const { colors: C } = useTheme();
+  const reducedMotion = useReducedMotion();
   const s = useStyles();
 
   const [name, setName] = useState(progress.user.name);
@@ -256,7 +258,7 @@ export function OfflineProfile({
       <Modal
         visible={confirmReset || pendingBackup !== null}
         transparent
-        animationType={progress.user.reducedMotion ? 'none' : 'fade'}
+        animationType={reducedMotion ? 'none' : 'fade'}
         onRequestClose={() => {
           setConfirmReset(false);
           setPendingBackup(null);
