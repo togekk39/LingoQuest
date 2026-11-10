@@ -209,6 +209,50 @@ test('focused practice answer stays above the footer when the phone viewport shr
   await answer.focus();
   await page.setViewportSize({ width: 390, height: 430 });
   await expectAnswerInViewport();
+  const longAnswer = Array.from(
+    { length: 30 },
+    (_, index) => `Line ${index + 1}: I am learning.`,
+  ).join('\n');
+  await answer.fill(longAnswer);
+  await answer.press('ControlOrMeta+End');
+  await page.setViewportSize({ width: 390, height: 330 });
+  await expectAnswerInViewport();
+  await expect
+    .poll(async () => {
+      const [field, viewport] = await Promise.all([answer.boundingBox(), scroll.boundingBox()]);
+      return !!field && !!viewport && field.height <= viewport.height - 32;
+    })
+    .toBe(true);
+  const outerOffset = await scroll.evaluate((element) => element.scrollTop);
+  await answer.press('Enter');
+  await answer.pressSequentially('I can still see this line.');
+  await expectAnswerInViewport();
+  await expect(answer).toBeFocused();
+  await expect(answer).toHaveValue(`${longAnswer}\nI can still see this line.`);
+  // The caret stays at the visible end of the internally scrolling input.
+  await expect
+    .poll(() =>
+      answer.evaluate((element) => {
+        const field = element as HTMLTextAreaElement;
+        const style = getComputedStyle(field);
+        // These test lines do not wrap. Check the caret's line, excluding bottom padding.
+        const lineHeight = parseFloat(style.lineHeight);
+        const fontSize = parseFloat(style.fontSize);
+        const caretTop =
+          parseFloat(style.paddingTop) +
+          (field.value.slice(0, field.selectionStart).split('\n').length - 1) * lineHeight -
+          field.scrollTop +
+          (lineHeight - fontSize) / 2;
+        return (
+          field.selectionStart === field.value.length &&
+          field.scrollHeight > field.clientHeight &&
+          caretTop >= 0 &&
+          caretTop + fontSize <= field.clientHeight
+        );
+      }),
+    )
+    .toBe(true);
+  await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBe(outerOffset);
   await expect(check).toBeInViewport({ ratio: 1 });
   await check.click();
   await expect(

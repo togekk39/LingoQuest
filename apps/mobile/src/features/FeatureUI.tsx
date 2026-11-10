@@ -1,5 +1,5 @@
 import { useTheme } from '../theme';
-import React, { createContext, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -16,7 +16,10 @@ import {
 } from 'react-native';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
 
-export const RevealInputContext = createContext<(input: TextInput | null) => void>(() => {});
+export const InputViewportContext = createContext<{
+  revealInput: (input: TextInput | null) => void;
+  maxHeight: number;
+}>({ revealInput: () => {}, maxHeight: 200 });
 
 export const newEventId = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -84,6 +87,7 @@ export function FlowFrame({
   const focusedInput = useRef<TextInput | null>(null);
   const scrollOffset = useRef(0);
   const pendingFrame = useRef<number | null>(null);
+  const [inputMaxHeight, setInputMaxHeight] = useState(200);
   const revealFocusedInput = useCallback(() => {
     if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
     pendingFrame.current = requestAnimationFrame(() => {
@@ -96,7 +100,7 @@ export function FlowFrame({
           if (focusedInput.current !== input || height <= 0) return;
           const bottom = top + height - 16;
           const delta =
-            inputTop < top + 16 || inputHeight > height - 32
+            inputTop < top + 16
               ? inputTop - top - 16
               : Math.max(0, inputTop + inputHeight - bottom);
           if (Math.abs(delta) > 1)
@@ -160,15 +164,19 @@ export function FlowFrame({
         style={{ flex: 1 }}
         contentContainerStyle={f.scroll}
         keyboardShouldPersistTaps="handled"
-        onLayout={revealFocusedInput}
+        onLayout={(event) => {
+          // Leave space around the field; long answers scroll inside the input.
+          setInputMaxHeight(Math.max(1, event.nativeEvent.layout.height - 32));
+          revealFocusedInput();
+        }}
         onScroll={(event) => {
           scrollOffset.current = event.nativeEvent.contentOffset.y;
         }}
         scrollEventThrottle={16}
       >
-        <RevealInputContext.Provider value={revealInput}>
+        <InputViewportContext.Provider value={{ revealInput, maxHeight: inputMaxHeight }}>
           <View style={f.content}>{children}</View>
-        </RevealInputContext.Provider>
+        </InputViewportContext.Provider>
       </ScrollView>
       {footer && (
         <View testID="flow-footer" style={f.footer}>
