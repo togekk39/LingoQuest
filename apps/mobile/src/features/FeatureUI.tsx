@@ -2,9 +2,6 @@ import { useTheme } from '../theme';
 import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
+import { useKeyboardOverlap } from './useKeyboardOverlap';
 
 export const InputViewportContext = createContext<{
   revealInput: (input: TextInput | null) => void;
@@ -83,7 +81,9 @@ export function FlowFrame({
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
+  const frame = useRef<View>(null);
   const scroll = useRef<ScrollView>(null);
+  const { overlap, measureOverlap } = useKeyboardOverlap(frame);
   const focusedInput = useRef<TextInput | null>(null);
   const scrollOffset = useRef(0);
   const pendingFrame = useRef<number | null>(null);
@@ -120,16 +120,14 @@ export function FlowFrame({
     [revealFocusedInput],
   );
   useEffect(() => {
-    const subscription = Keyboard.addListener('keyboardDidShow', revealFocusedInput);
     return () => {
-      subscription.remove();
       focusedInput.current = null;
       if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
     };
   }, [revealFocusedInput]);
 
   return (
-    <KeyboardAvoidingView style={f.frame} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <View ref={frame} style={f.frame} onLayout={measureOverlap}>
       <View style={f.topbar}>
         <Pressable
           accessibilityLabel="Cerrar y volver"
@@ -183,7 +181,9 @@ export function FlowFrame({
           <View style={f.footerContent}>{footer}</View>
         </View>
       )}
-    </KeyboardAvoidingView>
+      {/* A real layout spacer creates scroll room even when the OS overlays the keyboard. */}
+      <View testID="keyboard-spacer" style={{ height: overlap, flexShrink: 0 }} />
+    </View>
   );
 }
 export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {

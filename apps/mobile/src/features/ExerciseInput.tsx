@@ -41,6 +41,9 @@ export function ExerciseInput({
   const f = useFeatureStyles();
   const input = useRef<TextInput>(null);
   const { revealInput, maxHeight } = useContext(InputViewportContext);
+  function revealFocusedInput() {
+    if (input.current?.isFocused()) revealInput(input.current);
+  }
 
   const [selectedPair, setSelectedPair] = useState<string | null>(null);
   const selectedTokens = answer.tokens ?? [];
@@ -223,12 +226,9 @@ export function ExerciseInput({
             ref={input}
             onFocus={() => revealInput(input.current)}
             onBlur={() => revealInput(null)}
-            onLayout={() => {
-              if (input.current?.isFocused()) revealInput(input.current);
-            }}
-            onContentSizeChange={() => {
-              if (input.current?.isFocused()) revealInput(input.current);
-            }}
+            onLayout={revealFocusedInput}
+            onContentSizeChange={revealFocusedInput}
+            onSelectionChange={revealFocusedInput}
             accessibilityLabel="Tu respuesta en inglés"
             style={[
               s.textInput,
@@ -237,7 +237,10 @@ export function ExerciseInput({
             placeholder="Escribe tu respuesta en inglés…"
             placeholderTextColor="#91A09B"
             value={answer.text ?? ''}
-            onChangeText={(text) => setAnswer({ text })}
+            onChangeText={(text) => {
+              setAnswer({ text });
+              revealFocusedInput();
+            }}
             editable={!disabled}
             autoCapitalize="sentences"
             autoCorrect={false}
