@@ -70,6 +70,7 @@ export function FlowFrame({
   onClose,
   children,
   footer,
+  feedback,
   progress,
 }: {
   title: string;
@@ -77,6 +78,7 @@ export function FlowFrame({
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  feedback?: React.ReactNode;
   progress?: number;
 }) {
   const { colors: palette } = useTheme();
@@ -125,6 +127,13 @@ export function FlowFrame({
       if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
     };
   }, [revealFocusedInput]);
+  const contentTop = useRef(0);
+  const hasFeedback = !!feedback;
+
+  useEffect(() => {
+    // Retrying returns to the question instead of leaving it above the viewport.
+    if (!hasFeedback) scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [hasFeedback]);
 
   return (
     <View ref={frame} style={f.frame} onLayout={measureOverlap}>
@@ -173,7 +182,28 @@ export function FlowFrame({
         scrollEventThrottle={16}
       >
         <InputViewportContext.Provider value={{ revealInput, maxHeight: inputMaxHeight }}>
-          <View style={f.content}>{children}</View>
+          <View
+            style={f.content}
+            onLayout={(event) => {
+              contentTop.current = event.nativeEvent.layout.y;
+            }}
+          >
+            {children}
+            {hasFeedback && (
+              <View
+                onLayout={(event) => {
+                  // Layout coordinates include all teaching content and expanded help.
+                  // Align the start, so even a tall explanation begins on screen.
+                  scroll.current?.scrollTo({
+                    y: Math.max(0, contentTop.current + event.nativeEvent.layout.y - 12),
+                    animated: false,
+                  });
+                }}
+              >
+                {feedback}
+              </View>
+            )}
+          </View>
         </InputViewportContext.Provider>
       </ScrollView>
       {footer && (
