@@ -42,3 +42,9 @@
 - `npm run build:web`、`npm run build:android`、變更檔案格式與 `git diff --check` 通過。
 
 Android 驗證為 Hermes bundle 匯出，尚未安裝 APK 或進行真機動畫效能與 TalkBack 驗收。沒有推送或發布遠端版本。
+
+## PR #7 同步 main · 2026-11-10
+
+整合 main `ee094cd`（包含 PR #5 鍵盤避讓與 PR #6 提交答案回饋）。手動整合 `FeatureUI.tsx` 與 `LessonStages.tsx` 的衝突，保留輸入欄位可視範圍、鍵盤空間、回饋自動捲動、提交答案與解說，同時保留動畫及不重新掛載的進度條；切換課程步驟時重設內容捲動位置。
+
+整合後 `npm run check`、Web 與 Android Hermes 匯出、格式檢查及 `git diff --check` 通過。`feedback.spec.ts`、`keyboard.spec.ts`、`learning.spec.ts` 與 `motion.spec.ts` 共 18 項瀏覽器回歸測試全部通過（2.1 分鐘）。Android 仍未進行真機驗收。
