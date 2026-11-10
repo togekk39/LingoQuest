@@ -1,9 +1,9 @@
 import { useTheme } from '../theme';
-import React, { useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import type { PublicExercise, Answer } from '@lingoquest/contracts';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Check, CornerDownLeft, RotateCcw } from 'lucide-react-native';
-import { useFeatureStyles } from './FeatureUI';
+import { RevealInputContext, useFeatureStyles } from './FeatureUI';
 export type Exercise = PublicExercise;
 export type ExerciseAnswer = Partial<Answer>;
 export const kindLabels: Record<Exercise['type'], string> = {
@@ -39,6 +39,8 @@ export function ExerciseInput({
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
+  const input = useRef<TextInput>(null);
+  const revealInput = useContext(RevealInputContext);
 
   const [selectedPair, setSelectedPair] = useState<string | null>(null);
   const selectedTokens = answer.tokens ?? [];
@@ -218,6 +220,12 @@ export function ExerciseInput({
       ) : (
         <View>
           <TextInput
+            ref={input}
+            onFocus={() => revealInput(input.current)}
+            onBlur={() => revealInput(null)}
+            onContentSizeChange={() => {
+              if (input.current?.isFocused()) revealInput(input.current);
+            }}
             accessibilityLabel="Tu respuesta en inglés"
             style={s.textInput}
             placeholder="Escribe tu respuesta en inglés…"

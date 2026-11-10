@@ -1,16 +1,22 @@
 import { useTheme } from '../theme';
-import React from 'react';
+import React, { createContext, useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
+
+export const RevealInputContext = createContext<(input: TextInput | null) => void>(() => {});
 
 export const newEventId = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -74,9 +80,52 @@ export function FlowFrame({
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
+  const scroll = useRef<ScrollView>(null);
+  const focusedInput = useRef<TextInput | null>(null);
+  const scrollOffset = useRef(0);
+  const pendingFrame = useRef<number | null>(null);
+  const revealFocusedInput = useCallback(() => {
+    if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
+    pendingFrame.current = requestAnimationFrame(() => {
+      pendingFrame.current = null;
+      const input = focusedInput.current;
+      if (!input) return;
+      // Measure the actual scroll viewport: it excludes the header, footer and keyboard.
+      scroll.current?.getNativeScrollRef()?.measureInWindow((_x, top, _width, height) => {
+        input.measureInWindow((_inputX, inputTop, _inputWidth, inputHeight) => {
+          if (focusedInput.current !== input || height <= 0) return;
+          const bottom = top + height - 16;
+          const delta =
+            inputTop < top + 16 || inputHeight > height - 32
+              ? inputTop - top - 16
+              : Math.max(0, inputTop + inputHeight - bottom);
+          if (Math.abs(delta) > 1)
+            scroll.current?.scrollTo({
+              y: Math.max(0, scrollOffset.current + delta),
+              animated: false,
+            });
+        });
+      });
+    });
+  }, []);
+  const revealInput = useCallback(
+    (input: TextInput | null) => {
+      focusedInput.current = input;
+      if (input) revealFocusedInput();
+    },
+    [revealFocusedInput],
+  );
+  useEffect(() => {
+    const subscription = Keyboard.addListener('keyboardDidShow', revealFocusedInput);
+    return () => {
+      subscription.remove();
+      focusedInput.current = null;
+      if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
+    };
+  }, [revealFocusedInput]);
 
   return (
-    <View style={f.frame}>
+    <KeyboardAvoidingView style={f.frame} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={f.topbar}>
         <Pressable
           accessibilityLabel="Cerrar y volver"
@@ -105,15 +154,28 @@ export function FlowFrame({
           />
         </View>
       )}
-      <ScrollView contentContainerStyle={f.scroll} keyboardShouldPersistTaps="handled">
-        <View style={f.content}>{children}</View>
+      <ScrollView
+        ref={scroll}
+        testID="flow-scroll"
+        style={{ flex: 1 }}
+        contentContainerStyle={f.scroll}
+        keyboardShouldPersistTaps="handled"
+        onLayout={revealFocusedInput}
+        onScroll={(event) => {
+          scrollOffset.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+      >
+        <RevealInputContext.Provider value={revealInput}>
+          <View style={f.content}>{children}</View>
+        </RevealInputContext.Provider>
       </ScrollView>
       {footer && (
-        <View style={f.footer}>
+        <View testID="flow-footer" style={f.footer}>
           <View style={f.footerContent}>{footer}</View>
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {

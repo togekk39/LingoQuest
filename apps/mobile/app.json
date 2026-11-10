@@ -9,6 +9,7 @@
     "newArchEnabled": true,
     "android": {
       "package": "com.lingoquest.app",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": ["RECORD_AUDIO"],
       "allowBackup": false,
       "adaptiveIcon": {
