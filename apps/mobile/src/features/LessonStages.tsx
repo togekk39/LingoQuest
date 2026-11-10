@@ -1,11 +1,13 @@
 import { useTheme } from '../theme';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { CourseLesson } from '@lingoquest/course-pack';
 import type { Answer, AttemptResult, PublicExercise } from '@lingoquest/contracts';
-import { BookOpen, Check, CheckCheck, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
+import { Check, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
 import { useFeatureStyles } from './FeatureUI';
 import { useOfflineSpeech } from './offlineSpeech';
+import { Celebration, MotionEntrance, MotionPressable } from '../motion';
+import { QuestBuddy } from '../QuestBuddy';
 
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
 export type StageKind = CourseLesson['stages'][number]['type'];
@@ -54,9 +56,7 @@ export function GoalStage({ lesson, review }: { lesson: IntegratedLesson; review
 
   return (
     <>
-      <View style={s.lessonIcon}>
-        <BookOpen color={palette.teal} size={35} strokeWidth={1.5} />
-      </View>
+      <QuestBuddy size={96} />
       <Text style={f.eyebrow}>{review ? 'Volver a usar lo que aprendiste' : 'Meta de hoy'}</Text>
       <Text style={f.title}>{lesson.objectiveEs}</Text>
       <Text style={f.body}>{lesson.contextEs}</Text>
@@ -132,7 +132,7 @@ function AudioButton({ text, onPlay }: { text: string; onPlay: (text: string) =>
   const s = useStyles();
 
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityLabel={`Escuchar: ${text}`}
       style={s.sound}
@@ -141,7 +141,7 @@ function AudioButton({ text, onPlay }: { text: string; onPlay: (text: string) =>
       }}
     >
       <Volume2 size={20} color={palette.teal} />
-    </Pressable>
+    </MotionPressable>
   );
 }
 export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
@@ -252,45 +252,50 @@ export function AnswerFeedback({
       '');
 
   return (
-    <View
-      testID="answer-feedback"
-      accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
-      style={[
-        s.feedback,
-        !result.correct && {
-          backgroundColor: tone('#FFF3E7', 'background'),
-          borderColor: tone('#ECD2B6', 'border'),
-        },
-      ]}
-    >
-      <View style={f.row}>
-        {result.correct ? (
-          <Check size={23} color={palette.teal} />
-        ) : (
-          <Lightbulb size={23} color="#B17734" />
-        )}
-        <Text style={[f.cardTitle, { flex: 1 }]}>
-          {result.correct ? '¡Muy bien!' : 'Buen intento. Veamos por qué…'}
-        </Text>
-      </View>
-      {!result.correct && (
-        <View style={{ gap: 8 }}>
-          {!!exercise.sentence && (
-            <Text style={[f.body, { color: palette.ink }]}>{exercise.sentence}</Text>
+    <MotionEntrance>
+      <View
+        testID="answer-feedback"
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+        style={[
+          s.feedback,
+          !result.correct && {
+            backgroundColor: tone('#FFF3E7', 'background'),
+            borderColor: tone('#ECD2B6', 'border'),
+          },
+        ]}
+      >
+        <View style={f.row}>
+          {result.correct ? (
+            <Celebration size={72}>
+              <QuestBuddy size={68} mood="happy" />
+            </Celebration>
+          ) : (
+            <QuestBuddy size={64} mood="encouraging" />
           )}
-          <Text testID="submitted-answer" style={[f.body, { color: palette.ink }]}>
-            Tu respuesta: {submittedAnswer}
+          <Text style={[f.cardTitle, { flex: 1 }]}>
+            {result.correct ? '¡Muy bien!' : 'Buen intento. Veamos por qué…'}
           </Text>
         </View>
-      )}
-      {result.acceptedAnswer && !result.correct && (
-        <Text style={s.accepted}>Una respuesta posible: {result.acceptedAnswer}</Text>
-      )}
-      <Text style={[f.body, { color: palette.ink }]}>{result.feedbackEs}</Text>
-    </View>
+        {!result.correct && (
+          <View style={{ gap: 8 }}>
+            {!!exercise.sentence && (
+              <Text style={[f.body, { color: palette.ink }]}>{exercise.sentence}</Text>
+            )}
+            <Text testID="submitted-answer" style={[f.body, { color: palette.ink }]}>
+              Tu respuesta: {submittedAnswer}
+            </Text>
+          </View>
+        )}
+        {result.acceptedAnswer && !result.correct && (
+          <Text style={s.accepted}>Una respuesta posible: {result.acceptedAnswer}</Text>
+        )}
+        <Text style={[f.body, { color: palette.ink }]}>{result.feedbackEs}</Text>
+      </View>
+    </MotionEntrance>
   );
 }
+
 export function RecapStage({
   lesson,
   xp,
@@ -318,9 +323,9 @@ export function RecapStage({
   return (
     <>
       <View style={s.completeHeading}>
-        <View style={s.completeIcon}>
-          <CheckCheck color={palette.teal} size={44} />
-        </View>
+        <Celebration>
+          <QuestBuddy size={132} mood="happy" />
+        </Celebration>
         <Text style={[f.title, { textAlign: 'center' }]}>¡Lección completada!</Text>
         <Text style={[f.body, { textAlign: 'center' }]}>
           Tu progreso está guardado en este dispositivo. Ya diste un paso para: {lesson.objectiveEs}
@@ -385,14 +390,6 @@ export function useStyles() {
       borderColor: tone('#B0D3C5', 'border'),
     },
     stageText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 10 },
-    lessonIcon: {
-      width: 80,
-      height: 80,
-      borderRadius: 25,
-      backgroundColor: palette.mint,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     supportive: { flexDirection: 'row', gap: 13, alignItems: 'center', padding: 12 },
     wordHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
     word: { fontFamily: 'Outfit', color: palette.teal, fontSize: 40, lineHeight: 48 },
@@ -431,14 +428,6 @@ export function useStyles() {
       lineHeight: 24,
     },
     completeHeading: { alignItems: 'center', gap: 22, paddingVertical: 12 },
-    completeIcon: {
-      height: 104,
-      width: 104,
-      borderRadius: 36,
-      backgroundColor: palette.mint,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     xp: {
       flexDirection: 'row',
       gap: 12,

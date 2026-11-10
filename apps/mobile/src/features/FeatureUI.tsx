@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
 import { useKeyboardOverlap } from './useKeyboardOverlap';
+import { MotionEntrance, MotionPressable } from '../motion';
+import { ProgressBar } from '../ui';
 
 export const InputViewportContext = createContext<{
   revealInput: (input: TextInput | null) => void;
@@ -43,8 +45,9 @@ export function Action({
   const f = useFeatureStyles();
 
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || busy, busy }}
       disabled={disabled || busy}
       onPress={onPress}
       style={({ pressed }) => [
@@ -61,7 +64,7 @@ export function Action({
         <Text style={[f.actionText, secondary && { color: palette.teal }]}>{children}</Text>
       )}
       {!secondary && !busy && <ArrowRight color="white" size={18} />}
-    </Pressable>
+    </MotionPressable>
   );
 }
 export function FlowFrame({
@@ -72,6 +75,7 @@ export function FlowFrame({
   footer,
   feedback,
   progress,
+  stepKey,
 }: {
   title: string;
   eyebrow: string;
@@ -80,6 +84,7 @@ export function FlowFrame({
   footer?: React.ReactNode;
   feedback?: React.ReactNode;
   progress?: number;
+  stepKey?: string;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
@@ -133,7 +138,7 @@ export function FlowFrame({
   useEffect(() => {
     // Retrying returns to the question instead of leaving it above the viewport.
     if (!hasFeedback) scroll.current?.scrollTo({ y: 0, animated: false });
-  }, [hasFeedback]);
+  }, [hasFeedback, stepKey]);
 
   return (
     <View ref={frame} style={f.frame} onLayout={measureOverlap}>
@@ -156,14 +161,12 @@ export function FlowFrame({
         </View>
       </View>
       {progress !== undefined && (
-        <View
+        <ProgressBar
           accessibilityLabel={`Progreso: ${Math.round(progress * 100)} por ciento`}
-          style={f.progressTrack}
-        >
-          <View
-            style={[f.progressFill, { width: `${Math.max(0, Math.min(1, progress)) * 100}%` }]}
-          />
-        </View>
+          value={progress}
+          height={5}
+          color={palette.primary}
+        />
       )}
       <ScrollView
         ref={scroll}
@@ -188,21 +191,23 @@ export function FlowFrame({
               contentTop.current = event.nativeEvent.layout.y;
             }}
           >
-            {children}
-            {hasFeedback && (
-              <View
-                onLayout={(event) => {
-                  // Layout coordinates include all teaching content and expanded help.
-                  // Align the start, so even a tall explanation begins on screen.
-                  scroll.current?.scrollTo({
-                    y: Math.max(0, contentTop.current + event.nativeEvent.layout.y - 12),
-                    animated: false,
-                  });
-                }}
-              >
-                {feedback}
-              </View>
-            )}
+            <MotionEntrance key={stepKey} style={{ gap: 22 }}>
+              {children}
+              {hasFeedback && (
+                <View
+                  onLayout={(event) => {
+                    // Layout coordinates include all teaching content and expanded help.
+                    // Align the start, so even a tall explanation begins on screen.
+                    scroll.current?.scrollTo({
+                      y: Math.max(0, contentTop.current + event.nativeEvent.layout.y - 12),
+                      animated: false,
+                    });
+                  }}
+                >
+                  {feedback}
+                </View>
+              )}
+            </MotionEntrance>
           </View>
         </InputViewportContext.Provider>
       </ScrollView>
@@ -266,8 +271,6 @@ export function useFeatureStyles() {
     safetyDot: { flexDirection: 'row', gap: 7, alignItems: 'center' },
     dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.primary },
     safetyText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 11 },
-    progressTrack: { height: 5, backgroundColor: tone('#E5EEE7', 'background') },
-    progressFill: { height: 5, backgroundColor: palette.primary },
     scroll: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 38 },
     content: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 22 },
     footer: {
@@ -288,7 +291,11 @@ export function useFeatureStyles() {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    actionPrimary: { backgroundColor: palette.primary },
+    actionPrimary: {
+      backgroundColor: palette.primary,
+      borderBottomWidth: 4,
+      borderBottomColor: '#105B54',
+    },
     actionSecondary: {
       borderWidth: 1,
       borderColor: tone('#BED9CD', 'border'),

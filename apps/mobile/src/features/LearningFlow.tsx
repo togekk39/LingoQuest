@@ -243,7 +243,7 @@ export default function LearningFlow({
   }
   return (
     <FlowFrame
-      key={`${lessonId}-${stagePosition}-${vocabularyPosition}-${exercisePosition}`}
+      stepKey={`${lessonId}-${stagePosition}-${vocabularyPosition}-${exercisePosition}`}
       title={lesson?.title ?? 'Preparando tu lección'}
       eyebrow={review ? 'Repasar · Sin prisa' : 'Aprender · Paso a paso'}
       onClose={onClose}

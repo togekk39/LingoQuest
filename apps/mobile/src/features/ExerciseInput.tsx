@@ -1,7 +1,8 @@
 import { useTheme } from '../theme';
 import React, { useContext, useRef, useState } from 'react';
 import type { PublicExercise, Answer } from '@lingoquest/contracts';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { MotionPressable as Pressable } from '../motion';
 import { Check, CornerDownLeft, RotateCcw } from 'lucide-react-native';
 import { InputViewportContext, useFeatureStyles } from './FeatureUI';
 export type Exercise = PublicExercise;
