@@ -1,11 +1,11 @@
 import { useTheme } from '../theme';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CourseLesson } from '@lingoquest/course-pack';
 import type { AttemptResult, PublicExercise } from '@lingoquest/contracts';
 import { BookOpen, Check, CheckCheck, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
 import { useFeatureStyles } from './FeatureUI';
-import { useOfflineSpeech } from './offlineSpeech';
+import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
 export type StageKind = CourseLesson['stages'][number]['type'];
@@ -93,6 +93,16 @@ export function VocabularyCard({
   const f = useFeatureStyles();
 
   const { playOffline, speechMessage } = useOfflineSpeech();
+  useEffect(() => {
+    // Defer until after mounting so a discarded effect never starts playback.
+    const timer = setTimeout(() => {
+      void playOffline(item.en);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      void stopOfflineSpeech();
+    };
+  }, [item.id, item.en, playOffline]);
   return (
     <>
       <Text style={f.eyebrow}>
