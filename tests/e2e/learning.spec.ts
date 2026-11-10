@@ -9,6 +9,8 @@ import {
   chooseCorrectAnswer,
   finishLesson,
   readyOfflineShell,
+  advanceToExercise,
+  nextAfterFeedback,
   type ExerciseFixture,
 } from './helpers';
 
@@ -154,6 +156,108 @@ test('phone layout exposes all four destinations and practice without horizontal
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBeTruthy();
+});
+
+test('focused practice answer stays above the footer when the phone viewport shrinks', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enterApp(page);
+  await beginFirstLesson(page);
+  for (const exercise of exercises) {
+    await advanceToExercise(page, exercise);
+    if (!exercise.options?.length && ['cloze', 'short_text', 'correction'].includes(exercise.type))
+      break;
+    await chooseCorrectAnswer(page, exercise);
+    await page.getByRole('button', { name: 'Comprobar respuesta', exact: true }).click();
+    await nextAfterFeedback(page);
+  }
+  const answer = page.getByRole('textbox', { name: 'Tu respuesta en inglés' });
+  const scroll = page.getByTestId('flow-scroll');
+  const footer = page.getByTestId('flow-footer');
+  const check = page.getByRole('button', { name: 'Comprobar respuesta', exact: true });
+  await answer.focus();
+  await answer.fill('I am learning.');
+  // Models Android adjustResize. A browser cannot open the native Android/iOS keyboard.
+  await page.setViewportSize({ width: 390, height: 430 });
+  const expectAnswerInViewport = async () => {
+    await expect
+      .poll(async () => {
+        const [field, viewport, actions] = await Promise.all([
+          answer.boundingBox(),
+          scroll.boundingBox(),
+          footer.boundingBox(),
+        ]);
+        return (
+          !!field &&
+          !!viewport &&
+          !!actions &&
+          field.y >= viewport.y &&
+          field.y + field.height <= Math.min(viewport.y + viewport.height, actions.y)
+        );
+      })
+      .toBe(true);
+  };
+  await expectAnswerInViewport();
+  await expect(answer).toBeFocused();
+  await expect(answer).toHaveValue('I am learning.');
+  await answer.fill('I am learning.\nYou are learning.');
+  await expectAnswerInViewport();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectAnswerInViewport();
+  await answer.blur();
+  await answer.focus();
+  await page.setViewportSize({ width: 390, height: 430 });
+  await expectAnswerInViewport();
+  const longAnswer = Array.from(
+    { length: 30 },
+    (_, index) => `Line ${index + 1}: I am learning.`,
+  ).join('\n');
+  await answer.fill(longAnswer);
+  await answer.press('ControlOrMeta+End');
+  await page.setViewportSize({ width: 390, height: 330 });
+  await expectAnswerInViewport();
+  await expect
+    .poll(async () => {
+      const [field, viewport] = await Promise.all([answer.boundingBox(), scroll.boundingBox()]);
+      return !!field && !!viewport && field.height <= viewport.height - 32;
+    })
+    .toBe(true);
+  const outerOffset = await scroll.evaluate((element) => element.scrollTop);
+  await answer.press('Enter');
+  await answer.pressSequentially('I can still see this line.');
+  await expectAnswerInViewport();
+  await expect(answer).toBeFocused();
+  await expect(answer).toHaveValue(`${longAnswer}\nI can still see this line.`);
+  // The caret stays at the visible end of the internally scrolling input.
+  await expect
+    .poll(() =>
+      answer.evaluate((element) => {
+        const field = element as HTMLTextAreaElement;
+        const style = getComputedStyle(field);
+        // These test lines do not wrap. Check the caret's line, excluding bottom padding.
+        const lineHeight = parseFloat(style.lineHeight);
+        const fontSize = parseFloat(style.fontSize);
+        const caretTop =
+          parseFloat(style.paddingTop) +
+          (field.value.slice(0, field.selectionStart).split('\n').length - 1) * lineHeight -
+          field.scrollTop +
+          (lineHeight - fontSize) / 2;
+        return (
+          field.selectionStart === field.value.length &&
+          field.scrollHeight > field.clientHeight &&
+          caretTop >= 0 &&
+          caretTop + fontSize <= field.clientHeight
+        );
+      }),
+    )
+    .toBe(true);
+  await expect.poll(() => scroll.evaluate((element) => element.scrollTop)).toBe(outerOffset);
+  await expect(check).toBeInViewport({ ratio: 1 });
+  await check.click();
+  await expect(
+    page.getByRole('button', { name: 'Siguiente ejercicio', exact: true }),
+  ).toBeVisible();
 });
 
 test('all forty pronunciation drills are reachable offline with recording optional and no remote score', async ({

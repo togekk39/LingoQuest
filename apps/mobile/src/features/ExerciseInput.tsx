@@ -1,9 +1,9 @@
 import { useTheme } from '../theme';
-import React, { useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import type { PublicExercise, Answer } from '@lingoquest/contracts';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Check, CornerDownLeft, RotateCcw } from 'lucide-react-native';
-import { useFeatureStyles } from './FeatureUI';
+import { InputViewportContext, useFeatureStyles } from './FeatureUI';
 export type Exercise = PublicExercise;
 export type ExerciseAnswer = Partial<Answer>;
 export const kindLabels: Record<Exercise['type'], string> = {
@@ -39,6 +39,11 @@ export function ExerciseInput({
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
+  const input = useRef<TextInput>(null);
+  const { revealInput, maxHeight } = useContext(InputViewportContext);
+  function revealFocusedInput() {
+    if (input.current?.isFocused()) revealInput(input.current);
+  }
 
   const [selectedPair, setSelectedPair] = useState<string | null>(null);
   const selectedTokens = answer.tokens ?? [];
@@ -218,16 +223,29 @@ export function ExerciseInput({
       ) : (
         <View>
           <TextInput
+            ref={input}
+            onFocus={() => revealInput(input.current)}
+            onBlur={() => revealInput(null)}
+            onLayout={revealFocusedInput}
+            onContentSizeChange={revealFocusedInput}
+            onSelectionChange={revealFocusedInput}
             accessibilityLabel="Tu respuesta en inglés"
-            style={s.textInput}
+            style={[
+              s.textInput,
+              { minHeight: Math.min(120, maxHeight), maxHeight: Math.min(200, maxHeight) },
+            ]}
             placeholder="Escribe tu respuesta en inglés…"
             placeholderTextColor="#91A09B"
             value={answer.text ?? ''}
-            onChangeText={(text) => setAnswer({ text })}
+            onChangeText={(text) => {
+              setAnswer({ text });
+              revealFocusedInput();
+            }}
             editable={!disabled}
             autoCapitalize="sentences"
             autoCorrect={false}
             multiline
+            scrollEnabled
           />
           <View style={[f.row, { marginTop: 10 }]}>
             <CornerDownLeft size={13} color={palette.muted} />
