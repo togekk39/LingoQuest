@@ -23,7 +23,13 @@ const dimensionNames: Record<Review['dimension'], string> = {
   grammar_understanding: 'Entender la gramática en contexto',
   grammar_production: 'Usar la gramática al escribir',
 };
-export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
+export default function ReviewsFlow({
+  onClose,
+  onSettings,
+}: {
+  onClose: () => void;
+  onSettings?: () => void;
+}) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
@@ -55,6 +61,7 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
       <LearningFlow
         lessonId={lessonId}
         review
+        onSettings={onSettings}
         onClose={() => setLessonId(null)}
         onComplete={() => {
           setLessonId(null);

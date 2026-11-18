@@ -42,6 +42,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, bootstrap, localSettings, type Unit, type Progress } from './lib/api';
 import { Button, Card, Label, Heading, Pill, ProgressBar } from './ui';
 import { JourneyArt } from './JourneyArt';
+import { JournalBrand, PaperGrain, PlazaPhoto } from './Journal';
 import { ReviewsFlow } from './features/ReviewsFlow';
 import { LearningFlow } from './features/LearningFlow';
 import { PlacementFlow } from './features/PlacementFlow';
@@ -167,27 +168,92 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     units.flatMap((u) => u.lessons).find((l) => !progress?.completedLessons.includes(l.id)) ??
     units[0]?.lessons[0];
   const nextUnit = units.find((u) => u.lessons.some((l) => l.id === nextLesson?.id));
+  const showPlaza = nextLesson?.id === 'u01_l01';
   const begin = () => {
     if (nextLesson) setFlow({ type: 'lesson', id: nextLesson.id });
   };
+  const go = (t: Tab) => {
+    setTab(t);
+    setFlow(null);
+  };
+  const openSettings = () => setSettings(true);
+  const settingsModal = (
+    <Modal
+      visible={settings}
+      transparent
+      animationType={reducedMotion ? 'none' : 'fade'}
+      onRequestClose={() => setSettings(false)}
+    >
+      <View style={s.modalShade}>
+        <Card style={[s.welcomeCard, { maxHeight: '90%', padding: 20 }]}>
+          <View style={s.sectionTitle}>
+            <Heading>Configuración</Heading>
+            <Pressable
+              onPress={() => setSettings(false)}
+              style={s.dismiss}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar configuración"
+            >
+              <X color={C.muted} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ gap: 16, paddingTop: 16 }}>
+            {settings && <SpeechSettings />}
+            <Heading style={{ fontSize: 22 }}>Tu privacidad, primero</Heading>
+            <Label>
+              En el modo solo grabar, tu audio permanece en el dispositivo y se elimina al salir. Si
+              eliges reconocimiento, el servicio de voz del sistema o del navegador puede procesar
+              tu audio en línea. No guardamos el audio ni el texto del reconocimiento y no generamos
+              una calificación de pronunciación.
+              {'\n\n'}Puedes aprender sin micrófono. Las respuestas, los XP y el progreso se guardan
+              y se revisan en este dispositivo, sin cuentas ni servicios en línea.{'\n\n'}
+              Esta edición incluye contenido original de demostración pendiente de revisión
+              editorial. Los desafíos no cuentan para un ranking.
+            </Label>
+            <Button
+              onPress={() => {
+                setSettings(false);
+                go('Perfil');
+              }}
+            >
+              Ver mi perfil y mis datos
+            </Button>
+          </ScrollView>
+        </Card>
+      </View>
+    </Modal>
+  );
   if (flow?.type === 'lesson')
-    return <LearningFlow lessonId={flow.id!} onClose={() => setFlow(null)} onComplete={complete} />;
-  if (flow?.type === 'reviews') return <ReviewsFlow onClose={complete} />;
+    return (
+      <>
+        <LearningFlow
+          lessonId={flow.id!}
+          onClose={() => setFlow(null)}
+          onComplete={complete}
+          onSettings={openSettings}
+        />
+        {settingsModal}
+      </>
+    );
+  if (flow?.type === 'reviews')
+    return (
+      <>
+        <ReviewsFlow onClose={complete} onSettings={openSettings} />
+        {settingsModal}
+      </>
+    );
   if (flow?.type === 'placement')
     return <PlacementFlow onClose={() => setFlow(null)} onComplete={complete} />;
   if (flow?.type === 'mission')
     return <MissionsFlow missionId={flow.id as 'airport' | 'job'} onClose={() => setFlow(null)} />;
   if (flow?.type === 'speech') return <PronunciationFlow onClose={() => setFlow(null)} />;
-  const go = (t: Tab) => {
-    setTab(t);
-    setFlow(null);
-  };
   return (
     <SafeAreaView style={s.safe}>
+      <PaperGrain opacity={0.3} />
       <View style={s.shell}>
         {desktop && (
           <View style={s.sidebar}>
-            <Brand />
+            <JournalBrand />
             <Text style={s.navCaption}>TU VIAJE EN INGLÉS</Text>
             <View style={{ gap: 8 }}>
               {tabs.map((t) => (
@@ -224,7 +290,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Configuración"
-                onPress={() => setSettings(true)}
+                onPress={openSettings}
                 style={s.sideSettings}
               >
                 <Settings2 size={17} color={C.muted} />
@@ -247,9 +313,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={[s.topbar, !desktop && { paddingHorizontal: 20 }]}>
+          <View style={[s.topbar, !desktop && { height: 60, paddingHorizontal: 20 }]}>
             {!desktop ? (
-              <Brand small />
+              <JournalBrand small />
             ) : (
               <View style={s.row}>
                 <Text style={s.breadcrumb}>Tu espacio</Text>
@@ -263,27 +329,31 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Configuración"
-                  onPress={() => setSettings(true)}
+                  onPress={openSettings}
                   style={s.dismiss}
                 >
                   <Settings2 size={20} color={C.teal} />
                 </Pressable>
               )}
-              <View style={s.row}>
-                <Flame size={17} color="#DA9460" />
-                <Text style={s.topStat}>
-                  {progress?.streak || 0}
-                  {desktop && <Text style={s.topStatCaption}> días</Text>}
-                </Text>
-              </View>
-              <View style={s.topDivider} />
-              <View style={s.row}>
-                <Zap size={17} color={C.teal} />
-                <Text style={s.topStat}>
-                  {progress?.xp || 0}
-                  {desktop && <Text style={s.topStatCaption}> XP</Text>}
-                </Text>
-              </View>
+              {width >= 400 && (
+                <>
+                  <View style={s.row}>
+                    <Flame size={17} color="#DA9460" />
+                    <Text style={s.topStat}>
+                      {progress?.streak || 0}
+                      {desktop && <Text style={s.topStatCaption}> días</Text>}
+                    </Text>
+                  </View>
+                  <View style={s.topDivider} />
+                  <View style={s.row}>
+                    <Zap size={17} color={C.teal} />
+                    <Text style={s.topStat}>
+                      {progress?.xp || 0}
+                      {desktop && <Text style={s.topStatCaption}> XP</Text>}
+                    </Text>
+                  </View>
+                </>
+              )}
               {desktop && (
                 <View style={s.language}>
                   <Text style={{ fontSize: 14 }}>🇺🇸</Text>
@@ -356,17 +426,18 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                         </Label>
                       </View>
                       <MotionEntrance style={s.hero}>
-                        <View style={[s.heroWords, { maxWidth: wide ? 340 : 450 }]}>
-                          <Pill color="#497B64" bg="#D9EBD8">
-                            TU AVENTURA CONTINÚA
-                          </Pill>
+                        <PaperGrain />
+                        {showPlaza && (
+                          <View style={width > 720 ? s.heroPostcard : s.heroMobilePostcard}>
+                            <PlazaPhoto />
+                          </View>
+                        )}
+                        <View style={[s.heroWords, { maxWidth: width > 720 ? '56%' : 450 }]}>
                           <Text style={[s.heroTitle, { fontSize: desktop ? 36 : 32 }]}>
                             Un poco de inglés.{'\n'}Un mundo de{'\n'}
                             <Text style={{ color: C.teal }}>posibilidades.</Text>
                           </Text>
-                          <Label
-                            style={{ color: tone('#567869', 'text'), fontSize: 12, maxWidth: 270 }}
-                          >
+                          <Label style={{ color: C.muted, fontSize: 12, maxWidth: 270 }}>
                             Aprende sin prisa, equivócate sin miedo y descubre hasta dónde puedes
                             llegar.
                           </Label>
@@ -378,20 +449,22 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                             Continuar aprendiendo
                           </Button>
                         </View>
-                        {width > 720 && (
+                        {width > 720 && !showPlaza && (
                           <View style={s.heroArt}>
                             <JourneyArt width={wide ? 300 : 280} />
                           </View>
                         )}
                         <View style={s.heroFooter}>
                           <View style={s.row}>
-                            <BookOpen size={14} color="#668C72" />
+                            <BookOpen size={14} color={C.teal} />
                             <Text style={s.heroFootText}>
                               Unidad {nextUnit ? units.indexOf(nextUnit) + 1 : 1} ·{' '}
                               {nextLesson?.title}
                             </Text>
                           </View>
-                          <Text style={s.heroFootText}>~ 7 min</Text>
+                          {nextLesson && (
+                            <Text style={s.heroFootText}>{nextLesson.estimatedMinutes} min</Text>
+                          )}
                         </View>
                       </MotionEntrance>
                       <View style={[s.row, { gap: 14, paddingHorizontal: 8 }]}>
@@ -676,8 +749,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         <View style={s.modalShade}>
           <ScrollView style={{ flexGrow: 0, maxHeight: '100%', maxWidth: 480, width: '100%' }}>
             <Card style={s.welcomeCard}>
+              <PaperGrain opacity={0.32} />
               <View style={s.sectionTitle}>
-                <Brand small />
+                <JournalBrand small />
                 <Pressable
                   onPress={() => {
                     setWelcome(false);
@@ -691,10 +765,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
               </View>
               {welcomeStep === 0 ? (
                 <>
-                  <View style={{ alignItems: 'center', marginVertical: 8 }}>
-                    <JourneyArt width={230} />
+                  <View style={{ marginTop: 12, marginBottom: 4 }}>
+                    <PlazaPhoto />
                   </View>
-                  <Pill>EL MUNDO TE ESPERA</Pill>
                   <Heading style={{ fontSize: 32, marginTop: 15 }}>
                     Inglés para tu vida real.
                   </Heading>
@@ -853,67 +926,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           </Card>
         </View>
       </Modal>
-      <Modal
-        visible={settings}
-        transparent
-        animationType={reducedMotion ? 'none' : 'fade'}
-        onRequestClose={() => setSettings(false)}
-      >
-        <View style={s.modalShade}>
-          <Card style={[s.welcomeCard, { maxHeight: '90%', padding: 20 }]}>
-            <View style={s.sectionTitle}>
-              <Heading>Configuración</Heading>
-              <Pressable
-                onPress={() => setSettings(false)}
-                style={s.dismiss}
-                accessibilityRole="button"
-                accessibilityLabel="Cerrar configuración"
-              >
-                <X color={C.muted} />
-              </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={{ gap: 16, paddingTop: 16 }}>
-              {settings && <SpeechSettings />}
-              <Heading style={{ fontSize: 22 }}>Tu privacidad, primero</Heading>
-              <Label>
-                En el modo solo grabar, tu audio permanece en el dispositivo y se elimina al salir.
-                Si eliges reconocimiento, el servicio de voz del sistema o del navegador puede
-                procesar tu audio en línea. No guardamos el audio ni el texto del reconocimiento y
-                no generamos una calificación de pronunciación.
-                {'\n\n'}Puedes aprender sin micrófono. Las respuestas, los XP y el progreso se
-                guardan y se revisan en este dispositivo, sin cuentas ni servicios en línea.{'\n\n'}
-                Esta edición incluye contenido original de demostración pendiente de revisión
-                editorial. Los desafíos no cuentan para un ranking.
-              </Label>
-              <Button
-                onPress={() => {
-                  setSettings(false);
-                  go('Perfil');
-                }}
-              >
-                Ver mi perfil y mis datos
-              </Button>
-            </ScrollView>
-          </Card>
-        </View>
-      </Modal>
+      {settingsModal}
     </SafeAreaView>
-  );
-}
-function Brand({ small = false }: { small?: boolean }) {
-  const { colors: C, tone } = useTheme();
-  const s = useStyles();
-
-  return (
-    <View style={[s.row, { gap: 10 }]}>
-      <View style={[s.logo, small && { width: 31, height: 31, borderRadius: 10 }]}>
-        <Compass size={small ? 21 : 27} color="white" strokeWidth={1.7} />
-      </View>
-      <Text style={[s.brand, small && { fontSize: 20 }]}>
-        lingo<Text style={{ color: C.teal }}>quest</Text>
-        <Text style={{ color: tone('#DAA76D', 'text') }}>.</Text>
-      </Text>
-    </View>
   );
 }
 function PracticeCard({ icon: Icon, badge, title, text, action, onPress, color, iconColor }: any) {
@@ -1126,15 +1140,6 @@ export function useStyles() {
       borderRightColor: C.line,
     },
     row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    logo: {
-      width: 37,
-      height: 37,
-      borderRadius: 12,
-      backgroundColor: C.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    brand: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink, letterSpacing: -1 },
     navCaption: {
       fontFamily: 'ManropeBold',
       fontSize: 9,
@@ -1244,10 +1249,10 @@ export function useStyles() {
       backgroundColor: tone('#C0A974', 'background'),
     },
     hero: {
-      backgroundColor: tone('#E9F1DF', 'background'),
+      backgroundColor: C.white,
       borderRadius: 20,
       borderWidth: 1,
-      borderColor: tone('#DBE8D2', 'border'),
+      borderColor: C.line,
       overflow: 'hidden',
       minHeight: 350,
       paddingTop: 28,
@@ -1257,28 +1262,36 @@ export function useStyles() {
     },
     heroWords: { zIndex: 2 },
     heroTitle: {
-      fontFamily: 'OutfitMedium',
+      fontFamily: 'LoraBold',
       color: C.ink,
       lineHeight: 43,
       letterSpacing: -0.6,
-      marginTop: 17,
+      marginTop: 5,
       marginBottom: 12,
     },
     heroArt: { position: 'absolute', right: -8, top: 42, zIndex: 1 },
+    heroPostcard: {
+      position: 'absolute',
+      width: '40%',
+      right: 17,
+      top: 65,
+      transform: [{ rotate: '3deg' }],
+    },
+    heroMobilePostcard: { marginBottom: 15 },
     heroFooter: {
       position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
       borderTopWidth: 1,
-      borderColor: tone('#D6E5CD', 'border'),
+      borderColor: C.line,
       paddingHorizontal: 24,
       paddingVertical: 14,
       flexDirection: 'row',
       justifyContent: 'space-between',
-      backgroundColor: tone('#E3EDD680', 'background'),
+      backgroundColor: C.paper,
     },
-    heroFootText: { fontFamily: 'ManropeMedium', fontSize: 10, color: tone('#66806C', 'text') },
+    heroFootText: { fontFamily: 'ManropeMedium', fontSize: 10, color: C.muted },
     sectionTitle: {
       flexDirection: 'row',
       alignItems: 'center',

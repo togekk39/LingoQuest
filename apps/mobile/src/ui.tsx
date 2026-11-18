@@ -51,8 +51,9 @@ export function Button({
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { colors: C, tone } = useTheme();
+  const { colors: C, tone, mode } = useTheme();
   const u = useStyles();
+  const primary = mode === 'light' ? C.accent : C.primary;
 
   return (
     <MotionPressable
@@ -63,7 +64,7 @@ export function Button({
       style={({ pressed }) => [
         u.button,
         variant === 'primary'
-          ? { backgroundColor: C.primary }
+          ? { backgroundColor: primary }
           : variant === 'secondary'
             ? { backgroundColor: C.mint }
             : variant === 'danger'
@@ -71,7 +72,6 @@ export function Button({
               : { backgroundColor: 'transparent' },
         style,
         { opacity: disabled || loading ? 0.45 : pressed ? 0.9 : 1 },
-        variant === 'primary' && { borderBottomWidth: 4, borderBottomColor: '#105B54' },
       ]}
     >
       {loading ? (
@@ -185,7 +185,7 @@ export function useStyles() {
   const { colors: C, tone } = useTheme();
   return StyleSheet.create({
     label: { fontFamily: 'Manrope', fontSize: 13, color: C.muted, lineHeight: 21 },
-    heading: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink },
+    heading: { fontFamily: 'LoraBold', fontSize: 25, color: C.ink },
     card: {
       backgroundColor: tone('white', 'background'),
       borderWidth: 1,

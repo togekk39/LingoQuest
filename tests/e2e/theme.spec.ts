@@ -40,7 +40,7 @@ for (const viewport of [
     await expect.poll(() => page.evaluate(() => localStorage.getItem('lq_theme'))).toBe('light');
     await expect
       .poll(() => page.evaluate(() => document.documentElement.style.backgroundColor))
-      .toBe('rgb(247, 250, 247)');
+      .toBe('rgb(247, 235, 221)');
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
@@ -111,7 +111,7 @@ for (const mode of ['light', 'dark', 'oled']) {
     const fill = track.locator(':scope > div');
     await expect(fill).toHaveCSS(
       'background-color',
-      mode === 'light' ? 'rgb(22, 125, 114)' : 'rgb(121, 217, 195)',
+      mode === 'light' ? 'rgb(49, 84, 64)' : 'rgb(121, 217, 195)',
     );
     const colors = await track.evaluate((el) => [
       getComputedStyle(el).backgroundColor,

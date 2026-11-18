@@ -1,6 +1,7 @@
 import { ThemeProvider, useTheme } from '../src/theme';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Lora_700Bold } from '@expo-google-fonts/lora/700Bold';
 import {
   useFonts,
   Manrope_400Regular,
@@ -37,6 +38,7 @@ export default function Layout() {
     OutfitMedium: Outfit_500Medium,
     OutfitSemiBold: Outfit_600SemiBold,
     OutfitBold: Outfit_700Bold,
+    LoraBold: Lora_700Bold,
   });
   if (!ready && !error) return null;
   return (

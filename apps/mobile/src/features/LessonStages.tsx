@@ -3,14 +3,16 @@ import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { CourseLesson } from '@lingoquest/course-pack';
 import type { Answer, AttemptResult, PublicExercise } from '@lingoquest/contracts';
-import { Check, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
+import { Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
 import { useFeatureStyles } from './FeatureUI';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { Celebration, MotionEntrance, MotionPressable } from '../motion';
 import { QuestBuddy } from '../QuestBuddy';
+import { Notebook, PaperGrain, PlazaPostcard } from '../Journal';
 
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
 export type StageKind = CourseLesson['stages'][number]['type'];
+export const plazaExample = { en: 'Hi! My name is Sam.', es: '¡Hola! Me llamo Sam.' };
 export const stageLabels: Record<StageKind, string> = {
   goal: 'Meta',
   vocabulary: 'Vocabulario',
@@ -27,39 +29,51 @@ export function StageProgress({
   lesson: IntegratedLesson;
   position: number;
 }) {
-  const { colors: palette } = useTheme();
-  const s = useStyles();
   const f = useFeatureStyles();
 
   return (
-    <View style={{ gap: 10 }}>
-      <Text accessibilityLiveRegion="polite" style={f.eyebrow}>
-        Paso {position + 1} de {lesson.stages.length} · {stageLabels[lesson.stages[position].type]}
-      </Text>
-      <View style={s.stageList}>
-        {lesson.stages.map((stage, index) => (
-          <View key={stage.type} style={[s.stagePill, index === position && s.currentStage]}>
-            {index < position && <Check size={12} color={palette.teal} />}
-            <Text style={[s.stageText, index === position && { color: palette.teal }]}>
-              {stageLabels[stage.type]}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
+    <Text accessibilityLiveRegion="polite" style={f.eyebrow}>
+      Paso {position + 1} de {lesson.stages.length} · {stageLabels[lesson.stages[position].type]}
+    </Text>
   );
 }
-export function GoalStage({ lesson, review }: { lesson: IntegratedLesson; review: boolean }) {
+export function GoalStage({
+  lesson,
+  review,
+  onListen,
+}: {
+  lesson: IntegratedLesson;
+  review: boolean;
+  onListen?: () => void;
+}) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
 
   return (
     <>
-      <QuestBuddy size={96} />
-      <Text style={f.eyebrow}>{review ? 'Volver a usar lo que aprendiste' : 'Meta de hoy'}</Text>
-      <Text style={f.title}>{lesson.objectiveEs}</Text>
-      <Text style={f.body}>{lesson.contextEs}</Text>
+      {lesson.id === 'u01_l01' ? (
+        <>
+          <PlazaPostcard />
+          <View style={[f.card, s.phraseCard]}>
+            <PaperGrain opacity={0.32} />
+            <Text accessibilityLanguage="en-US" style={s.phrase}>
+              {plazaExample.en}
+            </Text>
+            <Text style={s.phraseTranslation}>{plazaExample.es}</Text>
+            <MotionPressable accessibilityRole="button" style={s.phraseButton} onPress={onListen}>
+              <Volume2 color={palette.ink} size={21} />
+              <Text style={s.phraseButtonText}>Escuchar frase</Text>
+            </MotionPressable>
+          </View>
+        </>
+      ) : (
+        <QuestBuddy size={80} />
+      )}
+      <Notebook title={review ? 'Volver a usar lo que aprendiste' : 'Meta de hoy'}>
+        <Text style={f.cardTitle}>{lesson.objectiveEs}</Text>
+        <Text style={f.body}>{lesson.contextEs}</Text>
+      </Notebook>
       <View style={f.card}>
         <Text style={f.cardTitle}>Una situación, paso a paso</Text>
         <Text style={f.body}>
@@ -384,32 +398,33 @@ export function RecapStage({
 export function useStyles() {
   const { colors: palette, tone } = useTheme();
   return StyleSheet.create({
-    stageList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-    stagePill: {
+    phraseCard: { gap: 4, padding: 17, overflow: 'hidden' },
+    phrase: { fontFamily: 'LoraBold', fontSize: 25, color: palette.ink, lineHeight: 32 },
+    phraseTranslation: { fontFamily: 'Manrope', fontSize: 17, color: palette.muted },
+    phraseButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      borderRadius: 9,
-      backgroundColor: tone('#EDF2ED', 'background'),
-      paddingVertical: 6,
-      paddingHorizontal: 9,
-    },
-    currentStage: {
+      justifyContent: 'center',
+      alignSelf: 'flex-start',
+      gap: 9,
+      minHeight: 44,
+      minWidth: '60%',
+      marginTop: 9,
+      paddingHorizontal: 12,
+      borderRadius: 12,
       backgroundColor: palette.mint,
-      borderWidth: 1,
-      borderColor: tone('#B0D3C5', 'border'),
     },
-    stageText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 10 },
+    phraseButtonText: { fontFamily: 'ManropeBold', fontSize: 14, color: palette.ink },
     supportive: { flexDirection: 'row', gap: 13, alignItems: 'center', padding: 12 },
     wordHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-    word: { fontFamily: 'Outfit', color: palette.teal, fontSize: 40, lineHeight: 48 },
-    meaning: { fontFamily: 'Outfit', color: palette.ink, fontSize: 27, lineHeight: 34 },
-    english: { fontFamily: 'Outfit', fontSize: 23, lineHeight: 32, color: palette.ink },
+    word: { fontFamily: 'LoraBold', color: palette.ink, fontSize: 36, lineHeight: 45 },
+    meaning: { fontFamily: 'Manrope', color: palette.muted, fontSize: 24, lineHeight: 32 },
+    english: { fontFamily: 'LoraBold', fontSize: 21, lineHeight: 29, color: palette.ink },
     sound: {
       width: 46,
       height: 46,
       borderRadius: 15,
-      backgroundColor: tone('#E0F1E7', 'background'),
+      backgroundColor: palette.mint,
       alignItems: 'center',
       justifyContent: 'center',
     },

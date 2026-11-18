@@ -28,8 +28,8 @@
       "output": "single",
       "name": "LingoQuest · Tu inglés, a tu ritmo",
       "shortName": "LingoQuest",
-      "backgroundColor": "#F7FAF7",
-      "themeColor": "#167D72"
+      "backgroundColor": "#F7EBDD",
+      "themeColor": "#F7EBDD"
     },
     "plugins": [
       "expo-router",

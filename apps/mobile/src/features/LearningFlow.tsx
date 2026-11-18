@@ -2,8 +2,9 @@ import { useTheme } from '../theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Text, View } from 'react-native';
 import type { AttemptResult, Progress } from '@lingoquest/contracts';
-import { stopOfflineSpeech } from './offlineSpeech';
+import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
+import { Notebook } from '../Journal';
 import { Action, ErrorCard, useFeatureStyles, FlowFrame, newEventId } from './FeatureUI';
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from './ExerciseInput';
 import { SpeakingPanel } from './SpeakingPractice';
@@ -12,6 +13,7 @@ import {
   DialogueStage,
   GoalStage,
   GrammarStage,
+  plazaExample,
   RecapStage,
   StageProgress,
   VocabularyCard,
@@ -22,15 +24,18 @@ export default function LearningFlow({
   lessonId,
   onClose,
   onComplete,
+  onSettings,
   review = false,
 }: {
   lessonId: string;
   onClose: () => void;
   onComplete: () => void;
+  onSettings?: () => void;
   review?: boolean;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
+  const { playOffline, speechMessage } = useOfflineSpeech();
 
   const [lesson, setLesson] = useState<IntegratedLesson | null>(null);
   const [error, setError] = useState('');
@@ -86,6 +91,24 @@ export default function LearningFlow({
   const globalExercisePosition = exercise
     ? lesson!.exercises.findIndex((item) => item.id === exercise.id)
     : -1;
+  const isPlaza = lesson?.id === 'u01_l01';
+  const audioText =
+    !lesson || loading || exercise
+      ? undefined
+      : {
+          goal: isPlaza ? plazaExample.en : undefined,
+          vocabulary: lesson.vocabulary[vocabularyPosition]?.en,
+          grammar: lesson.grammar.examples[0]?.en,
+          dialogue: lesson.dialogue[0]?.en,
+          practice: undefined,
+          speaking: undefined,
+          recap: undefined,
+        }[stage?.type ?? 'goal'];
+  const onListen = audioText
+    ? () => {
+        void playOffline(audioText);
+      }
+    : undefined;
   function clearAnswer() {
     setAnswer({});
     setResult(null);
@@ -203,12 +226,13 @@ export default function LearningFlow({
               Intentar otra vez
             </Action>
           )}
-          <Action onPress={nextExercise}>
+          <Action journal onPress={nextExercise}>
             {exercisePosition + 1 === stageExercises.length ? 'Continuar' : 'Siguiente ejercicio'}
           </Action>
         </View>
       ) : (
         <Action
+          journal
           busy={busy}
           disabled={!hasAnswer(answer, exercise)}
           onPress={() => {
@@ -219,10 +243,14 @@ export default function LearningFlow({
         </Action>
       );
     else if (stage.type === 'goal')
-      footer = <Action onPress={finishTeaching}>Conocer las palabras</Action>;
+      footer = (
+        <Action journal onPress={finishTeaching}>
+          Conocer las palabras
+        </Action>
+      );
     else if (stage.type === 'vocabulary')
       footer = (
-        <Action onPress={nextVocabulary}>
+        <Action journal onPress={nextVocabulary}>
           {vocabularyPosition + 1 < lesson.vocabulary.length
             ? 'Siguiente palabra'
             : stageExercises.length
@@ -231,21 +259,34 @@ export default function LearningFlow({
         </Action>
       );
     else if (stage.type === 'grammar')
-      footer = <Action onPress={finishTeaching}>Leer la conversación</Action>;
+      footer = (
+        <Action journal onPress={finishTeaching}>
+          Leer la conversación
+        </Action>
+      );
     else if (stage.type === 'dialogue')
       footer = (
-        <Action onPress={finishTeaching}>
+        <Action journal onPress={finishTeaching}>
           {review ? 'Empezar a repasar' : 'Vamos a practicar'}
         </Action>
       );
     else if (stage.type === 'recap')
-      footer = <Action onPress={onComplete}>Volver a mi camino</Action>;
+      footer = (
+        <Action journal onPress={onComplete}>
+          Volver a mi camino
+        </Action>
+      );
   }
   return (
     <FlowFrame
       stepKey={`${lessonId}-${stagePosition}-${vocabularyPosition}-${exercisePosition}`}
       title={lesson?.title ?? 'Preparando tu lección'}
-      eyebrow={review ? 'Repasar · Sin prisa' : 'Aprender · Paso a paso'}
+      eyebrow={
+        lesson
+          ? `${review ? 'Repasar' : isPlaza ? 'La plaza' : 'Aprender'} · ${lesson.estimatedMinutes} min`
+          : 'Aprender'
+      }
+      journal={{ onListen, onSettings }}
       onClose={onClose}
       progress={progress}
       footer={footer}
@@ -274,20 +315,28 @@ export default function LearningFlow({
         />
       )}
       {!loading && lesson && stage && (
-        <View testID={`lesson-stage-${stage.type}`} style={{ gap: 22 }}>
-          <StageProgress lesson={lesson} position={stagePosition} />
+        <View testID={`lesson-stage-${stage.type}`} style={{ gap: 14 }}>
+          {stage.type !== 'goal' && <StageProgress lesson={lesson} position={stagePosition} />}
+          {!!audioText && !!speechMessage && (
+            <Text accessibilityRole="alert" style={f.quiet}>
+              {speechMessage}
+            </Text>
+          )}
           {exercise ? (
             <View testID="lesson-exercise" style={{ gap: 22 }}>
               <Text style={f.eyebrow}>
                 Práctica {globalExercisePosition + 1} de {lesson.exercises.length}
               </Text>
-              <ExerciseInput
-                key={exercise.id}
-                exercise={exercise}
-                answer={answer}
-                setAnswer={setAnswer}
-                disabled={!!result || busy}
-              />
+              <Notebook title="Ahora te toca a ti">
+                <ExerciseInput
+                  journal
+                  key={exercise.id}
+                  exercise={exercise}
+                  answer={answer}
+                  setAnswer={setAnswer}
+                  disabled={!!result || busy}
+                />
+              </Notebook>
               {!result && stage.type === 'practice' && (
                 <Action
                   secondary
@@ -320,7 +369,7 @@ export default function LearningFlow({
               )}
             </View>
           ) : stage.type === 'goal' ? (
-            <GoalStage lesson={lesson} review={review} />
+            <GoalStage lesson={lesson} review={review} onListen={onListen} />
           ) : stage.type === 'vocabulary' ? (
             <VocabularyCard
               key={lesson.vocabulary[vocabularyPosition].id}

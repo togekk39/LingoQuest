@@ -5,16 +5,17 @@ import { getRaw, putRaw } from './lib/storage';
 export type ThemeMode = 'light' | 'dark' | 'oled';
 export const THEME_KEY = 'lq_theme';
 const light = {
-  ink: '#173F43',
-  teal: '#167D72',
+  ink: '#233C31',
+  teal: '#315440',
   primary: '#167D72',
   onPrimary: '#FFFFFF',
-  mint: '#DCF3E9',
-  orange: '#EFA055',
-  paper: '#F7FAF7',
-  muted: '#6F8380',
-  line: '#E3EBE5',
-  white: '#FFFFFF',
+  accent: '#963F29',
+  mint: '#DFE2D0',
+  orange: '#CB833F',
+  paper: '#F7EBDD',
+  muted: '#6C5746',
+  line: '#D8BEA4',
+  white: '#FFF5E7',
   red: '#B84B50',
   coral: '#C96867',
 };
@@ -25,6 +26,7 @@ const palettes: Record<ThemeMode, ThemeColors> = {
     ...light,
     ink: '#E5F2EC',
     teal: '#79D9C3',
+    accent: '#F1A584',
     mint: '#193B34',
     paper: '#101A19',
     muted: '#A8BBB4',
@@ -37,6 +39,7 @@ const palettes: Record<ThemeMode, ThemeColors> = {
     ...light,
     ink: '#F0F7F3',
     teal: '#79D9C3',
+    accent: '#F1A584',
     mint: '#092B21',
     paper: '#000000',
     muted: '#A8BBB4',
@@ -53,8 +56,9 @@ function makeTheme(mode: ThemeMode) {
   const colors = palettes[mode];
   // Preserve authored light colors; adapt their semantic role for dark surfaces.
   const tone = (value: string, role: 'background' | 'text' | 'border' = 'background') => {
-    if (mode === 'light' || (!/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value) && value !== 'white'))
-      return value;
+    if (mode === 'light')
+      return role === 'background' && ['white', '#FFFFFF'].includes(value) ? colors.white : value;
+    if (!/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value) && value !== 'white') return value;
     const hex = value === 'white' ? 'ffffff' : value.slice(1);
     const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
     const brightness = (rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114) / 255;

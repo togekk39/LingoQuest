@@ -31,11 +31,13 @@ export function ExerciseInput({
   answer,
   setAnswer,
   disabled,
+  journal = false,
 }: {
   exercise: Exercise;
   answer: ExerciseAnswer;
   setAnswer: (a: ExerciseAnswer) => void;
   disabled?: boolean;
+  journal?: boolean;
 }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
@@ -60,16 +62,16 @@ export function ExerciseInput({
     if (item) used.push(item.index);
   }
   return (
-    <View testID={`exercise-${exercise.id}`} style={{ gap: 22 }}>
+    <View testID={`exercise-${exercise.id}`} style={{ gap: journal ? 13 : 22 }}>
       {exercise.passage && (
         <View style={s.passage}>
           <Text style={f.eyebrow}>Lee con calma</Text>
           <Text style={s.passageText}>{exercise.passage}</Text>
         </View>
       )}
-      <View style={{ gap: 12 }}>
+      <View style={{ gap: journal ? 6 : 12 }}>
         <Text style={f.eyebrow}>{kindLabels[exercise.type]}</Text>
-        <Text style={s.prompt}>{exercise.promptEs}</Text>
+        <Text style={journal ? s.journalPrompt : s.prompt}>{exercise.promptEs}</Text>
         {exercise.sentence && <Text style={s.sentence}>{exercise.sentence}</Text>}
       </View>
       {!!exercise.contextualGlosses?.length && (
@@ -153,7 +155,11 @@ export function ExerciseInput({
           </Pressable>
         </View>
       ) : exercise.options?.length ? (
-        <View style={{ gap: 12 }}>
+        <View
+          accessibilityRole="radiogroup"
+          accessibilityLabel={exercise.promptEs}
+          style={{ gap: journal ? 8 : 12 }}
+        >
           {exercise.options.map((option, index) => {
             const selected = answer.optionId === option.id;
             return (
@@ -164,15 +170,25 @@ export function ExerciseInput({
                 disabled={disabled}
                 key={option.id}
                 onPress={() => setAnswer({ optionId: option.id })}
-                style={[s.option, selected && s.selected]}
+                style={[
+                  s.option,
+                  journal && s.journalOption,
+                  selected && (journal ? s.journalSelected : s.selected),
+                ]}
               >
-                <View style={[s.optionIndex, selected && { backgroundColor: palette.primary }]}>
-                  {selected ? (
-                    <Check color="white" size={15} />
-                  ) : (
-                    <Text style={s.optionIndexText}>{String.fromCharCode(65 + index)}</Text>
-                  )}
-                </View>
+                {journal ? (
+                  <View style={s.journalRadio}>
+                    {selected && <View style={s.journalRadioDot} />}
+                  </View>
+                ) : (
+                  <View style={[s.optionIndex, selected && { backgroundColor: palette.primary }]}>
+                    {selected ? (
+                      <Check color="white" size={15} />
+                    ) : (
+                      <Text style={s.optionIndexText}>{String.fromCharCode(65 + index)}</Text>
+                    )}
+                  </View>
+                )}
                 <Text style={[s.optionText, selected && { color: palette.teal }]}>
                   {option.text}
                 </Text>
@@ -283,6 +299,12 @@ export function useStyles() {
       backgroundColor: tone('#F0F8F2', 'background'),
     },
     prompt: { fontFamily: 'Outfit', fontSize: 29, lineHeight: 37, color: palette.ink },
+    journalPrompt: {
+      fontFamily: 'ManropeMedium',
+      fontSize: 18,
+      lineHeight: 26,
+      color: palette.ink,
+    },
     sentence: {
       fontFamily: 'Outfit',
       fontSize: 24,
@@ -314,6 +336,18 @@ export function useStyles() {
       borderWidth: 2,
       padding: 16,
     },
+    journalOption: { paddingHorizontal: 13, paddingVertical: 9, minHeight: 48, borderRadius: 13 },
+    journalSelected: { borderColor: palette.accent, backgroundColor: palette.mint },
+    journalRadio: {
+      width: 21,
+      height: 21,
+      borderRadius: 11,
+      borderWidth: 1.5,
+      borderColor: palette.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    journalRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: palette.accent },
     optionIndex: {
       width: 28,
       height: 28,
