@@ -1,72 +1,76 @@
 # LingoQuest · Integrated offline edition 1.3
 
-Android 優先的離線英語學習 App，使用 Expo／React Native／TypeScript。學習介面是自然拉美西語 `es-419`，目標為美式英語 `en-US`。安裝後即可使用完整 A1–A2 課程，不需要帳號、後端、雲端 AI、語音 API 或憑證。
+[Español (Latinoamérica)](README.es-419.md) · [Development rules](AGENTS.md)
 
-## 開發與建置
+LingoQuest is an Android-first offline English-learning app built with Expo, React Native, and TypeScript. The learning interface uses Latin American Spanish (`es-419`), and the target language is American English (`en-US`). The complete A1–A2 course is available after installation without an account, backend, cloud AI, speech API, or credentials.
 
-需要 Node.js 24+ 與 npm：
+## Development and builds
+
+Use Node.js 24 or later and npm.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-開啟 `http://localhost:8081`。不需要 `.env` 或 API server。Android 開發使用 `npm run android`；瀏覽器靜態預覽使用 `npm run build:web`、`npm run preview`，開啟 `http://localhost:3000`。瀏覽器需先載入靜態檔並安裝離線快取，Android 安裝包則直接內含課程和字型。
+Open `http://localhost:8081`. The app runs without an `.env` file or API server. Use `npm run android` for Android development. For a static browser preview, run `npm run build:web` and `npm run preview`, then open `http://localhost:3000`. The browser must first load the static files and install the offline cache. The Android installation package includes the course and fonts.
 
-`npm run build:android` 驗證 Android Hermes 匯出，並不產生 APK。可安裝 APK 仍由既有 [Android APK workflow](https://github.com/togekk39/LingoQuest/actions/workflows/android-apk.yml) 建置，相關說明見 [docs/APK_BUILDS.md](docs/APK_BUILDS.md)。此工作未推送或發布遠端版本。
+`npm run build:android` verifies the Android Hermes export. The [Android APK workflow](https://github.com/togekk39/LingoQuest/actions/workflows/android-apk.yml) builds the installable APK. See [APK build instructions](docs/APK_BUILDS.md). This edition has yet to be pushed or published remotely.
 
-## 從零開始的課程
+## Starting from scratch
 
-首次啟動選 **Empiezo desde cero** 就直接進入第一課；**Ya sé algo de inglés** 才會開啟可略過的程度診斷。個人姓名、目標與動機可以稍後設定。
+On first launch, **Empiezo desde cero** opens the first lesson. **Ya sé algo de inglés** opens an optional placement assessment. Learners can set their name, goal, and motivation later.
 
-八個情境單元、32 課，含 200 個新詞彙、68 次明確字彙回顧與 360 道練習。教材整合字彙、文法和溝通目的，每課依序經過：
+The course has eight units based on everyday situations, 32 lessons, 200 new vocabulary items, 68 explicit vocabulary reviews, and 360 exercises. Each lesson integrates vocabulary, grammar, and a communication goal across seven stages.
 
-1. **Meta**：西語說明情境與能做到的目標。
-2. **Vocabulario**：英文詞句、西語意思、詞性與雙語例句，先辨認意思和配對。
-3. **Gramática**：一個主要句型，明確解釋必要的小詞和形式。
-4. **Conversación**：原創短對話，逐句西語支援。
-5. **Práctica**：有支援的填空、重排／改錯到短句產出。
-6. **Hablar**：自願播放可驗證本機語音、錄音、重播或略過。
-7. **Recordar**：回顧詞彙、句型與延後複習安排。
+1. **Meta** presents the situation and a practical goal in Spanish.
+2. **Vocabulario** introduces English words and phrases with Spanish meanings, parts of speech, and bilingual examples, followed by meaning recognition and matching.
+3. **Gramática** teaches one main pattern and explains the function words and forms it requires.
+4. **Conversación** presents an original short dialogue with Spanish support for each line.
+5. **Práctica** progresses from guided fill-in-the-blank, reordering, and error correction to short responses.
+6. **Hablar** lets learners hear a verified local voice, use speech recognition, record and replay audio offline, or skip the activity.
+7. **Recordar** reviews vocabulary and patterns and schedules later practice.
 
-第一單元「¡Hola! Mucho gusto」從「Me presento」的 `I am`／`You are` 開始，接著介紹家人、描述人與物、詢問身分與來源。後續涵蓋日常、問句、過去、正在發生的事、未來計畫、經驗及旅行／工作情境。教材來源在 `content/source/curriculum.ts` 與分單元的編寫檔；不再保留原本固定八句種子的文法優先課程。
+The first unit, **¡Hola! Mucho gusto**, begins with `I am` and `You are` in **Me presento**, then covers introducing family, describing people and things, and asking about identity and origin. Later units cover daily routines, questions, the past, ongoing actions, future plans, experiences, travel, and work. The sources are in `content/source/curriculum.ts` and the unit authoring files. This course replaces the grammar-first curriculum built around a fixed set of eight seed sentences.
 
-**Aprender** 無倒數、無心數懲罰，可重試或看解說後繼續。課程完成與 XP、長期掌握、挑戰成績各自獨立。四種練習證據分別記錄字彙辨認、字彙回想、文法理解、文法產出；一次選對不代表精熟。複習以 1／3／7／14 日間隔累積證據。
+**Aprender** offers explanations and retries without timers or heart penalties. Lesson completion, XP, long-term mastery, and challenge results are tracked independently. The app records separate evidence for vocabulary recognition, vocabulary recall, grammar understanding, and grammar production. A single correct choice cannot establish mastery. Reviews gather evidence at intervals of 1, 3, 7, and 14 days.
 
-**Desafíos** 是自願的本機挑戰，保留 13 級、計時與心數。引擎檢查相關課程是否完成，題目只能取自已學內容；目前提供日常現在式主題。失敗、逾時或退出不扣學習 XP、不重設課程。
+**Desafíos** is an optional local mode with 13 levels, a timer, and hearts. The engine checks lesson completion and draws questions from material the learner has studied. The current topic is everyday routines in the present tense. Failing, running out of time, or quitting leaves learning XP and lesson completion intact.
 
-## 離線內容包與驗證
+## Offline course packs and validation
 
-唯一課程來源產生嚴格驗證的 LQP JSON schema 2：
+A single curriculum source generates a strictly validated LQP JSON schema 2 package.
 
 ```bash
 npm run packs:build
 npm run packs:verify
 ```
 
-預設產生課程版本 `2.0.0`，最低 App `1.3.0`。`content/releases/` 內含完整包、SHA-256、catalog；`apps/mobile/src/content/bundled-course.json` 為相同內建副本。舊 schema 1 發行檔不再隨此版本保留。
+The default course version is `2.0.0`, with minimum app version `1.3.0`. `content/releases/` contains the package, SHA-256 checksum, and catalog. `apps/mobile/src/content/bundled-course.json` is the identical bundled copy. This edition ships schema 2 release files.
 
-驗證包含唯一 ID、翻譯、答案、選項歧義、字彙／技能／前置課程引用、階段順序、素材引用與練習的未教英文。功能詞可以用有西語意思的 contextual gloss 明確支援。格式與作者規範見 [docs/INTEGRATED_CURRICULUM.md](docs/INTEGRATED_CURRICULUM.md)。
+Validation checks unique IDs, translations, answers, ambiguous options, vocabulary, skill and prerequisite references, stage order, asset references, and English used before it is taught. A contextual gloss can supply a Spanish meaning for a function word. See the [curriculum authoring guidelines](docs/INTEGRATED_CURRICULUM.md).
 
-在 **Perfil → Contenido sin conexión** 可以完全離線匯入包；只有主動貼上 GitHub 檔案網址並點下載時才會連線。新版包尚未遠端發布，因此預設下載欄位為空；catalog 連結是發布目標，不能當成已存在的下載。安裝採先完整驗證再切換，失敗保留活動包。發布流程見 [content/releases/README.md](content/releases/README.md)。
+Use **Perfil → Contenido sin conexión** to import a file fully offline. A network request occurs only when the learner pastes a GitHub file URL and selects download. The new pack is pending remote publication, so the download field starts empty and the catalog URL identifies the intended release. The app validates the entire pack before activating it and keeps the active pack if import fails. See the [course pack release process](content/releases/README.md).
 
-## 開發資料格式重設（重要）
+## Development data reset
 
-這次重整有意將本機進度與備份格式改成 **2**，不遷移尚未公開的原型進度。啟動遇到格式 1 時會明確說明不相容並停止讀寫，**不會自動刪除資料**。
+This edition uses local progress and backup format **2**. On startup, the app explains that format 1 prototype data is incompatible, blocks reads and writes, and preserves the stored data.
 
-先點 **Guardar copia de los datos anteriores** 把舊資料存到自己選擇的位置，再點 **Restablecer datos locales**、閱讀刪除說明並確認。重設會刪除本機舊個人檔案、回答、XP、完成紀錄與挑戰紀錄，保留課程，並重新顯示從零開始入口。舊檔只能留存參考，不能還原成新格式。不同意重設即可保留資料並離開。
+Select **Guardar copia de los datos anteriores** to save the old data to a location of your choice. Then select **Restablecer datos locales**, read the deletion details, and confirm. Reset removes the old local profile, answers, XP, lesson completions, and challenge history. It keeps the course and opens the starting screen again. The old file is for reference only and cannot be restored into format 2. You can leave without confirming to keep your data.
 
-新版 **Exportar mis datos／Restaurar respaldo** 繼續支援格式 2 本機備份，還原前必須確認覆蓋進度，不還原進行中的挑戰。移除 App／清除裝置儲存會移除紀錄，請先備份。
+**Exportar mis datos** and **Restaurar respaldo** support format 2 local backups. Restoring requires confirmation before overwriting progress and excludes in-progress challenges. Back up your data before uninstalling the app or clearing app storage.
 
-## 語音、素材與隱私
+## Speech, assets, and privacy
 
-首頁與課程使用原創指南針小夥伴，包含眨眼、輕晃、答對跳躍、短暫彩紙慶祝、按鈕按壓回彈、內容進場與平滑進度條。動畫使用內建 React Native Animated 與本機 SVG，不新增依賴或網路請求。系統「減少動態效果」或 **Perfil → Reducir movimiento → Guardar preferencias** 都會停用這些動畫；文字回饋、進度與操作仍照常可用。原生版位移與透明度使用 native driver，動畫離開畫面時清理。
+The home screen and lessons use an original compass character that blinks, sways, and jumps after correct answers. Other effects include brief confetti, button bounce, content entrance animations, and a smoothly updating progress bar. They use React Native Animated and local SVGs without adding dependencies or network requests. The system reduced-motion setting or **Perfil → Reducir movimiento → Guardar preferencias** disables these effects while preserving text feedback, progress, and controls. Native transforms and opacity use the native driver. Animations are cleaned up when their screen is left.
 
-本課程不內含預錄音訊或外部圖片，也不背景下載字型、AI 回答或媒體。現有本機字型與插圖保持原設計；新增教材為原創文字，沒有複製教科書。
+The course includes neither prerecorded audio nor external images. It makes no background downloads for fonts, AI responses, or media. Existing local fonts and illustrations retain their design. New course text is original.
 
-發音預設使用系統 TTS；Android 透過原生橋接，只允許系統引擎中已安裝且不需網路的英文語音，優先使用系統預設英文語音，否則選用其他本機英文語音。每次播放都明確指定英文語言與英文 voice，不隨西語介面或裝置預設語言切換；Android 先設定所選英文方言的 locale，再套用並確認離線英文 voice，若引擎拒絕或保留其他語音則停止播放並提示。iOS 同樣明確指定已安裝的英文 voice；瀏覽器只使用 `localService === true` 的英文語音。設定畫面（手機與桌面皆可開啟）可選擇語音、系統語速或 0.75×／1×／1.25×、試聽及儲存偏好，供所有課程與練習共用；Android 另可開啟系統 TTS 設定，返回 App 後重新讀取引擎與語音。若沒有離線英文語音或已移除指定語音，會提示安裝或重新選擇，不會改用雲端發音。原生橋接須使用重新建置的 APK／開發版本，Expo Go 不包含此模組。口說練習已接上系統／瀏覽器 STT，顯示英文辨識文字；系統服務可能在線上處理語音，啟動前會提示。App 不儲存辨識音訊或文字。另可選完全離線的錄音／重播，錄音留在本機並在離開練習時刪除；沒有自動發音分數，不把文字相符當發音正確。STT 也需要重新建置的原生版本，詳見 [離線版語音說明](docs/OFFLINE_EDITION.md#系統語音辨識stt)。
+Pronunciation uses system TTS. The Android native bridge accepts installed offline English voices and prefers the system's default English voice when available. Playback requests an English locale and voice regardless of the app or device language. Android sets the selected dialect's locale first, then applies and verifies the offline voice. If the engine rejects it or keeps another voice, playback stops and the app shows a notice. iOS explicitly selects an installed English voice. Browsers use English voices with `localService === true`. Speech settings on mobile and desktop offer voice selection, a preview, and a system rate or 0.75×, 1×, or 1.25× playback. Saved preferences apply throughout. On Android, users can open system TTS settings, and the app refreshes engines and voices on return. If an offline English voice is unavailable or has been removed, the app prompts the learner to install or reselect one. Speech synthesis runs offline. The native bridge requires a rebuilt APK or development build because Expo Go lacks the module. Recording and playback are optional. Recordings stay local and are deleted on exit. The app offers no automated pronunciation scores and does not treat a text match as evidence of accurate pronunciation.
 
-## 檢查
+Speaking practice uses system or browser speech recognition (STT) to display an English transcript. The app explains before starting that the service may process audio online. The app does not store recognition audio or transcripts. A separate recording and replay option works entirely offline. See [System speech recognition](docs/OFFLINE_EDITION.md#system-speech-recognition-stt) for setup and native build requirements.
+
+## Checks
 
 ```bash
 npm run check
@@ -75,10 +79,10 @@ npm run packs:build
 npm run packs:verify
 npm run build:web
 npm run build:android
-# 先在另一個終端 npm run preview
+# Start npm run preview in a separate terminal first.
 npm run test:e2e
 ```
 
-實際結果見 [docs/VERIFICATION.md](docs/VERIFICATION.md)，離線人工驗收見 [docs/OFFLINE_TEST_PLAN.md](docs/OFFLINE_TEST_PLAN.md)。短句產出使用明確情境與經編寫的可接受答案集合，並非任意自由文字的語意評分；自己的名字可以在選擇性口說中練習。教材仍須英語教師／母語編輯審查自然度、A1–A2 節奏、地區用語和可接受短句答案；真機麥克風、低階 Android、螢幕閱讀器及正式簽章仍需發行前驗收。
+See [verification results](docs/VERIFICATION.md) and the [manual offline test plan](docs/OFFLINE_TEST_PLAN.md). Short responses are graded against authored sets of accepted answers for each situation. Learners can practice saying their own names in optional speaking exercises. English teachers and native-speaking editors still need to review naturalness, A1–A2 pacing, regional vocabulary, and accepted answers. Release acceptance also requires physical microphone, low-end Android, screen-reader, and production-signing checks.
 
-`apps/api` 與 `supabase` 為保留的舊線上原型，不接入目前 App；`docs/VERIFICATION_ONLINE_PROTOTYPE.md` 只記錄歷史，不代表新版離線教材的驗證結果。
+`apps/api` and `supabase` preserve the historical online prototype. The offline app runs independently. See the [historical prototype verification record](docs/VERIFICATION_ONLINE_PROTOTYPE.md).

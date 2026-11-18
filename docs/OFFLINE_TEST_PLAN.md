@@ -1,28 +1,30 @@
-# 整合課程離線驗收
+# Integrated course offline acceptance test plan
 
-自動化結果與限制記於 [VERIFICATION.md](VERIFICATION.md)。以下驗收不啟動 Fastify、不登入、不使用雲端帳號。瀏覽器測試攔截 `/v1/`、`/api/` 與未明確允許的外部請求。
+[Español (Latinoamérica)](OFFLINE_TEST_PLAN.es-419.md)
 
-## 從零開始
+See the [verification record](VERIFICATION.md) for automated results and limitations. Run these checks without starting Fastify, signing in, or using a cloud account. Browser tests intercept `/v1/`, `/api/`, and external requests without explicit permission.
 
-1. 全新儲存空間啟動。確認 `Empiezo desde cero` 直接進 `Me presento`，不先做程度診斷；`Ya sé algo de inglés` 才進入可略過的診斷。
-2. Android 開飛航模式；web 先載入靜態檔及 service worker 再斷網。完成 Meta、雙語字彙卡、意思辨認、配對、明確教 am/are 的文法、逐句支援的對話、填空／重排及短句自我介紹。
-3. 故意答錯，確認有西語解釋、答案與重試。學習沒有倒數、心數或扣 XP。使用提示不視為獨立產出。
-4. 未要求麥克風前可以略過口說；自願錄音可本機重播／重錄，離開後刪除。沒有可信本機聲音時明確說明，沒有捏造發音分數。
-5. 完成後看字詞、句型及複習日期。重新啟動仍保留完成紀錄與 XP。隔日／兩日後分別看到字彙辨認、回想、文法理解與產出，並可離線練習。
+## Starting from scratch
 
-## 挑戰與內容包
+1. Start with empty storage. Verify that **Empiezo desde cero** opens **Me presento** immediately and **Ya sé algo de inglés** opens a skippable placement assessment.
+2. On Android, enable airplane mode. On the web, load static assets and the service worker, then disconnect. Complete Meta, bilingual vocabulary cards, meaning recognition, matching, grammar that explicitly teaches am and are, dialogue with line-by-line support, fill-in-the-blank and reordering exercises, and a short self-introduction.
+3. Answer incorrectly on purpose. Verify that the app provides a Spanish explanation, the answer, and a retry. Learning has no timer, hearts, or XP deductions. Using a hint does not count as independent production.
+4. Verify that speaking can be skipped before the app requests microphone access. Optional recordings can be replayed or recorded again locally and are deleted on exit. Verify that the app explains when no verified local voice is available and provides no invented pronunciation score.
+5. After completion, check the vocabulary, patterns, and review date. Restart and verify that completion and XP persist. Check the next day and again after two days for vocabulary recognition, vocabulary recall, grammar understanding, and grammar production, and verify that practice works offline.
 
-- 新裝置不能啟動相關材料未學的挑戰；引擎也拒絕直接呼叫。完成第一、二單元後可選 13 級與三種題型；逾時、錯答失敗或退出不改學習 XP／完成紀錄／掌握證據。
-- 離線匯入新 LQP 包、版本更新保留同版穩定 lesson IDs；摘要錯誤、降版、無效引用、未教字彙、缺答案與歧義選項應拒絕。失敗保留活動包和進度。
-- 下載欄位預設為空。只有使用者提供 GitHub 網址並主動下載才有網路請求；自動測試以攔截發行檔驗證，不聲稱已發布新版。
+## Challenges and content packs
 
-## 資料與其他功能
+- On a fresh device, verify that challenges with unstudied prerequisites are locked and that direct engine calls are rejected. After units 1 and 2, check 13 levels and three exercise types. Timeouts, incorrect answers that cause failure, and exits leave learning XP, completion, and mastery evidence intact.
+- Import a new LQP pack offline. Updates within the same schema must retain stable lesson IDs. Verify rejection for a bad checksum, downgrade, invalid reference, untaught vocabulary, missing answer, and ambiguous choice. Failed imports preserve the active pack and progress.
+- Check that the download field starts empty. Network requests occur only after the user enters a GitHub URL and selects download. The automated test intercepts release file requests to verify the download flow. The new version remains pending publication.
 
-- 格式 1 原型資料啟動時出現明確不相容原因，不自行刪除。可匯出舊 bytes 留存，取消重設保留原資料，確認後才清除並開啟從零入口。舊檔不可還原到格式 2。
-- 新格式的偏好、資料匯出、清除與確認還原保持可用；不還原活動中的挑戰。
-- 390px 手機導覽、可選程度診斷、發音文字練習、機場與求職文字任務均仍可用。
-- Android 真機開啟 `Un día en familia` 的填空／短句題，點輸入框叫出鍵盤：整個輸入框應自動捲到鍵盤及底部按鈕上方，輸入時保持焦點，`Comprobar respuesta` 可直接點擊。也要測試原本不需捲動的程度診斷文字題：鍵盤直接覆蓋畫面時，頁面底部應增加實際遮擋高度的空白，讓內容區與按鈕移到鍵盤上方；若系統已縮小視窗，則不重複增加同一段高度。改變鍵盤高度、收起再開啟後仍須保持可見，關閉時移除空白並保留文字。輸入超過 30 行的長答案，確認輸入框高度不超出可視區域、文字在框內捲動；在末尾繼續換行打字時，游標保持可見，頁面不會跳回輸入框頂端。iOS 同樣驗證鍵盤避讓。瀏覽器自動測試涵蓋縮小視窗與模擬視覺視口縮小但版面不縮小的覆蓋情境，不能替代原生鍵盤驗收。
-- 只有遠端語音服務時不呼叫語音合成。可選錄音重播不傳送音訊。
+## Data and other features
+
+- Start with format 1 prototype data. Verify that the app explains the incompatibility and leaves the data intact. Export the original bytes, verify that canceling a reset preserves the data, then confirm a reset and verify that the starting screen opens. The old file cannot be restored into format 2.
+- Verify preferences, export, deletion, and confirmed restore of current data. An active challenge is excluded from restore.
+- Verify navigation on a 390 px mobile viewport, optional placement, text-based pronunciation practice, and the airport and job application text missions.
+- On a physical Android device, open a fill-in-the-blank or short response exercise in **Un día en familia**. Focus the input. It should scroll fully above the keyboard and bottom button, retain focus while typing, and allow direct taps on **Comprobar respuesta**. Try a placement text question that fits without scrolling before the keyboard opens. When the keyboard covers the app, the bottom spacer should match the actual overlap and move the content and button above it. If the system has already resized the window, avoid adding the same space twice. Change keyboard height, close it, and reopen it. Content should stay visible, the spacer should disappear when the keyboard closes, and entered text should persist. Enter more than 30 lines. The input should fit in the visible area and scroll internally. When adding lines at the end, the cursor should stay visible and the page should not jump to the top of the input. Repeat keyboard avoidance checks on iOS. Browser automation covers both window resizing and simulated visual viewport shrinkage with a fixed layout. Run native keyboard acceptance checks on devices.
+- Verify that speech synthesis is skipped when only remote voices are present. Optional recording and replay send no audio.
 
 ```bash
 npm run check
@@ -32,8 +34,8 @@ npm run packs:verify
 npm run build:web
 npm run build:android
 npm run preview
-# 另一個終端
+# In another terminal:
 npm run test:e2e
 ```
 
-瀏覽器測試與 Hermes 匯出不能替代 Android 真機的飛航模式、TalkBack、麥克風權限、低階裝置效能、儲存不足、文件選擇器或簽章 APK 驗收。教材還需人工語言／教學審查。
+Check airplane mode, TalkBack, microphone permissions, low-end performance, low storage, file picker, and signed APK installation on physical Android hardware. The curriculum still requires human language and teaching review.

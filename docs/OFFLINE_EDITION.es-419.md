@@ -1,0 +1,35 @@
+# Arquitectura sin conexión del curso integrado
+
+[English](OFFLINE_EDITION.md)
+
+La app está en la versión 1.3 y el paquete del curso en la versión 2.0.0 con el esquema 2. Las ocho unidades y las 32 lecciones se crean en `content/source`. El generador produce el JSON integrado, el JSON de publicación, el catálogo y la suma SHA-256 a partir de esa fuente. Consulta el [modelo del currículo y el restablecimiento de datos de desarrollo](INTEGRATED_CURRICULUM.md).
+
+`apps/mobile/src/lib/api.ts` ofrece llamadas locales a las pantallas existentes sin hacer solicitudes HTTP. `packages/offline-engine` califica respuestas, registra las cuatro dimensiones de evidencia de dominio, organiza repasos, administra XP y 13 niveles de desafío, y respalda y borra datos en el dispositivo. Android usa SQLite y la web usa localStorage. No hay cargas automáticas.
+
+La ruta desde cero omite la evaluación de nivel. El aprendizaje funciona sin temporizador ni corazones. Las respuestas incorrectas reciben una explicación y se pueden volver a intentar. Los desafíos son opcionales y funcionan por separado. La API local comprueba que se hayan completado las lecciones necesarias y excluye habilidades que aún no se enseñan. Fallar conserva los XP y el avance.
+
+Los paquetes se validan por esquema, respuestas, traducciones, referencias a identificadores y prerrequisitos, etapas, recursos y apoyo para el vocabulario en inglés. La app valida por completo cada actualización antes de activarla y conserva el paquete actual si falla. Se puede descargar un paquete cuando la persona proporciona su URL de GitHub y selecciona la descarga. El paquete nuevo sigue pendiente de publicación y la app deja vacío el campo en vez de incluir una URL del esquema 1. Siempre se puede importar un archivo local.
+
+El flujo de APK genera el instalador independiente para Android. `npm run build:android` verifica el paquete de Hermes. En la web, se puede reiniciar sin conexión después de descargar los recursos estáticos y el service worker. La primera visita a una URL que no está en caché todavía requiere cargar esos recursos.
+
+Esta edición no incluye audio de referencia pregrabado ni imágenes nuevas.
+
+La pronunciación usa la síntesis de voz del sistema (TTS). El puente nativo de Android acepta voces en inglés instaladas que funcionan sin conexión y prioriza la voz predeterminada en inglés, si está disponible. Cada reproducción solicita una configuración regional y una voz en inglés independientemente del idioma de la app o del dispositivo. Android configura primero la variante elegida, aplica la voz sin conexión y verifica que el motor la use. Si el motor la rechaza o conserva otra voz, la app detiene la reproducción y muestra un aviso. iOS selecciona explícitamente una voz en inglés instalada. Los navegadores usan voces en inglés con `localService === true`. En móviles y escritorio se puede seleccionar una voz, escuchar una muestra y elegir la velocidad del sistema o 0.75×, 1× o 1.25×. Las preferencias guardadas se aplican a todo el curso. En Android se puede abrir la configuración de TTS del sistema. Al volver, se actualiza la lista de motores y voces. Si falta una voz en inglés sin conexión o se eliminó la elegida, la app pide instalar o seleccionar otra. La síntesis de voz se realiza sin conexión. El puente nativo requiere un APK recompilado o una compilación de desarrollo, ya que Expo Go carece de este módulo. Grabar y reproducir es opcional. Las grabaciones permanecen en el dispositivo y se borran al salir. La app no asigna calificaciones automáticas de pronunciación ni considera que una coincidencia de texto demuestre una buena pronunciación.
+
+## Reconocimiento de voz del sistema (STT)
+
+**Practicar con mi voz** usa `expo-speech-recognition` en Android e iOS y la API Web Speech en navegadores. El reconocimiento usa `en-US` y muestra transcripciones parciales y finales para compararlas. Antes de comenzar, la app avisa que el servicio del sistema o del navegador puede procesar el audio en línea. La app no guarda el audio ni las transcripciones del reconocimiento y no requiere un servidor de STT propio, claves de API ni un servicio de calificación de pago.
+
+La app indica cómo reintentar cuando se deniegan los permisos, falta un modelo en inglés, el servicio no está disponible, hay un error de red o no se detecta la voz. **Solo grabar y escuchar (sin reconocimiento)** graba y reproduce audio sin conexión y borra la grabación al salir. El reconocimiento, la grabación y la reproducción de ejemplos usan el audio por turnos.
+
+Instala un APK recompilado o una compilación nativa de desarrollo para usar STT. Expo Go y los APK anteriores carecen del módulo. El complemento de configuración define los permisos de micrófono y reconocimiento de voz en iOS y la visibilidad de los servicios de reconocimiento en Android. Activa un servicio de reconocimiento del sistema con soporte para inglés. En cada intento, Android comprueba y selecciona explícitamente el proveedor actual del sistema. Android puede seleccionar proveedores estándar de `RecognitionService`, como Marmalade STT (`app.marmalade.stt`), sin requerir Google. Si el proveedor seleccionado falta o está desactivado, la app indica cómo resolverlo. Usa el asistente de configuración de Marmalade para seleccionarlo como reconocedor del sistema. Activar solo su teclado es insuficiente. El flujo de APK de Android genera el instalador.
+
+En plataformas nativas, la práctica oral pausa el reproductor de audio. En la web también elimina su fuente. La implementación de Android de `expo-audio` 1.1.1 requiere una fuente distinta de `null` para `replace`. La preparación del audio se ejecuta dentro del manejo de errores de STT para que se pueda reintentar en caso de fallo. `npm run test:stt` comprueba que la reproducción nativa evite `replace(null)`, verifica la selección de un proveedor distinto de Google e inspecciona el manifiesto de Android generado.
+
+Las pruebas de navegador simulan Web Speech para cubrir transcripciones, errores, reintentos y cancelación al salir. Usan MediaRecorder para comprobar la grabación, la reproducción y el borrado. Se requiere un dispositivo con el APK recompilado para verificar Marmalade, la captura real de audio, la denegación y recuperación de permisos, el comportamiento sin conexión y la salida mientras se solicitan permisos.
+
+## Datos y respaldos
+
+El estado local y los respaldos usan el formato 2. La app bloquea la lectura y escritura de datos del prototipo en formato 1 y permite decidir si se restablecen. Conserva los bytes anteriores y permite exportarlos desde la pantalla de error antes de confirmar el restablecimiento. Los datos exportados del formato 1 no se pueden restaurar al formato 2. En **Perfil** se pueden exportar y seleccionar respaldos actuales y confirmar antes de sobrescribir el progreso. La restauración excluye los desafíos activos.
+
+La edición sin conexión funciona sin inicio de sesión, Supabase, VPS, IA en la nube, telemetría ni evaluación de voz externa. El prototipo histórico se conserva en `apps/api` y en los archivos SQL.
