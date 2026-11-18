@@ -1,67 +1,69 @@
 # LingoQuest offline course pack v2
 
-`.lqp.json` 是 UTF-8 JSON，包含整合情境課程、本機判分規則、發音文字、情境分支與 13 級挑戰。App 內建完整基礎包，首次啟動不需連線或登入；使用者也可主動從 GitHub 下載或由系統選檔器匯入更新。
+[Español (Latinoamérica)](README.es-419.md)
 
-這版以小型文字課程為主，沒有外部媒體請求，也沒有 OBB、ZIP 解壓縮、程式碼執行或任意檔案路徑。容量上限為 4 MiB。`assets` 預設為空；若未來加入媒體，必須把 Base64 內容、MIME 類型、來源與授權一起封裝。音訊與插圖引用必須對應包內同類型資產，不能放遠端 URL。沒有參考音訊時，介面必須明示限制；裝置本機錄音／重播不依賴教材音訊。
+A `.lqp.json` file is UTF-8 JSON with lessons based on real situations, offline grading rules, pronunciation text, branching scenarios, and 13 challenge levels. The app bundles the complete base pack for the first launch without a network connection or login. Users can download updates from GitHub or import them with the system file picker.
 
-## 資料格式
+This edition focuses on small text-based courses. It makes no external media requests and supports JSON only, without OBB files, ZIP extraction, code execution, or arbitrary paths. The size limit is 4 MiB. `assets` is empty by default. Media added later must include Base64 data, MIME type, source, and license. Audio and illustration references must resolve to packaged assets of the matching type. When reference audio is unavailable, the interface must say so. Local recording and replay work independently of course audio.
+
+## Data format
 
 ```text
 manifest
   format: "lingoquest-course-pack"
   schemaVersion: 2
-  packageId: 穩定課程識別碼
-  version: 課程內容版本（例如 2.0.0）
-  minAppVersion: 最低 App 版本（目前 1.3.0）
+  packageId: stable course ID
+  version: course content version (for example, 2.0.0)
+  minAppVersion: minimum app version (currently 1.3.0)
   titleEs / locale: es-419 / targetLanguage: en-US / createdAt
-  sha256: canonical manifest（不含 sha256）+ payload 摘要
+  sha256: checksum of the canonical manifest (excluding sha256) and payload
 payload
   units / lessons / challengePools / challengeLevels
   placementQuestions / missions / speechDrills / contentStatus / assets
 lesson
   id / unitId / order / cefr / title / objectiveEs / contextEs / estimatedMinutes
-  vocabulary: id / en / es / partOfSpeech / example / status（new 或 review）
+  vocabulary: id / en / es / partOfSpeech / example / status (new or review)
   grammar: skillId / prerequisiteSkillIds / explanationEs / examples / taughtForms
   dialogue: speaker / en / es / glosses
   stages: goal → vocabulary → grammar → dialogue → practice → speaking → recap
-  exercises: 明確題型、答案、回饋、difficulty、vocabularyIds、dimension
+  exercises: explicit type, answers, feedback, difficulty, vocabularyIds, dimension
   review: vocabularyIds / skillIds
 ```
 
-`vocabulary` 與 `practice` 階段以 `exerciseIds` 指向該課題目，每題只能安排一次。單字階段先用 `meaning`、`matching` 或選擇題辨識意思；後續可使用填空、重排、改錯及短句產出。`matchingPairs` 的左側是英語、右側是西語；作答的 `matches` 為「左側 ID → 右側 ID」對應表。
+The `vocabulary` and `practice` stages use `exerciseIds` to reference lesson exercises. Assign each exercise once. The vocabulary stage starts with `meaning`, `matching`, or multiple-choice recognition. Later exercises can use fill-in-the-blank, reordering, error correction, and short responses. In `matchingPairs`, English is on the left and Spanish on the right. The answer's `matches` maps left-side IDs to right-side IDs.
 
-每題的 `dimension` 必須明確標記為 `vocabulary_recognition`、`vocabulary_recall`、`grammar_understanding` 或 `grammar_production`。選擇／配對題不能宣稱提供獨立產出證據。字彙題以 `vocabularyIds` 指向被練習的詞；文法題使用 `skillId`。這些標籤提供本機引擎分開累積證據，不把課程完成、XP 或挑戰等級當成長期掌握。
+Every exercise must set `dimension` to `vocabulary_recognition`, `vocabulary_recall`, `grammar_understanding`, or `grammar_production`. Choice and matching exercises cannot supply evidence of independent production. Vocabulary exercises reference the practiced words through `vocabularyIds`. Grammar exercises use `skillId`. These tags let the local engine accumulate evidence separately from lesson completion, XP, and challenge level.
 
-## 編寫驗證
+## Authoring validation
 
-- 嚴格 Zod schema 拒絕未知欄位、缺少翻譯或答案、空白文字、不相容 schema／App 版本及超量內容。
-- 引用驗證拒絕重複 ID、未知課程／技能／單字、尚未學過的文法前置技能、錯誤課序、缺題或順序錯誤的階段。
-- 選項 ID 與正確答案必須一致；重複或標點／大小寫不同但意義相同的選項、重複配對內容與無法由詞塊組成的答案會被拒絕。
-- 英語題幹、閱讀段落、詞塊、英語選項及文字答案的詞彙，必須已由當課或前課的 `vocabulary`／`grammar.taughtForms` 教過，或由該題 `contextualGlosses` 明確提供西語意思。人名、地名使用 `properNames` 宣告。西語選項必須標記 `optionsLanguage: es`。
-- 同一單字以原 ID、相同英／西語文字及 `status: review` 重複練習；不能把未知 ID 宣稱為已學字彙。
-- 挑戰題必須宣告 `requiredLessonIds`，技能與字彙不能超出這些課程累積教過的範圍。引擎另外檢查使用者確實完成所需課程。
-- 媒體引用必須存在於 `assets`，類型必須正確，並有來源與授權資料。
+- The strict Zod schema rejects unknown fields, missing translations or answers, blank text, incompatible schema or app versions, and content above the size limit.
+- Reference validation rejects duplicate IDs, unknown lessons, skills or vocabulary, grammar prerequisites that have yet to be taught, incorrect lesson order, missing exercises, and incorrectly ordered stages.
+- Option IDs must agree with the correct answers. Validation rejects duplicate or equivalent options that differ only by punctuation or capitalization, duplicate matching content, and answers that cannot be assembled from the available word chunks.
+- English in prompts, readings, word chunks, English options, and written answers must be taught in the current or an earlier lesson through `vocabulary` or `grammar.taughtForms`, or have a Spanish meaning supplied by the exercise's `contextualGlosses`. Declare names of people and places in `properNames`. Mark Spanish options with `optionsLanguage: es`.
+- Review vocabulary uses the original ID, identical English and Spanish text, and `status: review`. The validator rejects unknown IDs marked for review.
+- Challenge exercises must declare `requiredLessonIds` and limit skills and vocabulary to what those lessons teach collectively. The engine checks that the learner completed those lessons.
+- Media references must point to an entry in `assets` of the correct type with source and license information.
 
-驗證能攔截可機械判斷的缺漏，不能證明翻譯、教學難度或語境自然。新增教材仍需人工語言與教育審查；測試通過不會把 `draft_needs_human_review` 改成已審查。
+Validation catches mechanically detectable errors. Translation quality, teaching difficulty, and natural context require human language and teaching review. Passing tests leaves `draft_needs_human_review` in place.
 
-## 摘要與來源
+## Checksums and provenance
 
-`canonicalStringify()` 將物件鍵排序，保留陣列順序，對 `{manifest: 不含 sha256 的 manifest, payload}` 的 UTF-8 位元組計算 SHA-256。`catalog.json` 與 `.sha256` 另外記錄完整發布檔的原始位元組摘要和大小；App 的直接匯入入口驗證包內摘要與內容，沒有背景 catalog 請求。
+`canonicalStringify()` sorts object keys and preserves array order. SHA-256 covers the UTF-8 bytes of the resulting `{manifest, payload}` object with `sha256` omitted from the manifest. The catalog records the full release file size and checksum, and the `.sha256` file records the checksum of the raw release bytes. Direct import verifies the internal checksum and content without fetching the catalog in the background.
 
-SHA-256 驗證完整性，並非作者簽章。使用者選擇的 HTTPS GitHub 來源決定來源信任。包內沒有 JavaScript、SQL、外掛或任意執行入口，也會拒絕 prototype keys 及過深物件。
+SHA-256 verifies integrity. Trust in the author depends on the HTTPS GitHub source chosen by the user. Packs contain data only, with no JavaScript, SQL, plugins, or arbitrary execution hooks. Validation rejects prototype keys and overly deep objects.
 
-## 版本與開發資料
+## Versions and development data
 
-v2 是開發中的破壞性課綱與資料格式更新，不支援 v1 課程包，也沒有雙課綱或相容層。舊開發版學習資料不會自動轉成新課綱進度；App 會說明開發版重設，舊備份格式不能還原為新版。詳見根目錄 README 的開發資料說明。
+Version 2 introduces breaking changes to the curriculum and data format. The app supports v2 packs and one curriculum. It keeps old development progress until the user confirms a reset, with no automatic migration. Format 1 backups cannot be restored into v2. See [the development data reset instructions](../../README.md#development-data-reset).
 
-新版個人進度、XP、字彙／文法證據與挑戰結果仍獨立儲存於裝置，**不寫入課程包**。同一新版課綱內更新應維持 ID 穩定。安裝新包前完整驗證，成功後才切換活動包；匯入失敗保留目前內容和資料。離線答案必須存在裝置內，因此只供個人練習，不宣稱可信線上排名、官方成績或不可修改的獎章。
+Progress, XP, vocabulary and grammar evidence, and challenge results are stored separately on the device, outside the pack. Keep IDs stable across updates to the new curriculum. The app validates a pack before activating it and keeps current content and data if import fails. Offline answers are stored on the device and support personal practice only. Online rankings, official grades, and tamper-proof badges are outside that scope.
 
-## 對外介面
+## Public API
 
-- `parseCoursePack(text, appVersion?)`：限制大小、解析、schema／引用／詞彙／最低版本／摘要驗證。
-- `createCoursePack(payload, metadata)`：建立經驗證的新包。
-- `serializeCoursePack(pack)`：canonical JSON 加最後換行，輸出可重現檔案。
-- `validateReferences(payload)`：供編寫工具進行內容關聯驗證。
-- `compareVersions(a, b)`：三段數字版本比較。
-- `parseCourseCatalog(text)`：驗證 catalog 大小、重複版本及 HTTPS GitHub URL。
-- `sha256Hex()`／`utf8Bytes()`：不依賴 Node、付費原生服務或網路的可攜實作。
+- `parseCoursePack(text, appVersion?)` checks size, parses the pack, and validates schema, references, vocabulary, minimum app version, and checksum.
+- `createCoursePack(payload, metadata)` creates a validated pack.
+- `serializeCoursePack(pack)` produces reproducible canonical JSON with a trailing newline.
+- `validateReferences(payload)` checks content relationships for authoring tools.
+- `compareVersions(a, b)` compares three-part numeric versions.
+- `parseCourseCatalog(text)` checks catalog size, duplicate versions, and HTTPS GitHub URLs.
+- `sha256Hex()` and `utf8Bytes()` are portable implementations with no Node, paid native service, or network dependency.

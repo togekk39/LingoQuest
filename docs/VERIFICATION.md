@@ -1,50 +1,52 @@
-# 整合課程驗證紀錄
+# Integrated course verification record
 
-2026-11-08（使用者時區 America/Belize）。在 Node.js 24.22.1、Linux、Chromium 的本機工作區實際執行；沒有啟動 App 後端，也未推送或發布新版。
+[Español (Latinoamérica)](VERIFICATION.es-419.md)
 
-| 指令                          | 實際結果                                                                                |
-| ----------------------------- | --------------------------------------------------------------------------------------- |
-| `npm ci --no-audit --no-fund` | 成功安裝既有依賴；沒有新增套件。                                                        |
-| `npm run check`               | 全 workspace TypeScript 與 ESLint 通過。                                                |
-| `npm test`                    | 54/54 通過：API 原型17、課程包16、離線引擎21。                                          |
-| `npm run packs:build`         | 成功：8單元、32課、360練習、67挑戰題，LQP schema2/version2.0.0。                        |
-| `npm run packs:verify`        | 成功：385955bytes；完整檔案、catalog、SHA-256 sidecar一致。                             |
-| `npm run build:web`           | 成功匯出靜態網站，產生36個資產的離線shell。                                             |
-| `npm run build:android`       | 成功匯出Hermes Android bundle；此指令不是簽章APK建置。                                  |
-| `npm run test:e2e`            | 首輪14/15通過；修正程度診斷測試的舊選擇題假設後，該項獨立重跑通過。15種情境均驗證成功。 |
-| `git diff --check`            | 通過。                                                                                  |
+The checks on 2026-11-08 in the America/Belize time zone ran locally with Node.js 24.22.1, Linux, and Chromium. The app backend stayed offline, and the new edition was neither pushed nor published.
 
-完整包 SHA-256：`c6b4b3464dad8c21bbb25f01999a91085f6213fa9bda06f4f132cf0393984e64`。已另外確認 web JavaScript 與 Android Hermes 產物確實包含最新內建包的 manifest 摘要，避免只驗證到舊快取。
+| Command                       | Observed result                                                                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm ci --no-audit --no-fund` | Installed existing dependencies without adding packages.                                                                                                               |
+| `npm run check`               | TypeScript and ESLint passed across the workspaces.                                                                                                                    |
+| `npm test`                    | 54 of 54 passed: 17 API prototype, 16 course pack, and 21 offline engine tests.                                                                                        |
+| `npm run packs:build`         | Built 8 units, 32 lessons, 360 exercises, and 67 challenge questions with LQP schema 2 and version 2.0.0.                                                              |
+| `npm run packs:verify`        | The 385,955-byte release file matched the catalog and SHA-256 sidecar.                                                                                                 |
+| `npm run build:web`           | Exported the static site with a 36-asset offline shell.                                                                                                                |
+| `npm run build:android`       | Exported the Android Hermes bundle. Signed APK generation is a separate workflow.                                                                                      |
+| `npm run test:e2e`            | 14 of 15 passed initially. After correcting the placement test's multiple-choice assumption, the remaining scenario passed on its own. All 15 scenarios were verified. |
+| `git diff --check`            | Passed.                                                                                                                                                                |
 
-## 覆蓋範圍
+The full pack SHA-256 was `c6b4b3464dad8c21bbb25f01999a91085f6213fa9bda06f4f132cf0393984e64`. The web JavaScript and Android Hermes outputs contained the latest bundled pack's manifest checksum, confirming that the checks used the new bundle.
 
-離線引擎測試涵蓋全部32課／360題完成、13級挑戰、計時與心數、本機冪等、挑戰不改學習快照、未學教材的直接呼叫解鎖拒絕、題池過濾、四種維度、配對正誤與重試、跨日證據、單一辨認題無法視為精熟、備份還原及格式1資料不自動刪除。
+## Coverage
 
-內容驗證測試涵蓋SHA-256、竄改、大小／版本、唯一ID、翻譯／答案缺漏、前置／複習引用、七階段順序、選項與配對歧義、未教的關鍵英文及合法西語gloss、媒體引用／來源，以及挑戰的必要課程引用。保留的API原型測試也已更新配對判分與教材假設；App仍只使用本機引擎。
+Offline engine tests cover completion of all 32 lessons and 360 exercises, 13 challenge levels, timers and hearts, local idempotency, unchanged learning snapshots after challenges, rejection of direct unlock calls for unstudied material, question-pool filtering, four evidence dimensions, matching and retries, evidence across days, insufficient mastery evidence from one recognition question, backup restore, and preservation of format 1 data.
 
-390×844手機畫面人工檢視已確認從零入口與字彙卡可讀，沒有水平溢出或JavaScript錯誤。15種瀏覽器情境已驗證成功，涵蓋首次從零入口、七階段離線學習、友善重試、四維證據、兩天後複習、離線冷啟動、手機導覽、40組發音文字練習、可選程度診斷與機場任務、只拒絕遠端語音、配對、合成本機錄音／重播、13級挑戰、課程包更新／下載、備份還原，以及舊資料先存檔再確認重設。網路攔截器沒有發現未允許的外部或API請求。
+Content validation tests cover SHA-256, tampering, size and version, unique IDs, missing translations and answers, prerequisite and review references, seven-stage order, ambiguous options and pairs, untaught English and valid Spanish glosses, media references and sources, and required lesson references for challenges. The historical API tests were also updated for matching scores and curriculum assumptions. The app uses the local engine.
 
-首輪完整 `npm run test:e2e` 有14項通過、1項失敗，原因是測試仍假設所有程度診斷題都有radio選項，新教材已改用cloze。改成依實際題型填答後，`npm run test:e2e -- --grep 'placement and a complete airport mission'` 重跑該情境通過（3.4秒），沒有需要修改的App缺陷。
+Manual review at 390×844 confirmed that the initial path and vocabulary cards were readable without horizontal overflow or JavaScript errors. The 15 browser scenarios cover starting from scratch, seven offline lesson stages, retries, four evidence dimensions, review after two days, offline cold start, mobile navigation, 40 text-based pronunciation drills, optional placement and an airport mission, rejection of remote-only voices, matching, synthetic local recording and replay, 13 challenge levels, pack updates and downloads, backup restore, and export before confirming a reset of old data. The network interceptor found no unauthorized external or API requests.
 
-## 實測限制
+Initially, 14 end-to-end tests passed and one failed because the placement test assumed all questions had radio options. The new content includes fill-in-the-blank questions. After updating the test to answer according to the exercise type, `npm run test:e2e -- --grep 'placement and a complete airport mission'` passed in 3.4 seconds. The app required no fix.
 
-沒有建立或安裝簽章APK，也沒有進行Android真機的飛航模式、TalkBack、低階裝置效能、文件選擇器、實體麥克風與權限驗收。瀏覽器錄音測試使用合成輸入，不能代替真實裝置錄音品質檢查。教材為原創草稿，仍須母語教師審查自然度、CEFR節奏、認知負荷及接受答案範圍。無預錄參考音訊；原生TTS在不能證明離線前停用，不提供發音分數。
+## Test limitations
 
-## 介面動畫驗證 · 2026-11-10
+Signed APK build and installation, airplane mode, TalkBack, low-end performance, the file picker, and physical microphone and permission checks were outside these runs. The browser recording test used synthetic input. Recording quality still requires real hardware. The original draft curriculum requires native-speaking teachers to review its naturalness, CEFR pacing, cognitive load, and accepted answers. The course has no prerecorded reference audio. Native TTS is disabled unless it can be verified offline. Pronunciation scores are unavailable.
 
-加入原創本機 SVG 指南針角色、眨眼與輕晃、答對跳躍及一次性彩紙、按鈕回彈、課程內容進場與平滑進度條，沒有新增套件。系統與個人偏好任一要求減少動態時，停用裝飾動畫並直接更新進度。
+## Interface animation verification · 2026-11-10
 
-- `npm run check`：所有 workspace 型別檢查與 ESLint 通過。
-- `npm test`：56/56 通過（API 17、課程包 16、離線引擎 23）。
-- 學習、主題與動畫瀏覽器檢查：既有 17 項通過；新增 3 項動畫檢查在修正後全部重跑通過。首輪發現 React Native Web 沒有將 `accessibilityValue` 轉為進度數值，已補上相容的 ARIA 屬性。
-- 新測試實際取樣動畫影格，驗證系統偏好即時切換、按壓縮放、鍵盤操作、課程切換保留進度條、慶祝自動結束、手機偏好儲存及重新載入後仍停用動畫。網路攔截器未發現額外 API 或外部請求。
-- 檢視 1440×1000 桌面與 390×844 手機首頁、手機課程畫面；手機沒有水平溢出。
-- `npm run build:web`、`npm run build:android`、變更檔案格式與 `git diff --check` 通過。
+The update added an original local SVG compass character, blinking and swaying, a jump on correct answers, one-shot confetti, button bounce, content entrances, and a smooth progress bar without new packages. Either the system or app reduced-motion preference disables decorative animations and updates progress immediately.
 
-Android 驗證為 Hermes bundle 匯出，尚未安裝 APK 或進行真機動畫效能與 TalkBack 驗收。沒有推送或發布遠端版本。
+- `npm run check` passed workspace type checks and ESLint.
+- `npm test` passed 56 of 56 tests (17 API, 16 course pack, 23 offline engine).
+- All 17 existing learning, theme, and motion browser checks passed. All three new animation cases passed on rerun after adding compatible ARIA progress attributes because React Native Web did not translate `accessibilityValue` into a progress value.
+- The new tests sampled animation frames and checked live system preference changes, button scaling, keyboard operation, progress bar persistence between steps, automatic end of celebration, saving the mobile preference, and disabled animation after reload. The interceptor found no additional API or external requests.
+- The home screen was reviewed at 1440×1000 and 390×844, along with the mobile lesson screen. Mobile had no horizontal overflow.
+- Web and Android exports, formatting of changed files, and `git diff --check` passed.
 
-## PR #7 同步 main · 2026-11-10
+Android verification covered the Hermes bundle export. APK installation, real-device animation performance, and TalkBack remain pending. The edition was neither pushed nor published remotely.
 
-整合 main `ee094cd`（包含 PR #5 鍵盤避讓與 PR #6 提交答案回饋）。手動整合 `FeatureUI.tsx` 與 `LessonStages.tsx` 的衝突，保留輸入欄位可視範圍、鍵盤空間、回饋自動捲動、提交答案與解說，同時保留動畫及不重新掛載的進度條；切換課程步驟時重設內容捲動位置。
+## PR #7 sync with main · 2026-11-10
 
-整合後 `npm run check`、Web 與 Android Hermes 匯出、格式檢查及 `git diff --check` 通過。`feedback.spec.ts`、`keyboard.spec.ts`、`learning.spec.ts` 與 `motion.spec.ts` 共 18 項瀏覽器回歸測試全部通過（2.1 分鐘）。Android 仍未進行真機驗收。
+The sync integrated main at `ee094cd`, including PR #5 for keyboard avoidance and PR #6 for answer submission feedback. Conflicts in `FeatureUI.tsx` and `LessonStages.tsx` were resolved manually. The result kept input visibility, keyboard spacing, automatic scrolling to feedback, answer submission and explanations, animation, and the progress bar without remounting it. Content scroll position resets between lesson steps.
+
+After integration, `npm run check`, web and Android Hermes exports, formatting checks, and `git diff --check` passed. All 18 browser regressions in `feedback.spec.ts`, `keyboard.spec.ts`, `learning.spec.ts`, and `motion.spec.ts` passed in 2.1 minutes. Android device acceptance remained pending.

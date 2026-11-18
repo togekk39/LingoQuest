@@ -36,7 +36,7 @@ test('portable SHA-256 matches standard and Unicode UTF-8 vectors including bloc
     'a'.repeat(56),
     'a'.repeat(64),
     'a'.repeat(1000),
-    '¡Hola! Español, 中文, 👋🏽',
+    '¡Hola! Español, pingüino, €, 👋🏽',
     '\ud800x\udc00',
   ]) {
     assert.equal(sha256Hex(input), createHash('sha256').update(input, 'utf8').digest('hex'));
