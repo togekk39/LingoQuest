@@ -24,6 +24,7 @@ Follow the [verification record](VERIFICATION.md) for automated results and limi
 - From **Perfil**, export and restore a format 2 backup on a second installation. Verify preferences, travel checkpoints, collectibles, and any archived textbook progress. Format 1 data can be exported before an explicitly confirmed reset.
 - On a physical Android device, check signed APK installation, first launch in airplane mode, microphone permissions and replay, TalkBack, system font scaling, reduced motion, the file picker, and performance on a low-end device.
 - With the Android and iOS keyboards open, verify the mission and placement text fields and their action buttons remain reachable. Change keyboard height and dismiss and reopen it. Verify drafts persist and the screen adjusts without double spacing.
+- With Android offline, set an English TTS engine or voice in system settings. In a mission, play a word with **Predeterminada del sistema**. Open **Configuración de voz** from the mission header, select another installed English voice and speed, save, and replay the word and example. Check dialogue and assessment listening, and confirm that the selection persists after reopening. Repeat with an unavailable default voice and check the notice for bundled audio.
 - Try local recording with networking off. If you choose optional system recognition, check that you see its provider disclosure before permissions. Check that system TTS settings offer an installed offline English voice or explain why none is available.
 
 ```bash

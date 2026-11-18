@@ -11,7 +11,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Volume2, X } from 'lucide-react-native';
 import { useKeyboardOverlap } from './useKeyboardOverlap';
 import { MotionEntrance, MotionPressable } from '../motion';
 import { ProgressBar } from '../ui';
@@ -76,6 +76,7 @@ export function FlowFrame({
   feedback,
   progress,
   stepKey,
+  onVoiceSettings,
 }: {
   title: string;
   eyebrow: string;
@@ -85,6 +86,7 @@ export function FlowFrame({
   feedback?: React.ReactNode;
   progress?: number;
   stepKey?: string;
+  onVoiceSettings?: () => void;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
@@ -155,10 +157,21 @@ export function FlowFrame({
           <Text style={f.eyebrow}>{eyebrow}</Text>
           <Text style={f.topTitle}>{title}</Text>
         </View>
-        <View style={f.safetyDot}>
-          <View style={f.dot} />
-          <Text style={f.safetyText}>A tu ritmo</Text>
-        </View>
+        {onVoiceSettings ? (
+          <Pressable
+            accessibilityLabel="Configuración de voz"
+            accessibilityRole="button"
+            onPress={onVoiceSettings}
+            style={f.close}
+          >
+            <Volume2 size={20} color={palette.teal} />
+          </Pressable>
+        ) : (
+          <View style={f.safetyDot}>
+            <View style={f.dot} />
+            <Text style={f.safetyText}>A tu ritmo</Text>
+          </View>
+        )}
       </View>
       {progress !== undefined && (
         <ProgressBar

@@ -19,6 +19,6 @@ Placement groups its prompts by the objectives in the three missions. It recomme
 
 Each travel checkpoint stores the story revision, step token, drafts, feedback, hints, transcript, and vocabulary card index. Switching missions keeps the previous checkpoint paused. Attempts and their evidence are written together. Completion and rewards are committed in one write and keyed by mission or chapter ID. Android uses a single SQLite state row. Web uses local storage and serializes writes across tabs where Web Locks are available. New format 2 backup fields are optional.
 
-The Web service worker caches the app and media and serves bundled audio byte ranges. Chapter clips play offline at the preferred speed. The app offers local recording and optional system speech recognition with provider disclosure.
+The Web service worker caches the app and media and serves bundled audio byte ranges. Mission words, examples, dialogues, and placement listening use the saved local English TTS voice and rate. Bundled clips remain available when using the default option and system speech is unavailable. An unavailable voice selected by name prompts the learner to change the setting. The app offers local recording and optional system speech recognition with provider disclosure.
 
 Extend a destination with a versioned chapter and stable mission and exercise IDs. A future first-person video can use a new step type and a locally packaged asset ID. Provide captions, a checkpoint, and a text path for the same learning objective.

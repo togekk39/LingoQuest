@@ -16,6 +16,9 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   context,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    if (window.speechSynthesis) window.speechSynthesis.getVoices = () => [];
+  });
   await enterApp(page);
   await readyOfflineShell(page, context);
   await page.getByRole('tab', exact('Mapa')).click();

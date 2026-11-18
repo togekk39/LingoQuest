@@ -19,9 +19,11 @@ import { useChapterAudio } from './useChapterAudio';
 export function TravelPlacementFlow({
   onClose,
   onStart,
+  onVoiceSettings,
 }: {
   onClose: () => void;
   onStart: (missionId: string, travel: TravelState) => Promise<void>;
+  onVoiceSettings: () => void;
 }) {
   const { colors: C } = useTheme();
   const f = useFeatureStyles();
@@ -118,6 +120,10 @@ export function TravelPlacementFlow({
       title="Tu punto de partida"
       eyebrow="La primera postal"
       onClose={onClose}
+      onVoiceSettings={() => {
+        stop();
+        onVoiceSettings();
+      }}
       stepKey={result ? 'result' : started ? item?.exercise.id : 'intro'}
       progress={started ? answers.length / questions.length : undefined}
       footer={footer}

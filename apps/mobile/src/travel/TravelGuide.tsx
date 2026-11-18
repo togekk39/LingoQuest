@@ -22,11 +22,13 @@ export function TravelGuide({
   onMission,
   onAssessment,
   onSpeech,
+  onVoiceSettings,
 }: {
   travel: TravelState;
   onMission: (id: string) => void;
   onAssessment: () => void;
   onSpeech: () => void;
+  onVoiceSettings: () => void;
 }) {
   const { colors: C } = useTheme();
   const { width } = useWindowDimensions();
@@ -35,12 +37,24 @@ export function TravelGuide({
   const mission = chapter.missions[index];
   const unlocked = canStartTravelMission(travel, mission.id);
   const desktop = width >= 920;
+  const configureVoice = () => {
+    stop();
+    onVoiceSettings();
+  };
   return (
     <View style={{ gap: 18 }}>
       <View style={{ gap: 7 }}>
         <Text style={[styles.overline, { color: C.accent }]}>{chapter.title}</Text>
         <Heading style={{ fontSize: desktop ? 38 : 31 }}>Palabras del viaje</Heading>
         <Label style={styles.copy}>Consulta el vocabulario y los ejemplos de cada misión.</Label>
+        <Button
+          variant="ghost"
+          icon={Volume2}
+          onPress={configureVoice}
+          style={{ alignSelf: 'flex-start' }}
+        >
+          Configuración de voz
+        </Button>
       </View>
       <TravelScene place={mission.place} compact={!desktop} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
@@ -102,10 +116,20 @@ const drills = chapter.missions.flatMap((mission) =>
     text,
   })),
 );
-export function TravelPronunciation({ onClose }: { onClose: () => void }) {
+export function TravelPronunciation({
+  onClose,
+  onVoiceSettings,
+}: {
+  onClose: () => void;
+  onVoiceSettings: () => void;
+}) {
   const { colors: C } = useTheme();
   const [selected, select] = useState<string>();
   const { play, stop, speechMessage } = useChapterAudio();
+  const configureVoice = () => {
+    stop();
+    onVoiceSettings();
+  };
   const leave = () => {
     stop();
     select(undefined);
@@ -124,7 +148,12 @@ export function TravelPronunciation({ onClose }: { onClose: () => void }) {
       </FlowFrame>
     );
   return (
-    <FlowFrame title="Pronunciación" eyebrow={chapter.title} onClose={onClose}>
+    <FlowFrame
+      title="Pronunciación"
+      eyebrow={chapter.title}
+      onClose={onClose}
+      onVoiceSettings={configureVoice}
+    >
       <TravelScene place="La plaza" compact />
       <Heading>Escucha y repite</Heading>
       <Label style={styles.copy}>Escucha las frases de tu viaje y practica con tu voz.</Label>

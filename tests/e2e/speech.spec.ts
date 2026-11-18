@@ -1,8 +1,8 @@
 import { test, expect, enterApp, readyOfflineShell, click, exact } from './helpers';
 import type { Page } from '@playwright/test';
 
-async function installSpeechFixture(page: Page) {
-  await page.addInitScript(() => {
+async function installSpeechFixture(page: Page, noVoices = false) {
+  await page.addInitScript((noVoices) => {
     const fixture = window as any;
     Object.defineProperty(window, 'SpeechSynthesisUtterance', {
       configurable: true,
@@ -19,36 +19,38 @@ async function installSpeechFixture(page: Page) {
     fixture.__voiceReads = 0;
     fixture.__speechCancels = 0;
     fixture.__speechFailure = false;
-    fixture.__speechVoices = [
-      {
-        name: 'English US local',
-        lang: 'en-US',
-        voiceURI: 'local-us',
-        localService: true,
-        default: false,
-      },
-      {
-        name: 'English UK system',
-        lang: 'en-GB',
-        voiceURI: 'local-gb',
-        localService: true,
-        default: true,
-      },
-      {
-        name: 'Remote English',
-        lang: 'en-US',
-        voiceURI: 'cloud-us',
-        localService: false,
-        default: false,
-      },
-      {
-        name: 'Español local',
-        lang: 'es-MX',
-        voiceURI: 'local-es',
-        localService: true,
-        default: false,
-      },
-    ];
+    fixture.__speechVoices = noVoices
+      ? []
+      : [
+          {
+            name: 'English US local',
+            lang: 'en-US',
+            voiceURI: 'local-us',
+            localService: true,
+            default: false,
+          },
+          {
+            name: 'English UK system',
+            lang: 'en-GB',
+            voiceURI: 'local-gb',
+            localService: true,
+            default: true,
+          },
+          {
+            name: 'Remote English',
+            lang: 'en-US',
+            voiceURI: 'cloud-us',
+            localService: false,
+            default: false,
+          },
+          {
+            name: 'Español local',
+            lang: 'es-MX',
+            voiceURI: 'local-es',
+            localService: true,
+            default: false,
+          },
+        ];
     Object.defineProperty(window, 'speechSynthesis', {
       configurable: true,
       value: {
@@ -76,12 +78,13 @@ async function installSpeechFixture(page: Page) {
         removeEventListener: () => {},
       },
     });
-  });
+  }, noVoices);
 }
-test('travel words autoplay on entry and a manual replay stays offline', async ({
+test('travel words use bundled offline audio when a system voice is unavailable', async ({
   page,
   context,
 }) => {
+  await installSpeechFixture(page, true);
   await page.addInitScript(() => {
     const played: string[] = [];
     Object.assign(window, { played });
@@ -111,6 +114,7 @@ test('travel words autoplay on entry and a manual replay stays offline', async (
     );
   await expect.poll(() => wordPlays(1)).toBe(1);
   await expect(page.getByText('hola', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Estás escuchando el audio incluido/)).toBeVisible();
   await click(page, 'Escuchar: Hi');
   await expect.poll(() => wordPlays(1)).toBe(2);
   await click(page, 'Siguiente palabra');
@@ -122,19 +126,24 @@ async function previewVoice(page: Page) {
   await click(page, 'Probar voz');
 }
 
-test('system default local English voice works offline; saved voice and speed persist and apply to practice', async ({
+test('the mission uses the system TTS and applies in-mission voice changes to actual words and examples', async ({
   page,
   context,
 }) => {
   await installSpeechFixture(page);
   await enterApp(page);
   await readyOfflineShell(page, context);
-  await previewVoice(page);
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
-    .toMatchObject({ voice: 'local-gb', language: 'en-GB', rate: 1 });
-  await page.reload();
-  await page.getByRole('button', { name: 'Configuración', exact: true }).click();
+  const lastSpeech = () => page.evaluate(() => (window as any).__speechCalls.at(-1));
+  await click(page, 'Continuar viaje');
+  await click(page, 'Continuar');
+  await click(page, 'Continuar');
+  await expect.poll(lastSpeech).toMatchObject({
+    text: 'Hi',
+    voice: 'local-gb',
+    language: 'en-GB',
+    rate: 1,
+  });
+  await click(page, 'Configuración de voz');
   await expect(
     page.getByRole('radio', { name: 'Predeterminada del sistema', exact: true }),
   ).toBeChecked();
@@ -142,20 +151,24 @@ test('system default local English voice works offline; saved voice and speed pe
   await page.getByRole('radio', { name: /English US local/ }).click();
   await page.getByRole('radio', { name: 'Velocidad 0.75×', exact: true }).click();
   await page.getByRole('button', { name: 'Probar voz', exact: true }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
-    .toMatchObject({ voice: 'local-us', language: 'en-US', rate: 0.75 });
+  await expect.poll(lastSpeech).toMatchObject({ voice: 'local-us', language: 'en-US', rate: 0.75 });
   await page.getByRole('button', { name: 'Guardar configuración de voz', exact: true }).click();
   await expect(
     page.getByText('Configuración de voz guardada en este dispositivo.', { exact: true }),
   ).toBeVisible();
+  await click(page, 'Cerrar configuración');
+  await click(page, 'Escuchar ejemplo');
+  await expect.poll(lastSpeech).toMatchObject({
+    text: 'Hi! My name is Sam.',
+    voice: 'local-us',
+    language: 'en-US',
+    rate: 0.75,
+  });
   await page.reload();
-  await previewVoice(page);
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
-    .toMatchObject({ voice: 'local-us', language: 'en-US', rate: 0.75 });
-  await page.reload();
-  await page.getByRole('button', { name: 'Configuración', exact: true }).click();
+  await click(page, 'Palabras del viaje');
+  await click(page, 'Escuchar: Hi');
+  await expect.poll(lastSpeech).toMatchObject({ text: 'Hi', voice: 'local-us', rate: 0.75 });
+  await click(page, 'Configuración de voz');
   await expect(page.getByRole('radio', { name: /English US local/ })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Velocidad 0.75×', exact: true })).toBeChecked();
   await page.getByRole('radio', { name: 'Predeterminada del sistema', exact: true }).click();
@@ -164,10 +177,9 @@ test('system default local English voice works offline; saved voice and speed pe
   await expect(
     page.getByText('Configuración de voz guardada en este dispositivo.', { exact: true }),
   ).toBeVisible();
-  await click(page, 'Probar voz');
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
-    .toMatchObject({ voice: 'local-gb', language: 'en-GB', rate: 1 });
+  await click(page, 'Cerrar configuración');
+  await click(page, 'Escuchar: Hi');
+  await expect.poll(lastSpeech).toMatchObject({ text: 'Hi', voice: 'local-gb', rate: 1 });
 });
 
 test('Spanish system defaults cannot change English playback or enable Spanish-only voices', async ({
@@ -210,7 +222,13 @@ test('removed or network-only saved voices are not silently replaced; playback e
     (window as any).__speechFailure = true;
   });
   await page.getByRole('button', { name: 'Probar voz', exact: true }).click();
-  await expect(page.getByText(/No hay una voz de inglés sin conexión disponible/)).toBeVisible();
+  await expect(page.getByText(/No pudimos usar una voz de inglés sin conexión/)).toBeVisible();
+  await click(page, 'Cerrar configuración');
+  await click(page, 'Palabras del viaje');
+  await click(page, 'Escuchar: Hi');
+  await expect(page.getByText(/No pudimos usar una voz de inglés sin conexión/)).toBeVisible();
+  await expect(page.getByText(/Estás escuchando el audio incluido/)).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).__speechCalls.length)).toBe(1);
 });
 
 test('voice settings are reachable and scrollable on a phone without horizontal overflow', async ({

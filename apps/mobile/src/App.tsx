@@ -78,7 +78,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [flow, setFlow] = useState<Flow | null>(null);
-  const [settings, setSettings] = useState(false);
+  const [settings, setSettings] = useState<'general' | 'voice' | null>(null);
   const [recoveryReset, setRecoveryReset] = useState(false);
   const [welcome, setWelcome] = useState(false);
 
@@ -175,22 +175,77 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setMission(null);
     void refresh().catch((e) => setNotice(e.message));
   };
+  const openVoiceSettings = () => setSettings('voice');
+  const closeSettings = () => setSettings(null);
+  const settingsSheet = (
+    <Sheet visible={settings !== null} close={closeSettings} reduced={reducedMotion}>
+      <View style={s.sheetTitle}>
+        <Heading style={{ flex: 1 }}>
+          {settings === 'voice' ? 'Configuración de voz' : 'Configuración'}
+        </Heading>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar configuración"
+          style={s.iconButton}
+          onPress={closeSettings}
+        >
+          <X size={22} color={C.ink} />
+        </Pressable>
+      </View>
+      <SpeechSettings />
+      {settings === 'general' && (
+        <>
+          <Heading style={{ fontSize: 22 }}>Privacidad</Heading>
+          <Label>
+            La grabación local se elimina al salir. Si eliges reconocimiento en la práctica de
+            pronunciación, el servicio del sistema o del navegador puede procesar el audio en línea.
+            El reconocimiento no se guarda ni se usa para dar una nota de pronunciación.
+          </Label>
+          <Button
+            variant="secondary"
+            onPress={() => {
+              closeSettings();
+              go('Perfil');
+            }}
+          >
+            Ver mi perfil y mis datos
+          </Button>
+        </>
+      )}
+    </Sheet>
+  );
+  const withSettings = (content: React.ReactNode) => (
+    <>
+      {content}
+      {settingsSheet}
+    </>
+  );
   if (mission)
-    return (
+    return withSettings(
       <TravelFlow
         key={mission.missionId}
         initial={mission}
         onUpdate={setTravel}
         onClose={closeMission}
+        onVoiceSettings={openVoiceSettings}
         onPassport={() => {
           closeMission();
           setPassport(true);
         }}
-      />
+      />,
     );
   if (flow === 'placement')
-    return <TravelPlacementFlow onClose={finishFlow} onStart={openMission} />;
-  if (flow === 'speech') return <TravelPronunciation onClose={finishFlow} />;
+    return withSettings(
+      <TravelPlacementFlow
+        onClose={finishFlow}
+        onStart={openMission}
+        onVoiceSettings={openVoiceSettings}
+      />,
+    );
+  if (flow === 'speech')
+    return withSettings(
+      <TravelPronunciation onClose={finishFlow} onVoiceSettings={openVoiceSettings} />,
+    );
   if (flow === 'reviews') return <ReviewsFlow onClose={finishFlow} />;
   if (flow === 'quick') return <QuickReview onClose={finishFlow} />;
   if (welcome && !loading && !error)
@@ -247,7 +302,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
             </View>
             {nav}
             <View style={{ flex: 1 }} />
-            <Button variant="ghost" icon={Settings2} onPress={() => setSettings(true)}>
+            <Button variant="ghost" icon={Settings2} onPress={() => setSettings('general')}>
               Configuración
             </Button>
           </View>
@@ -269,7 +324,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   style={s.iconButton}
                   accessibilityRole="button"
                   accessibilityLabel="Configuración"
-                  onPress={() => setSettings(true)}
+                  onPress={() => setSettings('general')}
                 >
                   <Settings2 color={C.teal} size={19} />
                 </Pressable>
@@ -356,6 +411,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 travel={travel}
                 onMission={startMission}
                 onAssessment={() => setFlow('placement')}
+                onVoiceSettings={openVoiceSettings}
                 onSpeech={() => setFlow('speech')}
               />
             ) : tab === 'Desafíos' ? (
@@ -429,35 +485,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           Conservar mis datos
         </Button>
       </Sheet>
-      <Sheet visible={settings} close={() => setSettings(false)} reduced={reducedMotion}>
-        <View style={s.sheetTitle}>
-          <Heading>Configuración</Heading>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Cerrar configuración"
-            style={s.iconButton}
-            onPress={() => setSettings(false)}
-          >
-            <X size={22} color={C.ink} />
-          </Pressable>
-        </View>
-        {settings && <SpeechSettings />}
-        <Heading style={{ fontSize: 22 }}>Privacidad</Heading>
-        <Label>
-          La grabación local se elimina al salir. Si eliges reconocimiento en la práctica de
-          pronunciación, el servicio del sistema o del navegador puede procesar el audio en línea.
-          El reconocimiento no se guarda ni se usa para dar una nota de pronunciación.
-        </Label>
-        <Button
-          variant="secondary"
-          onPress={() => {
-            setSettings(false);
-            go('Perfil');
-          }}
-        >
-          Ver mi perfil y mis datos
-        </Button>
-      </Sheet>
+      {settingsSheet}
     </SafeAreaView>
   );
 }
@@ -482,6 +510,7 @@ function Sheet({
           style={s.sheet}
           contentContainerStyle={{ padding: 20, gap: 14 }}
           keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
         >
           {children}
         </ScrollView>

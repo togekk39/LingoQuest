@@ -82,11 +82,13 @@ export function TravelFlow({
   onUpdate,
   onClose,
   onPassport,
+  onVoiceSettings,
 }: {
   initial: TravelCheckpoint;
   onUpdate: (travel: TravelState) => void;
   onClose: () => void;
   onPassport: () => void;
+  onVoiceSettings: () => void;
 }) {
   const [current, setCurrent] = useState(initial);
   const [answer, setAnswer] = useState<ExerciseAnswer>(initial.answer);
@@ -107,7 +109,7 @@ export function TravelFlow({
     !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
   useEffect(() => {
     if (word) void play(word.term);
-  }, [word]);
+  }, [play, word]);
 
   function draft(next: ExerciseAnswer) {
     setAnswer(next);
@@ -219,6 +221,14 @@ export function TravelFlow({
       eyebrow={`${mission.place} · ${mission.minutes} min`}
       stepKey={`${current.token}-${wordIndex}`}
       onClose={() => void close()}
+      onVoiceSettings={
+        step.type !== 'speak'
+          ? () => {
+              stop();
+              onVoiceSettings();
+            }
+          : undefined
+      }
       progress={current.finished ? 1 : (current.step + 1) / mission.steps.length}
       footer={footer}
       feedback={
