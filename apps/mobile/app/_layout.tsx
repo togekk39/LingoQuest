@@ -15,6 +15,8 @@ import {
   Outfit_600SemiBold,
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit';
+import journal from '../assets/travel/Journal-SemiBold.ttf';
+
 function ThemedStack() {
   const { mode, colors } = useTheme();
   return (
@@ -28,6 +30,7 @@ function ThemedStack() {
 }
 export default function Layout() {
   const [ready, error] = useFonts({
+    Journal: journal,
     Manrope: Manrope_400Regular,
     ManropeMedium: Manrope_500Medium,
     ManropeSemiBold: Manrope_600SemiBold,

@@ -2,6 +2,7 @@ import { useTheme } from '../theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Text, View } from 'react-native';
 import type { AttemptResult, Progress } from '@lingoquest/contracts';
+import type { LessonCheckpoint } from '@lingoquest/offline-engine';
 import { stopOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
 import { Action, ErrorCard, useFeatureStyles, FlowFrame, newEventId } from './FeatureUI';
@@ -36,34 +37,53 @@ export default function LearningFlow({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [stagePosition, setStagePosition] = useState(0);
-  const [vocabularyPosition, setVocabularyPosition] = useState(0);
-  const [exercisePosition, setExercisePosition] = useState(-1);
-  const [answer, setAnswer] = useState<ExerciseAnswer>({});
+  const fresh = (): LessonCheckpoint => ({
+    activityId: newEventId(),
+    eventId: newEventId(),
+    stage: 0,
+    vocabulary: 0,
+    exercise: -1,
+    answer: {},
+    hint: false,
+    help: false,
+    xp: 0,
+    weak: [],
+    reviewAt: null,
+  });
+  const [checkpoint, setCheckpoint] = useState(fresh);
+  const latest = useRef(checkpoint);
   const [result, setResult] = useState<AttemptResult | null>(null);
-  const [xp, setXp] = useState(0);
-  const [weakExerciseIds, setWeakExerciseIds] = useState<string[]>([]);
-  const [nextReviewAt, setNextReviewAt] = useState<string | null>(null);
-  const [hintUsed, setHintUsed] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const eventId = useRef(newEventId());
+  const writeCount = useRef(0);
+  const checkpointPath = `/v1/lessons/${lessonId}/checkpoint`;
+  function display(next: LessonCheckpoint) {
+    latest.current = next;
+    setCheckpoint(next);
+  }
+  function save(next: LessonCheckpoint) {
+    display(next);
+    if (review) return;
+    const version = ++writeCount.current;
+    void api(checkpointPath, next)
+      .then(() => {
+        if (version === writeCount.current) setError('');
+      })
+      .catch((e) => {
+        if (version === writeCount.current) setError(e.message);
+      });
+  }
   async function load() {
     setLoading(true);
     setError('');
     try {
-      const nextLesson = await api<IntegratedLesson>(`/v1/lessons/${lessonId}`);
+      const [nextLesson, initial] = await Promise.all([
+        api<IntegratedLesson>(`/v1/lessons/${lessonId}`),
+        review
+          ? null
+          : api<{ saved: LessonCheckpoint; result?: AttemptResult } | null>(checkpointPath),
+      ]);
       setLesson(nextLesson);
-      setStagePosition(0);
-      setVocabularyPosition(0);
-      setExercisePosition(-1);
-      setAnswer({});
-      setResult(null);
-      setXp(0);
-      setWeakExerciseIds([]);
-      setNextReviewAt(null);
-      setHintUsed(false);
-      setHelpOpen(false);
-      eventId.current = newEventId();
+      display(initial?.saved ?? fresh());
+      setResult(initial?.result ?? null);
     } catch (e) {
       setError(
         e instanceof Error ? e.message : 'Esta lección no está disponible. Intenta de nuevo.',
@@ -78,6 +98,16 @@ export default function LearningFlow({
       void stopOfflineSpeech();
     };
   }, [lessonId]);
+  const {
+    stage: stagePosition,
+    vocabulary: vocabularyPosition,
+    exercise: exercisePosition,
+    answer,
+    help: helpOpen,
+    xp,
+    reviewAt: nextReviewAt,
+    weak: weakExerciseIds,
+  } = checkpoint;
   const stage = lesson?.stages[stagePosition];
   const stageExercises = (stage?.exerciseIds ?? []).map((id) =>
     lesson!.exercises.find((item) => item.id === id)!,
@@ -86,44 +116,57 @@ export default function LearningFlow({
   const globalExercisePosition = exercise
     ? lesson!.exercises.findIndex((item) => item.id === exercise.id)
     : -1;
-  function clearAnswer() {
-    setAnswer({});
+  function afterFeedback(): LessonCheckpoint {
+    const current = latest.current;
+    const weak =
+      result && !result.correct && exercise && !current.weak.includes(exercise.id)
+        ? [...current.weak, exercise.id]
+        : current.weak;
+    return {
+      ...current,
+      eventId: newEventId(),
+      answer: {},
+      hint: !!result && !result.correct,
+      help: false,
+      xp: current.xp + (result?.xpAwarded ?? 0),
+      weak,
+    };
+  }
+  function move(changes: Partial<LessonCheckpoint> = {}) {
+    const next = { ...afterFeedback(), ...changes };
     setResult(null);
-    setHintUsed(false);
-    setHelpOpen(false);
-    eventId.current = newEventId();
+    save(next);
   }
   function advanceStage() {
     void stopOfflineSpeech();
-    clearAnswer();
-    const nextPosition = stagePosition + 1;
-    setStagePosition(nextPosition);
-    setVocabularyPosition(0);
-    setExercisePosition(lesson?.stages[nextPosition]?.type === 'practice' ? 0 : -1);
+    const next = stagePosition + 1;
+    move({
+      stage: next,
+      vocabulary: 0,
+      exercise: lesson?.stages[next]?.type === 'practice' ? 0 : -1,
+      hint: false,
+    });
   }
   function finishTeaching() {
-    if (stageExercises.length) {
-      clearAnswer();
-      setExercisePosition(0);
-    } else advanceStage();
+    if (stageExercises.length) move({ exercise: 0 });
+    else advanceStage();
   }
   async function check() {
-    if (!exercise || !hasAnswer(answer, exercise)) return;
+    const current = latest.current;
+    if (!exercise || !hasAnswer(current.answer, exercise)) return;
     Keyboard.dismiss();
     setBusy(true);
     setError('');
     try {
       const response = await api<AttemptResult>('/v1/attempts', {
-        clientAttemptId: eventId.current,
+        clientAttemptId: current.eventId,
         lessonId,
         exerciseId: exercise.id,
-        answer,
-        hintUsed,
+        answer: current.answer,
+        hintUsed: current.hint,
+        ...(!review ? { checkpoint: current } : {}),
       });
       setResult(response);
-      setXp((value) => value + response.xpAwarded);
-      if (!response.correct)
-        setWeakExerciseIds((ids) => (ids.includes(exercise.id) ? ids : [...ids, exercise.id]));
     } catch (e) {
       setError(
         e instanceof Error
@@ -135,49 +178,55 @@ export default function LearningFlow({
     }
   }
   function nextExercise() {
-    clearAnswer();
-    if (exercisePosition + 1 < stageExercises.length) setExercisePosition(exercisePosition + 1);
+    if (exercisePosition + 1 < stageExercises.length)
+      move({ exercise: exercisePosition + 1, hint: false });
     else advanceStage();
   }
   function nextVocabulary() {
     void stopOfflineSpeech();
     if (lesson && vocabularyPosition + 1 < lesson.vocabulary.length)
-      setVocabularyPosition(vocabularyPosition + 1);
-    else if (stageExercises.length) {
-      clearAnswer();
-      setExercisePosition(0);
-    } else advanceStage();
+      save({ ...latest.current, vocabulary: vocabularyPosition + 1 });
+    else if (stageExercises.length) move({ exercise: 0 });
+    else advanceStage();
   }
   async function complete() {
     setBusy(true);
     setError('');
     try {
-      const response = await api<{ completed: boolean; xpAwarded: number; progress: Progress }>(
-        `/v1/lessons/${lessonId}/complete`,
-        {},
-      );
-      if (!response.completed)
-        throw new Error('No pudimos completar esta lección. Intenta guardar otra vez.');
-      setXp((value) => value + response.xpAwarded);
-      const targets = new Set([
-        ...(lesson?.review.vocabularyIds ?? []),
-        ...(lesson?.review.skillIds ?? []),
-      ]);
+      const next = { ...afterFeedback(), stage: stagePosition + 1, exercise: -1, vocabulary: 0 };
+      const response = await api<{
+        completed: boolean;
+        xpAwarded: number;
+        progress: Progress;
+        checkpoint?: LessonCheckpoint;
+      }>(`/v1/lessons/${lessonId}/complete`, review ? {} : { checkpoint: next });
+      const targets = new Set([...lesson!.review.vocabularyIds, ...lesson!.review.skillIds]);
       const reviews = response.progress.mastery
         .filter((item) => targets.has(item.targetId ?? item.skillId))
         .map((item) => item.nextReviewAt)
         .sort();
-      setNextReviewAt(reviews[0] ?? null);
-      advanceStage();
+      save({
+        ...(response.checkpoint ?? { ...next, xp: next.xp + response.xpAwarded }),
+        reviewAt: reviews[0] ?? null,
+      });
     } catch (e) {
       setError(
-        e instanceof Error
-          ? e.message
-          : 'No pudimos guardar el resultado en este dispositivo. Intenta otra vez antes de salir.',
+        e instanceof Error ? e.message : 'No pudimos guardar el resultado en este dispositivo.',
       );
     } finally {
       setBusy(false);
     }
+  }
+  async function closeRecap() {
+    if (!review) {
+      try {
+        await api(checkpointPath, undefined, 'DELETE');
+      } catch (e) {
+        setError((e as Error).message);
+        return;
+      }
+    }
+    onComplete();
   }
   const withinStage = !lesson
     ? 0
@@ -199,7 +248,7 @@ export default function LearningFlow({
       footer = result ? (
         <View style={{ gap: 12 }}>
           {!result.correct && (
-            <Action secondary onPress={clearAnswer}>
+            <Action secondary onPress={() => move()}>
               Intentar otra vez
             </Action>
           )}
@@ -239,7 +288,7 @@ export default function LearningFlow({
         </Action>
       );
     else if (stage.type === 'recap')
-      footer = <Action onPress={onComplete}>Volver a mi camino</Action>;
+      footer = <Action onPress={() => void closeRecap()}>Volver a mi camino</Action>;
   }
   return (
     <FlowFrame
@@ -285,15 +334,14 @@ export default function LearningFlow({
                 key={exercise.id}
                 exercise={exercise}
                 answer={answer}
-                setAnswer={setAnswer}
+                setAnswer={(value: ExerciseAnswer) => save({ ...latest.current, answer: value })}
                 disabled={!!result || busy}
               />
               {!result && stage.type === 'practice' && (
                 <Action
                   secondary
                   onPress={() => {
-                    setHelpOpen((open) => !open);
-                    setHintUsed(true);
+                    save({ ...latest.current, help: !latest.current.help, hint: true });
                   }}
                 >
                   {helpOpen ? 'Ocultar la ayuda' : 'Volver a ver las palabras'}

@@ -95,10 +95,23 @@ export function SpeechSettings() {
     <View style={{ gap: 12 }}>
       <Heading style={{ fontSize: 22 }}>Pronunciación sin conexión</Heading>
       <Label>
-        Usamos el TTS del sistema y preferimos su voz de inglés sin conexión. Si no está disponible,
-        buscamos otra voz de inglés instalada. Puedes elegir la voz y la velocidad para todas las
-        prácticas.
+        La voz y la velocidad se aplican a las palabras, los ejemplos y los diálogos del viaje. La
+        opción predeterminada usa la voz de inglés del sistema cuando está disponible.
       </Label>
+      {Platform.OS === 'android' && (
+        <Button
+          variant="ghost"
+          onPress={() =>
+            void openDeviceSpeechSettings().catch(() =>
+              setError(
+                'No pudimos abrir los ajustes TTS. Ábrelos desde los ajustes de tu dispositivo.',
+              ),
+            )
+          }
+        >
+          Abrir ajustes TTS del sistema
+        </Button>
+      )}
       <ScrollView style={{ maxHeight: 190 }} nestedScrollEnabled>
         <View
           accessibilityRole="radiogroup"
@@ -192,20 +205,7 @@ export function SpeechSettings() {
       <Button variant="ghost" disabled={busy} onPress={() => void refreshVoices()}>
         Actualizar voces instaladas
       </Button>
-      {Platform.OS === 'android' ? (
-        <Button
-          variant="ghost"
-          onPress={() =>
-            void openDeviceSpeechSettings().catch(() =>
-              setError(
-                'No pudimos abrir los ajustes TTS. Ábrelos desde los ajustes de tu dispositivo.',
-              ),
-            )
-          }
-        >
-          Abrir ajustes TTS del sistema
-        </Button>
-      ) : (
+      {Platform.OS !== 'android' && (
         <Label style={{ fontSize: 11 }}>
           Para instalar voces sin conexión, abre los ajustes de voz de tu dispositivo y luego
           actualiza esta lista.

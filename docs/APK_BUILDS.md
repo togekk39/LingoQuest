@@ -1,8 +1,10 @@
 # Android APK builds
 
+[Español (Latinoamérica)](APK_BUILDS.es-419.md)
+
 `.github/workflows/android-apk.yml` creates a **standalone installable APK** when code is pushed to any branch, when a fork pull request is opened/updated, or when manually started from Actions. A merge into `main` is a push to `main`, so it builds automatically. Internal pull requests reuse their branch push build instead of starting a duplicate native build. A newer commit on the same branch cancels the older in-progress APK run.
 
-The pipeline uses Node.js 24, Java 17, Android SDK/build tools 36, NDK 27.1.12297006 and CMake 3.22.1. It runs the existing checks/tests, generates native Android files with the installed Expo SDK 54 template, and runs Gradle `:app:assembleRelease` for `arm64-v8a` and `armeabi-v7a`. The resulting universal ARM APK works on Android 7 or newer. The release variant embeds the Hermes bundle, full offline course and local fonts; it does not need Metro, Expo Go, an Expo account or online learning APIs.
+The pipeline uses Node.js 24, Java 17, Android SDK/build tools 36, NDK 27.1.12297006 and CMake 3.22.1. It runs the existing checks/tests, generates native Android files with the installed Expo SDK 54 template, and runs Gradle `:app:assembleRelease` for `arm64-v8a` and `armeabi-v7a`. The resulting universal ARM APK works on Android 7 or newer. The release variant embeds the Hermes bundle, full offline course, local fonts, travel illustrations, map, and first-chapter reference audio; it does not need Metro, Expo Go, an Expo account or online learning APIs.
 
 ## Download and install
 
@@ -26,6 +28,12 @@ After installing the listed Android SDK/NDK/JDK toolchain:
 ```bash
 npm ci
 node scripts/build-apk.mjs
+```
+
+For a memory-constrained build machine, the same build can run with a smaller Gradle heap and one worker.
+
+```bash
+ANDROID_GRADLE_MAX_HEAP=2560m ANDROID_GRADLE_MAX_WORKERS=1 npm run build:apk
 ```
 
 Outputs are under `work/apk/`, and generated native files are under `apps/mobile/android/`. The build script restores the authored mobile package metadata after Expo prebuild. It checks that the APK includes a bundled JS/Hermes asset and fonts. GitHub additionally verifies APK signatures with `apksigner`.

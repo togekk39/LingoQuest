@@ -25,7 +25,14 @@ async function initialize() {
     const included = parseCoursePack(JSON.stringify(bundled), APP_VERSION);
     try {
       const saved = await getRaw(PACK_KEY);
-      active = saved ? parseCoursePack(saved, APP_VERSION) : included;
+      const installed = saved ? parseCoursePack(saved, APP_VERSION) : included;
+      // The public integrated 2.0.0 pack matches the bundled lessons. Preserve
+      // its stored bytes and use the newer built-in challenge content.
+      // El paquete original 2.0.0 conserva sus bytes y usa los desafíos incluidos más recientes.
+      const isPreviousBundled =
+        installed.manifest.sha256 ===
+        '85889d066af2e80b18bc07f42347a08cf2c663b0f061200ab56db4c96f283ea6';
+      active = isPreviousBundled ? included : installed;
     } catch {
       active = included;
       recoveryMessage =

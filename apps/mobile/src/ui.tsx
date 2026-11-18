@@ -71,7 +71,7 @@ export function Button({
               : { backgroundColor: 'transparent' },
         style,
         { opacity: disabled || loading ? 0.45 : pressed ? 0.9 : 1 },
-        variant === 'primary' && { borderBottomWidth: 4, borderBottomColor: '#105B54' },
+        variant === 'primary' && { borderBottomWidth: 4, borderBottomColor: '#61261A' },
       ]}
     >
       {loading ? (
@@ -185,7 +185,7 @@ export function useStyles() {
   const { colors: C, tone } = useTheme();
   return StyleSheet.create({
     label: { fontFamily: 'Manrope', fontSize: 13, color: C.muted, lineHeight: 21 },
-    heading: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink },
+    heading: { fontFamily: 'Journal', fontSize: 25, color: C.ink },
     card: {
       backgroundColor: tone('white', 'background'),
       borderWidth: 1,

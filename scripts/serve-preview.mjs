@@ -9,6 +9,8 @@ const types = {
   '.json': 'application/json',
   '.ttf': 'font/ttf',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.mp3': 'audio/mpeg',
   '.svg': 'image/svg+xml',
   '.wasm': 'application/wasm',
   '.webmanifest': 'application/manifest+json',

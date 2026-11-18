@@ -1,35 +1,35 @@
-# Integrated course offline acceptance test plan
+# Travel curriculum offline acceptance test plan
 
 [Español (Latinoamérica)](OFFLINE_TEST_PLAN.es-419.md)
 
-See the [verification record](VERIFICATION.md) for automated results and limitations. Run these checks without starting Fastify, signing in, or using a cloud account. Browser tests intercept `/v1/`, `/api/`, and external requests without explicit permission.
+Follow the [verification record](VERIFICATION.md) for automated results and limitations. Run these checks without starting Fastify, signing in, or connecting a cloud account.
 
-## Starting from scratch
+## Welcome and starting mission
 
-1. Start with empty storage. Verify that **Empiezo desde cero** opens **Me presento** immediately and **Ya sé algo de inglés** opens a skippable placement assessment.
-2. On Android, enable airplane mode. On the web, load static assets and the service worker, then disconnect. Complete Meta, bilingual vocabulary cards, meaning recognition, matching, grammar that explicitly teaches am and are, dialogue with line-by-line support, fill-in-the-blank and reordering exercises, and a short self-introduction.
-3. Answer incorrectly on purpose. Verify that the app provides a Spanish explanation, the answer, and a retry. Learning has no timer, hearts, or XP deductions. Using a hint does not count as independent production.
-4. Verify that speaking can be skipped before the app requests microphone access. Optional recordings can be replayed or recorded again locally and are deleted on exit. Verify that the app explains when no verified local voice is available and provides no invented pronunciation score.
-5. After completion, check the vocabulary, patterns, and review date. Restart and verify that completion and XP persist. Check the next day and again after two days for vocabulary recognition, vocabulary recall, grammar understanding, and grammar production, and verify that practice works offline.
+1. With fresh data, open the app at 320, 360, and 390 px, then repeat with larger text and dark mode. Check that the two actions are easy to tell apart and that the close button is accessible. **Empezar mi viaje** opens the plaza scene.
+2. From the welcome, choose **Ya sé algo de inglés** and skip all six questions. Check that **Ir a mi misión** opens **Un saludo en la plaza**.
+3. Retake the assessment in **Aprender**. Answer only the first two correctly to start at the bus stop. Answer the first four correctly without a transcript to start at lost and found. Confirm earlier missions can still be opened and the assessment awarded no XP, stamps, or completed missions.
 
-## Challenges and content packs
+## Vocabulary, missions, and review
 
-- On a fresh device, verify that challenges with unstudied prerequisites are locked and that direct engine calls are rejected. After units 1 and 2, check 13 levels and three exercise types. Timeouts, incorrect answers that cause failure, and exits leave learning XP, completion, and mastery evidence intact.
-- Import a new LQP pack offline. Updates within the same schema must retain stable lesson IDs. Verify rejection for a bad checksum, downgrade, invalid reference, untaught vocabulary, missing answer, and ambiguous choice. Failed imports preserve the active pack and progress.
-- Check that the download field starts empty. Network requests occur only after the user enters a GitHub URL and selects download. The automated test intercepts release file requests to verify the download flow. The new version remains pending publication.
+1. Cache the Web app or install the preview APK, then disconnect. Reach **Palabras del viaje** in a mission. Verify that each card gives the Spanish meaning, when to use the word, and an example in both languages. Play the word and example and change the audio speed. Open **Aprender** to access the same material directly.
+2. Leave midway through the vocabulary, reopen, and verify the same card. Repeat with a partial text answer, with the feedback showing, and after collecting the stamp. Switch available missions and verify the previous draft is still there when reopened.
+3. Give a wrong answer and verify the Spanish explanation and retry. Try the listening transcript and optional local recording. Finish the chapter and check that the passport, postcard, and journal persist with one stamp.
+4. Open **Repaso rápido**, answer a prompt, and return to the exact step of your journey. Check that **Repasar** shows practice from the travel chapter.
+5. Choose your place of origin from the map. Check the 20 stops and the destination at Ushuaia and Antarctica. Future stops should show **En preparación**.
 
-## Data and other features
+## Challenges, backups, and native checks
 
-- Start with format 1 prototype data. Verify that the app explains the incompatibility and leaves the data intact. Export the original bytes, verify that canceling a reset preserves the data, then confirm a reset and verify that the starting screen opens. The old file cannot be restored into format 2.
-- Verify preferences, export, deletion, and confirmed restore of current data. An active challenge is excluded from restore.
-- Verify navigation on a 390 px mobile viewport, optional placement, text-based pronunciation practice, and the airport and job application text missions.
-- On a physical Android device, open a fill-in-the-blank or short response exercise in **Un día en familia**. Focus the input. It should scroll fully above the keyboard and bottom button, retain focus while typing, and allow direct taps on **Comprobar respuesta**. Try a placement text question that fits without scrolling before the keyboard opens. When the keyboard covers the app, the bottom spacer should match the actual overlap and move the content and button above it. If the system has already resized the window, avoid adding the same space twice. Change keyboard height, close it, and reopen it. Content should stay visible, the spacer should disappear when the keyboard closes, and entered text should persist. Enter more than 30 lines. The input should fit in the visible area and scroll internally. When adding lines at the end, the cursor should stay visible and the page should not jump to the top of the input. Repeat keyboard avoidance checks on iOS. Browser automation covers both window resizing and simulated visual viewport shrinkage with a fixed layout. Run native keyboard acceptance checks on devices.
-- Verify that speech synthesis is skipped when only remote voices are present. Optional recording and replay send no audio.
+- Before earning the chapter stamp, the three authored challenge ranks should be locked. After the stamp, test a timed run and practice without the clock. Later ranks should show **En preparación**. A lost challenge leaves learning XP and travel progress intact.
+- From **Perfil**, export and restore a format 2 backup on a second installation. Verify preferences, travel checkpoints, collectibles, and any archived textbook progress. Format 1 data can be exported before an explicitly confirmed reset.
+- On a physical Android device, check signed APK installation, first launch in airplane mode, microphone permissions and replay, TalkBack, system font scaling, reduced motion, the file picker, and performance on a low-end device.
+- With the Android and iOS keyboards open, verify the mission and placement text fields and their action buttons remain reachable. Change keyboard height and dismiss and reopen it. Verify drafts persist and the screen adjusts without double spacing.
+- With Android offline, set an English TTS engine or voice in system settings. In a mission, play a word with **Predeterminada del sistema**. Open **Configuración de voz** from the mission header, select another installed English voice and speed, save, and replay the word and example. Check dialogue and assessment listening, and confirm that the selection persists after reopening. Repeat with an unavailable default voice and check the notice for bundled audio.
+- Try local recording with networking off. If you choose optional system recognition, check that you see its provider disclosure before permissions. Check that system TTS settings offer an installed offline English voice or explain why none is available.
 
 ```bash
 npm run check
 npm test
-npm run packs:build
 npm run packs:verify
 npm run build:web
 npm run build:android
@@ -38,4 +38,4 @@ npm run preview
 npm run test:e2e
 ```
 
-Check airplane mode, TalkBack, microphone permissions, low-end performance, low storage, file picker, and signed APK installation on physical Android hardware. The curriculum still requires human language and teaching review.
+Real beginners and language teachers should review the welcome flow, the chapter's explanations, and the diagnostic's recommendations.

@@ -18,6 +18,12 @@ const env = {
 const architectures = process.env.ANDROID_ARCHITECTURES || 'arm64-v8a,armeabi-v7a';
 if (!/^(arm64-v8a|armeabi-v7a|x86_64)(,(arm64-v8a|armeabi-v7a|x86_64))*$/.test(architectures))
   throw new Error('Unsupported ANDROID_ARCHITECTURES.');
+const gradleHeap = process.env.ANDROID_GRADLE_MAX_HEAP || '4g';
+const gradleWorkers = Number(process.env.ANDROID_GRADLE_MAX_WORKERS || '2');
+if (!/^[1-9][0-9]*[mg]$/.test(gradleHeap))
+  throw new Error('ANDROID_GRADLE_MAX_HEAP must be a JVM size such as 2g.');
+if (!Number.isInteger(gradleWorkers) || gradleWorkers < 1)
+  throw new Error('ANDROID_GRADLE_MAX_WORKERS must be a positive integer.');
 const runNumber = Number(process.env.GITHUB_RUN_NUMBER || '0');
 const versionCode = Number(
   process.env.ANDROID_VERSION_CODE || (runNumber ? 100000 + runNumber : 1),
@@ -102,9 +108,9 @@ await run(
   [
     ':app:assembleRelease',
     '--no-daemon',
-    '--max-workers=2',
+    `--max-workers=${gradleWorkers}`,
     '--console=plain',
-    '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g',
+    `-Dorg.gradle.jvmargs=-Xmx${gradleHeap} -XX:MaxMetaspaceSize=1g`,
     `-PreactNativeArchitectures=${architectures}`,
     '-Pandroid.buildToolsVersion=36.0.0',
     '-Pandroid.compileSdkVersion=36',

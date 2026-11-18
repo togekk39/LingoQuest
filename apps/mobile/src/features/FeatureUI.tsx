@@ -11,7 +11,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { ArrowLeft, ArrowRight, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Volume2, X } from 'lucide-react-native';
 import { useKeyboardOverlap } from './useKeyboardOverlap';
 import { MotionEntrance, MotionPressable } from '../motion';
 import { ProgressBar } from '../ui';
@@ -76,6 +76,7 @@ export function FlowFrame({
   feedback,
   progress,
   stepKey,
+  onVoiceSettings,
 }: {
   title: string;
   eyebrow: string;
@@ -85,6 +86,7 @@ export function FlowFrame({
   feedback?: React.ReactNode;
   progress?: number;
   stepKey?: string;
+  onVoiceSettings?: () => void;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
@@ -155,10 +157,21 @@ export function FlowFrame({
           <Text style={f.eyebrow}>{eyebrow}</Text>
           <Text style={f.topTitle}>{title}</Text>
         </View>
-        <View style={f.safetyDot}>
-          <View style={f.dot} />
-          <Text style={f.safetyText}>A tu ritmo</Text>
-        </View>
+        {onVoiceSettings ? (
+          <Pressable
+            accessibilityLabel="Configuración de voz"
+            accessibilityRole="button"
+            onPress={onVoiceSettings}
+            style={f.close}
+          >
+            <Volume2 size={20} color={palette.teal} />
+          </Pressable>
+        ) : (
+          <View style={f.safetyDot}>
+            <View style={f.dot} />
+            <Text style={f.safetyText}>A tu ritmo</Text>
+          </View>
+        )}
       </View>
       {progress !== undefined && (
         <ProgressBar
@@ -246,7 +259,7 @@ export function useFeatureStyles() {
       gap: 16,
       paddingHorizontal: 24,
       paddingVertical: 22,
-      backgroundColor: tone('white', 'background'),
+      backgroundColor: palette.white,
       borderBottomWidth: 1,
       borderBottomColor: palette.line,
     },
@@ -267,7 +280,7 @@ export function useFeatureStyles() {
       color: palette.muted,
       textTransform: 'uppercase',
     },
-    topTitle: { fontFamily: 'Outfit', fontSize: 19, color: palette.ink, marginTop: 3 },
+    topTitle: { fontFamily: 'Journal', fontSize: 19, color: palette.ink, marginTop: 3 },
     safetyDot: { flexDirection: 'row', gap: 7, alignItems: 'center' },
     dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.primary },
     safetyText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 11 },
@@ -278,7 +291,7 @@ export function useFeatureStyles() {
       paddingVertical: 18,
       borderTopWidth: 1,
       borderTopColor: palette.line,
-      backgroundColor: tone('white', 'background'),
+      backgroundColor: palette.white,
     },
     footerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 12 },
     action: {
@@ -294,12 +307,12 @@ export function useFeatureStyles() {
     actionPrimary: {
       backgroundColor: palette.primary,
       borderBottomWidth: 4,
-      borderBottomColor: '#105B54',
+      borderBottomColor: '#61261A',
     },
     actionSecondary: {
       borderWidth: 1,
-      borderColor: tone('#BED9CD', 'border'),
-      backgroundColor: tone('#F8FCF9', 'background'),
+      borderColor: palette.line,
+      backgroundColor: palette.white,
     },
     actionText: {
       fontFamily: 'Manrope',
@@ -307,17 +320,17 @@ export function useFeatureStyles() {
       fontSize: 14,
       fontWeight: '700',
     },
-    title: { fontFamily: 'Outfit', fontSize: 36, lineHeight: 43, color: palette.ink },
+    title: { fontFamily: 'Journal', fontSize: 36, lineHeight: 43, color: palette.ink },
     body: { fontFamily: 'Manrope', fontSize: 15, lineHeight: 25, color: palette.muted },
     card: {
-      backgroundColor: tone('white', 'background'),
-      borderRadius: 22,
+      backgroundColor: palette.white,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: palette.line,
       padding: 25,
       gap: 15,
     },
-    cardTitle: { fontFamily: 'Outfit', fontSize: 22, color: palette.ink },
+    cardTitle: { fontFamily: 'Journal', fontSize: 22, color: palette.ink },
     error: {
       padding: 22,
       borderRadius: 18,
@@ -326,7 +339,7 @@ export function useFeatureStyles() {
       backgroundColor: tone('#FFF8F3', 'background'),
       gap: 14,
     },
-    errorTitle: { fontFamily: 'Outfit', fontSize: 20, color: palette.ink },
+    errorTitle: { fontFamily: 'Journal', fontSize: 20, color: palette.ink },
     row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     quiet: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 20, color: palette.muted },
     back: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 44 },

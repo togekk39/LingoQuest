@@ -1,13 +1,5 @@
 import type { Locator } from '@playwright/test';
-import {
-  test,
-  expect,
-  enterApp,
-  beginFirstLesson,
-  chooseCorrectAnswer,
-  firstLesson,
-  state,
-} from './helpers';
+import { test, expect, enterApp, openTravelWriting, click, exact, state } from './helpers';
 
 test.use({ reducedMotion: 'no-preference' });
 
@@ -36,7 +28,7 @@ test('the companion animates and responds live to the system motion preference',
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await expect.poll(() => transformCount(buddy)).toBeGreaterThan(1);
 
-  const button = page.getByRole('button', { name: 'Continuar aprendiendo', exact: true });
+  const button = page.getByRole('button', { name: 'Continuar viaje', exact: true });
   await button.hover();
   await page.mouse.down();
   await expect
@@ -46,27 +38,29 @@ test('the companion animates and responds live to the system motion preference',
   await page.mouse.up();
   await button.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('lesson-stage-goal')).toBeVisible();
+  await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test('lesson progress stays mounted across stages and correct answers celebrate once', async ({
+test('mission progress stays mounted across vocabulary and a correct answer celebrates', async ({
   page,
 }) => {
   await enterApp(page);
-  await page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }).click();
+  await click(page, 'Continuar viaje');
   const progress = page.getByRole('progressbar');
-  await progress.evaluate((element) => {
-    (element as HTMLElement).dataset.retained = 'yes';
-  });
-  await page.getByRole('button', { name: 'Conocer las palabras', exact: true }).click();
+  await progress.evaluate((element) => ((element as HTMLElement).dataset.retained = 'yes'));
+  await click(page, 'Continuar');
+  await click(page, 'Continuar');
+  await click(page, 'Siguiente palabra');
   await expect(progress).toHaveAttribute('data-retained', 'yes');
-  await expect(progress).toHaveAttribute('aria-valuenow', '14');
-  await page.getByRole('button', { name: 'Cerrar y volver', exact: true }).click();
-  await beginFirstLesson(page);
-  await chooseCorrectAnswer(page, firstLesson.exercises[0]);
-  await page.getByRole('button', { name: 'Comprobar respuesta', exact: true }).click();
-  await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
+  await click(page, 'Cerrar y volver');
+  await click(page, 'Continuar viaje');
+  await expect(page.getByRole('button', exact('Escuchar: I am'))).toBeVisible();
+  await click(page, 'Siguiente palabra');
+  await click(page, 'Ver la explicación');
+  await click(page, 'Probar en la historia');
+  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hi! I am Luz.');
+  await click(page, 'Comprobar respuesta');
   await expect(page.getByTestId('celebration-particles')).toBeAttached();
   await expect(page.getByTestId('celebration-particles')).toHaveCount(0, { timeout: 4000 });
 });
@@ -85,8 +79,8 @@ test('saved reduced motion survives reload and suppresses celebration on a narro
   await expect(buddy).toBeVisible();
   expect(await transformCount(buddy)).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await beginFirstLesson(page);
-  await chooseCorrectAnswer(page, firstLesson.exercises[0]);
+  await openTravelWriting(page);
+  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hi! I am Luz.');
   await page.getByRole('button', { name: 'Comprobar respuesta', exact: true }).click();
   await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
   await expect(page.getByTestId('celebration-particles')).toHaveCount(0);

@@ -1,6 +1,46 @@
-# Integrated course verification record
+# LingoQuest verification record
 
 [Español (Latinoamérica)](VERIFICATION.es-419.md)
+
+## Travel curriculum and redesigned welcome
+
+The current version opens the chapter directly or offers a short assessment to choose among its three missions. Browser checks cover welcome action spacing at 320 px, the recommended starting mission, offline vocabulary and audio, saved progress, and preserved archived history. Screenshots came from the locally built Web export.
+
+TypeScript, ESLint, 67 unit and integration tests, the archived LQP checksum, the Web export, Android Hermes export, and Android native prebuild passed. The Web service worker includes 58 offline files. Both bundles include the travel exercises and omit the old textbook pack. Physical Android acceptance remains pending.
+
+### Current screenshots
+
+- [Welcome on a 390 px viewport](screenshots/08-bienvenida.jpg)
+- [Starting-mission recommendation](screenshots/09-prueba-ruta.jpg)
+- [Mission vocabulary and reference audio](screenshots/10-vocabulario-viaje.jpg)
+- [Desktop travel journal](screenshots/11-cuaderno-escritorio.jpg)
+- [Mobile travel journal](screenshots/12-cuaderno-movil.jpg)
+- [Travel learning guide](screenshots/13-guia-de-viaje.jpg)
+- [Mobile travel journal in dark mode](screenshots/14-cuaderno-movil-oscuro.jpg)
+- [Travel map](screenshots/15-mapa-de-viaje.jpg)
+- [Listening in the placement assessment](screenshots/16-escucha-prueba.jpg)
+
+## LingoQuest 2.0 travel verification history
+
+The travel implementation was verified locally on 2026-11-18 before integrating the latest system speech-recognition changes from `main`. TypeScript, ESLint, the LQP 2.1.0 checksum, and 60 unit and integration tests passed. Of 40 browser scenarios, 37 passed in one run and three passed on separate reruns after updating their assertions for the redesigned home, saved lesson checkpoints, and the practice evidence count. The Android Hermes export, signed ARM preview APK build and signature check, and five native offline voice tests passed on that revision. The APK contained the current course, fonts, both travel images, and all 11 audio clips. The original Gradle attempt met the environment’s memory limit. A 2560 MB heap and one worker completed the build.
+
+Chromium verified that the travel chapter could run offline from a Caribbean origin, restore a partial answer and feedback after reload, play Sam’s bundled audio, award one stamp, and save a travel journal entry. A separate offline check opened course reference material without changing practice records or XP. The home layout was checked at 320, 360, and 390 px with text scaled to 150%.
+
+After rebasing onto the current `main`, TypeScript, ESLint, LQP verification, 65 unit and integration tests, Web and Hermes exports, and Android native prebuild passed. Of 22 targeted browser scenarios, 21 passed in one run. The remaining travel test passed on rerun after waiting for the origin picker to close. The browser tests verified that travel speaking uses local recording and the ordinary course keeps opt-in recognition.
+
+### Screenshots
+
+- [Desktop home](screenshots/01-inicio-web.jpg)
+- [World map](screenshots/02-mapa-web.jpg)
+- [Mobile home in dark mode](screenshots/03-inicio-movil-oscuro.jpg)
+- [Passport and journal](screenshots/04-pasaporte.jpg)
+- [Mission feedback](screenshots/05-mision-movil.jpg)
+- [Course library](screenshots/06-cursos-web.jpg)
+- [Challenge entry](screenshots/07-desafios-web.jpg)
+
+Real beginners and physical Android checks for airplane mode, microphone, system font scaling, TalkBack, and low-end device performance remain for acceptance. [Manual test plan](OFFLINE_TEST_PLAN.md)
+
+## Integrated course 1.3 verification history
 
 The checks on 2026-11-08 in the America/Belize time zone ran locally with Node.js 24.22.1, Linux, and Chromium. The app backend stayed offline, and the new edition was neither pushed nor published.
 
