@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -84,3 +84,28 @@ jobs:
             apps/mobile/android/build/reports/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Publish Android 1.0.0
+        if: github.event_name == 'push' && github.ref == 'refs/heads/release/android-1.0.0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=v1.0.0
+          cd work/apk
+          apks=(lingoquest-1.0.0-preview-*.apk)
+          test "${#apks[@]}" -eq 1
+          apk="${apks[0]}"
+          sha256sum --check "$apk.sha256"
+          tools="$ANDROID_HOME/build-tools/36.0.0"
+          "$tools/aapt" dump badging "$apk" > apk-badging.txt
+          "$tools/apksigner" verify --verbose --print-certs "$apk" > apk-signature.txt
+          grep -E "^package: name='com[.]lingoquest[.]app' versionCode='[0-9]+' versionName='1[.]0[.]0'" apk-badging.txt
+          grep -Fx 'Signer #1 certificate SHA-256 digest: fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c' apk-signature.txt
+          jq -e --arg commit "$GITHUB_SHA" --arg sha "$(sha256sum "$apk" | cut -d' ' -f1)" \
+            '.commit == $commit and .packageId == "com.lingoquest.app" and .version == "1.0.0" and .sha256 == $sha and .standalone' build-info.json
+          notes="LingoQuest Android 1.0.0 for sideloading on ARM Android 7 or later. The APK uses the public Android test key and is intended for testing. Build: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh release create "$tag" "$apk" "$apk.sha256" build-info.json \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title 'LingoQuest Android 1.0.0' \
+            --notes "$notes" --latest
