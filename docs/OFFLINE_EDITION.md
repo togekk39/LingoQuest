@@ -2,7 +2,7 @@
 
 [Español (Latinoamérica)](OFFLINE_EDITION.es-419.md)
 
-The app is version 1.3 and the course pack is version 2.0.0 using schema 2. The eight units and 32 lessons are authored in `content/source`. The builder generates the bundled JSON, release JSON, catalog, and SHA-256 checksum from that source. See the [curriculum model and development data reset](INTEGRATED_CURRICULUM.md).
+The app is version 2.0 and the course pack is version 2.1.0 using schema 2. The eight units and 32 lessons are authored in `content/source`. The builder generates the bundled JSON, release JSON, catalog, and SHA-256 checksum from that source. See the [curriculum model and development data reset](INTEGRATED_CURRICULUM.md).
 
 `apps/mobile/src/lib/api.ts` exposes local calls to existing screens without making HTTP requests. `packages/offline-engine` handles scoring, the four mastery evidence dimensions, reviews, XP, 13 challenge levels, backups, and deletion on the device. Android uses SQLite and the web uses localStorage. There are no automatic uploads.
 
@@ -12,7 +12,7 @@ Course packs are checked for schema, answers, translations, ID and prerequisite 
 
 The APK workflow generates the standalone Android installer. `npm run build:android` verifies the Hermes bundle. On the web, an offline restart works after the static assets and service worker have been downloaded. The first visit to an uncached URL still needs to load those assets.
 
-This edition includes no prerecorded reference audio or new images.
+The travel chapter includes 11 local reference clips, a map, and an illustration. Travel speaking uses optional local recording and replay. [Travel architecture](TRAVEL_ARCHITECTURE.md)
 
 Pronunciation uses system TTS. The Android native bridge accepts installed offline English voices and prefers the system's default English voice when available. Playback requests an English locale and voice regardless of the app or device language. Android sets the selected dialect's locale first, then applies and verifies the offline voice. If the engine rejects it or keeps another voice, playback stops and the app shows a notice. iOS explicitly selects an installed English voice. Browsers use English voices with `localService === true`. Speech settings on mobile and desktop offer voice selection, a preview, and a system rate or 0.75×, 1×, or 1.25× playback. Saved preferences apply throughout. On Android, users can open system TTS settings, and the app refreshes engines and voices on return. If an offline English voice is unavailable or has been removed, the app prompts the learner to install or reselect one. Speech synthesis runs offline. The native bridge requires a rebuilt APK or development build because Expo Go lacks the module. Recording and playback are optional. Recordings stay local and are deleted on exit. The app offers no automated pronunciation scores and does not treat a text match as evidence of accurate pronunciation.
 

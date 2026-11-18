@@ -1,6 +1,12 @@
+import { Platform } from 'react-native';
 /** Compatibility facade for screens. Every request below is a local function call;
  * this module has no HTTP client, account session, telemetry, or remote API. */
-import { OfflineEngine, LocalError, type CourseData } from '@lingoquest/offline-engine';
+import {
+  OfflineEngine,
+  OFFLINE_STATE_KEY,
+  LocalError,
+  type CourseData,
+} from '@lingoquest/offline-engine';
 import type { Progress, User } from '@lingoquest/contracts';
 import { getRaw, putRaw } from './storage';
 import { getActiveCourseData } from './coursePacks';
@@ -30,6 +36,10 @@ const engine = new OfflineEngine({
   store: { getItem: getRaw, setItem: putRaw },
   getContent: async () => (await getActiveCourseData()) as CourseData,
   randomId: newId,
+  lock:
+    Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.locks
+      ? async (work) => await navigator.locks.request(OFFLINE_STATE_KEY, work)
+      : undefined,
 });
 export class ApiError extends Error {
   constructor(

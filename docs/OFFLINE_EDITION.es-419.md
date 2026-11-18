@@ -2,7 +2,7 @@
 
 [English](OFFLINE_EDITION.md)
 
-La app está en la versión 1.3 y el paquete del curso en la versión 2.0.0 con el esquema 2. Las ocho unidades y las 32 lecciones se crean en `content/source`. El generador produce el JSON integrado, el JSON de publicación, el catálogo y la suma SHA-256 a partir de esa fuente. Consulta el [modelo del currículo y el restablecimiento de datos de desarrollo](INTEGRATED_CURRICULUM.md).
+La app está en la versión 2.0 y el paquete del curso en la versión 2.1.0 con el esquema 2. Las ocho unidades y las 32 lecciones se crean en `content/source`. El generador produce el JSON integrado, el JSON de publicación, el catálogo y la suma SHA-256 a partir de esa fuente. Consulta el [modelo del currículo y el restablecimiento de datos de desarrollo](INTEGRATED_CURRICULUM.md).
 
 `apps/mobile/src/lib/api.ts` ofrece llamadas locales a las pantallas existentes sin hacer solicitudes HTTP. `packages/offline-engine` califica respuestas, registra las cuatro dimensiones de evidencia de dominio, organiza repasos, administra XP y 13 niveles de desafío, y respalda y borra datos en el dispositivo. Android usa SQLite y la web usa localStorage. No hay cargas automáticas.
 
@@ -12,7 +12,7 @@ Los paquetes se validan por esquema, respuestas, traducciones, referencias a ide
 
 El flujo de APK genera el instalador independiente para Android. `npm run build:android` verifica el paquete de Hermes. En la web, se puede reiniciar sin conexión después de descargar los recursos estáticos y el service worker. La primera visita a una URL que no está en caché todavía requiere cargar esos recursos.
 
-Esta edición no incluye audio de referencia pregrabado ni imágenes nuevas.
+El capítulo de viaje incluye 11 audios locales de referencia, un mapa y una ilustración. La práctica oral del viaje usa grabación y reproducción locales opcionales. [Arquitectura del viaje](TRAVEL_ARCHITECTURE.es-419.md)
 
 La pronunciación usa la síntesis de voz del sistema (TTS). El puente nativo de Android acepta voces en inglés instaladas que funcionan sin conexión y prioriza la voz predeterminada en inglés, si está disponible. Cada reproducción solicita una configuración regional y una voz en inglés independientemente del idioma de la app o del dispositivo. Android configura primero la variante elegida, aplica la voz sin conexión y verifica que el motor la use. Si el motor la rechaza o conserva otra voz, la app detiene la reproducción y muestra un aviso. iOS selecciona explícitamente una voz en inglés instalada. Los navegadores usan voces en inglés con `localService === true`. En móviles y escritorio se puede seleccionar una voz, escuchar una muestra y elegir la velocidad del sistema o 0.75×, 1× o 1.25×. Las preferencias guardadas se aplican a todo el curso. En Android se puede abrir la configuración de TTS del sistema. Al volver, se actualiza la lista de motores y voces. Si falta una voz en inglés sin conexión o se eliminó la elegida, la app pide instalar o seleccionar otra. La síntesis de voz se realiza sin conexión. El puente nativo requiere un APK recompilado o una compilación de desarrollo, ya que Expo Go carece de este módulo. Grabar y reproducir es opcional. Las grabaciones permanecen en el dispositivo y se borran al salir. La app no asigna calificaciones automáticas de pronunciación ni considera que una coincidencia de texto demuestre una buena pronunciación.
 

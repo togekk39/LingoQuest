@@ -1,6 +1,6 @@
 import { ThemeButton } from './ThemePicker';
 import { useTheme } from './theme';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,24 +24,22 @@ import {
   Check,
   Flame,
   Zap,
-  Headphones,
-  Volume2,
-  Target,
   X,
   ShieldCheck,
   MapPin,
+  MapPinned,
   Briefcase,
   RefreshCw,
   Settings2,
-  Sparkles,
   ArrowUpRight,
   CheckCircle2,
   Leaf,
 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, bootstrap, localSettings, type Unit, type Progress } from './lib/api';
-import { Button, Card, Label, Heading, Pill, ProgressBar } from './ui';
+import { Button, Card, Label, Heading, Pill } from './ui';
 import { JourneyArt } from './JourneyArt';
+import { LessonReference } from './features/LessonReference';
 import { ReviewsFlow } from './features/ReviewsFlow';
 import { LearningFlow } from './features/LearningFlow';
 import { PlacementFlow } from './features/PlacementFlow';
@@ -49,30 +47,29 @@ import { MissionsFlow } from './features/MissionsFlow';
 import { PronunciationFlow } from './features/PronunciationFlow';
 import { ChallengesScreen } from './challenges/ChallengesScreen';
 import { OfflineProfile as Profile } from './content-manager/OfflineProfile';
-import { speakOffline } from './features/offlineSpeech';
 import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
-import { OFFLINE_STATE_KEY } from '@lingoquest/offline-engine';
+import {
+  OFFLINE_STATE_KEY,
+  chapter,
+  route,
+  type TravelCheckpoint,
+  type TravelOperation,
+  type TravelState,
+} from '@lingoquest/offline-engine';
+import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
+import { TravelFlow } from './travel/TravelFlow';
+import { QuickReview } from './travel/QuickReview';
 import { SpeechSettings } from './features/SpeechSettings';
 import { MotionEntrance, MotionPressable, MotionProvider, useReducedMotion } from './motion';
-import { QuestBuddy } from './QuestBuddy';
 
-type Tab = 'Inicio' | 'Aprender' | 'Desafíos' | 'Perfil';
-const tabs: { id: Tab; icon: typeof House; subtitle: string }[] = [
-  { id: 'Inicio', icon: House, subtitle: 'Tu espacio' },
-  { id: 'Aprender', icon: BookOpen, subtitle: 'Paso a paso' },
-  { id: 'Desafíos', icon: Trophy, subtitle: 'Un reto para ti' },
-  { id: 'Perfil', icon: UserRound, subtitle: 'Tu progreso' },
-];
-const unitNames = [
-  '¡Hola! Mucho gusto',
-  'Tu día a día',
-  'Pregunta sin miedo',
-  'Historias de ayer',
-  'Aquí y ahora',
-  'Lo que viene',
-  'Tus experiencias',
-  'Inglés en la vida real',
+type Tab = 'Inicio' | 'Mapa' | 'Aprender' | 'Desafíos' | 'Perfil';
+const tabs: { id: Tab; icon: typeof House }[] = [
+  { id: 'Inicio', icon: House },
+  { id: 'Mapa', icon: MapPinned },
+  { id: 'Aprender', icon: BookOpen },
+  { id: 'Desafíos', icon: Trophy },
+  { id: 'Perfil', icon: UserRound },
 ];
 const unitColors = [
   '#E7F2E8',
@@ -94,23 +91,33 @@ export default function App() {
 }
 
 function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolean) => void }) {
-  const { colors: C, tone } = useTheme();
+  const { colors: C } = useTheme();
   const reducedMotion = useReducedMotion();
   const s = useStyles();
 
   const { width } = useWindowDimensions();
   const desktop = width >= 1050;
-  const wide = width >= 1280;
+  const scroll = useRef<ScrollView>(null);
   const [tab, setTab] = useState<Tab>('Inicio');
+  const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
+  const [travelFlow, setTravelFlow] = useState<TravelCheckpoint | null>(null);
+  const [destination, setDestination] = useState('home');
+  const [countryPicker, setCountryPicker] = useState(false);
+  const [passport, setPassport] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [courseResume, setCourseResume] = useState<string | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [flow, setFlow] = useState<{
-    type: 'lesson' | 'placement' | 'mission' | 'speech' | 'reviews';
+    type: 'lesson' | 'placement' | 'mission' | 'speech' | 'reviews' | 'quick' | 'reference';
     id?: string;
   } | null>(null);
+  useEffect(() => {
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [tab, passport]);
   const [settings, setSettings] = useState(false);
   const [recoveryReset, setRecoveryReset] = useState(false);
   const [welcome, setWelcome] = useState(false);
@@ -119,12 +126,16 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [goal, setGoal] = useState(10);
   const [motivation, setMotivation] = useState('Vida diaria');
   const refresh = useCallback(async () => {
-    const [catalog, p] = await Promise.all([
+    const [catalog, p, journey, recentLesson] = await Promise.all([
       api<{ units: Unit[] }>('/v1/catalog'),
       api<Progress>('/v1/me/progress'),
+      api<TravelState>('/v1/travel'),
+      api<string | null>('/v1/lessons/resume'),
     ]);
     setUnits(catalog.units);
     setProgress(p);
+    setTravel(journey);
+    setCourseResume(recentLesson);
     onMotionPreference(!!p.user.reducedMotion);
     setError('');
   }, [onMotionPreference]);
@@ -166,13 +177,58 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const nextLesson =
     units.flatMap((u) => u.lessons).find((l) => !progress?.completedLessons.includes(l.id)) ??
     units[0]?.lessons[0];
-  const nextUnit = units.find((u) => u.lessons.some((l) => l.id === nextLesson?.id));
+  async function updateTravel(action: TravelOperation) {
+    const value = await api<TravelState>('/v1/travel', action);
+    setTravel(value);
+    return value;
+  }
+  async function startTravel(missionId?: string) {
+    if (starting) return;
+    setStarting(true);
+    try {
+      const id =
+        missionId ??
+        travel.active?.missionId ??
+        chapter.missions.find((m) => !travel.completed[m.id])?.id;
+      if (!id) {
+        setPassport(true);
+        return;
+      }
+      setPassport(false);
+      const value = await updateTravel({ action: 'start', missionId: id });
+      if (value.active) setTravelFlow(value.active);
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
+      setStarting(false);
+    }
+  }
+  function closeTravel() {
+    setTravelFlow(null);
+    void refresh().catch((e) => setNotice(e.message));
+  }
+  if (travelFlow)
+    return (
+      <TravelFlow
+        initial={travelFlow}
+        onUpdate={setTravel}
+        onClose={closeTravel}
+        onPassport={() => {
+          closeTravel();
+          setPassport(true);
+        }}
+      />
+    );
   const begin = () => {
-    if (nextLesson) setFlow({ type: 'lesson', id: nextLesson.id });
+    const id = courseResume ?? nextLesson?.id;
+    if (id) setFlow({ type: 'lesson', id });
   };
   if (flow?.type === 'lesson')
-    return <LearningFlow lessonId={flow.id!} onClose={() => setFlow(null)} onComplete={complete} />;
+    return <LearningFlow lessonId={flow.id!} onClose={complete} onComplete={complete} />;
+  if (flow?.type === 'reference')
+    return <LessonReference id={flow.id!} onClose={() => setFlow(null)} />;
   if (flow?.type === 'reviews') return <ReviewsFlow onClose={complete} />;
+  if (flow?.type === 'quick') return <QuickReview onClose={complete} />;
   if (flow?.type === 'placement')
     return <PlacementFlow onClose={() => setFlow(null)} onComplete={complete} />;
   if (flow?.type === 'mission')
@@ -180,6 +236,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   if (flow?.type === 'speech') return <PronunciationFlow onClose={() => setFlow(null)} />;
   const go = (t: Tab) => {
     setTab(t);
+    setPassport(false);
     setFlow(null);
   };
   return (
@@ -188,8 +245,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         {desktop && (
           <View style={s.sidebar}>
             <Brand />
-            <Text style={s.navCaption}>TU VIAJE EN INGLÉS</Text>
-            <View style={{ gap: 8 }}>
+
+            <View style={{ gap: 8, marginTop: 42 }}>
               {tabs.map((t) => (
                 <Pressable
                   key={t.id}
@@ -207,7 +264,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   >
                     {t.id}
                   </Text>
-                  {t.id === 'Desafíos' && <View style={s.tinyDot} />}
                 </Pressable>
               ))}
             </View>
@@ -239,7 +295,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.profileName}>{progress?.user.name || 'Explorador'}</Text>
-                  <Text style={s.profileSub}>Tu aventura · Nivel A1</Text>
+                  <Text style={s.profileSub}>Perfil local</Text>
                 </View>
                 <ChevronRight size={16} color={C.muted} />
               </Pressable>
@@ -247,7 +303,18 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={[s.topbar, !desktop && { paddingHorizontal: 20 }]}>
+          <View
+            style={[
+              s.topbar,
+              !desktop && {
+                paddingHorizontal: width < 360 ? 12 : 20,
+                height: undefined,
+                minHeight: 70,
+                flexWrap: 'wrap',
+                paddingVertical: 8,
+              },
+            ]}
+          >
             {!desktop ? (
               <Brand small />
             ) : (
@@ -269,30 +336,35 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   <Settings2 size={20} color={C.teal} />
                 </Pressable>
               )}
-              <View style={s.row}>
-                <Flame size={17} color="#DA9460" />
-                <Text style={s.topStat}>
-                  {progress?.streak || 0}
-                  {desktop && <Text style={s.topStatCaption}> días</Text>}
-                </Text>
-              </View>
-              <View style={s.topDivider} />
-              <View style={s.row}>
-                <Zap size={17} color={C.teal} />
-                <Text style={s.topStat}>
-                  {progress?.xp || 0}
-                  {desktop && <Text style={s.topStatCaption}> XP</Text>}
-                </Text>
-              </View>
+              {desktop && (
+                <>
+                  <View style={s.row}>
+                    <Flame size={17} color="#DA9460" />
+                    <Text style={s.topStat}>
+                      {progress?.streak || 0}
+                      {desktop && <Text style={s.topStatCaption}> días</Text>}
+                    </Text>
+                  </View>
+                  <View style={s.topDivider} />
+                  <View style={s.row}>
+                    <Zap size={17} color={C.teal} />
+                    <Text style={s.topStat}>
+                      {progress?.xp || 0}
+                      {desktop && <Text style={s.topStatCaption}> XP</Text>}
+                    </Text>
+                  </View>
+                </>
+              )}
               {desktop && (
                 <View style={s.language}>
                   <Text style={{ fontSize: 14 }}>🇺🇸</Text>
-                  <Text style={s.languageText}>Inglés · A1</Text>
+                  <Text style={s.languageText}>Inglés</Text>
                 </View>
               )}
             </View>
           </View>
           <ScrollView
+            ref={scroll}
             contentContainerStyle={[s.content, { padding: desktop ? 36 : 20 }]}
             showsVerticalScrollIndicator={false}
           >
@@ -339,303 +411,83 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
               </Card>
             ) : (
               <>
-                {tab === 'Inicio' && (
-                  <View style={[s.dashboard, { flexDirection: wide ? 'row' : 'column' }]}>
-                    <View style={{ flex: 1, minWidth: 0, gap: 25 }}>
-                      <View>
-                        <View style={[s.row, { gap: 7, marginBottom: 9 }]}>
-                          <View style={s.greetingDot} />
-                          <Text style={s.eyebrow}>UN NUEVO DÍA PARA DESCUBRIR</Text>
-                        </View>
-                        <Heading style={{ fontSize: desktop ? 31 : 28 }}>
-                          ¡Hola, {progress?.user.name || 'Explorador'}!{' '}
-                          <Text style={{ fontSize: 25 }}>☀</Text>
-                        </Heading>
-                        <Label style={{ marginTop: 5 }}>
-                          Tu mundo crece con cada palabra. ¿Damos el siguiente paso?
-                        </Label>
-                      </View>
-                      <MotionEntrance style={s.hero}>
-                        <View style={[s.heroWords, { maxWidth: wide ? 340 : 450 }]}>
-                          <Pill color="#497B64" bg="#D9EBD8">
-                            TU AVENTURA CONTINÚA
-                          </Pill>
-                          <Text style={[s.heroTitle, { fontSize: desktop ? 36 : 32 }]}>
-                            Un poco de inglés.{'\n'}Un mundo de{'\n'}
-                            <Text style={{ color: C.teal }}>posibilidades.</Text>
-                          </Text>
-                          <Label
-                            style={{ color: tone('#567869', 'text'), fontSize: 12, maxWidth: 270 }}
-                          >
-                            Aprende sin prisa, equivócate sin miedo y descubre hasta dónde puedes
-                            llegar.
-                          </Label>
-                          <Button
-                            icon={ArrowRight}
-                            onPress={begin}
-                            style={{ alignSelf: 'flex-start', marginTop: 21 }}
-                          >
-                            Continuar aprendiendo
-                          </Button>
-                        </View>
-                        {width > 720 && (
-                          <View style={s.heroArt}>
-                            <JourneyArt width={wide ? 300 : 280} />
-                          </View>
-                        )}
-                        <View style={s.heroFooter}>
-                          <View style={s.row}>
-                            <BookOpen size={14} color="#668C72" />
-                            <Text style={s.heroFootText}>
-                              Unidad {nextUnit ? units.indexOf(nextUnit) + 1 : 1} ·{' '}
-                              {nextLesson?.title}
-                            </Text>
-                          </View>
-                          <Text style={s.heroFootText}>~ 7 min</Text>
-                        </View>
-                      </MotionEntrance>
-                      <View style={[s.row, { gap: 14, paddingHorizontal: 8 }]}>
-                        <QuestBuddy size={68} />
-                        <View style={{ flex: 1, gap: 3 }}>
-                          <Text style={s.cardTitle}>¡Vamos paso a paso!</Text>
-                          <Label style={{ fontSize: 12 }}>Cada palabra cuenta. Tú puedes.</Label>
-                        </View>
-                      </View>
-                      <View>
-                        <View style={[s.sectionTitle, { marginBottom: 13 }]}>
-                          <Heading style={{ fontSize: 21 }}>Un paso más en tu camino</Heading>
-                          <Pressable onPress={() => go('Aprender')} style={s.row}>
-                            <Text style={s.link}>Ver mi ruta</Text>
-                            <ArrowRight size={15} color={C.teal} />
-                          </Pressable>
-                        </View>
-                        <Card style={{ padding: 20 }}>
-                          <View style={s.row}>
-                            <View style={s.unitIcon}>
-                              <BookOpen size={23} color={C.teal} />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text style={s.eyebrow}>
-                                UNIDAD {nextUnit ? units.indexOf(nextUnit) + 1 : 1} ·{' '}
-                                {nextUnit?.cefr || 'A1'}
-                              </Text>
-                              <Text style={s.cardTitle}>{nextUnit?.title || 'Say hello'}</Text>
-                              <Label style={{ fontSize: 11 }}>{nextUnit?.description}</Label>
-                            </View>
-                            <Pressable
-                              accessibilityLabel="Abrir siguiente lección"
-                              onPress={begin}
-                              style={s.circleButton}
-                            >
-                              <ArrowRight size={20} color={C.teal} />
-                            </Pressable>
-                          </View>
-                          <View style={{ marginTop: 19, marginBottom: 9 }}>
-                            <ProgressBar
-                              value={
-                                (nextUnit?.lessons.filter((l) =>
-                                  progress?.completedLessons.includes(l.id),
-                                ).length || 0) / 4
-                              }
-                            />
-                          </View>
-                          <View style={[s.row, { justifyContent: 'space-between' }]}>
-                            <Label style={{ fontSize: 10 }}>
-                              {nextUnit?.lessons.filter((l) =>
-                                progress?.completedLessons.includes(l.id),
-                              ).length || 0}{' '}
-                              de 4 lecciones completadas
-                            </Label>
-                            <Text style={s.nextTag}>El siguiente paso es tuyo</Text>
-                          </View>
-                        </Card>
-                      </View>
-                      <View
-                        style={[s.quickGrid, { flexDirection: width < 620 ? 'column' : 'row' }]}
-                      >
-                        <PracticeCard
-                          icon={RefreshCw}
-                          badge={
-                            progress?.reviewCount
-                              ? `${progress.reviewCount} pendientes`
-                              : 'A tu ritmo'
-                          }
-                          title="Que no se te olvide"
-                          text="Haz espacio para lo que ya aprendiste."
-                          action="Repasar un poquito"
-                          onPress={() => setFlow({ type: 'reviews' })}
-                          color="#E9EFF9"
-                          iconColor="#6D86B5"
-                        />
-                        <PracticeCard
-                          icon={Headphones}
-                          badge="Sin presión"
-                          title="Encuentra tu voz"
-                          text="Escucha, prueba y suena más como tú."
-                          action="Practicar pronunciación"
-                          onPress={() => setFlow({ type: 'speech' })}
-                          color="#FBEDDF"
-                          iconColor="#C58E53"
-                        />
-                      </View>
-                      <View style={s.challengeNudge}>
-                        <View style={s.row}>
-                          <Trophy size={18} color="#B89860" />
-                          <Text style={s.nudgeTitle}>¿Te gustan los retos?</Text>
-                        </View>
-                        <Label style={{ flex: 1, fontSize: 11 }}>
-                          Cuando tú quieras, hay una aventura extra.
-                        </Label>
-                        <Pressable onPress={() => go('Desafíos')} style={s.row}>
-                          <Text style={s.link}>Explorar</Text>
-                          <ArrowUpRight size={15} color={C.teal} />
-                        </Pressable>
-                      </View>
-                    </View>
-                    <View style={{ width: wide ? 270 : '100%', gap: 20, marginTop: wide ? 1 : 0 }}>
-                      <Card style={{ padding: 22 }}>
-                        <View style={s.sectionTitle}>
-                          <Text style={s.smallTitle}>Tu pequeño gran hábito</Text>
-                          <Target color={C.muted} size={17} />
-                        </View>
-                        <View style={s.goalCircle}>
-                          <SvgGoal
-                            value={Math.min(
-                              1,
-                              progress?.learningDays.includes(new Date().toISOString().slice(0, 10))
-                                ? 1
-                                : 0,
-                            )}
-                          />
-                          <View style={s.goalCenter}>
-                            <Text style={s.goalNumber}>
-                              {progress?.learningDays.includes(
-                                new Date().toISOString().slice(0, 10),
-                              )
-                                ? '1'
-                                : '0'}
-                              <Text style={{ fontSize: 18, color: tone('#A5B6AA', 'text') }}>
-                                {' '}
-                                / 1
-                              </Text>
-                            </Text>
-                            <Text style={s.goalLabel}>práctica de hoy</Text>
-                          </View>
-                        </View>
-                        <Text style={s.goalSub}>Un ratito para ti. Un paso adelante.</Text>
-                        <View style={s.week}>
-                          {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => {
-                            const today = (new Date().getDay() + 6) % 7;
-                            const date = new Date();
-                            date.setDate(date.getDate() + i - today);
-                            const done = progress?.learningDays.includes(
-                              date.toISOString().slice(0, 10),
-                            );
-                            return (
-                              <View key={i} style={{ alignItems: 'center', gap: 7 }}>
-                                <Text style={s.weekDay}>{d}</Text>
-                                <View
-                                  style={[
-                                    s.weekDot,
-                                    done && { backgroundColor: C.primary },
-                                    i === today && { borderColor: C.teal, borderWidth: 1.5 },
-                                  ]}
-                                >
-                                  {done ? (
-                                    <Check size={12} color="white" />
-                                  ) : i === today ? (
-                                    <View
-                                      style={{
-                                        width: 5,
-                                        height: 5,
-                                        borderRadius: 3,
-                                        backgroundColor: C.primary,
-                                      }}
-                                    />
-                                  ) : null}
-                                </View>
-                              </View>
-                            );
-                          })}
-                        </View>
-                        <View style={s.goalNote}>
-                          <Flame size={14} color="#BF8D54" />
-                          <Label style={{ fontSize: 10 }}>La constancia empieza con un día.</Label>
-                        </View>
-                      </Card>
-                      <View style={s.quoteCard}>
-                        <View style={s.quoteIcon}>
-                          <Sparkles size={20} color="#A48350" />
-                        </View>
-                        <Text style={s.quoteCaption}>UNA FRASE PARA LLEVAR</Text>
-                        <Text style={s.quote}>“Every journey begins{'\n'}with a single step.”</Text>
-                        <Label
-                          style={{
-                            fontSize: 11,
-                            color: tone('#8C826A', 'text'),
-                            textAlign: 'center',
-                          }}
-                        >
-                          Cada viaje comienza con un solo paso.
-                        </Label>
-                        <Pressable
-                          onPress={() => {
-                            void speakOffline(
-                              'Every journey begins with a single step.',
-                              setNotice,
-                            );
-                          }}
-                          style={s.listen}
-                        >
-                          <Volume2 size={14} color="#927A55" />
-                          <Text style={s.listenText}>Escuchar en inglés</Text>
-                        </Pressable>
-                      </View>
-                      <View style={{ padding: 8 }}>
-                        <View style={[s.row, { marginBottom: 9 }]}>
-                          <ShieldCheck size={16} color="#8CA195" />
-                          <Text style={s.quietTitle}>Aprender se siente mejor así</Text>
-                        </View>
-                        <Label style={{ fontSize: 11, lineHeight: 19 }}>
-                          Sin vidas que perder. Sin prisa por llegar. Solo tú y todo lo que puedes
-                          aprender.
-                        </Label>
-                      </View>
-                    </View>
-                  </View>
-                )}
-                {tab === 'Aprender' && (
-                  <LearnMap
-                    units={units}
-                    progress={progress!}
-                    onLesson={(id: string) => setFlow({ type: 'lesson', id })}
-                    onPlacement={() => setFlow({ type: 'placement' })}
-                    onReview={() => setFlow({ type: 'reviews' })}
-                    onMission={(id: string) => setFlow({ type: 'mission', id })}
-                    onNotice={setNotice}
-                  />
-                )}
-                {tab === 'Desafíos' && (
-                  <ChallengesScreen
-                    onLearn={() => go('Aprender')}
-                    onRefresh={() => void refresh()}
-                  />
-                )}
-                {tab === 'Perfil' && (
-                  <Profile
-                    key={progress!.user.id}
-                    progress={progress!}
-                    onRefresh={refresh}
-                    onNotice={setNotice}
-                    onPlacement={() => setFlow({ type: 'placement' })}
-                  />
+                {passport ? (
+                  <>
+                    <Button variant="ghost" onPress={() => setPassport(false)}>
+                      Volver al viaje
+                    </Button>
+                    <Passport
+                      travel={travel}
+                      onContinue={() => void startTravel()}
+                      onNote={async (text) => {
+                        await updateTravel({ action: 'note', text });
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {tab === 'Inicio' && (
+                      <TravelHome
+                        travel={travel}
+                        progress={progress!}
+                        lessonCount={units.reduce((count, unit) => count + unit.lessons.length, 0)}
+                        onContinue={() => void startTravel()}
+                        onReview={() => setFlow({ type: 'quick' })}
+                        onRoute={() => go('Mapa')}
+                        onLearn={begin}
+                        onPassport={() => setPassport(true)}
+                        onSpeech={() => setFlow({ type: 'speech' })}
+                        onFullReview={() => setFlow({ type: 'reviews' })}
+                      />
+                    )}
+                    {tab === 'Mapa' && (
+                      <TravelRoute
+                        travel={travel}
+                        units={units}
+                        selected={route.find((item) => item.id === destination) ?? route[0]}
+                        onSelect={(id) => {
+                          setDestination(id);
+                          scroll.current?.scrollTo({ y: 0, animated: false });
+                        }}
+                        onStart={(id) => void startTravel(id)}
+                        onCountry={() => setCountryPicker(true)}
+                        onPassport={() => setPassport(true)}
+                        onLesson={(id) => setFlow({ type: 'lesson', id })}
+                      />
+                    )}
+                    {tab === 'Aprender' && (
+                      <LearnMap
+                        units={units}
+                        progress={progress!}
+                        onLesson={(id: string) => setFlow({ type: 'lesson', id })}
+                        onPlacement={() => setFlow({ type: 'placement' })}
+                        onReview={() => setFlow({ type: 'reviews' })}
+                        onMission={(id: string) => setFlow({ type: 'mission', id })}
+                        onReference={(id) => setFlow({ type: 'reference', id })}
+                      />
+                    )}
+                    {tab === 'Desafíos' && (
+                      <ChallengesScreen
+                        onLearn={() => go('Aprender')}
+                        onRefresh={() => void refresh()}
+                      />
+                    )}
+                    {tab === 'Perfil' && (
+                      <Profile
+                        key={progress!.user.id}
+                        progress={progress!}
+                        onRefresh={refresh}
+                        onNotice={setNotice}
+                        onPlacement={() => setFlow({ type: 'placement' })}
+                      />
+                    )}
+                  </>
                 )}
                 <View style={s.footer}>
                   <View style={s.row}>
                     <Compass size={13} color="#9DB2A4" />
-                    <Text style={s.footerText}>LingoQuest · Tu inglés, a tu ritmo.</Text>
+                    <Text style={s.footerText}>LingoQuest</Text>
                   </View>
-                  <Text style={s.footerText}>Hecho para descubrir.</Text>
                 </View>
               </>
             )}
@@ -668,6 +520,31 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         </Pressable>
       )}
       <Modal
+        visible={countryPicker}
+        transparent
+        animationType={reducedMotion ? 'none' : 'fade'}
+        onRequestClose={() => setCountryPicker(false)}
+      >
+        <View style={s.modalShade}>
+          <Card style={s.welcomeCard}>
+            <CountryPicker
+              selected={travel.country}
+              onSelect={(country) => {
+                if (starting) return;
+                setStarting(true);
+                void updateTravel({ action: 'country', country })
+                  .then(() => setCountryPicker(false))
+                  .catch((e) => setNotice(e.message))
+                  .finally(() => setStarting(false));
+              }}
+            />
+            <Button variant="ghost" onPress={() => setCountryPicker(false)}>
+              Cerrar
+            </Button>
+          </Card>
+        </View>
+      </Modal>
+      <Modal
         visible={welcome}
         transparent
         animationType={reducedMotion ? 'none' : 'fade'}
@@ -696,13 +573,28 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   </View>
                   <Pill>EL MUNDO TE ESPERA</Pill>
                   <Heading style={{ fontSize: 32, marginTop: 15 }}>
-                    Inglés para tu vida real.
+                    Aprende inglés, descubre el mundo.
                   </Heading>
                   <Label style={{ marginTop: 10, marginBottom: 24 }}>
-                    Pequeños pasos, nuevas posibilidades. Aprende sin presión y descubre tu propio
-                    camino.
+                    Empieza en tu comunidad y usa el inglés para ayudar a una viajera.
                   </Label>
                   <Button
+                    icon={Compass}
+                    onPress={() => {
+                      void localSettings
+                        .set('onboarded', true)
+                        .then(() => {
+                          setWelcome(false);
+                          setTab('Mapa');
+                          setCountryPicker(true);
+                        })
+                        .catch((e) => setNotice(e.message));
+                    }}
+                  >
+                    Empezar mi viaje
+                  </Button>
+                  <Button
+                    variant="secondary"
                     onPress={() => {
                       void localSettings
                         .set('onboarded', true)
@@ -916,57 +808,23 @@ function Brand({ small = false }: { small?: boolean }) {
     </View>
   );
 }
-function PracticeCard({ icon: Icon, badge, title, text, action, onPress, color, iconColor }: any) {
-  const { colors: C, tone } = useTheme();
-  const s = useStyles();
-
-  return (
-    <Card style={{ flex: 1, padding: 20 }}>
-      <View style={s.sectionTitle}>
-        <View style={[s.practiceIcon, { backgroundColor: tone(color, 'background') }]}>
-          <Icon color={iconColor} size={21} />
-        </View>
-        <Text style={s.subtleBadge}>{badge}</Text>
-      </View>
-      <Text style={[s.cardTitle, { fontSize: 17, marginTop: 15 }]}>{title}</Text>
-      <Label style={{ fontSize: 11, marginTop: 4 }}>{text}</Label>
-      <Pressable onPress={onPress} accessibilityRole="button" style={[s.row, { marginTop: 17 }]}>
-        <Text style={s.link}>{action}</Text>
-        <ArrowRight size={14} color={C.teal} />
-      </Pressable>
-    </Card>
-  );
-}
-function SvgGoal({ value }: { value: number }) {
-  const { colors: C, tone } = useTheme();
-
-  return (
-    <View
-      style={{
-        width: 140,
-        height: 140,
-        borderRadius: 70,
-        borderWidth: 8,
-        borderColor: tone('#EBF1EB', 'border'),
-        borderTopColor: C.teal,
-        transform: [{ rotate: '-38deg' }],
-      }}
-    >
-      {value > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            inset: -8,
-            borderWidth: 8,
-            borderRadius: 70,
-            borderColor: C.teal,
-          }}
-        />
-      )}
-    </View>
-  );
-}
-function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission }: any) {
+function LearnMap({
+  units,
+  progress,
+  onLesson,
+  onPlacement,
+  onReview,
+  onMission,
+  onReference,
+}: {
+  units: Unit[];
+  progress: Progress;
+  onLesson: (id: string) => void;
+  onPlacement: () => void;
+  onReview: () => void;
+  onMission: (id: string) => void;
+  onReference: (id: string) => void;
+}) {
   const { colors: C, tone } = useTheme();
   const s = useStyles();
 
@@ -974,11 +832,11 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
 
   return (
     <View style={{ gap: 24, maxWidth: 1020 }}>
-      <View style={s.sectionTitle}>
-        <View>
+      <View style={[s.sectionTitle, { flexWrap: 'wrap' }]}>
+        <View style={{ flexShrink: 1 }}>
           <Text style={s.eyebrow}>PASO A PASO, PALABRA A PALABRA</Text>
           <Heading style={{ fontSize: 32, marginTop: 7 }}>Tu ruta de aprendizaje</Heading>
-          <Label>{units.length} destinos. Un montón de posibilidades. Sin prisa.</Label>
+          <Label>{units.length} unidades de inglés para la vida diaria.</Label>
         </View>
         <Pill>A1 → A2</Pill>
       </View>
@@ -1004,7 +862,7 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
                 s.unitHeader,
                 {
                   backgroundColor: open
-                    ? tone(unitColors[i], 'background')
+                    ? tone(unitColors[i % unitColors.length], 'background')
                     : tone('white', 'background'),
                 },
               ]}
@@ -1012,7 +870,11 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
               <View
                 style={[
                   s.unitNumber,
-                  { backgroundColor: open ? C.white : tone(unitColors[i], 'background') },
+                  {
+                    backgroundColor: open
+                      ? C.white
+                      : tone(unitColors[i % unitColors.length], 'background'),
+                  },
                 ]}
               >
                 <Text style={{ fontFamily: 'OutfitSemiBold', fontSize: 23, color: C.teal }}>
@@ -1020,14 +882,14 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.eyebrow}>
-                  {unit.cefr} · {unitNames[i]}
-                </Text>
+                <Text style={s.eyebrow}>{unit.cefr}</Text>
                 <Heading style={{ fontSize: 23, marginTop: 3 }}>{unit.title}</Heading>
                 <Label style={{ fontSize: 11 }}>{unit.description}</Label>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 8 }}>
-                <Text style={s.unitCount}>{done}/4</Text>
+                <Text style={s.unitCount}>
+                  {done}/{unit.lessons.length}
+                </Text>
                 <ChevronRight
                   size={18}
                   color={C.teal}
@@ -1040,31 +902,37 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
                 {unit.lessons.map((l, j) => {
                   const completed = progress.completedLessons.includes(l.id);
                   return (
-                    <MotionPressable
-                      accessibilityRole="button"
-                      key={l.id}
-                      onPress={() => onLesson(l.id)}
-                      style={s.lessonRow}
-                    >
-                      <View style={[s.lessonCircle, completed && { backgroundColor: C.primary }]}>
-                        {completed ? (
-                          <Check size={18} color="white" />
-                        ) : (
-                          <Text style={{ fontFamily: 'OutfitMedium', color: C.teal, fontSize: 16 }}>
-                            {j + 1}
-                          </Text>
-                        )}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.lessonTitle}>{l.title}</Text>
-                        <Label style={{ fontSize: 10 }}>
-                          {completed
-                            ? 'Un paso que ya diste · Puedes practicar otra vez'
-                            : `${l.estimatedMinutes} min · Aprende y practica`}
-                        </Label>
-                      </View>
-                      <ChevronRight size={17} color={C.muted} />
-                    </MotionPressable>
+                    <View key={l.id} style={[s.row, { alignItems: 'stretch', flexWrap: 'wrap' }]}>
+                      <MotionPressable
+                        accessibilityRole="button"
+                        onPress={() => onLesson(l.id)}
+                        style={[s.lessonRow, { flex: 1, minWidth: 150 }]}
+                      >
+                        <View style={[s.lessonCircle, completed && { backgroundColor: C.primary }]}>
+                          {completed ? (
+                            <Check size={18} color="white" />
+                          ) : (
+                            <Text
+                              style={{ fontFamily: 'OutfitMedium', color: C.teal, fontSize: 16 }}
+                            >
+                              {j + 1}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.lessonTitle}>{l.title}</Text>
+                          <Label style={{ fontSize: 10 }}>
+                            {completed
+                              ? 'Un paso que ya diste · Puedes practicar otra vez'
+                              : `${l.estimatedMinutes} min · Aprende y practica`}
+                          </Label>
+                        </View>
+                        <ChevronRight size={17} color={C.muted} />
+                      </MotionPressable>
+                      <Button variant="ghost" icon={BookOpen} onPress={() => onReference(l.id)}>
+                        Ver material
+                      </Button>
+                    </View>
                   );
                 })}
                 <View
@@ -1087,27 +955,13 @@ function LearnMap({ units, progress, onLesson, onPlacement, onReview, onMission 
         );
       })}
       <Heading style={{ fontSize: 23, marginTop: 10 }}>El inglés sale contigo</Heading>
-      <View style={s.quickGrid}>
-        <PracticeCard
-          icon={MapPin}
-          title="Próxima parada: el aeropuerto"
-          text="Resuelve una situación de viaje, paso a paso."
-          badge="Misión · Texto"
-          action="Preparar mi viaje"
-          onPress={() => onMission('airport')}
-          color="#E7F2E8"
-          iconColor={C.teal}
-        />
-        <PracticeCard
-          icon={Briefcase}
-          title="Tu próxima oportunidad"
-          text="Prepárate para una entrevista de trabajo."
-          badge="Misión · Texto"
-          action="Practicar entrevista"
-          onPress={() => onMission('job')}
-          color="#FBEDDF"
-          iconColor="#C58E53"
-        />
+      <View style={[s.row, { flexWrap: 'wrap' }]}>
+        <Button variant="secondary" icon={MapPin} onPress={() => onMission('airport')}>
+          Preparar mi viaje
+        </Button>
+        <Button variant="secondary" icon={Briefcase} onPress={() => onMission('job')}>
+          Practicar entrevista
+        </Button>
       </View>
     </View>
   );
@@ -1135,15 +989,6 @@ export function useStyles() {
       justifyContent: 'center',
     },
     brand: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink, letterSpacing: -1 },
-    navCaption: {
-      fontFamily: 'ManropeBold',
-      fontSize: 9,
-      letterSpacing: 1.6,
-      color: tone('#9BAEA4', 'text'),
-      marginTop: 51,
-      marginBottom: 17,
-      paddingLeft: 13,
-    },
     navItem: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1154,12 +999,6 @@ export function useStyles() {
     },
     navActive: { backgroundColor: tone('#EAF3EC', 'background') },
     navLabel: { fontFamily: 'ManropeMedium', fontSize: 12, color: C.muted, flex: 1 },
-    tinyDot: {
-      width: 5,
-      height: 5,
-      borderRadius: 3,
-      backgroundColor: tone('#D9B47B', 'background'),
-    },
     sidebarBottom: { flex: 1, justifyContent: 'flex-end', paddingBottom: 22 },
     sidebarTip: {
       backgroundColor: tone('#F6F8F1', 'background'),
@@ -1230,167 +1069,18 @@ export function useStyles() {
     },
     languageText: { fontFamily: 'ManropeSemiBold', fontSize: 10, color: C.muted },
     content: { flexGrow: 1, width: '100%', maxWidth: 1500, alignSelf: 'center' },
-    dashboard: { gap: 27 },
     eyebrow: {
       fontFamily: 'ManropeBold',
       fontSize: 9,
       letterSpacing: 1.1,
       color: tone('#789583', 'text'),
     },
-    greetingDot: {
-      width: 5,
-      height: 5,
-      borderRadius: 3,
-      backgroundColor: tone('#C0A974', 'background'),
-    },
-    hero: {
-      backgroundColor: tone('#E9F1DF', 'background'),
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: tone('#DBE8D2', 'border'),
-      overflow: 'hidden',
-      minHeight: 350,
-      paddingTop: 28,
-      paddingHorizontal: 29,
-      paddingBottom: 68,
-      position: 'relative',
-    },
-    heroWords: { zIndex: 2 },
-    heroTitle: {
-      fontFamily: 'OutfitMedium',
-      color: C.ink,
-      lineHeight: 43,
-      letterSpacing: -0.6,
-      marginTop: 17,
-      marginBottom: 12,
-    },
-    heroArt: { position: 'absolute', right: -8, top: 42, zIndex: 1 },
-    heroFooter: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      borderTopWidth: 1,
-      borderColor: tone('#D6E5CD', 'border'),
-      paddingHorizontal: 24,
-      paddingVertical: 14,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      backgroundColor: tone('#E3EDD680', 'background'),
-    },
-    heroFootText: { fontFamily: 'ManropeMedium', fontSize: 10, color: tone('#66806C', 'text') },
     sectionTitle: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 10,
     },
-    link: { fontFamily: 'ManropeBold', fontSize: 10, color: C.teal },
-    unitIcon: {
-      width: 53,
-      height: 53,
-      borderRadius: 14,
-      backgroundColor: tone('#EAF2E5', 'background'),
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 6,
-    },
-    cardTitle: { fontFamily: 'OutfitMedium', fontSize: 21, color: C.ink, marginTop: 3 },
-    circleButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 13,
-      backgroundColor: tone('#EDF5EE', 'background'),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    nextTag: { fontFamily: 'ManropeMedium', fontSize: 9, color: tone('#8AA391', 'text') },
-    quickGrid: { flexDirection: 'row', gap: 16 },
-    practiceIcon: {
-      width: 41,
-      height: 41,
-      borderRadius: 13,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    subtleBadge: { fontFamily: 'ManropeMedium', fontSize: 9, color: tone('#95A397', 'text') },
-    challengeNudge: {
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: tone('#D8E1D2', 'border'),
-      borderRadius: 13,
-      padding: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      flexWrap: 'wrap',
-    },
-    nudgeTitle: { fontFamily: 'ManropeBold', fontSize: 10, color: tone('#7B795F', 'text') },
-    smallTitle: { fontFamily: 'OutfitMedium', fontSize: 16, color: C.ink },
-    goalCircle: { alignItems: 'center', justifyContent: 'center', marginTop: 27, marginBottom: 16 },
-    goalCenter: { position: 'absolute', alignItems: 'center' },
-    goalNumber: { fontFamily: 'OutfitMedium', fontSize: 37, color: C.ink },
-    goalLabel: { fontFamily: 'ManropeMedium', fontSize: 9, color: C.muted, marginTop: 3 },
-    goalSub: { fontFamily: 'Manrope', fontSize: 9, color: C.muted, textAlign: 'center' },
-    week: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: 23,
-      marginBottom: 22,
-    },
-    weekDay: { fontFamily: 'Manrope', fontSize: 9, color: tone('#91A197', 'text') },
-    weekDot: {
-      width: 23,
-      height: 23,
-      borderRadius: 9,
-      backgroundColor: tone('#F0F4EF', 'background'),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    goalNote: {
-      borderTopWidth: 1,
-      borderTopColor: C.line,
-      paddingTop: 15,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      justifyContent: 'center',
-    },
-    quoteCard: {
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: tone('#EBE8DB', 'border'),
-      backgroundColor: tone('#F5F2E9', 'background'),
-      padding: 22,
-      alignItems: 'center',
-    },
-    quoteIcon: {
-      width: 33,
-      height: 33,
-      borderRadius: 12,
-      backgroundColor: tone('#ECE6D5', 'background'),
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 14,
-    },
-    quoteCaption: {
-      fontFamily: 'ManropeBold',
-      fontSize: 8,
-      letterSpacing: 1.3,
-      color: tone('#A19175', 'text'),
-    },
-    quote: {
-      fontFamily: 'Outfit',
-      fontSize: 23,
-      color: tone('#6C6A51', 'text'),
-      textAlign: 'center',
-      lineHeight: 30,
-      marginTop: 14,
-      marginBottom: 9,
-    },
-    listen: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 17, minHeight: 28 },
-    listenText: { fontFamily: 'ManropeBold', fontSize: 9, color: tone('#927A55', 'text') },
-    quietTitle: { fontFamily: 'ManropeBold', fontSize: 10, color: tone('#819285', 'text') },
     footer: {
       marginTop: 31,
       borderTopWidth: 1,
@@ -1402,14 +1092,14 @@ export function useStyles() {
     },
     footerText: { fontFamily: 'Manrope', fontSize: 9, color: tone('#97A89C', 'text') },
     bottomNav: {
-      height: 74,
+      minHeight: 74,
       borderTopWidth: 1,
       borderTopColor: C.line,
       backgroundColor: tone('white', 'background'),
       flexDirection: 'row',
       paddingTop: 6,
     },
-    bottomTab: { flex: 1, alignItems: 'center', gap: 4 },
+    bottomTab: { flex: 1, minWidth: 0, paddingHorizontal: 2, alignItems: 'center', gap: 4 },
     bottomIcon: {
       width: 54,
       height: 32,
@@ -1419,15 +1109,6 @@ export function useStyles() {
     },
     bottomText: { fontFamily: 'ManropeBold', fontSize: 9, color: C.muted },
     loading: { minHeight: 350, alignItems: 'center', justifyContent: 'center', gap: 20 },
-    offline: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 9,
-      backgroundColor: tone('#E9F2E9', 'background'),
-      paddingVertical: 11,
-      paddingHorizontal: 24,
-    },
-    offlineText: { fontFamily: 'Manrope', fontSize: 10, color: C.teal, flex: 1 },
     toast: {
       position: 'absolute',
       bottom: 90,
@@ -1506,23 +1187,5 @@ export function useStyles() {
       justifyContent: 'center',
     },
     lessonTitle: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
-    statsGrid: { flexDirection: 'row', gap: 10, marginTop: 25, marginBottom: 18 },
-    profileStat: {
-      flex: 1,
-      backgroundColor: tone('#F5F8F3', 'background'),
-      padding: 18,
-      borderRadius: 13,
-      alignItems: 'center',
-      gap: 7,
-    },
-    statNumber: { fontFamily: 'OutfitSemiBold', fontSize: 28, color: C.ink },
-    errorText: { fontFamily: 'Manrope', fontSize: 12, color: C.red, marginTop: 15 },
-    exportText: {
-      fontFamily: 'monospace',
-      fontSize: 10,
-      maxHeight: 200,
-      marginVertical: 14,
-      color: C.ink,
-    },
   });
 }

@@ -1,6 +1,26 @@
-# Registro de verificación del curso integrado
+# Registro de verificación de LingoQuest
 
 [English](VERIFICATION.md)
+
+## Verificación del viaje de LingoQuest 2.0
+
+La implementación del viaje se verificó en local el 18 de noviembre de 2026, antes de integrar desde `main` los últimos cambios de reconocimiento de voz del sistema. Pasaron TypeScript, ESLint, la suma del paquete LQP 2.1.0 y 60 pruebas unitarias y de integración. De 40 escenarios de navegador, 37 pasaron en una ejecución y tres pasaron por separado tras actualizar las verificaciones del inicio, el guardado de la lección y los conteos de práctica. En esa revisión pasaron la exportación Hermes, la compilación y verificación de firma de un APK de vista previa para ARM y cinco pruebas nativas de voz sin conexión. El APK incluyó el curso actualizado, las fuentes, las dos imágenes del viaje y los 11 audios. El primer intento de Gradle alcanzó el límite de memoria del entorno. La compilación se completó con un límite de 2560 MB y un proceso de trabajo.
+
+Chromium verificó que se podía recorrer el capítulo sin conexión con un origen del Caribe, recuperar una respuesta parcial y su devolución al recargar, reproducir el audio incluido de Sam, recibir un solo sello y guardar una entrada de diario. Otra comprobación sin conexión abrió el material de consulta sin cambiar los registros de práctica ni los XP. El inicio se comprobó a 320, 360 y 390 px con texto ampliado al 150 %.
+
+### Capturas
+
+- [Inicio en pantalla de escritorio](screenshots/01-inicio-web.jpg)
+- [Mapa del mundo](screenshots/02-mapa-web.jpg)
+- [Inicio móvil en tema oscuro](screenshots/03-inicio-movil-oscuro.jpg)
+- [Pasaporte y diario](screenshots/04-pasaporte.jpg)
+- [Devolución de una misión](screenshots/05-mision-movil.jpg)
+- [Biblioteca del curso](screenshots/06-cursos-web.jpg)
+- [Acceso a desafíos](screenshots/07-desafios-web.jpg)
+
+La aceptación queda pendiente con principiantes y con Android físico en modo avión, micrófono, tamaño de texto del sistema, TalkBack y rendimiento en equipos de gama baja. [Plan de pruebas manuales](OFFLINE_TEST_PLAN.es-419.md)
+
+## Historial de verificación del curso integrado 1.3
 
 Las verificaciones del 2026-11-08 en la zona horaria America/Belize se ejecutaron localmente con Node.js 24.22.1, Linux y Chromium. El servidor de la app permaneció apagado y la edición nueva no se envió ni se publicó.
 

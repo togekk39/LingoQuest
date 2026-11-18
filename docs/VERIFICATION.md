@@ -1,6 +1,26 @@
-# Integrated course verification record
+# LingoQuest verification record
 
 [Español (Latinoamérica)](VERIFICATION.es-419.md)
+
+## LingoQuest 2.0 travel verification
+
+The travel implementation was verified locally on 2026-11-18 before integrating the latest system speech-recognition changes from `main`. TypeScript, ESLint, the LQP 2.1.0 checksum, and 60 unit and integration tests passed. Of 40 browser scenarios, 37 passed in one run and three passed on separate reruns after updating their assertions for the redesigned home, saved lesson checkpoints, and the practice evidence count. The Android Hermes export, signed ARM preview APK build and signature check, and five native offline voice tests passed on that revision. The APK contained the current course, fonts, both travel images, and all 11 audio clips. The original Gradle attempt met the environment’s memory limit. A 2560 MB heap and one worker completed the build.
+
+Chromium verified that the travel chapter could run offline from a Caribbean origin, restore a partial answer and feedback after reload, play Sam’s bundled audio, award one stamp, and save a travel journal entry. A separate offline check opened course reference material without changing practice records or XP. The home layout was checked at 320, 360, and 390 px with text scaled to 150%.
+
+### Screenshots
+
+- [Desktop home](screenshots/01-inicio-web.jpg)
+- [World map](screenshots/02-mapa-web.jpg)
+- [Mobile home in dark mode](screenshots/03-inicio-movil-oscuro.jpg)
+- [Passport and journal](screenshots/04-pasaporte.jpg)
+- [Mission feedback](screenshots/05-mision-movil.jpg)
+- [Course library](screenshots/06-cursos-web.jpg)
+- [Challenge entry](screenshots/07-desafios-web.jpg)
+
+Real beginners and physical Android checks for airplane mode, microphone, system font scaling, TalkBack, and low-end device performance remain for acceptance. [Manual test plan](OFFLINE_TEST_PLAN.md)
+
+## Integrated course 1.3 verification history
 
 The checks on 2026-11-08 in the America/Belize time zone ran locally with Node.js 24.22.1, Linux, and Chromium. The app backend stayed offline, and the new edition was neither pushed nor published.
 

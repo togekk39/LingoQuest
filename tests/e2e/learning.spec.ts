@@ -86,7 +86,7 @@ test('fresh zero-knowledge learner completes the integrated lesson offline, retr
   // The parent must reflect saved review results without a page reload.
   await expect(page.getByText(`${reviewed.xp} XP`, { exact: true })).toBeVisible();
   await expect(page.getByText('2 días', { exact: true })).toBeVisible();
-  await expect(page.getByText('A tu ritmo', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Repaso rápido', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Aprender', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Repasar · 0 pendientes', exact: true }),
@@ -104,8 +104,8 @@ test('fresh zero-knowledge learner completes the integrated lesson offline, retr
       .locator('..')
       .getByText('2', { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/^\d+% · Evidencia de práctica$/)).toHaveText(
-    reviewed.mastery.map((skill) => `${Math.round(skill.value * 100)}% · Evidencia de práctica`),
+  await expect(page.getByText(/^\d+ prácticas registradas$/)).toHaveText(
+    reviewed.mastery.map((skill) => `${skill.evidenceCount} prácticas registradas`),
   );
   expect(errors).toEqual([]);
 });

@@ -12,6 +12,7 @@ import {
 } from '../content/source/curriculum.ts';
 import {
   createCoursePack,
+  compareVersions,
   serializeCoursePack,
   sha256Hex,
   utf8Bytes,
@@ -19,11 +20,11 @@ import {
 } from '../packages/course-pack/src/index.ts';
 async function main() {
   const root = resolve(process.cwd());
-  const version = process.env.COURSE_PACK_VERSION ?? '2.0.0';
+  const version = process.env.COURSE_PACK_VERSION ?? '2.1.0';
   const repository = process.env.COURSE_PACK_REPOSITORY ?? 'togekk39/LingoQuest';
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository))
     throw new Error('COURSE_PACK_REPOSITORY must be owner/repository.');
-  const createdAt = process.env.COURSE_PACK_CREATED_AT ?? '2026-11-08T00:00:00.000Z';
+  const createdAt = process.env.COURSE_PACK_CREATED_AT ?? '2026-11-18T00:00:00.000Z';
   const pack = createCoursePack(
     {
       units,
@@ -38,7 +39,7 @@ async function main() {
     {
       packageId: 'es419-enus-a1a2',
       version,
-      minAppVersion: '1.3.0',
+      minAppVersion: compareVersions(version, '2.1.0') < 0 ? '1.3.0' : '2.0.0',
       titleEs: 'Inglés para tu vida real · A1–A2',
       locale: 'es-419',
       targetLanguage: 'en-US',

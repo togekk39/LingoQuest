@@ -4,6 +4,15 @@
 
 See the [verification record](VERIFICATION.md) for automated results and limitations. Run these checks without starting Fastify, signing in, or using a cloud account. Browser tests intercept `/v1/`, `/api/`, and external requests without explicit permission.
 
+## Travel and quick review
+
+1. Choose **Empezar mi viaje**, select an origin, and verify the same location appears on the map and home screen.
+2. Cache the Web app or install the standalone Android preview. Disconnect, open **Repaso rápido**, answer one prompt, and return to the journey.
+3. Type half a sentence in **La primera postal**. Reload or force-stop and relaunch, then verify the draft resumes. Repeat after submitting feedback and after claiming the stamp.
+4. Complete the three missions. Play Sam’s bundled audio, try the transcript, and replay a local recording if desired. Verify the passport has one stamp after another restart and the journal entry persists.
+5. Open **Ver material** and read grammar and vocabulary without affecting XP. Check home and mission controls at 320–390 px, with larger text, dark mode, reduced motion, and a screen reader.
+6. Test native first launch in airplane mode, microphone permissions and local replay, keyboard behavior, TalkBack, and performance on a low-end device.
+
 ## Starting from scratch
 
 1. Start with empty storage. Verify that **Empiezo desde cero** opens **Me presento** immediately and **Ya sé algo de inglés** opens a skippable placement assessment.
@@ -14,7 +23,7 @@ See the [verification record](VERIFICATION.md) for automated results and limitat
 
 ## Challenges and content packs
 
-- On a fresh device, verify that challenges with unstudied prerequisites are locked and that direct engine calls are rejected. After units 1 and 2, check 13 levels and three exercise types. Timeouts, incorrect answers that cause failure, and exits leave learning XP, completion, and mastery evidence intact.
+- On a fresh device, verify that challenges with unstudied prerequisites are locked and that direct engine calls are rejected. After units 1 and 2, verify that levels 1–8 are available. Verify that levels 9–10, 11–12, and 13 require units 1–4, 1–6, and 1–8 respectively. Timeouts, incorrect answers that cause failure, and exits leave learning XP, completion, and mastery evidence intact.
 - Import a new LQP pack offline. Updates within the same schema must retain stable lesson IDs. Verify rejection for a bad checksum, downgrade, invalid reference, untaught vocabulary, missing answer, and ambiguous choice. Failed imports preserve the active pack and progress.
 - Check that the download field starts empty. Network requests occur only after the user enters a GitHub URL and selects download. The automated test intercepts release file requests to verify the download flow. The new version remains pending publication.
 

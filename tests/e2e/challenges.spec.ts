@@ -11,9 +11,9 @@ import {
 async function unlockLearnedMaterial(page: import('@playwright/test').Page) {
   // Set the prerequisite for challenge-specific tests. The separate learner journey
   // exercises real lesson completion; the engine tests enforce the serverless gate.
-  const learned = bundledCourse.payload.units
-    .filter((unit: { id: string }) => ['u01', 'u02'].includes(unit.id))
-    .flatMap((unit: { lessons: { id: string }[] }) => unit.lessons.map((lesson) => lesson.id));
+  const learned = bundledCourse.payload.units.flatMap((unit: { lessons: { id: string }[] }) =>
+    unit.lessons.map((lesson) => lesson.id),
+  );
   await page.evaluate((lessonIds) => {
     const local = JSON.parse(localStorage.getItem('lq_offline_state_v1')!);
     local.completedLessons = lessonIds;
@@ -67,8 +67,8 @@ test('all thirteen learned-material challenge levels work offline and a failed c
   expect(run).toBeTruthy();
   expect(run.hearts).toBe(1);
   const exercise = run.items[run.position];
-  const wrong = exercise.options.find((option: any) => option.id !== exercise.correctOptionId);
-  await page.getByText(wrong.text, { exact: true }).click();
+  expect(exercise.type).toBe('short_text');
+  await page.getByRole('textbox').fill('incorrect');
   await page.getByRole('button', { name: 'Enviar respuesta', exact: true }).click();
   await expect(page.getByText('Cada intento cuenta.', { exact: true })).toBeVisible();
   expect(learningProgress(await state(page))).toEqual(before);
@@ -86,7 +86,7 @@ test('reading has its own local clock budget, starts only after preflight and fi
   await unlockLearnedMaterial(page);
   const before = learningProgress(await state(page));
   await enterArena(page);
-  await page.getByText('Reading Quest', { exact: true }).click();
+  await page.getByText('Lecturas de viaje', { exact: true }).click();
   await page.getByRole('button', { name: /^Nivel 13:/ }).click();
   await expect(page.getByLabel(/^Tiempo restante:/)).toHaveCount(0);
   expect(Object.values((await state(page)).runs)).toHaveLength(0);

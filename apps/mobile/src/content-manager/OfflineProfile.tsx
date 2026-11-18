@@ -14,7 +14,7 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { api, type Progress } from '../lib/api';
-import { Button, Card, Heading, Label, Pill, ProgressBar } from '../ui';
+import { Button, Card, Heading, Label, Pill } from '../ui';
 import { pickTextFile, saveTextFile } from '../lib/localFiles';
 import { ContentManager } from './ContentManager';
 const dimensionLabels = {
@@ -176,14 +176,11 @@ export function OfflineProfile({
                 <Text style={s.title}>
                   {targetLabels[`${m.dimension}:${m.targetId}`] ?? 'Práctica en contexto'}
                 </Text>
-                <Label style={{ fontSize: 10 }}>
-                  {Math.round(m.value * 100)}% · Evidencia de práctica
-                </Label>
+                <Label style={{ fontSize: 10 }}>{m.evidenceCount ?? 0} prácticas registradas</Label>
               </View>
               <Label style={{ fontSize: 11 }}>
                 {m.dimension ? dimensionLabels[m.dimension] : 'Práctica en contexto'}
               </Label>
-              <ProgressBar value={m.value} />
             </View>
           ))
         ) : (
@@ -272,7 +269,7 @@ export function OfflineProfile({
             </Heading>
             <Label style={{ marginVertical: 20 }}>
               {confirmReset
-                ? 'Se borrarán de este dispositivo tu perfil, respuestas, XP y resultados de desafíos. Los cursos instalados se conservan. Exporta un respaldo antes de continuar.'
+                ? 'Se borrarán de este dispositivo tu perfil, respuestas, XP, pasaporte, diario y resultados de desafíos. Los cursos instalados se conservan. Exporta un respaldo antes de continuar.'
                 : 'Se reemplazará tu progreso actual por el del respaldo. Los cursos instalados no cambian. Guarda una copia de tu progreso actual si deseas conservarlo.'}
             </Label>
             {!!pendingBackup && (

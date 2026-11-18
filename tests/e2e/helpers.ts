@@ -7,7 +7,13 @@ export interface LocalState {
   xp: number;
   completedLessons: string[];
   formatVersion: number;
-  mastery: { skillId: string; targetId: string; dimension: string; value: number }[];
+  mastery: {
+    skillId: string;
+    targetId: string;
+    dimension: string;
+    value: number;
+    evidenceCount: number;
+  }[];
   attempts: Record<string, unknown>;
   runs: Record<string, any>;
   challengeProgress: unknown[];

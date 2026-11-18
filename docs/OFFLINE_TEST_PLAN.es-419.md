@@ -4,6 +4,15 @@
 
 Consulta el [registro de verificación](VERIFICATION.es-419.md) para conocer los resultados automatizados y sus límites. Ejecuta estas pruebas sin iniciar Fastify, iniciar sesión ni usar una cuenta en la nube. Las pruebas del navegador interceptan `/v1/`, `/api/` y las solicitudes externas sin autorización explícita.
 
+## Viaje y repaso rápido
+
+1. Elige **Empezar mi viaje**, selecciona un origen y verifica que aparezca tanto en el mapa como en el inicio.
+2. Guarda la app web en caché o instala el APK independiente. Desconéctate, abre **Repaso rápido**, responde una pregunta y vuelve al viaje.
+3. Escribe media frase en **La primera postal**. Recarga o fuerza el cierre y vuelve a abrir la app. Verifica el borrador y repite después de responder y después de recibir el sello.
+4. Completa las tres misiones. Reproduce el audio incluido de Sam, prueba la transcripción y escucha una grabación local si lo deseas. Verifica que siga habiendo un sello después de reiniciar y que la entrada de diario se conserve.
+5. Abre **Ver material** y lee la gramática y el vocabulario. Comprueba los controles del inicio y de las misiones a 320–390 px, con texto grande, tema oscuro, movimiento reducido y lector de pantalla.
+6. En un Android de gama baja, prueba el primer inicio en modo avión, los permisos del micrófono y la reproducción local, el teclado, TalkBack y el rendimiento.
+
 ## Empezar desde cero
 
 1. Inicia con el almacenamiento vacío. Verifica que **Empiezo desde cero** abra **Me presento** de inmediato y que **Ya sé algo de inglés** abra una evaluación de nivel que se pueda omitir.

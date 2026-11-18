@@ -88,8 +88,8 @@ async function solve(engine: OfflineEngine, lessonId: string, right = false, pre
   );
 }
 
-async function unlock(engine: OfflineEngine) {
-  for (const unit of source.units.slice(0, 2))
+async function unlock(engine: OfflineEngine, throughUnit = 8) {
+  for (const unit of source.units.slice(0, throughUnit))
     for (const lesson of unit.lessons) await solve(engine, lesson.id);
 }
 
@@ -196,6 +196,29 @@ test('thirteen local practice levels are available; official online/ranked modes
   );
   for (const path of ['/v1/auth/login', '/v1/sync/attempts'])
     await assert.rejects(engine.request(path, {}), /sin cuenta/);
+});
+test('upper travel ranks require the matching lessons and use production without options', async () => {
+  const { engine } = fixture();
+  await unlock(engine, 2);
+  const view = await engine.request<{ levels: { unlocked: boolean; unlockUnit: string }[] }>(
+    '/v1/challenges/tracks/present_simple/levels',
+  );
+  assert.equal(view.levels[7].unlocked, true);
+  assert.equal(view.levels[8].unlocked, false);
+  assert.equal(view.levels[8].unlockUnit, 'u04');
+  const request = {
+    trackId: 'present_simple',
+    mode: 'practice',
+    level: 13,
+    clientRequestId: 'travel-advanced-test',
+  };
+  await assert.rejects(engine.request('/v1/challenges/runs', request), /Completa|completa/);
+  for (const unit of source.units.slice(2))
+    for (const lesson of unit.lessons) await solve(engine, lesson.id);
+  const run = await engine.request<RunView>('/v1/challenges/runs', request);
+  assert.equal(run.question?.type, 'short_text');
+  assert.equal(run.question?.options, undefined);
+  assert.ok(run.question?.requiredLessonIds?.includes('u08_l04'));
 });
 test('challenge wrong answers, timeout and request replay change only local challenge records', async () => {
   const f = fixture();
@@ -498,7 +521,7 @@ test('direct challenge calls cannot bypass related learning even in relaxed mode
 
 test('challenge pools exclude questions linked to unfinished lessons', async () => {
   const f = fixture();
-  await unlock(f.engine);
+  await unlock(f.engine, 2);
   const content = structuredClone(source);
   content.challengePools.grammar_rush.unshift({
     ...content.challengePools.grammar_rush[0],

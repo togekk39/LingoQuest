@@ -5,6 +5,7 @@ import { ArrowRight, BookOpen, CalendarCheck, Check, Sprout } from 'lucide-react
 import { api } from '../lib/api';
 import { Action, ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
 import LearningFlow from './LearningFlow';
+import { QuickReview } from '../travel/QuickReview';
 interface Review {
   key: string;
   skillId: string;
@@ -16,6 +17,7 @@ interface Review {
   dueAt: string;
   lessonId?: string;
   due?: boolean;
+  travel?: boolean;
 }
 const dimensionNames: Record<Review['dimension'], string> = {
   vocabulary_recognition: 'Reconocer palabras',
@@ -32,6 +34,7 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [all, setAll] = useState(false);
+  const [quick, setQuick] = useState(false);
   const [lessonId, setLessonId] = useState<string | null>(null);
   async function load(includeAll = all) {
     setLoading(true);
@@ -50,6 +53,15 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void load(all);
   }, [all]);
+  if (quick)
+    return (
+      <QuickReview
+        onClose={() => {
+          setQuick(false);
+          void load();
+        }}
+      />
+    );
   if (lessonId)
     return (
       <LearningFlow
@@ -138,7 +150,7 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(Math.min(0.95, Math.max(0, review.mastery)) * 100)}
-              accessibilityLabel={`Dominio: ${review.targetLabelEs}`}
+              accessibilityLabel={`Evidencia de práctica: ${review.targetLabelEs}`}
               accessibilityValue={{
                 min: 0,
                 max: 100,
@@ -161,9 +173,11 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
               <Pressable
                 accessibilityRole="button"
                 style={s.practice}
-                onPress={() => setLessonId(review.lessonId!)}
+                onPress={() => (review.travel ? setQuick(true) : setLessonId(review.lessonId!))}
               >
-                <Text style={s.practiceText}>Practicar esta habilidad</Text>
+                <Text style={s.practiceText}>
+                  {review.travel ? 'Abrir repaso rápido' : 'Practicar esta habilidad'}
+                </Text>
                 <ArrowRight color={palette.teal} size={17} />
               </Pressable>
             )}

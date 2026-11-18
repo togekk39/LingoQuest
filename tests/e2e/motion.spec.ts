@@ -4,6 +4,7 @@ import {
   expect,
   enterApp,
   beginFirstLesson,
+  advanceToExercise,
   chooseCorrectAnswer,
   firstLesson,
   state,
@@ -36,7 +37,7 @@ test('the companion animates and responds live to the system motion preference',
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await expect.poll(() => transformCount(buddy)).toBeGreaterThan(1);
 
-  const button = page.getByRole('button', { name: 'Continuar aprendiendo', exact: true });
+  const button = page.getByRole('button', { name: 'Continuar viaje', exact: true });
   await button.hover();
   await page.mouse.down();
   await expect
@@ -46,7 +47,7 @@ test('the companion animates and responds live to the system motion preference',
   await page.mouse.up();
   await button.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByTestId('lesson-stage-goal')).toBeVisible();
+  await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -63,7 +64,9 @@ test('lesson progress stays mounted across stages and correct answers celebrate 
   await expect(progress).toHaveAttribute('data-retained', 'yes');
   await expect(progress).toHaveAttribute('aria-valuenow', '14');
   await page.getByRole('button', { name: 'Cerrar y volver', exact: true }).click();
-  await beginFirstLesson(page);
+  await page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }).click();
+  await expect(page.getByTestId('lesson-stage-vocabulary')).toBeVisible();
+  await advanceToExercise(page, firstLesson.exercises[0]);
   await chooseCorrectAnswer(page, firstLesson.exercises[0]);
   await page.getByRole('button', { name: 'Comprobar respuesta', exact: true }).click();
   await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
