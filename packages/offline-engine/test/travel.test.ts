@@ -156,3 +156,61 @@ test('a new traveler can finish a tiny practice and resume its feedback without 
   assert.ok((await engine.request<QuickReviewState>('/v1/reviews/quick', submit)).result?.correct);
   assert.equal(Object.keys(phone.state().attempts).length, 1);
 });
+
+const travelTestAnswers = [
+  { optionId: 'name' },
+  { text: "I'm Luz." },
+  { optionId: 'stop' },
+  { tokens: ['It’s', 'next', 'to', 'the', 'park'] },
+  { optionId: 'blue' },
+  { text: 'It is blue.' },
+];
+
+test('travel placement recommends the first unverified skill and does not complete missions', async () => {
+  const phone = device();
+  const engine = phone.open();
+  for (const [limit, recommended] of [
+    [0, 'hello'],
+    [2, 'bus'],
+    [6, 'bag'],
+  ] as const) {
+    const replies = travelTestAnswers.map((answer, i) => ({
+      answer: i < limit ? answer : null,
+      transcript: false,
+    }));
+    const { placement, travel } = await engine.request<{
+      placement: { missionId: string };
+      travel: TravelState;
+    }>('/v1/travel/placement', { answers: replies });
+    assert.equal(placement.missionId, recommended);
+    assert.deepEqual(travel.completed, {});
+    assert.deepEqual(travel.stamps, {});
+    assert.equal(phone.state().xp, 0);
+  }
+  assert.equal(
+    (await update(engine, { action: 'start', missionId: 'bag' })).active?.missionId,
+    'bag',
+  );
+});
+
+test('a learner can change missions after placement and recover a vocabulary checkpoint', async () => {
+  const phone = device();
+  const engine = phone.open();
+  let state = await update(engine, { action: 'start', missionId: 'hello' });
+  for (let i = 0; i < 2; i++)
+    state = await update(engine, { action: 'advance', token: state.active!.token });
+  state = await update(engine, { action: 'word', token: state.active!.token, position: 2 });
+  const saved = state.active;
+  await engine.request('/v1/travel/placement', {
+    answers: travelTestAnswers.map((answer, i) => ({ answer, transcript: i === 2 })),
+  });
+  assert.equal(phone.state().travel?.placement?.missionId, 'bus');
+  assert.equal(
+    (await update(engine, { action: 'start', missionId: 'bus' })).active?.missionId,
+    'bus',
+  );
+  assert.deepEqual(
+    (await update(phone.open(), { action: 'start', missionId: 'hello' })).active,
+    saved,
+  );
+});

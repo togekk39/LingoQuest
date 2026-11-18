@@ -16,7 +16,6 @@ import {
 import { api, type Progress } from '../lib/api';
 import { Button, Card, Heading, Label, Pill } from '../ui';
 import { pickTextFile, saveTextFile } from '../lib/localFiles';
-import { ContentManager } from './ContentManager';
 const dimensionLabels = {
   vocabulary_recognition: 'Reconocer palabras',
   vocabulary_recall: 'Recordar palabras',
@@ -25,11 +24,13 @@ const dimensionLabels = {
 };
 export function OfflineProfile({
   progress,
+  missionsCompleted,
   onRefresh,
   onNotice,
   onPlacement,
 }: {
   progress: Progress;
+  missionsCompleted: number;
   onRefresh: () => Promise<void>;
   onNotice: (message: string) => void;
   onPlacement: () => void;
@@ -49,7 +50,9 @@ export function OfflineProfile({
   const [targetLabels, setTargetLabels] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
-    void api<{ reviews: { key: string; targetLabelEs: string }[] }>('/v1/reviews/today?all=true')
+    void api<{ reviews: { key: string; targetLabelEs: string }[] }>(
+      '/v1/reviews/today?source=travel&all=true',
+    )
       .then(({ reviews }) => {
         if (active)
           setTargetLabels(Object.fromEntries(reviews.map((r) => [r.key, r.targetLabelEs])));
@@ -59,6 +62,9 @@ export function OfflineProfile({
       active = false;
     };
   }, [progress.mastery]);
+  const travelEvidence = progress.mastery.filter(
+    (item) => targetLabels[`${item.dimension}:${item.targetId}`],
+  );
   useEffect(() => {
     setName(progress.user.name);
     setGoal(progress.user.goalMinutes || 10);
@@ -102,15 +108,15 @@ export function OfflineProfile({
           </View>
           <View style={{ flex: 1 }}>
             <Heading>{progress.user.name}</Heading>
-            <Label>Perfil local · Inglés A1–A2</Label>
+            <Label>Perfil local · La primera postal</Label>
           </View>
           <Pill>SIN CONEXIÓN</Pill>
         </View>
         <View style={s.statsGrid}>
           {[
             {
-              value: progress.completedLessons.length,
-              label: 'Lecciones completadas',
+              value: missionsCompleted,
+              label: 'Misiones completadas',
               icon: BookOpen,
             },
             { value: progress.xp, label: 'XP de aprendizaje', icon: Zap },
@@ -124,11 +130,10 @@ export function OfflineProfile({
           ))}
         </View>
         <Label style={{ fontSize: 11 }}>
-          Las lecciones y los XP muestran tu práctica. La retención se construye con repasos en
+          Las misiones y los XP muestran tu práctica. La retención se construye con repasos en
           distintos días. Los desafíos guardan sus propios resultados.
         </Label>
       </Card>
-      <ContentManager onRefresh={onRefresh} onNotice={onNotice} />
       <Card>
         <Heading style={{ fontSize: 22 }}>A tu manera</Heading>
         <Label style={{ marginTop: 17 }}>Tu nombre</Label>
@@ -169,8 +174,8 @@ export function OfflineProfile({
       </Card>
       <Card>
         <Heading style={{ fontSize: 22 }}>Lo que estás construyendo</Heading>
-        {progress.mastery.length ? (
-          progress.mastery.map((m) => (
+        {travelEvidence.length ? (
+          travelEvidence.map((m) => (
             <View key={`${m.dimension}:${m.targetId}`} style={{ marginTop: 18 }}>
               <View style={[s.row, { justifyContent: 'space-between' }]}>
                 <Text style={s.title}>

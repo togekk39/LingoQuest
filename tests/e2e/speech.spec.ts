@@ -1,4 +1,4 @@
-import { test, expect, enterApp, readyOfflineShell, firstLesson } from './helpers';
+import { test, expect, enterApp, readyOfflineShell, click, exact } from './helpers';
 import type { Page } from '@playwright/test';
 
 async function installSpeechFixture(page: Page) {
@@ -78,45 +78,49 @@ async function installSpeechFixture(page: Page) {
     });
   });
 }
-async function openDrill(page: Page) {
-  await page.getByRole('button', { name: 'Practicar pronunciación', exact: true }).click();
-  await page
-    .getByRole('button', { name: /^Practicar: / })
-    .first()
-    .click();
-  await page.getByText('Escuchar ejemplo', { exact: true }).click();
-}
-
-test('each vocabulary card plays once on entry and still allows manual replay', async ({
+test('travel words autoplay on entry and a manual replay stays offline', async ({
   page,
+  context,
 }) => {
-  await installSpeechFixture(page);
+  await page.addInitScript(() => {
+    const played: string[] = [];
+    Object.assign(window, { played });
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      const result = play.call(this);
+      void result
+        .then(() => {
+          played.push(this.currentSrc);
+        })
+        .catch(() => {});
+      return result;
+    };
+  });
   await enterApp(page);
-  await page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }).click();
-  await expect(page.getByTestId('lesson-stage-goal')).toBeVisible();
-  expect(await page.evaluate(() => (window as any).__speechCalls)).toEqual([]);
-  await page.getByRole('button', { name: 'Conocer las palabras', exact: true }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__speechCalls))
-    .toEqual([expect.objectContaining({ text: firstLesson.vocabulary[0].en })]);
-  // Let completion update the component without triggering another automatic play.
-  await page.clock.install();
-  await page.clock.runFor(1000);
-  expect(await page.evaluate(() => (window as any).__speechCalls.length)).toBe(1);
-  await page
-    .getByRole('button', { name: `Escuchar: ${firstLesson.vocabulary[0].en}`, exact: true })
-    .click();
-  await expect.poll(() => page.evaluate(() => (window as any).__speechCalls.length)).toBe(2);
-  await page.getByRole('button', { name: 'Siguiente palabra', exact: true }).click();
-  await page.clock.runFor(1000);
-  await expect
-    .poll(() => page.evaluate(() => (window as any).__speechCalls))
-    .toEqual([
-      expect.objectContaining({ text: firstLesson.vocabulary[0].en }),
-      expect.objectContaining({ text: firstLesson.vocabulary[0].en }),
-      expect.objectContaining({ text: firstLesson.vocabulary[1].en }),
-    ]);
+  await readyOfflineShell(page, context);
+  await click(page, 'Continuar viaje');
+  await click(page, 'Continuar');
+  await click(page, 'Continuar');
+  const wordPlays = (n: number) =>
+    page.evaluate(
+      (n) =>
+        (window as unknown as { played: string[] }).played.filter((src) =>
+          src.includes(`/word-${n}.`),
+        ).length,
+      n,
+    );
+  await expect.poll(() => wordPlays(1)).toBe(1);
+  await expect(page.getByText('hola', { exact: true })).toBeVisible();
+  await click(page, 'Escuchar: Hi');
+  await expect.poll(() => wordPlays(1)).toBe(2);
+  await click(page, 'Siguiente palabra');
+  await expect.poll(() => wordPlays(2)).toBe(1);
 });
+
+async function previewVoice(page: Page) {
+  await click(page, 'Configuración');
+  await click(page, 'Probar voz');
+}
 
 test('system default local English voice works offline; saved voice and speed persist and apply to practice', async ({
   page,
@@ -125,7 +129,7 @@ test('system default local English voice works offline; saved voice and speed pe
   await installSpeechFixture(page);
   await enterApp(page);
   await readyOfflineShell(page, context);
-  await openDrill(page);
+  await previewVoice(page);
   await expect
     .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
     .toMatchObject({ voice: 'local-gb', language: 'en-GB', rate: 1 });
@@ -146,7 +150,7 @@ test('system default local English voice works offline; saved voice and speed pe
     page.getByText('Configuración de voz guardada en este dispositivo.', { exact: true }),
   ).toBeVisible();
   await page.reload();
-  await openDrill(page);
+  await previewVoice(page);
   await expect
     .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
     .toMatchObject({ voice: 'local-us', language: 'en-US', rate: 0.75 });
@@ -160,8 +164,7 @@ test('system default local English voice works offline; saved voice and speed pe
   await expect(
     page.getByText('Configuración de voz guardada en este dispositivo.', { exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Cerrar configuración', exact: true }).click();
-  await openDrill(page);
+  await click(page, 'Probar voz');
   await expect
     .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
     .toMatchObject({ voice: 'local-gb', language: 'en-GB', rate: 1 });
@@ -177,7 +180,7 @@ test('Spanish system defaults cannot change English playback or enable Spanish-o
     for (const voice of (window as any).__speechVoices) voice.default = voice.lang === 'es-MX';
   });
   await enterApp(page);
-  await openDrill(page);
+  await previewVoice(page);
   await expect
     .poll(() => page.evaluate(() => (window as any).__speechCalls.at(-1)))
     .toMatchObject({ voice: 'local-us', language: 'en-US' });
@@ -185,8 +188,8 @@ test('Spanish system defaults cannot change English playback or enable Spanish-o
     const fixture = window as any;
     fixture.__speechVoices = fixture.__speechVoices.filter((voice: any) => voice.lang === 'es-MX');
   });
-  await page.getByText('Escuchar ejemplo', { exact: true }).click();
-  await expect(page.getByText(/No hay una voz de inglés sin conexión disponible/)).toBeVisible();
+  await click(page, 'Actualizar voces instaladas');
+  await expect(page.getByRole('button', exact('Probar voz'))).toBeDisabled();
   expect(await page.evaluate(() => (window as any).__speechCalls.length)).toBe(1);
 });
 
@@ -198,11 +201,8 @@ test('removed or network-only saved voices are not silently replaced; playback e
     localStorage.setItem('lq_setting:speech', JSON.stringify({ voice: 'cloud-us', rate: 1 })),
   );
   await enterApp(page);
-  await openDrill(page);
-  await expect(page.getByText(/No hay una voz de inglés sin conexión disponible/)).toBeVisible();
+  await click(page, 'Configuración');
   expect(await page.evaluate(() => (window as any).__speechCalls)).toEqual([]);
-  await page.reload();
-  await page.getByRole('button', { name: 'Configuración', exact: true }).click();
   await expect(page.getByText(/La voz guardada ya no está disponible/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Probar voz', exact: true })).toBeDisabled();
   await page.getByRole('radio', { name: 'Predeterminada del sistema', exact: true }).click();
@@ -229,27 +229,5 @@ test('voice settings are reachable and scrollable on a phone without horizontal 
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBeTruthy();
   await page.getByRole('button', { name: 'Cerrar configuración', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Continuar aprendiendo', exact: true }),
-  ).toBeVisible();
-});
-
-test('leaving practice cancels speech while the system is still loading its voices', async ({
-  page,
-}) => {
-  await installSpeechFixture(page);
-  await enterApp(page);
-  await page.evaluate(() => {
-    const fixture = window as any;
-    fixture.__delayedVoices = fixture.__speechVoices;
-    fixture.__speechVoices = [];
-  });
-  await openDrill(page);
-  await page.getByRole('button', { name: 'Ahora no puedo hablar', exact: true }).click();
-  await page.evaluate(() => {
-    const fixture = window as any;
-    fixture.__speechVoices = fixture.__delayedVoices;
-  });
-  await page.waitForFunction(() => (window as any).__voiceReads >= 2);
-  expect(await page.evaluate(() => (window as any).__speechCalls)).toEqual([]);
+  await expect(page.getByRole('button', { name: 'Continuar viaje', exact: true })).toBeVisible();
 });

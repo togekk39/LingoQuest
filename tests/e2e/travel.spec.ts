@@ -1,5 +1,13 @@
 import { mkdirSync } from 'node:fs';
-import { test, expect, enterApp, readyOfflineShell, beginFirstLesson, state } from './helpers';
+import {
+  test,
+  expect,
+  enterApp,
+  readyOfflineShell,
+  finishVocabulary,
+  openTravelWriting,
+  state,
+} from './helpers';
 
 const exact = (name: string) => ({ name, exact: true });
 
@@ -26,7 +34,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   const click = (name: string) => page.getByRole('button', exact(name)).click();
   await click('Continuar');
   await click('Continuar');
-  await click('Probar en la historia');
+  await finishVocabulary(page);
   const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
   await input.fill('Hi! I am');
   const travelState = () =>
@@ -53,7 +61,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await click('Volver al viaje');
   await click('Continuar viaje');
   await click('Continuar');
-  await click('Probar en la historia');
+  await finishVocabulary(page);
   await page.evaluate(() => {
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () {
@@ -83,7 +91,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await click('Volver al viaje');
   await click('Continuar viaje');
   await click('Continuar');
-  await click('Probar en la historia');
+  await finishVocabulary(page);
   await page.getByRole('radio', exact('A blue bag')).click();
   await click('Comprobar respuesta');
   await click('Seguir la historia');
@@ -113,21 +121,16 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   }
 });
 
-test('a short practice opens from home and a full course saves feedback independently', async ({
-  page,
-  context,
-}) => {
+test('quick review saves feedback separately from the active story', async ({ page, context }) => {
   await enterApp(page);
   await readyOfflineShell(page, context);
+  await openTravelWriting(page);
+  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hi! I am Luz.');
+  await page.getByRole('button', exact('Comprobar respuesta')).click();
+  await page.getByRole('button', exact('Cerrar y volver')).click();
   await page.getByRole('button', exact('Repaso rápido')).click();
-  await page.getByRole('radio', exact('Hola')).click();
-  await page.getByRole('button', exact('Comprobar respuesta')).click();
-  await page.getByRole('button', exact('Volver al viaje')).click();
-  await beginFirstLesson(page);
-  await page.getByRole('radio').first().click();
-  await page.getByRole('button', exact('Comprobar respuesta')).click();
-  await expect(page.getByRole('button', exact('Siguiente ejercicio'))).toBeVisible();
-  await page.reload();
-  await page.getByRole('button', exact('Continuar aprendiendo')).click();
-  await expect(page.getByRole('button', exact('Siguiente ejercicio'))).toBeVisible();
+  await expect(page.getByRole('heading', exact('Me presento'))).toHaveCount(0);
+  await page.getByRole('button', exact('Cerrar y volver')).click();
+  await page.getByRole('button', exact('Continuar viaje')).click();
+  await expect(page.getByRole('button', exact('Seguir la historia'))).toBeVisible();
 });

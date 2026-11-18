@@ -18,7 +18,9 @@ import {
   type RunView,
   type User,
 } from '@lingoquest/contracts';
-import { travelLesson } from './travel-content';
+import { chapter, travelLesson } from './travel-content';
+import { assessTravelPlacement, placementQuestions } from './travel-placement';
+import { availableTravelRanks, HOME_TRAVEL_TRACK, travelChallengeItems } from './travel-challenges';
 import {
   emptyTravel,
   travelStateSchema,
@@ -27,9 +29,16 @@ import {
   savedResultSchema,
   type TravelState,
 } from './travel';
+export { activeTravelCourse } from './travel-challenges';
 export { chapter } from './travel-content';
 export { homeCountries, route, type Destination, type HomeCountry } from './travel-route';
-export type { TravelMission, TravelStep } from './travel-content';
+export type { TravelMission, TravelStep, TravelVocabulary } from './travel-content';
+export { canStartTravelMission, nextTravelMission } from './travel';
+export type {
+  TravelPlacement,
+  TravelPlacementQuestion,
+  TravelPlacementResponse,
+} from './travel-placement';
 export type { TravelCheckpoint, TravelState, TravelOperation } from './travel';
 
 /** Device-local learning only. Scores are personal practice, never verified rankings. */
@@ -128,6 +137,7 @@ export interface OfflineState {
   travel?: TravelState;
   lessonCheckpoints?: Record<string, LessonCheckpoint>;
   quickReview?: QuickCheckpoint;
+  travelQuickReview?: QuickCheckpoint;
 }
 export const OFFLINE_STATE_KEY = 'lq_offline_state_v1';
 export class LocalError extends Error {
@@ -482,6 +492,7 @@ const backupStateSchema = z
     travel: travelStateSchema.optional(),
     lessonCheckpoints: z.record(lessonCheckpointSchema).optional(),
     quickReview: quickCheckpointSchema.optional(),
+    travelQuickReview: quickCheckpointSchema.optional(),
     skillDayBaseline: z.record(
       z.object({ day: z.string().max(10), lastPracticedAt: iso.nullable() }).strict(),
     ),
@@ -731,6 +742,20 @@ export class OfflineEngine {
         mode: 'offline',
       });
     if (route === '/v1/me/progress') return done(progress(state, now));
+    if (route === '/v1/travel/placement') {
+      if (method === 'GET') return done({ questions: placementQuestions(publicExercise) });
+      const travel = (state.travel ??= emptyTravel());
+      const placement = assessTravelPlacement(body, grade);
+      travel.placement = placement;
+      const preceding = chapter.missions.slice(
+        0,
+        chapter.missions.findIndex((m) => m.id === placement.missionId),
+      );
+      travel.cleared = (['hello', 'bus'] as const).filter(
+        (id) => travel.cleared?.includes(id) || preceding.some((m) => m.id === id),
+      );
+      return done({ placement, travel });
+    }
     if (route === '/v1/travel') {
       const travel = (state.travel ??= emptyTravel());
       if (method === 'POST')
@@ -767,12 +792,16 @@ export class OfflineEngine {
       return done({ saved, result });
     }
     if (route === '/v1/reviews/quick') {
-      const lessons = [...Object.values(content.lessons), travelLesson];
+      const travelOnly = params.get('source') === 'travel';
+      const checkpointKey = travelOnly ? 'travelQuickReview' : 'quickReview';
+      const lessons = travelOnly
+        ? [travelLesson]
+        : [...Object.values(content.lessons), travelLesson];
       const forReview = (exercise: CourseExercise) => ({
         ...publicExercise(exercise),
         ...(exercise.id === 'travel_bus_listen' ? { promptEs: '¿Qué significa «bus stop»?' } : {}),
       });
-      const previous = state.quickReview;
+      const previous = state[checkpointKey];
       const existing =
         previous &&
         lessons
@@ -792,7 +821,7 @@ export class OfflineEngine {
           .parse(body);
         if (previous && existing && update.token === previous.token) {
           if (update.action === 'dismiss' && previous.result) {
-            delete state.quickReview;
+            delete state[checkpointKey];
             return done(null);
           }
           if (update.action === 'draft' && !previous.result) previous.answer = update.answer;
@@ -810,14 +839,14 @@ export class OfflineEngine {
       }
       if (previous && existing) return done({ ...previous, exercise: forReview(existing) });
       const create = (lesson: CourseLesson, exercise: CourseExercise, starter = false) => {
-        state.quickReview = {
+        state[checkpointKey] = {
           token: this.id(),
           lessonId: lesson.id,
           exerciseId: exercise.id,
           answer: {},
           starter,
         };
-        return done({ ...state.quickReview, exercise: forReview(exercise) });
+        return done({ ...state[checkpointKey], exercise: forReview(exercise) });
       };
       const ranked = [...state.mastery].sort(
         (a, b) =>
@@ -827,9 +856,11 @@ export class OfflineEngine {
       );
       for (const target of ranked) {
         for (const lesson of lessons) {
-          if (!own(state.visitedExercises, lesson.id)?.length) continue;
+          const visited = own(state.visitedExercises, lesson.id);
+          if (!visited?.length) continue;
           const exercise = lesson.exercises.find(
             (e) =>
+              (!travelOnly || visited.includes(e.id)) &&
               e.dimension === target.dimension &&
               (target.dimension.startsWith('vocabulary_')
                 ? e.vocabularyIds?.includes(target.targetId)
@@ -949,15 +980,20 @@ export class OfflineEngine {
       return done(result);
     }
     if (route === '/v1/reviews/today') {
+      const travelOnly = params.get('source') === 'travel';
+      const lessons = travelOnly
+        ? [travelLesson]
+        : [...Object.values(content.lessons), travelLesson];
       const reviews = state.mastery
         .filter((m) => params.get('all') === 'true' || Date.parse(m.nextReviewAt) <= now)
         .sort((a, b) => a.value - b.value)
         .map((m) => {
-          const related = [...Object.values(content.lessons), travelLesson].filter(
+          const related = lessons.filter(
             (lesson) =>
               own(state.visitedExercises, lesson.id)?.length &&
               lesson.exercises.some(
                 (e) =>
+                  (!travelOnly || !!own(state.visitedExercises, lesson.id)?.includes(e.id)) &&
                   e.dimension === m.dimension &&
                   (m.dimension.startsWith('vocabulary_')
                     ? e.vocabularyIds?.includes(m.targetId)
@@ -966,7 +1002,7 @@ export class OfflineEngine {
           );
           const lesson =
             [...related].reverse().find((l) => state.completedLessons.includes(l.id)) ?? related[0];
-          const vocabulary = Object.values(content.lessons)
+          const vocabulary = lessons
             .flatMap((l) => l.vocabulary ?? [])
             .find((v) => v.id === m.targetId);
           return {
@@ -974,9 +1010,13 @@ export class OfflineEngine {
             skillId: m.skillId,
             targetId: m.targetId,
             dimension: m.dimension,
-            targetLabelEs: vocabulary
-              ? `${vocabulary.en} · ${vocabulary.es}`
-              : (lesson?.title ?? m.skillId),
+            targetLabelEs: travelOnly
+              ? (related[0]?.exercises.find(
+                  (e) => e.skillId === m.skillId && e.dimension === m.dimension,
+                )?.promptEs ?? chapter.title)
+              : vocabulary
+                ? `${vocabulary.en} · ${vocabulary.es}`
+                : (lesson?.title ?? m.skillId),
             mastery: m.value,
             dueAt: m.nextReviewAt,
             due: Date.parse(m.nextReviewAt) <= now,
@@ -995,7 +1035,8 @@ export class OfflineEngine {
               .slice(0, 4)
               .map(publicExercise),
           };
-        });
+        })
+        .filter((review) => !travelOnly || review.travel);
       return done({ reviews, total: reviews.length });
     }
     if (route === '/v1/pronunciation/drills')
@@ -1047,6 +1088,33 @@ export class OfflineEngine {
           'Es una orientación personal, no una certificación. Explora las lecciones a tu ritmo.',
       });
     }
+    const homeChallengeOpen = !!state.travel?.stamps[chapter.id];
+    if (route === '/v1/challenges/tracks' && params.get('source') === 'travel')
+      return done({
+        tracks: [
+          {
+            id: HOME_TRAVEL_TRACK,
+            titleEs: 'Pruebas de La primera postal',
+            descriptionEs:
+              'Pon en práctica los saludos, las indicaciones y las descripciones del capítulo.',
+            unlocked: homeChallengeOpen,
+            available: true,
+            completedLessons: chapter.missions.filter(
+              (m) =>
+                state.travel?.completed[m.id] || state.travel?.cleared?.some((id) => id === m.id),
+            ).length,
+            requiredLessons: chapter.missions.length,
+            published: false,
+            rankedAvailable: false,
+            highestPracticeLevel: Math.max(
+              0,
+              ...state.challengeProgress
+                .filter((p) => p.trackId === HOME_TRAVEL_TRACK)
+                .map((p) => p.highestLevel),
+            ),
+          },
+        ],
+      });
     if (route === '/v1/challenges/tracks')
       return done({
         tracks: tracks.map((track) => {
@@ -1073,7 +1141,8 @@ export class OfflineEngine {
     const levelMatch = route.match(/^\/v1\/challenges\/tracks\/([^/]+)\/levels$/);
     if (levelMatch) {
       const track = tracks.find((t) => t.id === levelMatch[1]);
-      if (!track) throw new LocalError('Tema no disponible.', 404);
+      const isHomeTrack = levelMatch[1] === HOME_TRAVEL_TRACK;
+      if (!track && !isHomeTrack) throw new LocalError('Tema no disponible.', 404);
       const type = z
         .enum(['grammar_rush', 'cloze_battle', 'reading_quest'])
         .parse(params.get('type') ?? 'grammar_rush');
@@ -1089,30 +1158,42 @@ export class OfflineEngine {
             content,
             type,
             level.level,
-            questions(content, type, level.level, state),
+            isHomeTrack
+              ? travelChallengeItems(type, level.level)
+              : questions(content, type, level.level, state),
           ),
-          unlocked: trackUnlocked(state, content, challengeUnit(content, level.level)),
+          unlocked: isHomeTrack
+            ? homeChallengeOpen && level.level <= availableTravelRanks
+            : trackUnlocked(state, content, challengeUnit(content, level.level)),
           unlockUnit: challengeUnit(content, level.level),
+          planned: isHomeTrack && level.level > availableTravelRanks,
           bestScore: record?.bestScores[String(level.level)] ?? 0,
         })),
         practiceOnly: true,
       });
     }
     if (route === '/v1/challenges/runs' && method === 'POST') {
-      const input = runSchema.parse(body);
+      const input = runSchema
+        .extend({ trackId: runSchema.shape.trackId.or(z.literal(HOME_TRAVEL_TRACK)) })
+        .parse(body);
+      const isHomeTrack = input.trackId === HOME_TRAVEL_TRACK;
       if (input.mode !== 'practice')
         throw new LocalError(
           'Solo hay práctica local, sin clasificación en línea.',
           403,
           'RANKED_DISABLED',
         );
-      if (input.trackId !== 'present_simple')
+      if (input.trackId !== 'present_simple' && !isHomeTrack)
         throw new LocalError(
           'Este tema aún no forma parte del contenido instalado.',
           404,
           'CONTENT_UNAVAILABLE',
         );
-      if (!trackUnlocked(state, content, challengeUnit(content, input.level)))
+      if (
+        isHomeTrack
+          ? !homeChallengeOpen || input.level > availableTravelRanks
+          : !trackUnlocked(state, content, challengeUnit(content, input.level))
+      )
         throw new LocalError(
           'Primero completa las lecciones relacionadas. Los desafíos son opcionales y solo usan material aprendido.',
           403,
@@ -1132,9 +1213,14 @@ export class OfflineEngine {
         finish(state, run, now);
         return done(view(run, now));
       }
-      const items = copy(questions(content, input.type, input.level, state));
+      const items = copy(
+        isHomeTrack
+          ? travelChallengeItems(input.type, input.level)
+          : questions(content, input.type, input.level, state),
+      );
       const needed = input.type === 'grammar_rush' ? 10 : input.type === 'cloze_battle' ? 5 : 4;
-      if (items.length < needed) throw new LocalError('Faltan preguntas para esta práctica.', 404);
+      if (!isHomeTrack && items.length < needed)
+        throw new LocalError('Faltan preguntas para esta práctica.', 404);
       const config = content.challengeLevels.find((l) => l.level === input.level)!;
       const id = this.id();
       const run: StoredRun = {

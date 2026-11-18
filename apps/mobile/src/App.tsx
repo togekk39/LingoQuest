@@ -1,86 +1,55 @@
-import { ThemeButton } from './ThemePicker';
-import { useTheme } from './theme';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  useWindowDimensions,
-  TextInput,
   ActivityIndicator,
   Modal,
   Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
 } from 'react-native';
-import {
-  Compass,
-  House,
-  BookOpen,
-  Trophy,
-  UserRound,
-  ArrowRight,
-  ChevronRight,
-  Check,
-  Flame,
-  Zap,
-  X,
-  ShieldCheck,
-  MapPin,
-  MapPinned,
-  Briefcase,
-  RefreshCw,
-  Settings2,
-  ArrowUpRight,
-  CheckCircle2,
-  Leaf,
-} from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, bootstrap, localSettings, type Unit, type Progress } from './lib/api';
-import { Button, Card, Label, Heading, Pill } from './ui';
-import { JourneyArt } from './JourneyArt';
-import { LessonReference } from './features/LessonReference';
-import { ReviewsFlow } from './features/ReviewsFlow';
-import { LearningFlow } from './features/LearningFlow';
-import { PlacementFlow } from './features/PlacementFlow';
-import { MissionsFlow } from './features/MissionsFlow';
-import { PronunciationFlow } from './features/PronunciationFlow';
-import { ChallengesScreen } from './challenges/ChallengesScreen';
-import { OfflineProfile as Profile } from './content-manager/OfflineProfile';
-import { getRaw } from './lib/storage';
-import { saveTextFile } from './lib/localFiles';
+import { BookOpen, House, MapPinned, Settings2, Trophy, UserRound, X } from 'lucide-react-native';
 import {
   OFFLINE_STATE_KEY,
   chapter,
+  nextTravelMission,
   route,
   type TravelCheckpoint,
   type TravelOperation,
   type TravelState,
 } from '@lingoquest/offline-engine';
+import { ThemeButton } from './ThemePicker';
+import { useTheme } from './theme';
+import { api, bootstrap, localSettings, type Progress } from './lib/api';
+import { Button, Card, Heading, Label } from './ui';
+import { ReviewsFlow } from './features/ReviewsFlow';
+import { ChallengesScreen } from './challenges/ChallengesScreen';
+import { OfflineProfile as Profile } from './content-manager/OfflineProfile';
+import { getRaw } from './lib/storage';
+import { saveTextFile } from './lib/localFiles';
 import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
 import { TravelFlow } from './travel/TravelFlow';
 import { QuickReview } from './travel/QuickReview';
+import { TravelWelcome } from './travel/TravelWelcome';
+import { TravelPlacementFlow } from './travel/TravelPlacementFlow';
+import { TravelGuide, TravelPronunciation } from './travel/TravelGuide';
+import { TravelMark } from './travel/TravelAppearance';
 import { SpeechSettings } from './features/SpeechSettings';
-import { MotionEntrance, MotionPressable, MotionProvider, useReducedMotion } from './motion';
+import { MotionProvider, useReducedMotion } from './motion';
 
-type Tab = 'Inicio' | 'Mapa' | 'Aprender' | 'Desafíos' | 'Perfil';
-const tabs: { id: Tab; icon: typeof House }[] = [
+const tabs = [
   { id: 'Inicio', icon: House },
   { id: 'Mapa', icon: MapPinned },
   { id: 'Aprender', icon: BookOpen },
   { id: 'Desafíos', icon: Trophy },
   { id: 'Perfil', icon: UserRound },
-];
-const unitColors = [
-  '#E7F2E8',
-  '#F8EDDC',
-  '#E8EEF8',
-  '#F8E7E4',
-  '#E8F1F4',
-  '#EDE9F5',
-  '#F3EFDB',
-  '#E0EFE9',
-];
+] as const;
+type Tab = (typeof tabs)[number]['id'];
+type Flow = 'placement' | 'speech' | 'reviews' | 'quick';
+
 export default function App() {
   const [reducedMotion, setReducedMotion] = useState(true);
   return (
@@ -94,58 +63,43 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const { colors: C } = useTheme();
   const reducedMotion = useReducedMotion();
   const s = useStyles();
-
-  const { width } = useWindowDimensions();
-  const desktop = width >= 1050;
+  const { width, fontScale } = useWindowDimensions();
+  const desktop = width >= 1080 && fontScale < 1.4;
   const scroll = useRef<ScrollView>(null);
   const [tab, setTab] = useState<Tab>('Inicio');
   const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
-  const [travelFlow, setTravelFlow] = useState<TravelCheckpoint | null>(null);
+  const [mission, setMission] = useState<TravelCheckpoint | null>(null);
   const [destination, setDestination] = useState('home');
   const [countryPicker, setCountryPicker] = useState(false);
   const [passport, setPassport] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [courseResume, setCourseResume] = useState<string | null>(null);
-  const [units, setUnits] = useState<Unit[]>([]);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [flow, setFlow] = useState<{
-    type: 'lesson' | 'placement' | 'mission' | 'speech' | 'reviews' | 'quick' | 'reference';
-    id?: string;
-  } | null>(null);
-  useEffect(() => {
-    scroll.current?.scrollTo({ y: 0, animated: false });
-  }, [tab, passport]);
+  const [flow, setFlow] = useState<Flow | null>(null);
   const [settings, setSettings] = useState(false);
   const [recoveryReset, setRecoveryReset] = useState(false);
   const [welcome, setWelcome] = useState(false);
-  const [welcomeStep, setWelcomeStep] = useState(0);
-  const [name, setName] = useState('');
-  const [goal, setGoal] = useState(10);
-  const [motivation, setMotivation] = useState('Vida diaria');
+
   const refresh = useCallback(async () => {
-    const [catalog, p, journey, recentLesson] = await Promise.all([
-      api<{ units: Unit[] }>('/v1/catalog'),
+    const [p, journey, review] = await Promise.all([
       api<Progress>('/v1/me/progress'),
       api<TravelState>('/v1/travel'),
-      api<string | null>('/v1/lessons/resume'),
+      api<{ total: number }>('/v1/reviews/today?source=travel'),
     ]);
-    setUnits(catalog.units);
-    setProgress(p);
+    setProgress({ ...p, reviewCount: review.total });
     setTravel(journey);
-    setCourseResume(recentLesson);
     onMotionPreference(!!p.user.reducedMotion);
     setError('');
   }, [onMotionPreference]);
   useEffect(() => {
     let active = true;
-    (async () => {
+    void (async () => {
       try {
         await bootstrap();
         await refresh();
-        if (!(await localSettings.get('onboarded', false))) setWelcome(true);
+        if (active) setWelcome(!(await localSettings.get('onboarded', false)));
       } catch (e) {
         if (active) setError((e as Error).message);
       } finally {
@@ -161,1031 +115,477 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       Platform.OS === 'web' &&
       'serviceWorker' in navigator &&
       process.env.NODE_ENV === 'production'
-    ) {
+    )
       void navigator.serviceWorker.register('/sw.js').catch(() => {});
-    }
   }, []);
   useEffect(() => {
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [tab, passport]);
+  useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(''), 5000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setNotice(''), 5000);
+    return () => clearTimeout(timer);
   }, [notice]);
-  const complete = () => {
-    setFlow(null);
-    void refresh().catch((e) => setNotice(e.message));
-  };
-  const nextLesson =
-    units.flatMap((u) => u.lessons).find((l) => !progress?.completedLessons.includes(l.id)) ??
-    units[0]?.lessons[0];
+
   async function updateTravel(action: TravelOperation) {
     const value = await api<TravelState>('/v1/travel', action);
     setTravel(value);
     return value;
   }
-  async function startTravel(missionId?: string) {
+  async function openMission(id?: string, journey = travel) {
+    const target = id ?? nextTravelMission(journey)?.id;
+    if (!target) {
+      setPassport(true);
+      return;
+    }
+    const value = await updateTravel({ action: 'start', missionId: target });
+    if (value.active?.missionId !== target)
+      throw new Error('Completa la misión anterior para continuar.');
+    setPassport(false);
+    setFlow(null);
+    setMission(value.active);
+  }
+  function startMission(id?: string) {
+    if (starting) return;
+    setStarting(true);
+    void openMission(id)
+      .catch((e) => setNotice(e.message))
+      .finally(() => setStarting(false));
+  }
+  async function chooseWelcome(choice: 'start' | 'placement' | 'explore') {
     if (starting) return;
     setStarting(true);
     try {
-      const id =
-        missionId ??
-        travel.active?.missionId ??
-        chapter.missions.find((m) => !travel.completed[m.id])?.id;
-      if (!id) {
-        setPassport(true);
-        return;
-      }
-      setPassport(false);
-      const value = await updateTravel({ action: 'start', missionId: id });
-      if (value.active) setTravelFlow(value.active);
+      await localSettings.set('onboarded', true);
+      if (choice === 'start') await openMission();
+      if (choice === 'placement') setFlow('placement');
+      setWelcome(false);
     } catch (e) {
       setNotice((e as Error).message);
+      setWelcome(false);
     } finally {
       setStarting(false);
     }
   }
-  function closeTravel() {
-    setTravelFlow(null);
+  const finishFlow = () => {
+    setFlow(null);
     void refresh().catch((e) => setNotice(e.message));
-  }
-  if (travelFlow)
+  };
+  const closeMission = () => {
+    setMission(null);
+    void refresh().catch((e) => setNotice(e.message));
+  };
+  if (mission)
     return (
       <TravelFlow
-        initial={travelFlow}
+        key={mission.missionId}
+        initial={mission}
         onUpdate={setTravel}
-        onClose={closeTravel}
+        onClose={closeMission}
         onPassport={() => {
-          closeTravel();
+          closeMission();
           setPassport(true);
         }}
       />
     );
-  const begin = () => {
-    const id = courseResume ?? nextLesson?.id;
-    if (id) setFlow({ type: 'lesson', id });
-  };
-  if (flow?.type === 'lesson')
-    return <LearningFlow lessonId={flow.id!} onClose={complete} onComplete={complete} />;
-  if (flow?.type === 'reference')
-    return <LessonReference id={flow.id!} onClose={() => setFlow(null)} />;
-  if (flow?.type === 'reviews') return <ReviewsFlow onClose={complete} />;
-  if (flow?.type === 'quick') return <QuickReview onClose={complete} />;
-  if (flow?.type === 'placement')
-    return <PlacementFlow onClose={() => setFlow(null)} onComplete={complete} />;
-  if (flow?.type === 'mission')
-    return <MissionsFlow missionId={flow.id as 'airport' | 'job'} onClose={() => setFlow(null)} />;
-  if (flow?.type === 'speech') return <PronunciationFlow onClose={() => setFlow(null)} />;
-  const go = (t: Tab) => {
-    setTab(t);
+  if (flow === 'placement')
+    return <TravelPlacementFlow onClose={finishFlow} onStart={openMission} />;
+  if (flow === 'speech') return <TravelPronunciation onClose={finishFlow} />;
+  if (flow === 'reviews') return <ReviewsFlow onClose={finishFlow} />;
+  if (flow === 'quick') return <QuickReview onClose={finishFlow} />;
+  if (welcome && !loading && !error)
+    return (
+      <TravelWelcome
+        busy={starting}
+        onStart={() => void chooseWelcome('start')}
+        onAssessment={() => void chooseWelcome('placement')}
+        onClose={() => void chooseWelcome('explore')}
+      />
+    );
+
+  function go(next: Tab) {
+    setTab(next);
     setPassport(false);
-    setFlow(null);
-  };
+  }
+  const nav = (
+    <View style={desktop ? s.desktopNav : s.mobileNav}>
+      {tabs.map(({ id, icon: Icon }) => (
+        <Pressable
+          key={id}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === id }}
+          accessibilityLabel={id}
+          onPress={() => go(id)}
+          style={({ pressed }) => [
+            desktop ? s.desktopTab : s.mobileTab,
+            tab === id && s.tabActive,
+            pressed && { opacity: 0.65 },
+          ]}
+        >
+          <Icon size={desktop ? 19 : 18} color={tab === id ? C.accent : C.teal} />
+          <Text
+            style={[
+              s.navText,
+              !desktop && { fontSize: width < 350 ? 9 : 10 },
+              tab === id && { color: C.accent },
+            ]}
+          >
+            {id}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
   return (
     <SafeAreaView style={s.safe}>
-      <View style={s.shell}>
+      <View style={s.layout}>
         {desktop && (
           <View style={s.sidebar}>
-            <Brand />
-
-            <View style={{ gap: 8, marginTop: 42 }}>
-              {tabs.map((t) => (
-                <Pressable
-                  key={t.id}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: tab === t.id }}
-                  onPress={() => go(t.id)}
-                  style={[s.navItem, tab === t.id && s.navActive]}
-                >
-                  <t.icon size={20} color={tab === t.id ? C.teal : C.muted} />
-                  <Text
-                    style={[
-                      s.navLabel,
-                      tab === t.id && { color: C.teal, fontFamily: 'ManropeBold' },
-                    ]}
-                  >
-                    {t.id}
-                  </Text>
-                </Pressable>
-              ))}
+            <View style={s.sidebarBrand}>
+              <TravelMark />
+              <Text style={s.brand}>LingoQuest</Text>
             </View>
-            <View style={s.sidebarBottom}>
-              <View style={s.sidebarTip}>
-                <View style={s.leaf}>
-                  <Leaf color={C.teal} size={22} />
-                </View>
-                <Text style={s.tipTitle}>A tu ritmo, siempre.</Text>
-                <Label style={{ fontSize: 11, lineHeight: 18 }}>
-                  Cada pequeño paso te lleva más lejos.
-                </Label>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Configuración"
-                onPress={() => setSettings(true)}
-                style={s.sideSettings}
-              >
-                <Settings2 size={17} color={C.muted} />
-                <Label style={{ fontSize: 12 }}>Configuración y privacidad</Label>
-                <ArrowUpRight size={14} color={C.muted} />
-              </Pressable>
-              <Pressable onPress={() => go('Perfil')} style={s.sideProfile}>
-                <View style={s.avatar}>
-                  <Text style={s.avatarText}>
-                    {(progress?.user.name || 'E').slice(0, 1).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.profileName}>{progress?.user.name || 'Explorador'}</Text>
-                  <Text style={s.profileSub}>Perfil local</Text>
-                </View>
-                <ChevronRight size={16} color={C.muted} />
-              </Pressable>
-            </View>
+            {nav}
+            <View style={{ flex: 1 }} />
+            <Button variant="ghost" icon={Settings2} onPress={() => setSettings(true)}>
+              Configuración
+            </Button>
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <View
-            style={[
-              s.topbar,
-              !desktop && {
-                paddingHorizontal: width < 360 ? 12 : 20,
-                height: undefined,
-                minHeight: 70,
-                flexWrap: 'wrap',
-                paddingVertical: 8,
-              },
-            ]}
-          >
-            {!desktop ? (
-              <Brand small />
+          <View style={s.topbar}>
+            {desktop ? (
+              <Text style={[s.sectionLabel, { color: C.accent }]}>{tab}</Text>
             ) : (
-              <View style={s.row}>
-                <Text style={s.breadcrumb}>Tu espacio</Text>
-                <ChevronRight size={12} color="#A2B2A9" />
-                <Text style={s.breadcrumbCurrent}>{tab}</Text>
+              <View style={s.mobileBrand}>
+                <TravelMark size={29} color={C.accent} />
+                <Text style={[s.brand, { color: C.ink, fontSize: 20 }]}>LingoQuest</Text>
               </View>
             )}
-            <View style={[s.row, { gap: desktop ? 18 : 6 }]}>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
               <ThemeButton />
               {!desktop && (
                 <Pressable
+                  style={s.iconButton}
                   accessibilityRole="button"
                   accessibilityLabel="Configuración"
                   onPress={() => setSettings(true)}
-                  style={s.dismiss}
                 >
-                  <Settings2 size={20} color={C.teal} />
+                  <Settings2 color={C.teal} size={19} />
                 </Pressable>
-              )}
-              {desktop && (
-                <>
-                  <View style={s.row}>
-                    <Flame size={17} color="#DA9460" />
-                    <Text style={s.topStat}>
-                      {progress?.streak || 0}
-                      {desktop && <Text style={s.topStatCaption}> días</Text>}
-                    </Text>
-                  </View>
-                  <View style={s.topDivider} />
-                  <View style={s.row}>
-                    <Zap size={17} color={C.teal} />
-                    <Text style={s.topStat}>
-                      {progress?.xp || 0}
-                      {desktop && <Text style={s.topStatCaption}> XP</Text>}
-                    </Text>
-                  </View>
-                </>
-              )}
-              {desktop && (
-                <View style={s.language}>
-                  <Text style={{ fontSize: 14 }}>🇺🇸</Text>
-                  <Text style={s.languageText}>Inglés</Text>
-                </View>
               )}
             </View>
           </View>
           <ScrollView
             ref={scroll}
-            contentContainerStyle={[s.content, { padding: desktop ? 36 : 20 }]}
-            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[s.content, { padding: desktop ? 31 : 15 }]}
           >
             {loading ? (
               <View style={s.loading}>
-                <ActivityIndicator size="large" color={C.teal} />
-                <Label>Preparando tu aventura…</Label>
+                <ActivityIndicator color={C.accent} />
+                <Label>Preparando el viaje…</Label>
               </View>
             ) : error ? (
-              <Card>
+              <Card style={{ gap: 12 }}>
                 <Heading>No pudimos abrir tus datos</Heading>
                 <Label>{error}</Label>
                 <Button
                   variant="secondary"
                   onPress={() => {
                     void getRaw(OFFLINE_STATE_KEY)
-                      .then(async (raw) => {
-                        if (!raw) throw new Error('No hay datos guardados para conservar.');
-                        await saveTextFile('lingoquest-datos-anteriores.json', raw);
-                        setNotice(
-                          'Copia guardada. Los datos del prototipo anterior son solo para consulta.',
-                        );
+                      .then(async (original) => {
+                        if (!original) throw new Error('No hay datos guardados para conservar.');
+                        await saveTextFile('lingoquest-datos-anteriores.json', original);
+                        setNotice('Copia guardada.');
                       })
                       .catch((e) => setNotice(e.message));
                   }}
                 >
                   Guardar copia de los datos anteriores
                 </Button>
-                <Button
-                  onPress={() => {
-                    setLoading(true);
-                    void bootstrap()
-                      .then(refresh)
-                      .catch((e) => setError(e.message))
-                      .finally(() => setLoading(false));
-                  }}
-                  icon={RefreshCw}
-                >
+                <Button onPress={() => void refresh().catch((e) => setError(e.message))}>
                   Intentar de nuevo
                 </Button>
-                <Button variant="danger" onPress={() => setRecoveryReset(true)}>
+                <Button variant="ghost" onPress={() => setRecoveryReset(true)}>
                   Restablecer datos locales
                 </Button>
               </Card>
-            ) : (
-              <>
-                {passport ? (
-                  <>
-                    <Button variant="ghost" onPress={() => setPassport(false)}>
-                      Volver al viaje
-                    </Button>
-                    <Passport
-                      travel={travel}
-                      onContinue={() => void startTravel()}
-                      onNote={async (text) => {
-                        await updateTravel({ action: 'note', text });
-                      }}
-                    />
-                  </>
-                ) : (
-                  <>
-                    {tab === 'Inicio' && (
-                      <TravelHome
-                        travel={travel}
-                        progress={progress!}
-                        lessonCount={units.reduce((count, unit) => count + unit.lessons.length, 0)}
-                        onContinue={() => void startTravel()}
-                        onReview={() => setFlow({ type: 'quick' })}
-                        onRoute={() => go('Mapa')}
-                        onLearn={begin}
-                        onPassport={() => setPassport(true)}
-                        onSpeech={() => setFlow({ type: 'speech' })}
-                        onFullReview={() => setFlow({ type: 'reviews' })}
-                      />
-                    )}
-                    {tab === 'Mapa' && (
-                      <TravelRoute
-                        travel={travel}
-                        units={units}
-                        selected={route.find((item) => item.id === destination) ?? route[0]}
-                        onSelect={(id) => {
-                          setDestination(id);
-                          scroll.current?.scrollTo({ y: 0, animated: false });
-                        }}
-                        onStart={(id) => void startTravel(id)}
-                        onCountry={() => setCountryPicker(true)}
-                        onPassport={() => setPassport(true)}
-                        onLesson={(id) => setFlow({ type: 'lesson', id })}
-                      />
-                    )}
-                    {tab === 'Aprender' && (
-                      <LearnMap
-                        units={units}
-                        progress={progress!}
-                        onLesson={(id: string) => setFlow({ type: 'lesson', id })}
-                        onPlacement={() => setFlow({ type: 'placement' })}
-                        onReview={() => setFlow({ type: 'reviews' })}
-                        onMission={(id: string) => setFlow({ type: 'mission', id })}
-                        onReference={(id) => setFlow({ type: 'reference', id })}
-                      />
-                    )}
-                    {tab === 'Desafíos' && (
-                      <ChallengesScreen
-                        onLearn={() => go('Aprender')}
-                        onRefresh={() => void refresh()}
-                      />
-                    )}
-                    {tab === 'Perfil' && (
-                      <Profile
-                        key={progress!.user.id}
-                        progress={progress!}
-                        onRefresh={refresh}
-                        onNotice={setNotice}
-                        onPlacement={() => setFlow({ type: 'placement' })}
-                      />
-                    )}
-                  </>
-                )}
-                <View style={s.footer}>
-                  <View style={s.row}>
-                    <Compass size={13} color="#9DB2A4" />
-                    <Text style={s.footerText}>LingoQuest</Text>
-                  </View>
-                </View>
-              </>
-            )}
-          </ScrollView>
-          {!desktop && (
-            <View style={s.bottomNav}>
-              {tabs.map((t) => (
-                <Pressable
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: tab === t.id }}
-                  key={t.id}
-                  style={s.bottomTab}
-                  onPress={() => go(t.id)}
+            ) : passport ? (
+              <View style={{ gap: 12 }}>
+                <Button
+                  variant="ghost"
+                  style={{ alignSelf: 'flex-start' }}
+                  onPress={() => setPassport(false)}
                 >
-                  <View style={[s.bottomIcon, tab === t.id && { backgroundColor: C.mint }]}>
-                    <t.icon size={21} color={tab === t.id ? C.teal : C.muted} />
-                  </View>
-                  <Text style={[s.bottomText, tab === t.id && { color: C.teal }]}>{t.id}</Text>
-                </Pressable>
-              ))}
-            </View>
+                  Volver al viaje
+                </Button>
+                <Passport
+                  travel={travel}
+                  onContinue={() => startMission()}
+                  onNote={async (text) => {
+                    await updateTravel({ action: 'note', text });
+                  }}
+                />
+              </View>
+            ) : tab === 'Inicio' && progress ? (
+              <TravelHome
+                travel={travel}
+                progress={progress}
+                onContinue={() => startMission()}
+                onReview={() => setFlow('quick')}
+                onRoute={() => go('Mapa')}
+                onGuide={() => go('Aprender')}
+                onPassport={() => setPassport(true)}
+                onSpeech={() => setFlow('speech')}
+                onFullReview={() => setFlow('reviews')}
+              />
+            ) : tab === 'Mapa' ? (
+              <TravelRoute
+                travel={travel}
+                selected={route.find((item) => item.id === destination) ?? route[0]}
+                onSelect={(id) => {
+                  setDestination(id);
+                  scroll.current?.scrollTo({ y: 0, animated: false });
+                }}
+                onStart={startMission}
+                onCountry={() => setCountryPicker(true)}
+                onPassport={() => setPassport(true)}
+              />
+            ) : tab === 'Aprender' ? (
+              <TravelGuide
+                travel={travel}
+                onMission={startMission}
+                onAssessment={() => setFlow('placement')}
+                onSpeech={() => setFlow('speech')}
+              />
+            ) : tab === 'Desafíos' ? (
+              <ChallengesScreen
+                onLearn={() => go('Aprender')}
+                onRefresh={() => {
+                  void refresh();
+                }}
+              />
+            ) : progress ? (
+              <Profile
+                key={progress.user.id}
+                progress={progress}
+                missionsCompleted={
+                  chapter.missions.filter((item) => travel.completed[item.id]).length
+                }
+                onRefresh={refresh}
+                onNotice={setNotice}
+                onPlacement={() => setFlow('placement')}
+              />
+            ) : null}
+          </ScrollView>
+          {!!notice && (
+            <Text accessibilityLiveRegion="polite" style={s.notice}>
+              {notice}
+            </Text>
           )}
+          {!desktop && nav}
         </View>
       </View>
-      {notice !== '' && (
-        <Pressable onPress={() => setNotice('')} style={s.toast}>
-          <CheckCircle2 size={18} color="#A8DBC2" />
-          <Text style={s.toastText}>{notice}</Text>
-          <X size={15} color="white" />
-        </Pressable>
-      )}
-      <Modal
-        visible={countryPicker}
-        transparent
-        animationType={reducedMotion ? 'none' : 'fade'}
-        onRequestClose={() => setCountryPicker(false)}
-      >
-        <View style={s.modalShade}>
-          <Card style={s.welcomeCard}>
-            <CountryPicker
-              selected={travel.country}
-              onSelect={(country) => {
-                if (starting) return;
-                setStarting(true);
-                void updateTravel({ action: 'country', country })
-                  .then(() => setCountryPicker(false))
-                  .catch((e) => setNotice(e.message))
-                  .finally(() => setStarting(false));
-              }}
-            />
-            <Button variant="ghost" onPress={() => setCountryPicker(false)}>
-              Cerrar
-            </Button>
-          </Card>
+      <Sheet visible={countryPicker} close={() => setCountryPicker(false)} reduced={reducedMotion}>
+        <CountryPicker
+          selected={travel.country}
+          onSelect={(country) => {
+            if (starting) return;
+            setStarting(true);
+            void updateTravel({ action: 'country', country })
+              .then(() => setCountryPicker(false))
+              .catch((e) => setNotice(e.message))
+              .finally(() => setStarting(false));
+          }}
+        />
+        <Button variant="ghost" onPress={() => setCountryPicker(false)}>
+          Cerrar
+        </Button>
+      </Sheet>
+      <Sheet visible={recoveryReset} close={() => setRecoveryReset(false)} reduced={reducedMotion}>
+        <Heading>¿Restablecer los datos locales?</Heading>
+        <Label>
+          Se borrará el progreso de este dispositivo. Puedes guardar una copia desde la pantalla
+          anterior.
+        </Label>
+        <Button
+          variant="danger"
+          loading={loading}
+          onPress={() => {
+            setLoading(true);
+            void api('/v1/me', undefined, 'DELETE')
+              .then(refresh)
+              .then(() => {
+                setRecoveryReset(false);
+                setWelcome(true);
+              })
+              .catch((e) => setError(e.message))
+              .finally(() => setLoading(false));
+          }}
+        >
+          Borrar progreso de este dispositivo
+        </Button>
+        <Button variant="ghost" onPress={() => setRecoveryReset(false)}>
+          Conservar mis datos
+        </Button>
+      </Sheet>
+      <Sheet visible={settings} close={() => setSettings(false)} reduced={reducedMotion}>
+        <View style={s.sheetTitle}>
+          <Heading>Configuración</Heading>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar configuración"
+            style={s.iconButton}
+            onPress={() => setSettings(false)}
+          >
+            <X size={22} color={C.ink} />
+          </Pressable>
         </View>
-      </Modal>
-      <Modal
-        visible={welcome}
-        transparent
-        animationType={reducedMotion ? 'none' : 'fade'}
-        onRequestClose={() => setWelcome(false)}
-      >
-        <View style={s.modalShade}>
-          <ScrollView style={{ flexGrow: 0, maxHeight: '100%', maxWidth: 480, width: '100%' }}>
-            <Card style={s.welcomeCard}>
-              <View style={s.sectionTitle}>
-                <Brand small />
-                <Pressable
-                  onPress={() => {
-                    setWelcome(false);
-                    void localSettings.set('onboarded', true);
-                  }}
-                  accessibilityLabel="Explorar primero"
-                  style={s.dismiss}
-                >
-                  <X size={20} color={C.muted} />
-                </Pressable>
-              </View>
-              {welcomeStep === 0 ? (
-                <>
-                  <View style={{ alignItems: 'center', marginVertical: 8 }}>
-                    <JourneyArt width={230} />
-                  </View>
-                  <Pill>EL MUNDO TE ESPERA</Pill>
-                  <Heading style={{ fontSize: 32, marginTop: 15 }}>
-                    Aprende inglés, descubre el mundo.
-                  </Heading>
-                  <Label style={{ marginTop: 10, marginBottom: 24 }}>
-                    Empieza en tu comunidad y usa el inglés para ayudar a una viajera.
-                  </Label>
-                  <Button
-                    icon={Compass}
-                    onPress={() => {
-                      void localSettings
-                        .set('onboarded', true)
-                        .then(() => {
-                          setWelcome(false);
-                          setTab('Mapa');
-                          setCountryPicker(true);
-                        })
-                        .catch((e) => setNotice(e.message));
-                    }}
-                  >
-                    Empezar mi viaje
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onPress={() => {
-                      void localSettings
-                        .set('onboarded', true)
-                        .then(() => {
-                          setWelcome(false);
-                          const first = units[0]?.lessons[0];
-                          if (first) setFlow({ type: 'lesson', id: first.id });
-                        })
-                        .catch((e) => setNotice(e.message));
-                    }}
-                    icon={ArrowRight}
-                  >
-                    Empiezo desde cero
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onPress={() => {
-                      void localSettings
-                        .set('onboarded', true)
-                        .then(() => {
-                          setWelcome(false);
-                          setFlow({ type: 'placement' });
-                        })
-                        .catch((e) => setNotice(e.message));
-                    }}
-                  >
-                    Ya sé algo de inglés
-                  </Button>
-                  <Button variant="ghost" onPress={() => setWelcomeStep(1)}>
-                    Personalizar mi camino
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onPress={() => {
-                      setWelcome(false);
-                      void localSettings.set('onboarded', true);
-                    }}
-                  >
-                    Explorar primero
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Heading style={{ marginVertical: 20 }}>Hagámoslo tuyo.</Heading>
-                  <Label>¿Cómo te llamas?</Label>
-                  <TextInput
-                    style={s.input}
-                    placeholder="Tu nombre"
-                    placeholderTextColor="#95A39C"
-                    value={name}
-                    onChangeText={setName}
-                    maxLength={40}
-                  />
-                  <Label style={{ marginTop: 15 }}>¿Cuánto tiempo te gustaría dedicar?</Label>
-                  <View style={[s.row, { marginVertical: 12 }]}>
-                    {[5, 10, 15].map((n) => (
-                      <Pressable
-                        key={n}
-                        style={[s.goalOption, goal === n && s.optionActive]}
-                        onPress={() => setGoal(n)}
-                      >
-                        <Text style={s.optionText}>{n} min</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  <Label>Tu motivo para aprender</Label>
-                  <View style={[s.row, { flexWrap: 'wrap', marginVertical: 12 }]}>
-                    {['Vida diaria', 'Viajes', 'Trabajo'].map((m) => (
-                      <Pressable
-                        key={m}
-                        onPress={() => setMotivation(m)}
-                        style={[s.goalOption, motivation === m && s.optionActive]}
-                      >
-                        <Text style={s.optionText}>{m}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  <Button
-                    onPress={() => {
-                      void api('/v1/me/settings', {
-                        name: name.trim() || 'Explorador',
-                        goalMinutes: goal,
-                        motivation:
-                          motivation === 'Viajes'
-                            ? 'travel'
-                            : motivation === 'Trabajo'
-                              ? 'work'
-                              : 'life',
-                      })
-                        .then(() => refresh())
-                        .then(() => {
-                          setWelcome(false);
-                          void localSettings.set('onboarded', true);
-                        })
-                        .catch((e) => setNotice(e.message));
-                    }}
-                    icon={ArrowRight}
-                  >
-                    Empezar mi aventura
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onPress={() => {
-                      setWelcome(false);
-                      void localSettings.set('onboarded', true);
-                      setFlow({ type: 'placement' });
-                    }}
-                  >
-                    Ya sé algo de inglés
-                  </Button>
-                </>
-              )}
-            </Card>
-          </ScrollView>
-        </View>
-      </Modal>
-      <Modal visible={recoveryReset} transparent onRequestClose={() => setRecoveryReset(false)}>
-        <View style={s.modalShade}>
-          <Card style={s.welcomeCard}>
-            <Heading>¿Restablecer los datos locales?</Heading>
-            <Label style={{ marginVertical: 20 }}>
-              Se borrará el progreso de este dispositivo. Los cursos instalados se conservan. Si
-              tienes un respaldo de esta versión podrás restaurarlo después. El nuevo curso
-              integrado usa un formato de progreso diferente: las copias del prototipo anterior se
-              pueden conservar para consulta, pero no restaurar en esta versión.
-            </Label>
-            <Button
-              variant="danger"
-              loading={loading}
-              onPress={() => {
-                setLoading(true);
-                void api('/v1/me', undefined, 'DELETE')
-                  .then(refresh)
-                  .then(() => {
-                    setRecoveryReset(false);
-                    setWelcomeStep(0);
-                    setWelcome(true);
-                  })
-                  .catch((e) => setError(e.message))
-                  .finally(() => setLoading(false));
-              }}
-            >
-              Borrar progreso de este dispositivo
-            </Button>
-            <Button variant="ghost" onPress={() => setRecoveryReset(false)}>
-              Conservar mis datos
-            </Button>
-          </Card>
-        </View>
-      </Modal>
-      <Modal
-        visible={settings}
-        transparent
-        animationType={reducedMotion ? 'none' : 'fade'}
-        onRequestClose={() => setSettings(false)}
-      >
-        <View style={s.modalShade}>
-          <Card style={[s.welcomeCard, { maxHeight: '90%', padding: 20 }]}>
-            <View style={s.sectionTitle}>
-              <Heading>Configuración</Heading>
-              <Pressable
-                onPress={() => setSettings(false)}
-                style={s.dismiss}
-                accessibilityRole="button"
-                accessibilityLabel="Cerrar configuración"
-              >
-                <X color={C.muted} />
-              </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={{ gap: 16, paddingTop: 16 }}>
-              {settings && <SpeechSettings />}
-              <Heading style={{ fontSize: 22 }}>Tu privacidad, primero</Heading>
-              <Label>
-                En el modo solo grabar, tu audio permanece en el dispositivo y se elimina al salir.
-                Si eliges reconocimiento, el servicio de voz del sistema o del navegador puede
-                procesar tu audio en línea. No guardamos el audio ni el texto del reconocimiento y
-                no generamos una calificación de pronunciación.
-                {'\n\n'}Puedes aprender sin micrófono. Las respuestas, los XP y el progreso se
-                guardan y se revisan en este dispositivo, sin cuentas ni servicios en línea.{'\n\n'}
-                Esta edición incluye contenido original de demostración pendiente de revisión
-                editorial. Los desafíos no cuentan para un ranking.
-              </Label>
-              <Button
-                onPress={() => {
-                  setSettings(false);
-                  go('Perfil');
-                }}
-              >
-                Ver mi perfil y mis datos
-              </Button>
-            </ScrollView>
-          </Card>
-        </View>
-      </Modal>
+        {settings && <SpeechSettings />}
+        <Heading style={{ fontSize: 22 }}>Privacidad</Heading>
+        <Label>
+          La grabación local se elimina al salir. Si eliges reconocimiento en la práctica de
+          pronunciación, el servicio del sistema o del navegador puede procesar el audio en línea.
+          El reconocimiento no se guarda ni se usa para dar una nota de pronunciación.
+        </Label>
+        <Button
+          variant="secondary"
+          onPress={() => {
+            setSettings(false);
+            go('Perfil');
+          }}
+        >
+          Ver mi perfil y mis datos
+        </Button>
+      </Sheet>
     </SafeAreaView>
   );
 }
-function Brand({ small = false }: { small?: boolean }) {
-  const { colors: C, tone } = useTheme();
-  const s = useStyles();
 
-  return (
-    <View style={[s.row, { gap: 10 }]}>
-      <View style={[s.logo, small && { width: 31, height: 31, borderRadius: 10 }]}>
-        <Compass size={small ? 21 : 27} color="white" strokeWidth={1.7} />
-      </View>
-      <Text style={[s.brand, small && { fontSize: 20 }]}>
-        lingo<Text style={{ color: C.teal }}>quest</Text>
-        <Text style={{ color: tone('#DAA76D', 'text') }}>.</Text>
-      </Text>
-    </View>
-  );
-}
-function LearnMap({
-  units,
-  progress,
-  onLesson,
-  onPlacement,
-  onReview,
-  onMission,
-  onReference,
+function Sheet({
+  visible,
+  close,
+  reduced,
+  children,
 }: {
-  units: Unit[];
-  progress: Progress;
-  onLesson: (id: string) => void;
-  onPlacement: () => void;
-  onReview: () => void;
-  onMission: (id: string) => void;
-  onReference: (id: string) => void;
+  visible: boolean;
+  close: () => void;
+  reduced: boolean;
+  children: React.ReactNode;
 }) {
-  const { colors: C, tone } = useTheme();
   const s = useStyles();
-
-  const [expanded, setExpanded] = useState('u01');
-
+  if (!visible) return null;
   return (
-    <View style={{ gap: 24, maxWidth: 1020 }}>
-      <View style={[s.sectionTitle, { flexWrap: 'wrap' }]}>
-        <View style={{ flexShrink: 1 }}>
-          <Text style={s.eyebrow}>PASO A PASO, PALABRA A PALABRA</Text>
-          <Heading style={{ fontSize: 32, marginTop: 7 }}>Tu ruta de aprendizaje</Heading>
-          <Label>{units.length} unidades de inglés para la vida diaria.</Label>
-        </View>
-        <Pill>A1 → A2</Pill>
-      </View>
-      <View style={[s.row, { flexWrap: 'wrap', gap: 12 }]}>
-        <Button variant="secondary" icon={RefreshCw} onPress={onReview}>
-          Repasar · {progress.reviewCount} pendientes
-        </Button>
-        <Button variant="ghost" icon={Compass} onPress={onPlacement}>
-          Explorar mi nivel
-        </Button>
-      </View>
-      {units.map((unit: Unit, i: number) => {
-        const done = unit.lessons.filter((l) => progress.completedLessons.includes(l.id)).length;
-        const open = expanded === unit.id;
-        return (
-          <Card key={unit.id} style={{ padding: 0, overflow: 'hidden' }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: open }}
-              aria-expanded={open}
-              onPress={() => setExpanded(open ? '' : unit.id)}
-              style={[
-                s.unitHeader,
-                {
-                  backgroundColor: open
-                    ? tone(unitColors[i % unitColors.length], 'background')
-                    : tone('white', 'background'),
-                },
-              ]}
-            >
-              <View
-                style={[
-                  s.unitNumber,
-                  {
-                    backgroundColor: open
-                      ? C.white
-                      : tone(unitColors[i % unitColors.length], 'background'),
-                  },
-                ]}
-              >
-                <Text style={{ fontFamily: 'OutfitSemiBold', fontSize: 23, color: C.teal }}>
-                  {String(i + 1).padStart(2, '0')}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.eyebrow}>{unit.cefr}</Text>
-                <Heading style={{ fontSize: 23, marginTop: 3 }}>{unit.title}</Heading>
-                <Label style={{ fontSize: 11 }}>{unit.description}</Label>
-              </View>
-              <View style={{ alignItems: 'flex-end', gap: 8 }}>
-                <Text style={s.unitCount}>
-                  {done}/{unit.lessons.length}
-                </Text>
-                <ChevronRight
-                  size={18}
-                  color={C.teal}
-                  style={{ transform: [{ rotate: open ? '90deg' : '0deg' }] }}
-                />
-              </View>
-            </Pressable>
-            {open && (
-              <MotionEntrance style={{ padding: 20, gap: 10 }}>
-                {unit.lessons.map((l, j) => {
-                  const completed = progress.completedLessons.includes(l.id);
-                  return (
-                    <View key={l.id} style={[s.row, { alignItems: 'stretch', flexWrap: 'wrap' }]}>
-                      <MotionPressable
-                        accessibilityRole="button"
-                        onPress={() => onLesson(l.id)}
-                        style={[s.lessonRow, { flex: 1, minWidth: 150 }]}
-                      >
-                        <View style={[s.lessonCircle, completed && { backgroundColor: C.primary }]}>
-                          {completed ? (
-                            <Check size={18} color="white" />
-                          ) : (
-                            <Text
-                              style={{ fontFamily: 'OutfitMedium', color: C.teal, fontSize: 16 }}
-                            >
-                              {j + 1}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={s.lessonTitle}>{l.title}</Text>
-                          <Label style={{ fontSize: 10 }}>
-                            {completed
-                              ? 'Un paso que ya diste · Puedes practicar otra vez'
-                              : `${l.estimatedMinutes} min · Aprende y practica`}
-                          </Label>
-                        </View>
-                        <ChevronRight size={17} color={C.muted} />
-                      </MotionPressable>
-                      <Button variant="ghost" icon={BookOpen} onPress={() => onReference(l.id)}>
-                        Ver material
-                      </Button>
-                    </View>
-                  );
-                })}
-                <View
-                  style={[
-                    s.row,
-                    { justifyContent: 'space-between', paddingTop: 9, flexWrap: 'wrap' },
-                  ]}
-                >
-                  <View style={s.row}>
-                    <ShieldCheck size={14} color={C.muted} />
-                    <Label style={{ fontSize: 10 }}>
-                      Puedes equivocarte. Puedes volver a intentar.
-                    </Label>
-                  </View>
-                  <Pill>DISPONIBLE SIN CONEXIÓN</Pill>
-                </View>
-              </MotionEntrance>
-            )}
-          </Card>
-        );
-      })}
-      <Heading style={{ fontSize: 23, marginTop: 10 }}>El inglés sale contigo</Heading>
-      <View style={[s.row, { flexWrap: 'wrap' }]}>
-        <Button variant="secondary" icon={MapPin} onPress={() => onMission('airport')}>
-          Preparar mi viaje
-        </Button>
-        <Button variant="secondary" icon={Briefcase} onPress={() => onMission('job')}>
-          Practicar entrevista
-        </Button>
-      </View>
-    </View>
+    <Modal visible transparent animationType={reduced ? 'none' : 'fade'} onRequestClose={close}>
+      <SafeAreaView style={s.shade}>
+        <ScrollView
+          style={s.sheet}
+          contentContainerStyle={{ padding: 20, gap: 14 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
-export function useStyles() {
-  const { colors: C, tone } = useTheme();
+
+function useStyles() {
+  const { colors: C } = useTheme();
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: C.paper },
-    shell: { flex: 1, flexDirection: 'row' },
+    layout: { flex: 1, flexDirection: 'row' },
     sidebar: {
-      width: 228,
-      backgroundColor: tone('#FFFFFF', 'background'),
-      paddingHorizontal: 20,
-      paddingTop: 31,
+      width: 218,
+      paddingHorizontal: 16,
+      paddingBottom: 18,
+      backgroundColor: C.white,
       borderRightWidth: 1,
       borderRightColor: C.line,
     },
-    row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    logo: {
-      width: 37,
-      height: 37,
-      borderRadius: 12,
-      backgroundColor: C.primary,
+    sidebarBrand: {
+      backgroundColor: '#293D31',
+      gap: 9,
+      padding: 13,
+      marginHorizontal: -16,
       alignItems: 'center',
-      justifyContent: 'center',
+      flexDirection: 'row',
     },
-    brand: { fontFamily: 'OutfitSemiBold', fontSize: 25, color: C.ink, letterSpacing: -1 },
-    navItem: {
+    mobileBrand: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
+    brand: { fontFamily: 'Journal', fontSize: 23, color: '#FFE6B8', flexShrink: 1 },
+    desktopNav: { gap: 7, paddingTop: 25 },
+    desktopTab: {
       flexDirection: 'row',
       alignItems: 'center',
-      height: 49,
-      borderRadius: 11,
-      paddingHorizontal: 15,
-      gap: 13,
+      minHeight: 49,
+      gap: 12,
+      paddingHorizontal: 12,
+      borderRadius: 7,
+      borderWidth: 1,
+      borderColor: 'transparent',
     },
-    navActive: { backgroundColor: tone('#EAF3EC', 'background') },
-    navLabel: { fontFamily: 'ManropeMedium', fontSize: 12, color: C.muted, flex: 1 },
-    sidebarBottom: { flex: 1, justifyContent: 'flex-end', paddingBottom: 22 },
-    sidebarTip: {
-      backgroundColor: tone('#F6F8F1', 'background'),
-      padding: 16,
-      borderRadius: 14,
-      marginBottom: 22,
-    },
-    leaf: {
-      width: 35,
-      height: 35,
-      borderRadius: 11,
-      backgroundColor: tone('#E6EEE0', 'background'),
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 13,
-    },
-    tipTitle: { fontFamily: 'OutfitMedium', fontSize: 16, color: C.ink, marginBottom: 5 },
-    sideSettings: {
+    mobileNav: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 15,
-      paddingHorizontal: 5,
-    },
-    sideProfile: {
+      padding: 4,
+      gap: 3,
+      backgroundColor: C.white,
       borderTopWidth: 1,
-      borderColor: C.line,
-      paddingTop: 19,
-      marginTop: 5,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
+      borderTopColor: C.line,
     },
-    avatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      backgroundColor: tone('#E9EEDF', 'background'),
+    mobileTab: {
+      flex: 1,
+      minWidth: 0,
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 4,
+      minHeight: 51,
+      paddingVertical: 5,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: 'transparent',
     },
-    avatarText: { fontFamily: 'OutfitMedium', fontSize: 17, color: tone('#69805F', 'text') },
-    profileName: { fontFamily: 'ManropeBold', fontSize: 11, color: C.ink },
-    profileSub: { fontFamily: 'Manrope', fontSize: 9, color: C.muted, marginTop: 3 },
+    tabActive: { backgroundColor: C.mint, borderColor: C.line },
+    navText: { fontFamily: 'ManropeBold', color: C.ink, fontSize: 14, textAlign: 'center' },
+    sectionLabel: {
+      fontFamily: 'ManropeBold',
+      fontSize: 13,
+      textTransform: 'uppercase',
+      letterSpacing: 1.5,
+    },
     topbar: {
-      height: 79,
+      minHeight: 61,
+      backgroundColor: C.white,
       borderBottomWidth: 1,
       borderBottomColor: C.line,
-      paddingHorizontal: 37,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
       flexDirection: 'row',
-      alignItems: 'center',
+      gap: 6,
       justifyContent: 'space-between',
-      backgroundColor: tone('#FFFFFF88', 'background'),
-    },
-    breadcrumb: { fontFamily: 'Manrope', fontSize: 10, color: tone('#99A99F', 'text') },
-    breadcrumbCurrent: { fontFamily: 'ManropeSemiBold', fontSize: 10, color: C.ink },
-    topStat: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
-    topStatCaption: { fontFamily: 'Manrope', fontSize: 10, color: C.muted },
-    topDivider: { height: 17, width: 1, backgroundColor: C.line },
-    language: {
-      flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      marginLeft: 7,
-      paddingLeft: 20,
-      borderLeftWidth: 1,
-      borderLeftColor: C.line,
+      flexWrap: 'wrap',
     },
-    languageText: { fontFamily: 'ManropeSemiBold', fontSize: 10, color: C.muted },
-    content: { flexGrow: 1, width: '100%', maxWidth: 1500, alignSelf: 'center' },
-    eyebrow: {
-      fontFamily: 'ManropeBold',
-      fontSize: 9,
-      letterSpacing: 1.1,
-      color: tone('#789583', 'text'),
-    },
-    sectionTitle: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 10,
-    },
-    footer: {
-      marginTop: 31,
-      borderTopWidth: 1,
-      borderTopColor: C.line,
-      paddingTop: 22,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: 10,
-    },
-    footerText: { fontFamily: 'Manrope', fontSize: 9, color: tone('#97A89C', 'text') },
-    bottomNav: {
-      minHeight: 74,
-      borderTopWidth: 1,
-      borderTopColor: C.line,
-      backgroundColor: tone('white', 'background'),
-      flexDirection: 'row',
-      paddingTop: 6,
-    },
-    bottomTab: { flex: 1, minWidth: 0, paddingHorizontal: 2, alignItems: 'center', gap: 4 },
-    bottomIcon: {
-      width: 54,
-      height: 32,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    bottomText: { fontFamily: 'ManropeBold', fontSize: 9, color: C.muted },
-    loading: { minHeight: 350, alignItems: 'center', justifyContent: 'center', gap: 20 },
-    toast: {
-      position: 'absolute',
-      bottom: 90,
-      alignSelf: 'center',
-      backgroundColor: '#173F43',
-      borderRadius: 14,
-      padding: 17,
-      maxWidth: '90%',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    toastText: {
-      fontFamily: 'ManropeMedium',
-      fontSize: 11,
-      color: tone('white', 'text'),
-      flexShrink: 1,
-    },
-    modalShade: {
+    iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    content: { flexGrow: 1, width: '100%', maxWidth: 1350, alignSelf: 'center' },
+    loading: { gap: 14, minHeight: 170, alignItems: 'center', justifyContent: 'center' },
+    notice: { padding: 10, color: C.ink, backgroundColor: C.mint, fontFamily: 'Manrope' },
+    shade: {
       flex: 1,
-      backgroundColor: '#122D3977',
+      backgroundColor: '#17291EB8',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: 20,
+      padding: 18,
     },
-    welcomeCard: { maxWidth: 480, width: '100%', padding: 26 },
-    dismiss: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-    input: {
+    sheet: {
+      flexGrow: 0,
+      maxHeight: '93%',
+      maxWidth: 510,
+      width: '100%',
       borderWidth: 1,
       borderColor: C.line,
-      borderRadius: 11,
-      padding: 13,
-      fontFamily: 'Manrope',
-      fontSize: 13,
-      color: C.ink,
-      marginTop: 8,
-      minHeight: 47,
-      backgroundColor: tone('#FBFDFB', 'background'),
-    },
-    goalOption: {
-      paddingHorizontal: 15,
-      minHeight: 44,
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 10,
-      backgroundColor: tone('white', 'background'),
-    },
-    optionActive: { backgroundColor: C.mint, borderColor: C.teal },
-    optionText: { fontFamily: 'ManropeBold', fontSize: 11, color: C.teal },
-    unitHeader: { padding: 23, flexDirection: 'row', alignItems: 'center', gap: 18 },
-    unitNumber: {
-      width: 57,
-      height: 57,
-      borderRadius: 17,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    unitCount: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 11 },
-    lessonRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 13,
-      paddingVertical: 13,
-      paddingHorizontal: 13,
-      backgroundColor: tone('#F7FAF6', 'background'),
       borderRadius: 12,
-      minHeight: 64,
+      backgroundColor: C.white,
     },
-    lessonCircle: {
-      width: 35,
-      height: 35,
-      borderRadius: 12,
-      backgroundColor: tone('#E9F1E8', 'background'),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    lessonTitle: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
+    sheetTitle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   });
 }

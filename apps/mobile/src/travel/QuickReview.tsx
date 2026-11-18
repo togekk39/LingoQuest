@@ -7,7 +7,7 @@ import { Action, ErrorCard, FlowFrame, useFeatureStyles } from '../features/Feat
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from '../features/ExerciseInput';
 import { AnswerFeedback } from '../features/LessonStages';
 
-const path = '/v1/reviews/quick';
+const path = '/v1/reviews/quick?source=travel';
 
 export function QuickReview({ onClose }: { onClose: () => void }) {
   const { colors } = useTheme();

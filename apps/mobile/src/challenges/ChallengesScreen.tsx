@@ -52,12 +52,13 @@ type Level = {
   unlocked: boolean;
   bestScore: number;
   unlockUnit: string;
+  planned?: boolean;
 };
 type ViewName = 'hub' | 'track' | 'preflight' | 'run' | 'result';
 const gameNames: Record<GameType, { title: string; detail: string; short: string }> = {
   grammar_rush: {
     title: 'Gramática en ruta',
-    detail: '10 preguntas de gramática en contextos cotidianos.',
+    detail: 'Practica la gramática del viaje en situaciones cotidianas.',
     short: 'Gramática',
   },
   cloze_battle: {
@@ -208,7 +209,7 @@ export function ChallengesScreen({
     setLoading(true);
     setError('');
     try {
-      const data = await api<{ tracks: Track[] }>('/v1/challenges/tracks');
+      const data = await api<{ tracks: Track[] }>('/v1/challenges/tracks?source=travel');
       if (mounted.current) setTracks(data.tracks);
     } catch (e) {
       if (mounted.current) setError(errorText(e));
@@ -410,14 +411,13 @@ export function ChallengesScreen({
         </View>
         <View style={s.sectionHeading}>
           <Text style={s.sectionTitle}>Encuentra tu desafío</Text>
-          <Text style={s.sectionNote}>3 caminos · 13 niveles</Text>
+          <Text style={s.sectionNote}>3 tipos de prueba</Text>
         </View>
         <View style={s.notice}>
           <BookOpen color={C.teal} size={19} />
           <Text style={s.noticeText}>
-            Explora los 13 niveles sin conexión y sin clasificación. Tus resultados se guardan solo
-            en este dispositivo. Las preguntas de demostración siguen pendientes de revisión
-            editorial.
+            Los niveles 1 a 3 corresponden a La primera postal. Las siguientes pruebas llegarán con
+            nuevas lecciones del viaje.
           </Text>
         </View>
         {error ? <ErrorBox message={error} retry={() => void loadTracks()} /> : null}
@@ -470,7 +470,7 @@ export function ChallengesScreen({
                   <Text style={s.requirementText}>
                     {item.unlocked
                       ? 'Material relacionado aprendido'
-                      : `${item.completedLessons} de ${item.requiredLessons} lecciones necesarias`}
+                      : `${item.completedLessons} de ${item.requiredLessons} misiones necesarias`}
                   </Text>
                 </View>
                 <Text style={s.previewCopy}>
@@ -478,14 +478,14 @@ export function ChallengesScreen({
                     ? 'Este paquete todavía no incluye preguntas para este tema.'
                     : item.unlocked
                       ? 'Ya aprendiste las bases. Practica a tu ritmo, sin conexión.'
-                      : 'Completa primero las lecciones relacionadas. Después podrás practicar estos retos.'}
+                      : 'Completa La primera postal para abrir estas pruebas.'}
                 </Text>
                 <Action
                   label={
                     (item.available ?? item.id === 'present_simple')
                       ? item.unlocked
                         ? 'Explorar práctica'
-                        : 'Completa las lecciones primero'
+                        : 'Completa el capítulo primero'
                       : 'En preparación'
                   }
                   disabled={!(item.available ?? item.id === 'present_simple') || !item.unlocked}
@@ -607,7 +607,9 @@ export function ChallengesScreen({
                 ) : (
                   <Text style={s.bestScore}>
                     {!item.unlocked
-                      ? `Completa hasta la unidad ${Number(item.unlockUnit.slice(1))}`
+                      ? item.planned
+                        ? 'En preparación'
+                        : 'Completa el capítulo'
                       : item.level > 10
                         ? 'Reto avanzado'
                         : 'Listo para explorar'}

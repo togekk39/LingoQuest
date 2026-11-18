@@ -2,19 +2,23 @@
 
 [English](TRAVEL_ARCHITECTURE.md)
 
-| Ubicación                                       | Responsabilidad                                                                                |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `packages/offline-engine/src/travel-route.ts`   | Orígenes, destinos, ubicaciones, objetivos y referencias al currículo                          |
-| `packages/offline-engine/src/travel-content.ts` | Pasos de misión, diálogos, enseñanza, ejercicios evaluados y coleccionables                    |
-| `packages/offline-engine/src/travel.ts`         | Guardado de misiones, reintentos, diario y control de premios duplicados                       |
-| `packages/offline-engine/src/index.ts`          | Evaluación compartida, repaso espaciado, guardado de lecciones y repasos, respaldos y desafíos |
-| `apps/mobile/src/travel`                        | Inicio, mapa interactivo, misiones, pasaporte, repaso rápido y audio local                     |
-| `content/source` y `packages/course-pack`       | Fuentes del currículo, preguntas de desafíos y validación de LQP                               |
+| Ubicación                                          | Responsabilidad                                                                             |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `packages/offline-engine/src/travel-route.ts`      | Orígenes, destinos, lugares y objetivos del currículo                                       |
+| `packages/offline-engine/src/travel-content.ts`    | Pasos, vocabulario con definiciones y ejemplos, diálogos, gramática, ejercicios y recuerdos |
+| `packages/offline-engine/src/travel-placement.ts`  | Seis preguntas diagnósticas opcionales y reglas para elegir la primera misión               |
+| `packages/offline-engine/src/travel.ts`            | Disponibilidad de misiones, puntos guardados activos y en pausa, diario y recompensas       |
+| `packages/offline-engine/src/travel-challenges.ts` | Configuración activa del capítulo y desafíos opcionales basados en él                       |
+| `packages/offline-engine/src/index.ts`             | API local, calificación compartida, repaso espaciado, guardado y respaldos                  |
+| `apps/mobile/src/travel`                           | Bienvenida, prueba, inicio, mapa, misiones, guía, pasaporte, repaso rápido y audio incluido |
+| `content/source` y `packages/course-pack`          | Fuentes archivadas del curso anterior y validación de LQP                                   |
 
-Los ejercicios del viaje reutilizan la evaluación y el repaso del motor sin conexión. Los identificadores estables de habilidades y vocabulario conectan la evidencia con el currículo. QuestBuddy ofrece un reintento, una pista o un ejemplo para que la historia pueda continuar después de un error. Las lecciones registran finalización y XP, el capítulo otorga un sello y una postal, y los desafíos llevan sus propios registros.
+El viaje comparte las reglas de calificación y repaso sin conexión. La práctica usa identificadores estables de ejercicios y habilidades. El repaso rápido y completo de la app solo selecciona ejercicios del viaje. Los desafíos opcionales se basan en el capítulo y guardan sus resultados por separado. El paquete y el curso anterior siguen archivados, y su historial puede restaurarse como parte de un respaldo de formato 2. La app actual no incluye el curso anterior.
 
-El viaje guarda la misión, la versión de la historia, el identificador del paso, el borrador, la pista, la transcripción y la devolución. Una respuesta y su evidencia se guardan juntas. El cierre y los premios se guardan en una misma escritura y se identifican por misión o capítulo. Las lecciones guardan la etapa, el ejercicio y el identificador de actividad. El repaso rápido guarda su ejercicio y prioriza la evidencia pendiente de repasar. SQLite escribe una fila de estado en Android. La web serializa las escrituras entre pestañas cuando Web Locks está disponible. Los respaldos de formato 2 aceptan los campos nuevos como opcionales. El paquete original reconocido 2.0.0 puede usar el contenido actualizado que viene con la app y conservar sus bytes originales.
+La prueba agrupa preguntas por los objetivos de las tres misiones y recomienda el primer grupo en que aún falta demostrar uno de los dos objetivos. Recomienda la última misión incluso con todas las respuestas correctas. Una pregunta de escucha contestada con ayuda de la transcripción no demuestra comprensión auditiva independiente. Se guardan la recomendación inicial y los prerrequisitos comprobados. La prueba no da XP, avances de misión ni recuerdos. Puedes volver a cualquier misión anterior para practicar.
 
-El service worker web guarda en caché la interfaz y los medios estáticos, incluidas las lecturas por rango de bytes del audio incluido. La práctica oral del capítulo usa grabación local y audios incluidos. El curso regular conserva el reconocimiento opcional del sistema y el aviso sobre su proveedor. La práctica del aeropuerto, la entrevista y el repaso completo pueden abrirse nuevamente desde sus accesos. La evidencia guardada sigue disponible.
+Cada punto de guardado conserva la versión de la historia, el identificador del paso, el borrador, la devolución, las pistas, la transcripción y el índice de la ficha de vocabulario. Si cambias de misión, se guarda la anterior como pausada. Las respuestas y su evidencia se guardan juntas. La finalización y las recompensas se guardan en una sola escritura, identificadas por misión o capítulo. Android usa una sola fila de SQLite. La web usa almacenamiento local y coordina escrituras entre pestañas cuando dispone de Web Locks. Los campos nuevos del formato 2 son opcionales.
 
-Amplía un destino con un capítulo versionado e identificadores estables de misiones y ejercicios. Un video futuro en primera persona puede usar un nuevo tipo de paso y un identificador de recurso incluido localmente. Incluye subtítulos, un punto de guardado y una alternativa de texto con el mismo objetivo.
+El service worker guarda la app y sus recursos, y admite solicitudes por rangos para los audios incluidos. Los audios del capítulo se reproducen sin conexión a la velocidad seleccionada. La app ofrece grabación local y reconocimiento de voz opcional con aviso sobre el proveedor.
+
+Agrega un destino con un capítulo versionado e identificadores estables de misiones y ejercicios. Para añadir un video en primera persona, se puede definir un tipo de paso nuevo y un recurso incluido localmente. Incluye subtítulos, un punto de guardado y una alternativa de texto con el mismo objetivo.

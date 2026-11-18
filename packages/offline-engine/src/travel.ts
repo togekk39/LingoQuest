@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { answerSchema, type AttemptInput, type AttemptResult } from '@lingoquest/contracts';
+import { travelPlacementSchema } from './travel-placement';
 import { chapter, travelLesson } from './travel-content';
 import { homeCountries, type HomeCountry } from './travel-route';
 
@@ -30,6 +31,7 @@ const checkpointSchema = z
     contentRevision: z.number().int().positive(),
     token: z.string().min(8).max(100),
     step: z.number().int().min(0).max(100),
+    word: z.number().int().min(0).max(100).optional(),
     answer: draftAnswerSchema,
     hint: z.boolean(),
     transcript: z.boolean(),
@@ -42,6 +44,9 @@ export const travelStateSchema = z
   .object({
     country: countrySchema.optional(),
     active: checkpointSchema.optional(),
+    paused: z.record(checkpointSchema).optional(),
+    placement: travelPlacementSchema.optional(),
+    cleared: z.array(z.enum(['hello', 'bus', 'bag'])).optional(),
     completed: z.record(z.string().datetime()),
     stamps: z.record(z.string().datetime()),
     note: z.string().max(500).optional(),
@@ -52,9 +57,38 @@ export type TravelState = z.infer<typeof travelStateSchema>;
 export type TravelCheckpoint = z.infer<typeof checkpointSchema>;
 export const emptyTravel = (): TravelState => ({ completed: {}, stamps: {} });
 
+export function canStartTravelMission(travel: TravelState, missionId: string) {
+  const i = chapter.missions.findIndex((mission) => mission.id === missionId);
+  return (
+    i >= 0 &&
+    chapter.missions
+      .slice(0, i)
+      .every(
+        (entry) => !!travel.completed[entry.id] || travel.cleared?.some((id) => id === entry.id),
+      )
+  );
+}
+
+export function nextTravelMission(travel: TravelState) {
+  if (travel.active) {
+    const active = chapter.missions.find((mission) => mission.id === travel.active?.missionId);
+    if (active) return active;
+  }
+  return chapter.missions.find(
+    (mission) => !travel.completed[mission.id] && !travel.cleared?.some((id) => id === mission.id),
+  );
+}
+
 const operationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('country'), country: countrySchema }).strict(),
   z.object({ action: z.literal('start'), missionId: z.string().max(100) }).strict(),
+  z
+    .object({
+      action: z.literal('word'),
+      token: z.string(),
+      position: z.number().int().nonnegative(),
+    })
+    .strict(),
   z.object({ action: z.literal('note'), text: z.string().max(500) }).strict(),
   z.object({ action: z.literal('draft'), token: z.string(), answer: draftAnswerSchema }).strict(),
   z
@@ -100,14 +134,14 @@ export function updateTravel(
   if (input.action === 'start') {
     if (current?.missionId === input.missionId && current.contentRevision === chapter.revision)
       return;
-    const index = chapter.missions.findIndex((mission) => mission.id === input.missionId);
-    if (
-      index < 0 ||
-      chapter.missions.slice(0, index).some((mission) => !travel.completed[mission.id])
-    )
-      return;
-    if (current && !current.finished && current.contentRevision === chapter.revision) return;
-    travel.active = checkpoint(input.missionId, 0, id());
+    if (!canStartTravelMission(travel, input.missionId)) return;
+    const paused = (travel.paused ??= {});
+    if (current && !current.finished && current.contentRevision === chapter.revision)
+      paused[current.missionId] = current;
+    const saved = paused[input.missionId];
+    travel.active =
+      saved?.contentRevision === chapter.revision ? saved : checkpoint(input.missionId, 0, id());
+    delete paused[input.missionId];
     return;
   }
   if (!current || input.token !== current.token || current.contentRevision !== chapter.revision)
@@ -119,6 +153,11 @@ export function updateTravel(
   const mission = chapter.missions.find((item) => item.id === current.missionId);
   const step = mission?.steps[current.step];
   if (!mission || !step) return;
+  if (input.action === 'word') {
+    if (step.type === 'teach' && input.position <= mission.vocabulary.length)
+      current.word = input.position;
+    return;
+  }
   if (step.type === 'exercise') {
     if (input.action === 'draft' && !current.result) current.answer = input.answer;
     if (input.action === 'hint' && !current.result) current.hint = true;
@@ -150,7 +189,11 @@ export function updateTravel(
   }
   const date = new Date(now).toISOString();
   travel.completed[mission.id] ??= date;
-  if (chapter.missions.every((item) => travel.completed[item.id]))
+  if (
+    chapter.missions.every(
+      (item) => travel.completed[item.id] || travel.cleared?.some((id) => id === item.id),
+    )
+  )
     travel.stamps[chapter.id] ??= date;
   current.finished = true;
 }

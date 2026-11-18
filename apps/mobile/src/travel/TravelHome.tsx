@@ -29,6 +29,8 @@ import {
 } from 'lucide-react-native';
 import {
   chapter,
+  canStartTravelMission,
+  nextTravelMission,
   homeCountries,
   route,
   type Destination,
@@ -39,7 +41,7 @@ import type { Progress } from '@lingoquest/contracts';
 import { QuestBuddy } from '../QuestBuddy';
 import { Button, Card, Heading, Label, ProgressBar } from '../ui';
 import { useTheme } from '../theme';
-import type { Unit } from '../lib/api';
+import { TravelMark } from './TravelAppearance';
 
 import hometown from '../../assets/travel/hometown.jpg';
 import world from '../../assets/travel/world.png';
@@ -53,120 +55,123 @@ const missionIcons = [MapPin, BusFront, Backpack];
 export function TravelHome({
   travel,
   progress,
-  lessonCount,
   onContinue,
   onReview,
   onRoute,
-  onLearn,
+  onGuide,
   onPassport,
   onSpeech,
   onFullReview,
 }: {
   travel: TravelState;
   progress: Progress;
-  lessonCount: number;
   onContinue: () => void;
   onReview: () => void;
   onRoute: () => void;
-  onLearn: () => void;
+  onGuide: () => void;
   onPassport: () => void;
   onSpeech: () => void;
   onFullReview: () => void;
 }) {
   const { colors: C } = useTheme();
   const { width, fontScale } = useWindowDimensions();
-  const stacked = width < 760 || fontScale > 1.25;
-  const split = width >= 1220 && fontScale <= 1.25;
   const s = useStyles();
+  const wide = width >= 1120 && fontScale <= 1.25;
   const count = completedCount(travel);
-  const next =
-    chapter.missions.find((m) => m.id === travel.active?.missionId) ??
-    chapter.missions.find((m) => !travel.completed[m.id]);
+  const next = nextTravelMission(travel);
   const itinerary = (
-    <View style={[s.itinerary, split && { flex: 1 }, !split && { padding: 17 }]}>
+    <View style={[s.itinerary, wide && { flex: 1 }]}>
       <View style={s.row}>
-        <Flag color={C.teal} size={20} />
-        <Heading style={{ flex: 1, fontSize: 23 }}>Tu primera parada</Heading>
+        <Flag size={20} color={C.accent} />
+        <Heading style={{ flex: 1, fontSize: 24 }}>En esta parada</Heading>
       </View>
-      <View style={{ gap: 5 }}>
-        {chapter.missions.map((m, i) => {
-          const Icon = missionIcons[i];
-          const complete = !!travel.completed[m.id];
-          return (
-            <View key={m.id} style={s.missionPreview}>
-              <View style={s.tileIcon}>
-                <Icon size={17} color={C.teal} />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={s.rowTitle}>{m.title}</Text>
-                <Text style={s.muted}>{m.place}</Text>
-              </View>
-              {complete ? (
-                <Check size={18} color={C.teal} />
-              ) : m.id === next?.id ? (
-                <ChevronRight size={17} color={C.teal} />
-              ) : (
-                <LockKeyhole size={14} color={C.muted} />
-              )}
+      {chapter.missions.map((mission, i) => {
+        const Icon = missionIcons[i];
+        const completed = !!travel.completed[mission.id];
+        return (
+          <View key={mission.id} style={s.missionPreview}>
+            <View style={s.tileIcon}>
+              <Icon size={18} color={C.teal} />
             </View>
-          );
-        })}
-      </View>
+            <View style={{ flex: 1, gap: 3 }}>
+              <Text style={s.rowTitle}>{mission.title}</Text>
+              <Text style={s.muted}>
+                {completed
+                  ? 'Completada'
+                  : travel.cleared?.some((id) => id === mission.id)
+                    ? 'Validada en la prueba'
+                    : mission.place}
+              </Text>
+            </View>
+            {completed ? (
+              <Check size={18} color={C.teal} />
+            ) : mission.id === next?.id ? (
+              <ChevronRight size={18} color={C.accent} />
+            ) : null}
+          </View>
+        );
+      })}
       <ProgressBar
         value={count / chapter.missions.length}
         accessibilityLabel="Misiones del capítulo completadas"
+        color={C.accent}
       />
-      <Button variant="ghost" icon={MapPinned} onPress={onRoute}>
+      <Button variant="secondary" icon={MapPinned} onPress={onRoute}>
         Ver mapa y misiones
       </Button>
     </View>
   );
   return (
-    <View style={{ gap: stacked ? 21 : 26 }}>
-      <View style={{ gap: 6 }}>
-        <Text style={s.meta}>{'TU DIARIO DE VIAJE'}</Text>
-        <Text accessibilityRole="header" style={[s.pageTitle, { fontSize: stacked ? 31 : 47 }]}>
-          Aprende inglés, descubre el mundo.
+    <View style={{ gap: 19 }}>
+      <View
+        style={[
+          s.row,
+          { justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' },
+        ]}
+      >
+        <Text accessibilityRole="header" style={[s.pageTitle, { fontSize: wide ? 42 : 29 }]}>
+          Cuaderno de viaje
         </Text>
+        <View style={s.row}>
+          <MapPin size={16} color={C.accent} />
+          <Text style={s.meta}>{homeName(travel)}</Text>
+        </View>
       </View>
-      <View style={{ gap: 18, flexDirection: split ? 'row' : 'column', alignItems: 'stretch' }}>
-        <View style={[s.hero, split && { flex: 1.7 }]}>
+      <View style={{ flexDirection: wide ? 'row' : 'column', gap: 16 }}>
+        <View style={[s.hero, wide && { flex: 1.8 }]}>
           <ImageBackground
             source={hometown}
-            imageStyle={{ borderTopLeftRadius: 21, borderTopRightRadius: 21 }}
-            style={{
-              height: stacked ? 168 : 254,
-              justifyContent: 'flex-end',
-              padding: stacked ? 12 : 20,
-            }}
+            resizeMode="cover"
+            style={{ height: wide ? 275 : 178, justifyContent: 'flex-end', padding: 12 }}
           >
             <View style={s.imageTag}>
-              <MapPin color="#173f36" size={16} />
-              <Text style={s.imageTagText}>{homeName(travel)}</Text>
+              <MapPin size={15} color="#502A1C" />
+              <Text style={s.imageTagText}>{next?.place ?? homeName(travel)}</Text>
             </View>
           </ImageBackground>
-          <View style={[s.heroInside, { padding: stacked ? 16 : 24 }]}>
-            <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
-              <Text style={s.meta}>CAPÍTULO 1</Text>
-              <Heading style={{ fontSize: stacked ? 25 : 33 }}>{chapter.title}</Heading>
-              <Label style={s.copy}>
-                {next
-                  ? `${next.title} · ${next.minutes} min`
-                  : 'Tu primer sello ya está en el pasaporte.'}
-              </Label>
+          <View style={s.heroRibbon}>
+            <TravelMark size={38} />
+            <View style={{ flex: 1, gap: 5 }}>
+              <Text style={s.ribbonMeta}>CAPÍTULO 1</Text>
+              <Text accessibilityRole="header" style={s.ribbonTitle}>
+                {chapter.title}
+              </Text>
             </View>
-            <Button
-              icon={ArrowRight}
-              style={stacked ? { width: '100%' } : { minWidth: 190 }}
-              onPress={onContinue}
-            >
-              Continuar viaje
+          </View>
+          <View style={s.heroInside}>
+            <Label style={s.copy}>
+              {next
+                ? `${next.title} · ${next.minutes} min`
+                : 'Tu primer sello ya está en el pasaporte.'}
+            </Label>
+            <Button icon={ArrowRight} onPress={onContinue}>
+              {next ? 'Continuar viaje' : 'Ver mi pasaporte'}
             </Button>
           </View>
         </View>
-        {split && itinerary}
+        {wide && itinerary}
       </View>
-      <View style={{ gap: 12, flexDirection: stacked ? 'column' : 'row' }}>
+      <View style={{ gap: 10, flexDirection: wide ? 'row' : 'column' }}>
         <HomeTile
           icon={RotateCcw}
           title="Repaso rápido"
@@ -180,10 +185,10 @@ export function TravelHome({
         />
         <HomeTile
           icon={BookOpen}
-          title="Cursos de inglés"
-          detail={`${lessonCount} lecciones de A1 a A2`}
-          action="Continuar aprendiendo"
-          onPress={onLearn}
+          title="Palabras del viaje"
+          detail="Significados, ejemplos y audio"
+          action="Palabras del viaje"
+          onPress={onGuide}
         />
         <HomeTile
           icon={Stamp}
@@ -193,15 +198,12 @@ export function TravelHome({
           onPress={onPassport}
         />
       </View>
-      {!split && itinerary}
-      <View style={[s.tip, stacked && { alignItems: 'flex-start' }]}>
-        <QuestBuddy size={52} />
-        <View style={{ flex: 1, gap: 5 }}>
-          <Text style={s.rowTitle}>QuestBuddy</Text>
-          <Label style={s.copy}>
-            Puedes salir en cualquier momento. Guardamos tu lugar para cuando vuelvas.
-          </Label>
-        </View>
+      {!wide && itinerary}
+      <View style={s.tip}>
+        <QuestBuddy size={51} />
+        <Label style={{ flex: 1 }}>
+          Guardamos tu lugar. Puedes retomar el viaje cuando quieras.
+        </Label>
       </View>
       <View style={[s.row, { flexWrap: 'wrap' }]}>
         <Button variant="ghost" icon={RotateCcw} onPress={onFullReview}>
@@ -277,22 +279,18 @@ const southAmericanHomes = new Set<HomeCountry>([
 
 export function TravelRoute({
   travel,
-  units,
   selected,
   onSelect,
   onStart,
   onCountry,
   onPassport,
-  onLesson,
 }: {
   travel: TravelState;
-  units: Unit[];
   selected: Destination;
   onSelect: (id: string) => void;
   onStart: (id: string) => void;
   onCountry: () => void;
   onPassport: () => void;
-  onLesson: (id: string) => void;
 }) {
   const { colors: C } = useTheme();
   const { width, fontScale } = useWindowDimensions();
@@ -300,7 +298,6 @@ export function TravelRoute({
   const isHome = selected.id === chapter.id;
   const homeIsInSouthAmerica = !!travel.country && southAmericanHomes.has(travel.country);
   const selectedContinent = isHome && homeIsInSouthAmerica ? 'América del Sur' : selected.continent;
-  const unit = units.find((u) => u.id === selected.unitId);
   const horizon = width < 800 || fontScale > 1.25;
   const active = travel.active;
   return (
@@ -389,9 +386,9 @@ export function TravelRoute({
           {isHome ? (
             <>
               {chapter.missions.map((mission, i) => {
-                const available = chapter.missions.slice(0, i).every((m) => travel.completed[m.id]);
-                const inProgress = active?.missionId === mission.id;
-                const busyElsewhere = !!active && !active.finished && !inProgress;
+                const available = canStartTravelMission(travel, mission.id);
+                const inProgress =
+                  active?.missionId === mission.id || !!travel.paused?.[mission.id];
                 const Icon = missionIcons[i];
                 return (
                   <Pressable
@@ -399,8 +396,8 @@ export function TravelRoute({
                     accessibilityRole="button"
                     accessibilityLabel={mission.title}
                     accessibilityHint={mission.objective}
-                    accessibilityState={{ disabled: !available || busyElsewhere }}
-                    disabled={!available || busyElsewhere}
+                    accessibilityState={{ disabled: !available }}
+                    disabled={!available}
                     onPress={() => onStart(mission.id)}
                     style={[
                       s.missionPreview,
@@ -422,7 +419,7 @@ export function TravelRoute({
                         {mission.minutes} min
                       </Text>
                     </View>
-                    {available && !busyElsewhere ? (
+                    {available ? (
                       <ArrowRight size={17} color={C.teal} />
                     ) : (
                       <LockKeyhole size={17} color={C.muted} />
@@ -435,21 +432,6 @@ export function TravelRoute({
             <Label style={s.status}>
               Historia en preparación · Plan de estudio {selected.band}
             </Label>
-          )}
-          {unit && (
-            <View style={{ gap: 6, marginTop: 6 }}>
-              <Heading style={{ fontSize: 21 }}>Lecciones relacionadas</Heading>
-              {unit.lessons.map((lesson) => (
-                <Button
-                  key={lesson.id}
-                  variant="ghost"
-                  icon={BookOpen}
-                  onPress={() => onLesson(lesson.id)}
-                >
-                  {lesson.title}
-                </Button>
-              ))}
-            </View>
           )}
         </Card>
         <Card
@@ -481,9 +463,7 @@ export function TravelRoute({
                     ? travel.stamps.home
                       ? 'Sello obtenido'
                       : 'Capítulo disponible'
-                    : destination.unitId
-                      ? 'Lecciones disponibles'
-                      : 'En preparación'}
+                    : 'En preparación'}
                 </Text>
               </View>
               <ChevronRight size={17} color={C.teal} />
@@ -652,7 +632,7 @@ export function Passport({
 function useStyles() {
   const { colors: C } = useTheme();
   return StyleSheet.create({
-    pageTitle: { fontFamily: 'OutfitSemiBold', color: C.ink, fontSize: 41, letterSpacing: -0.6 },
+    pageTitle: { fontFamily: 'Journal', color: C.ink, fontSize: 41, letterSpacing: -0.6 },
     meta: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 12, letterSpacing: 1.2 },
     copy: { fontFamily: 'Manrope', color: C.ink, fontSize: 15, lineHeight: 23 },
     muted: { fontFamily: 'Manrope', color: C.muted, fontSize: 13, lineHeight: 18 },
@@ -661,16 +641,19 @@ function useStyles() {
       backgroundColor: C.white,
       borderWidth: 1,
       borderColor: C.line,
-      borderRadius: 22,
+      borderRadius: 11,
       overflow: 'hidden',
     },
-    heroInside: {
+    heroRibbon: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 16,
+      gap: 12,
+      backgroundColor: '#293D31',
+      padding: 14,
     },
+    ribbonMeta: { color: '#E5BD78', fontFamily: 'ManropeBold', fontSize: 10, letterSpacing: 2 },
+    ribbonTitle: { color: '#FFF3D8', fontFamily: 'Journal', fontSize: 25 },
+    heroInside: { gap: 10, paddingVertical: 13, paddingHorizontal: 14 },
     imageTag: {
       flexDirection: 'row',
       gap: 6,
@@ -685,7 +668,7 @@ function useStyles() {
     imageTagText: { fontFamily: 'ManropeBold', fontSize: 12, color: '#173f36', flexShrink: 1 },
     itinerary: {
       backgroundColor: C.white,
-      borderRadius: 22,
+      borderRadius: 11,
       borderWidth: 1,
       borderColor: C.line,
       padding: 22,
@@ -709,7 +692,7 @@ function useStyles() {
       borderWidth: 1,
       borderColor: C.line,
       backgroundColor: C.white,
-      borderRadius: 17,
+      borderRadius: 9,
     },
     tileIcon: {
       width: 41,
@@ -742,7 +725,7 @@ function useStyles() {
       aspectRatio: 2,
       overflow: 'hidden',
       borderRadius: 16,
-      backgroundColor: '#e1eeeb',
+      backgroundColor: '#d9dbbd',
     },
     destinationPin: {
       position: 'absolute',

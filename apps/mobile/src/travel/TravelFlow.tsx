@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, StyleSheet, Text, View } from 'react-native';
-import { useAudioPlayer } from 'expo-audio';
 import {
   ArrowRight,
   Backpack,
@@ -25,51 +24,11 @@ import { Action, ErrorCard, FlowFrame, useFeatureStyles } from '../features/Feat
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from '../features/ExerciseInput';
 import { AnswerFeedback } from '../features/LessonStages';
 import { SpeakingPanel } from '../features/SpeakingPractice';
-import {
-  getSpeechPreferences,
-  stopOfflineSpeech,
-  useOfflineSpeech,
-} from '../features/offlineSpeech';
 import { Button, Card, Heading, Label } from '../ui';
 import { QuestBuddy } from '../QuestBuddy';
 import { useTheme } from '../theme';
-import { audioClips } from './audioClips';
-
-function useChapterAudio() {
-  const player = useAudioPlayer(null);
-  const { playOffline, speechMessage } = useOfflineSpeech();
-  const [clipError, setClipError] = useState('');
-  const ticket = useRef(0);
-  useEffect(
-    () => () => {
-      ticket.current++;
-      void stopOfflineSpeech();
-    },
-    [],
-  );
-  async function play(phrase: string) {
-    const clip = audioClips[phrase];
-    const id = ++ticket.current;
-    setClipError('');
-    try {
-      if (!clip) return await playOffline(phrase);
-      await stopOfflineSpeech();
-      const settings = await getSpeechPreferences();
-      if (ticket.current !== id) return;
-      player.replace(clip);
-      player.setPlaybackRate(settings.rate ?? 1, 'high');
-      player.play();
-    } catch {
-      setClipError('No pudimos reproducir la frase. Puedes seguir con el texto.');
-    }
-  }
-  function stop() {
-    ticket.current++;
-    player.pause();
-    void stopOfflineSpeech();
-  }
-  return { play, stop, speechMessage: clipError || speechMessage };
-}
+import { useChapterAudio } from './useChapterAudio';
+import { TravelScene, VocabularyCard } from './TravelAppearance';
 
 function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: string) => void }) {
   const f = useFeatureStyles();
@@ -143,6 +102,12 @@ export function TravelFlow({
   const mission: TravelMission = chapter.missions.find((m) => m.id === current.missionId)!;
   const step = mission.steps[current.step];
   const { play, stop, speechMessage } = useChapterAudio();
+  const wordIndex = current.word ?? 0;
+  const word =
+    !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
+  useEffect(() => {
+    if (word) void play(word.term);
+  }, [word]);
 
   function draft(next: ExerciseAnswer) {
     setAnswer(next);
@@ -171,7 +136,7 @@ export function TravelFlow({
       const travel = await api<TravelState>('/v1/travel', operation);
       onUpdate(travel);
       if (travel.active) {
-        if (travel.active.token !== current.token) stop();
+        if (travel.active.token !== current.token || travel.active.word !== current.word) stop();
         setCurrent(travel.active);
         setAnswer(travel.active.answer);
         savedDraft.current = travel.active.answer;
@@ -231,6 +196,13 @@ export function TravelFlow({
         Comprobar respuesta
       </Action>
     )
+  ) : word ? (
+    <Action
+      busy={busy}
+      onPress={() => void act({ action: 'word', token: current.token, position: wordIndex + 1 })}
+    >
+      {wordIndex + 1 < mission.vocabulary.length ? 'Siguiente palabra' : 'Ver la explicación'}
+    </Action>
   ) : step.type !== 'speak' ? (
     <Action busy={busy} onPress={advance}>
       {current.step === mission.steps.length - 1
@@ -245,7 +217,7 @@ export function TravelFlow({
     <FlowFrame
       title={mission.title}
       eyebrow={`${mission.place} · ${mission.minutes} min`}
-      stepKey={current.token}
+      stepKey={`${current.token}-${wordIndex}`}
       onClose={() => void close()}
       progress={current.finished ? 1 : (current.step + 1) / mission.steps.length}
       footer={footer}
@@ -284,6 +256,7 @@ export function TravelFlow({
           </Card>
         ) : step.type === 'dialogue' ? (
           <>
+            {current.step === 0 && <TravelScene place={mission.place} />}
             <Card style={s.story}>
               <View style={s.npc}>
                 {step.speaker === 'QuestBuddy' ? (
@@ -309,6 +282,16 @@ export function TravelFlow({
               <Label style={s.storyText}>{step.text}</Label>
             </Card>
             {step.line && <Phrase {...step.line} play={(value) => void play(value)} />}
+          </>
+        ) : word ? (
+          <>
+            <View style={s.chapterHead}>
+              <Heading style={{ flex: 1, fontSize: 26 }}>Palabras del viaje</Heading>
+              <Label>
+                {wordIndex + 1} / {mission.vocabulary.length}
+              </Label>
+            </View>
+            <VocabularyCard word={word} play={(value) => void play(value)} />
           </>
         ) : step.type === 'teach' ? (
           <>
@@ -392,7 +375,8 @@ export function TravelFlow({
 function useStyles() {
   const { colors: C } = useTheme();
   return StyleSheet.create({
-    story: { gap: 15, padding: 18, borderLeftWidth: 4, borderLeftColor: C.teal },
+    chapterHead: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    story: { gap: 15, padding: 18, borderLeftWidth: 4, borderLeftColor: C.accent },
     npc: { flexDirection: 'row', gap: 12, alignItems: 'center' },
     storyText: { color: C.ink, fontSize: 16, lineHeight: 24 },
     recap: {

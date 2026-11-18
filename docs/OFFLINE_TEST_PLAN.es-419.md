@@ -1,44 +1,34 @@
-# Plan de aceptación sin conexión del curso integrado
+# Plan de aceptación sin conexión del currículo del viaje
 
 [English](OFFLINE_TEST_PLAN.md)
 
-Consulta el [registro de verificación](VERIFICATION.es-419.md) para conocer los resultados automatizados y sus límites. Ejecuta estas pruebas sin iniciar Fastify, iniciar sesión ni usar una cuenta en la nube. Las pruebas del navegador interceptan `/v1/`, `/api/` y las solicitudes externas sin autorización explícita.
+Consulta el [registro de verificación](VERIFICATION.es-419.md) para ver los resultados y límites de la automatización. Realiza estas comprobaciones sin iniciar Fastify, iniciar sesión ni conectar una cuenta en la nube.
 
-## Viaje y repaso rápido
+## Bienvenida y misión inicial
 
-1. Elige **Empezar mi viaje**, selecciona un origen y verifica que aparezca tanto en el mapa como en el inicio.
-2. Guarda la app web en caché o instala el APK independiente. Desconéctate, abre **Repaso rápido**, responde una pregunta y vuelve al viaje.
-3. Escribe media frase en **La primera postal**. Recarga o fuerza el cierre y vuelve a abrir la app. Verifica el borrador y repite después de responder y después de recibir el sello.
-4. Completa las tres misiones. Reproduce el audio incluido de Sam, prueba la transcripción y escucha una grabación local si lo deseas. Verifica que siga habiendo un sello después de reiniciar y que la entrada de diario se conserve.
-5. Abre **Ver material** y lee la gramática y el vocabulario. Comprueba los controles del inicio y de las misiones a 320–390 px, con texto grande, tema oscuro, movimiento reducido y lector de pantalla.
-6. En un Android de gama baja, prueba el primer inicio en modo avión, los permisos del micrófono y la reproducción local, el teclado, TalkBack y el rendimiento.
+1. Con datos nuevos, abre la app a 320, 360 y 390 px. Repite con texto ampliado y tema oscuro. Comprueba que las dos acciones se distingan y que el botón para cerrar sea accesible. **Empezar mi viaje** abre la escena de la plaza.
+2. En la bienvenida, elige **Ya sé algo de inglés** y omite las seis preguntas. Verifica que **Ir a mi misión** abra **Un saludo en la plaza**.
+3. Repite la prueba en **Aprender**. Responde bien solo las primeras dos para empezar en la parada de bus. Responde bien las primeras cuatro sin transcripción para empezar en objetos perdidos. Comprueba que sigan disponibles las misiones anteriores y que la prueba no otorgue XP, sellos ni misiones completadas.
 
-## Empezar desde cero
+## Vocabulario, misiones y repaso
 
-1. Inicia con el almacenamiento vacío. Verifica que **Empiezo desde cero** abra **Me presento** de inmediato y que **Ya sé algo de inglés** abra una evaluación de nivel que se pueda omitir.
-2. En Android, activa el modo avión. En la web, carga los archivos estáticos y el service worker antes de desconectarte. Completa Meta, las tarjetas bilingües de vocabulario, el reconocimiento de significados, la asociación, la gramática que enseña explícitamente am y are, el diálogo con apoyo línea por línea, los ejercicios de completar espacios y reordenar, y una presentación personal breve.
-3. Responde mal a propósito. Verifica que la app muestre una explicación en español, la respuesta y la opción de volver a intentar. El aprendizaje funciona sin temporizador, corazones ni descuentos de XP. Usar una pista no cuenta como producción independiente.
-4. Verifica que se pueda omitir la práctica oral antes de que la app solicite acceso al micrófono. Las grabaciones opcionales se pueden reproducir o repetir localmente y se borran al salir. Verifica que la app indique cuando no hay una voz local verificada y no invente una calificación de pronunciación.
-5. Al terminar, revisa el vocabulario, las estructuras y la fecha de repaso. Reinicia y verifica que se conserven el avance y los XP. Revisa al día siguiente y dos días después el reconocimiento y la recuperación de vocabulario, la comprensión y la producción gramatical. Comprueba que se puedan practicar sin conexión.
+1. Guarda la app web en caché o instala el APK de vista previa y desconéctate. Llega a **Palabras del viaje** en una misión. Comprueba que cada ficha indique el significado en español, cuándo se usa la palabra y un ejemplo en ambos idiomas. Escucha la palabra y el ejemplo y cambia la velocidad. Abre **Aprender** para consultar el mismo material directamente.
+2. Sal a mitad del vocabulario, vuelve y comprueba que aparezca la misma ficha. Repite después de escribir una respuesta parcial, al ver la devolución y después de recibir el sello. Cambia entre misiones disponibles y comprueba que el borrador anterior reaparezca al volver.
+3. Da una respuesta incorrecta y comprueba la explicación en español y el reintento. Prueba la transcripción y la grabación local opcional. Completa el capítulo y revisa que el pasaporte, la postal y el diario se conserven, con un solo sello.
+4. Abre **Repaso rápido**, responde una pregunta y vuelve al punto exacto de tu viaje. Comprueba que **Repasar** muestre prácticas del capítulo.
+5. Elige tu lugar de origen en el mapa. Revisa las 20 paradas y el destino final en Ushuaia y la Antártida. Las paradas futuras deben indicar **En preparación**.
 
-## Desafíos y paquetes de contenido
+## Desafíos, respaldos y pruebas nativas
 
-- En un dispositivo sin progreso, verifica que los desafíos con prerrequisitos sin estudiar estén bloqueados y que se rechacen las llamadas directas al motor. Después de completar las unidades 1 y 2, revisa los 13 niveles y los tres tipos de ejercicio. Agotar el tiempo, fallar por respuestas incorrectas o salir conserva los XP, el avance y la evidencia de dominio.
-- Importa un paquete LQP nuevo sin conexión. Las actualizaciones del mismo esquema deben conservar los identificadores de las lecciones. Comprueba que se rechacen una suma incorrecta, una versión anterior, referencias inválidas, vocabulario aún no enseñado, respuestas faltantes y opciones ambiguas. Si falla la importación, se conservan el paquete activo y el progreso.
-- Comprueba que el campo de descarga aparezca vacío. Solo se hacen solicitudes de red después de que la persona escribe una URL de GitHub y elige descargar. La prueba automatizada intercepta solicitudes de los archivos de publicación para verificar la descarga. La versión nueva sigue pendiente de publicación.
-
-## Datos y otras funciones
-
-- Inicia con datos del prototipo en formato 1. Verifica que la app explique la incompatibilidad y conserve los datos. Exporta los bytes originales, comprueba que cancelar el restablecimiento conserve los datos y luego confirma el restablecimiento para verificar que aparezca la pantalla inicial. El archivo anterior no se puede restaurar al formato 2.
-- Verifica las preferencias, la exportación, el borrado y la restauración confirmada de los datos actuales. La restauración excluye los desafíos que estén en curso.
-- Verifica la navegación móvil a 390 px, la evaluación de nivel opcional, la práctica de pronunciación con texto y las misiones escritas del aeropuerto y la búsqueda de empleo.
-- En un Android físico, abre un ejercicio de completar espacios o de respuesta breve en **Un día en familia** y toca el campo. Debe desplazarse por completo encima del teclado y el botón inferior, mantener el foco al escribir y permitir tocar **Comprobar respuesta** directamente. Prueba una pregunta de texto de la evaluación de nivel que quepa sin desplazarse antes de abrir el teclado. Si el teclado cubre la app, el espacio inferior debe corresponder a la parte cubierta y mover el contenido y el botón encima del teclado. Si el sistema ya redujo la ventana, evita sumar dos veces ese espacio. Cambia la altura del teclado, ciérralo y vuelve a abrirlo. El contenido debe seguir visible, el espacio inferior debe desaparecer al cerrarlo y el texto debe conservarse. Escribe más de 30 líneas. El campo debe caber en el área visible y permitir desplazamiento interno. Al agregar líneas al final, el cursor debe quedar visible sin que la página salte al inicio del campo. Repite estas pruebas en iOS. Las pruebas del navegador cubren el cambio de tamaño de ventana y la reducción simulada del área visible con el diseño fijo. Ejecuta también las pruebas del teclado nativo en dispositivos.
-- Comprueba que se omita la síntesis si solo hay voces remotas. La grabación y reproducción opcionales no envían audio.
+- Antes del sello, los tres niveles publicados deben estar bloqueados. Después del sello, prueba una ronda con reloj y una práctica sin reloj. Los niveles futuros deben indicar **En preparación**. Perder un desafío conserva los XP y el avance del viaje.
+- Desde **Perfil**, exporta un respaldo de formato 2 y restáuralo en otra instalación. Verifica preferencias, puntos de guardado del viaje, recuerdos y el historial del curso archivado, si existe. Los datos de formato 1 se pueden exportar antes de confirmar un restablecimiento.
+- En un equipo Android físico, verifica la instalación del APK firmado, el primer inicio en modo avión, los permisos de micrófono y la reproducción, TalkBack, el tamaño del texto del sistema, la reducción de movimiento, el selector de archivos y el rendimiento en un equipo de gama baja.
+- Con el teclado de Android e iOS abierto, comprueba el acceso a los campos de texto de las misiones y la prueba y a sus botones. Cambia la altura del teclado. Ciérralo y vuelve a abrirlo. Verifica que se conserven los borradores y que el espacio de la pantalla se ajuste una sola vez.
+- Prueba la grabación local sin conexión. Si eliges el reconocimiento del sistema, comprueba que aparezca el aviso sobre el proveedor antes de solicitar permisos. Revisa que la configuración de voz ofrezca una voz en inglés instalada sin conexión o explique por qué no está disponible.
 
 ```bash
 npm run check
 npm test
-npm run packs:build
 npm run packs:verify
 npm run build:web
 npm run build:android
@@ -47,4 +37,4 @@ npm run preview
 npm run test:e2e
 ```
 
-Comprueba el modo avión, TalkBack, permisos del micrófono, rendimiento en equipos de gama baja, falta de espacio, selector de archivos e instalación del APK firmado en Android físico. El currículo todavía requiere revisión lingüística y pedagógica.
+Se necesita una revisión con principiantes y docentes del flujo de bienvenida, las explicaciones del capítulo y las recomendaciones de la prueba.

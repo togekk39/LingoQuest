@@ -2,7 +2,25 @@
 
 [Español (Latinoamérica)](VERIFICATION.es-419.md)
 
-## LingoQuest 2.0 travel verification
+## Travel curriculum and redesigned welcome
+
+The current version opens the chapter directly or offers a short assessment to choose among its three missions. Browser checks cover welcome action spacing at 320 px, the recommended starting mission, offline vocabulary and audio, saved progress, and preserved archived history. Screenshots came from the locally built Web export.
+
+TypeScript, ESLint, 67 unit and integration tests, the archived LQP checksum, the Web export, Android Hermes export, and Android native prebuild passed. The Web service worker includes 58 offline files. Both bundles include the travel exercises and omit the old textbook pack. Physical Android acceptance remains pending.
+
+### Current screenshots
+
+- [Welcome on a 390 px viewport](screenshots/08-bienvenida.jpg)
+- [Starting-mission recommendation](screenshots/09-prueba-ruta.jpg)
+- [Mission vocabulary and reference audio](screenshots/10-vocabulario-viaje.jpg)
+- [Desktop travel journal](screenshots/11-cuaderno-escritorio.jpg)
+- [Mobile travel journal](screenshots/12-cuaderno-movil.jpg)
+- [Travel learning guide](screenshots/13-guia-de-viaje.jpg)
+- [Mobile travel journal in dark mode](screenshots/14-cuaderno-movil-oscuro.jpg)
+- [Travel map](screenshots/15-mapa-de-viaje.jpg)
+- [Listening in the placement assessment](screenshots/16-escucha-prueba.jpg)
+
+## LingoQuest 2.0 travel verification history
 
 The travel implementation was verified locally on 2026-11-18 before integrating the latest system speech-recognition changes from `main`. TypeScript, ESLint, the LQP 2.1.0 checksum, and 60 unit and integration tests passed. Of 40 browser scenarios, 37 passed in one run and three passed on separate reruns after updating their assertions for the redesigned home, saved lesson checkpoints, and the practice evidence count. The Android Hermes export, signed ARM preview APK build and signature check, and five native offline voice tests passed on that revision. The APK contained the current course, fonts, both travel images, and all 11 audio clips. The original Gradle attempt met the environment’s memory limit. A 2560 MB heap and one worker completed the build.
 

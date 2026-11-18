@@ -1,6 +1,14 @@
 import type { Translation } from '@lingoquest/contracts';
 import type { CourseExercise, CourseLesson } from './index';
 
+export interface TravelVocabulary {
+  term: string;
+  meaning: string;
+  kind: string;
+  explanation: string;
+  example: Translation;
+}
+
 export type TravelStep =
   | { type: 'dialogue'; speaker: 'Luz' | 'Sam' | 'QuestBuddy'; text: string; line?: Translation }
   | { type: 'teach'; title: string; text: string; examples: Translation[] }
@@ -22,6 +30,7 @@ export interface TravelMission {
   objective: string;
   minutes: number;
   success: string;
+  vocabulary: TravelVocabulary[];
   steps: TravelStep[];
 }
 
@@ -53,6 +62,38 @@ export const chapter: TravelChapter = {
       objective: 'Preséntate con la tarjeta de bienvenida de Luz.',
       minutes: 1,
       success: 'Sam te agradece el saludo y te muestra el boleto del bus que busca.',
+      vocabulary: [
+        {
+          term: 'Hi',
+          meaning: 'hola',
+          kind: 'saludo',
+          explanation: 'Úsalo para saludar a alguien. Hello también funciona.',
+          example: {
+            en: 'Hi! My name is Sam.',
+            es: '¡Hola! Me llamo Sam.',
+          },
+        },
+        {
+          term: 'I am',
+          meaning: 'soy / estoy',
+          kind: 'verbo',
+          explanation: 'Para presentarte, di I am y agrega tu nombre. La forma breve es I’m.',
+          example: {
+            en: 'Hi! I am Luz.',
+            es: '¡Hola! Soy Luz.',
+          },
+        },
+        {
+          term: 'My name is',
+          meaning: 'me llamo',
+          kind: 'expresión',
+          explanation: 'En esta expresión, my indica que hablas de tu propio nombre.',
+          example: {
+            en: 'My name is Luz.',
+            es: 'Me llamo Luz.',
+          },
+        },
+      ],
       steps: [
         {
           type: 'dialogue',
@@ -113,6 +154,38 @@ export const chapter: TravelChapter = {
       minutes: 2,
       success:
         'Sam encuentra la parada junto al parque. Al llegar, se da cuenta de que dejó su mochila en la mesa.',
+      vocabulary: [
+        {
+          term: 'bus stop',
+          meaning: 'parada de bus',
+          kind: 'sustantivo',
+          explanation: 'Úsalo para el lugar donde se espera el bus, como en «the bus stop».',
+          example: {
+            en: 'Where is the bus stop?',
+            es: '¿Dónde está la parada de bus?',
+          },
+        },
+        {
+          term: 'park',
+          meaning: 'parque',
+          kind: 'sustantivo',
+          explanation: 'Aquí «park» nombra un espacio público. The park es el parque.',
+          example: {
+            en: 'It’s next to the park.',
+            es: 'Está junto al parque.',
+          },
+        },
+        {
+          term: 'next to',
+          meaning: 'junto a',
+          kind: 'preposición',
+          explanation: 'Usa next to para indicar que algo está justo al lado de un lugar u objeto.',
+          example: {
+            en: 'It’s next to the park.',
+            es: 'Está junto al parque.',
+          },
+        },
+      ],
       steps: [
         {
           type: 'dialogue',
@@ -189,6 +262,41 @@ export const chapter: TravelChapter = {
       minutes: 2,
       success:
         'La mochila vuelve con Sam. Dentro llevaba una postal en blanco. Te la regala para que escribas el primer recuerdo de tu propio viaje.',
+      vocabulary: [
+        {
+          term: 'bag',
+          meaning: 'bolso / mochila',
+          kind: 'sustantivo',
+          explanation:
+            'Es una palabra general para algo que llevas en la mano o al hombro. Backpack especifica que va en la espalda.',
+          example: {
+            en: 'My bag is blue.',
+            es: 'Mi mochila es azul.',
+          },
+        },
+        {
+          term: 'blue',
+          meaning: 'azul',
+          kind: 'adjetivo',
+          explanation:
+            'Después de is describe el color. Antes de un sustantivo, di a blue bag, «una mochila azul».',
+          example: {
+            en: 'My bag is blue.',
+            es: 'Mi mochila es azul.',
+          },
+        },
+        {
+          term: 'red',
+          meaning: 'rojo / roja',
+          kind: 'adjetivo',
+          explanation:
+            'En inglés el color no cambia con el género. It’s red describe cualquier objeto rojo.',
+          example: {
+            en: 'It’s red.',
+            es: 'Es roja.',
+          },
+        },
+      ],
       steps: [
         {
           type: 'dialogue',

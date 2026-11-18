@@ -4,7 +4,6 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { ArrowRight, BookOpen, CalendarCheck, Check, Sprout } from 'lucide-react-native';
 import { api } from '../lib/api';
 import { Action, ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
-import LearningFlow from './LearningFlow';
 import { QuickReview } from '../travel/QuickReview';
 interface Review {
   key: string;
@@ -35,13 +34,12 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('');
   const [all, setAll] = useState(false);
   const [quick, setQuick] = useState(false);
-  const [lessonId, setLessonId] = useState<string | null>(null);
   async function load(includeAll = all) {
     setLoading(true);
     setError('');
     try {
       const response = await api<{ reviews: Review[] }>(
-        '/v1/reviews/today' + (includeAll ? '?all=true' : ''),
+        '/v1/reviews/today?source=travel' + (includeAll ? '&all=true' : ''),
       );
       setReviews(response.reviews);
     } catch (e) {
@@ -58,18 +56,6 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
       <QuickReview
         onClose={() => {
           setQuick(false);
-          void load();
-        }}
-      />
-    );
-  if (lessonId)
-    return (
-      <LearningFlow
-        lessonId={lessonId}
-        review
-        onClose={() => setLessonId(null)}
-        onComplete={() => {
-          setLessonId(null);
           void load();
         }}
       />
@@ -115,11 +101,11 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
         <View style={[f.card, { alignItems: 'center', paddingVertical: 38 }]}>
           <CalendarCheck color={palette.teal} size={35} />
           <Text style={[f.cardTitle, { textAlign: 'center' }]}>
-            {all ? 'Tu jardín empieza con una lección.' : '¡Por hoy, todo al día!'}
+            {all ? 'Todavía no hay palabras para repasar.' : '¡Por hoy, todo al día!'}
           </Text>
           <Text style={[f.body, { textAlign: 'center' }]}>
             {all
-              ? 'Cuando practiques una habilidad, la encontrarás aquí. Comienza con una lección y construiremos tu plan de repaso.'
+              ? 'Cuando practiques una habilidad, la encontrarás aquí. Comienza una misión y construiremos tu plan de repaso.'
               : 'Vuelve mañana para darle otra vuelta a lo aprendido. También puedes seguir tu camino o practicar una habilidad cuando quieras.'}
           </Text>
           <Action secondary onPress={onClose}>
@@ -173,11 +159,9 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
               <Pressable
                 accessibilityRole="button"
                 style={s.practice}
-                onPress={() => (review.travel ? setQuick(true) : setLessonId(review.lessonId!))}
+                onPress={() => setQuick(true)}
               >
-                <Text style={s.practiceText}>
-                  {review.travel ? 'Abrir repaso rápido' : 'Practicar esta habilidad'}
-                </Text>
+                <Text style={s.practiceText}>Abrir repaso rápido</Text>
                 <ArrowRight color={palette.teal} size={17} />
               </Pressable>
             )}
