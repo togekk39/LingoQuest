@@ -68,8 +68,8 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
       <View style={s.disclosure}>
         <Info color={palette.teal} size={19} />
         <Text style={[f.quiet, { flex: 1 }]}>
-          Esta práctica funciona sin conexión y no genera puntajes automáticos de pronunciación. Los
-          ejemplos solo usan una voz local compatible. Tu grabación no sale de este dispositivo.
+          Los ejemplos y el modo solo grabar funcionan sin conexión. El reconocimiento del sistema o
+          del navegador puede procesar tu audio en línea. No genera puntajes de pronunciación.
         </Text>
       </View>
       {!!speechMessage && (

@@ -201,9 +201,10 @@ export function OfflineProfile({
           <Heading style={{ fontSize: 22 }}>Tus datos te pertenecen</Heading>
         </View>
         <Label style={{ marginVertical: 15 }}>
-          Todo tu aprendizaje se guarda en este dispositivo. No se envían respuestas ni grabaciones
-          a servicios externos. El micrófono es opcional y tus grabaciones se eliminan al salir de
-          la práctica. Guarda un respaldo para cambiar de teléfono o antes de desinstalar la app.
+          Tu progreso y tus respuestas se guardan en este dispositivo. El micrófono es opcional. En
+          el modo solo grabar, el audio es local y se elimina al salir. Si eliges reconocimiento, el
+          servicio de voz del sistema o del navegador puede procesar tu audio en línea. Guarda un
+          respaldo para cambiar de teléfono o antes de desinstalar la app.
         </Label>
         <View style={{ gap: 12 }}>
           <Button
