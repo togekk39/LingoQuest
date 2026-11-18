@@ -2,7 +2,7 @@
   "expo": {
     "name": "LingoQuest",
     "slug": "lingoquest",
-    "version": "1.3.0",
+    "version": "2.0.0",
     "scheme": "lingoquest",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -26,10 +26,10 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "name": "LingoQuest · Tu inglés, a tu ritmo",
+      "name": "LingoQuest · Aprende inglés, descubre el mundo",
       "shortName": "LingoQuest",
-      "backgroundColor": "#F7EBDD",
-      "themeColor": "#F7EBDD"
+      "backgroundColor": "#F5EBDD",
+      "themeColor": "#F5EBDD"
     },
     "plugins": [
       "expo-router",

@@ -51,21 +51,23 @@ type Level = {
   seconds: number;
   unlocked: boolean;
   bestScore: number;
+  unlockUnit: string;
+  planned?: boolean;
 };
 type ViewName = 'hub' | 'track' | 'preflight' | 'run' | 'result';
 const gameNames: Record<GameType, { title: string; detail: string; short: string }> = {
   grammar_rush: {
-    title: 'Grammar Rush',
-    detail: '10 preguntas de gramática en contextos cotidianos.',
+    title: 'Gramática en ruta',
+    detail: 'Practica la gramática del viaje en situaciones cotidianas.',
     short: 'Gramática',
   },
   cloze_battle: {
-    title: 'Cloze Battle',
+    title: 'Notas incompletas',
     detail: 'Lee una historia y completa los espacios en blanco.',
     short: 'Completar',
   },
   reading_quest: {
-    title: 'Reading Quest',
+    title: 'Lecturas de viaje',
     detail: 'Una lectura con preguntas para comprender e inferir.',
     short: 'Lectura',
   },
@@ -207,7 +209,7 @@ export function ChallengesScreen({
     setLoading(true);
     setError('');
     try {
-      const data = await api<{ tracks: Track[] }>('/v1/challenges/tracks');
+      const data = await api<{ tracks: Track[] }>('/v1/challenges/tracks?source=travel');
       if (mounted.current) setTracks(data.tracks);
     } catch (e) {
       if (mounted.current) setError(errorText(e));
@@ -409,14 +411,13 @@ export function ChallengesScreen({
         </View>
         <View style={s.sectionHeading}>
           <Text style={s.sectionTitle}>Encuentra tu desafío</Text>
-          <Text style={s.sectionNote}>3 caminos · 13 niveles</Text>
+          <Text style={s.sectionNote}>3 tipos de prueba</Text>
         </View>
         <View style={s.notice}>
           <BookOpen color={C.teal} size={19} />
           <Text style={s.noticeText}>
-            Explora los 13 niveles sin conexión y sin clasificación. Tus resultados se guardan solo
-            en este dispositivo. Las preguntas de demostración siguen pendientes de revisión
-            editorial.
+            Los niveles 1 a 3 corresponden a La primera postal. Las siguientes pruebas llegarán con
+            nuevas lecciones del viaje.
           </Text>
         </View>
         {error ? <ErrorBox message={error} retry={() => void loadTracks()} /> : null}
@@ -469,7 +470,7 @@ export function ChallengesScreen({
                   <Text style={s.requirementText}>
                     {item.unlocked
                       ? 'Material relacionado aprendido'
-                      : `${item.completedLessons} de ${item.requiredLessons} lecciones necesarias`}
+                      : `${item.completedLessons} de ${item.requiredLessons} misiones necesarias`}
                   </Text>
                 </View>
                 <Text style={s.previewCopy}>
@@ -477,14 +478,14 @@ export function ChallengesScreen({
                     ? 'Este paquete todavía no incluye preguntas para este tema.'
                     : item.unlocked
                       ? 'Ya aprendiste las bases. Practica a tu ritmo, sin conexión.'
-                      : 'Completa primero las lecciones relacionadas. Después podrás practicar estos retos.'}
+                      : 'Completa La primera postal para abrir estas pruebas.'}
                 </Text>
                 <Action
                   label={
                     (item.available ?? item.id === 'present_simple')
                       ? item.unlocked
                         ? 'Explorar práctica'
-                        : 'Completa las lecciones primero'
+                        : 'Completa el capítulo primero'
                       : 'En preparación'
                   }
                   disabled={!(item.available ?? item.id === 'present_simple') || !item.unlocked}
@@ -605,7 +606,13 @@ export function ChallengesScreen({
                   <Text style={s.bestScore}>Mejor práctica: {item.bestScore} pts</Text>
                 ) : (
                   <Text style={s.bestScore}>
-                    {item.level > 10 ? 'Reto avanzado' : 'Listo para explorar'}
+                    {!item.unlocked
+                      ? item.planned
+                        ? 'En preparación'
+                        : 'Completa el capítulo'
+                      : item.level > 10
+                        ? 'Reto avanzado'
+                        : 'Listo para explorar'}
                   </Text>
                 )}
               </Pressable>
@@ -615,8 +622,8 @@ export function ChallengesScreen({
         <View style={s.softFooter}>
           <ShieldCheck size={19} color={C.teal} />
           <Text style={s.muted}>
-            Puedes practicar cualquier nivel. Los puntos de estos retos se guardan en tu dispositivo
-            y son independientes de tus XP de aprendizaje.
+            Cada nivel se abre al completar sus lecciones. Los puntos de estos retos se guardan en
+            tu dispositivo y son independientes de tus XP de aprendizaje.
           </Text>
         </View>
       </View>
@@ -796,6 +803,13 @@ export function ChallengesScreen({
             <Text style={s.questionPrompt}>{run.question.promptEs}</Text>
             {run.question.sentence && (
               <Text style={s.questionSentence}>{run.question.sentence}</Text>
+            )}
+            {!!run.question.contextualGlosses?.length && (
+              <Text style={s.muted}>
+                {run.question.contextualGlosses
+                  .map((gloss) => `${gloss.en}: ${gloss.es}`)
+                  .join(' · ')}
+              </Text>
             )}
             {run.question.options?.length ? (
               <View style={s.answers}>

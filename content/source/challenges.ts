@@ -1,4 +1,5 @@
 import type { PrivateExercise } from './curriculum.ts';
+import { travelChallengePools } from './travel-challenges.ts';
 
 /** Original local practice. All English comes from Units 1–2 or an explicit gloss.
  * Higher ranks shorten the clock/reduce hearts; they never smuggle later grammar
@@ -620,7 +621,7 @@ export const challengePools: Record<
   'grammar_rush' | 'cloze_battle' | 'reading_quest',
   PrivateExercise[]
 > = {
-  grammar_rush: grammarRush,
-  cloze_battle: clozeBattle,
-  reading_quest: readingQuest,
+  grammar_rush: [...grammarRush, ...travelChallengePools.grammar_rush],
+  cloze_battle: [...clozeBattle, ...travelChallengePools.cloze_battle],
+  reading_quest: [...readingQuest, ...travelChallengePools.reading_quest],
 };

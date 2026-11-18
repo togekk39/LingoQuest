@@ -5,42 +5,45 @@ import { getRaw, putRaw } from './lib/storage';
 export type ThemeMode = 'light' | 'dark' | 'oled';
 export const THEME_KEY = 'lq_theme';
 const light = {
-  ink: '#233C31',
-  teal: '#315440',
-  primary: '#167D72',
-  onPrimary: '#FFFFFF',
-  accent: '#963F29',
-  mint: '#DFE2D0',
-  orange: '#CB833F',
-  paper: '#F7EBDD',
-  muted: '#6C5746',
-  line: '#D8BEA4',
-  white: '#FFF5E7',
-  red: '#B84B50',
-  coral: '#C96867',
+  ink: '#23382D',
+  teal: '#395E4B',
+  primary: '#913D2A',
+  onPrimary: '#FFF9EE',
+  mint: '#E8E9D9',
+  orange: '#C4773E',
+  paper: '#F5EBDD',
+  muted: '#60554A',
+  line: '#D8C4AA',
+  white: '#FFFAF0',
+  red: '#9D3E29',
+  coral: '#A85436',
+  accent: '#92502D',
+  gold: '#D9AA6B',
 };
 export type ThemeColors = typeof light;
 const palettes: Record<ThemeMode, ThemeColors> = {
   light,
   dark: {
     ...light,
-    ink: '#E5F2EC',
-    teal: '#79D9C3',
-    accent: '#F1A584',
-    mint: '#193B34',
-    paper: '#101A19',
-    muted: '#A8BBB4',
-    line: '#354742',
-    white: '#1A2825',
+    ink: '#FFF0DA',
+    teal: '#B6CCAE',
+    primary: '#A6482F',
+    mint: '#31382C',
+    paper: '#19271F',
+    muted: '#D5C2A8',
+    line: '#645543',
+    white: '#26342A',
+    accent: '#F3B583',
     red: '#FFAAA9',
     coral: '#F5A5A3',
   },
   oled: {
     ...light,
-    ink: '#F0F7F3',
-    teal: '#79D9C3',
-    accent: '#F1A584',
-    mint: '#092B21',
+    ink: '#FFF3E0',
+    teal: '#B6CCAE',
+    primary: '#A6482F',
+    mint: '#1B231A',
+    accent: '#F3B583',
     paper: '#000000',
     muted: '#A8BBB4',
     line: '#333D38',
@@ -56,9 +59,8 @@ function makeTheme(mode: ThemeMode) {
   const colors = palettes[mode];
   // Preserve authored light colors; adapt their semantic role for dark surfaces.
   const tone = (value: string, role: 'background' | 'text' | 'border' = 'background') => {
-    if (mode === 'light')
-      return role === 'background' && ['white', '#FFFFFF'].includes(value) ? colors.white : value;
-    if (!/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value) && value !== 'white') return value;
+    if (mode === 'light' || (!/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value) && value !== 'white'))
+      return value;
     const hex = value === 'white' ? 'ffffff' : value.slice(1);
     const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
     const brightness = (rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114) / 255;

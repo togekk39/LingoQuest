@@ -9,7 +9,7 @@ import {
 
 export { getOfflineVoices };
 export const OFFLINE_AUDIO_NOTICE =
-  'No hay una voz de inglés sin conexión disponible. Revisa la voz elegida en Configuración de voz o instala una voz sin conexión en los ajustes TTS del sistema. Puedes seguir leyendo, grabarte y escuchar tu práctica.';
+  'No pudimos usar una voz de inglés sin conexión. Elige una voz en Configuración de voz o instala una en los ajustes TTS del sistema.';
 export async function getSpeechPreferences() {
   return normalizeSpeechPreferences(
     await localSettings.get<unknown>('speech', DEFAULT_SPEECH_PREFERENCES),
@@ -19,7 +19,7 @@ export async function saveSpeechPreferences(value: SpeechPreferences) {
   await localSettings.set('speech', normalizeSpeechPreferences(value));
 }
 let request = 0;
-async function playOfflineVoice(
+export async function playOfflineVoice(
   text: string,
   override?: SpeechPreferences,
 ): Promise<{ played: boolean; message: string }> {

@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { ArrowRight, BookOpen, CalendarCheck, Check, Sprout } from 'lucide-react-native';
 import { api } from '../lib/api';
 import { Action, ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
-import LearningFlow from './LearningFlow';
+import { QuickReview } from '../travel/QuickReview';
 interface Review {
   key: string;
   skillId: string;
@@ -16,6 +16,7 @@ interface Review {
   dueAt: string;
   lessonId?: string;
   due?: boolean;
+  travel?: boolean;
 }
 const dimensionNames: Record<Review['dimension'], string> = {
   vocabulary_recognition: 'Reconocer palabras',
@@ -23,13 +24,7 @@ const dimensionNames: Record<Review['dimension'], string> = {
   grammar_understanding: 'Entender la gramática en contexto',
   grammar_production: 'Usar la gramática al escribir',
 };
-export default function ReviewsFlow({
-  onClose,
-  onSettings,
-}: {
-  onClose: () => void;
-  onSettings?: () => void;
-}) {
+export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
@@ -38,13 +33,13 @@ export default function ReviewsFlow({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [all, setAll] = useState(false);
-  const [lessonId, setLessonId] = useState<string | null>(null);
+  const [quick, setQuick] = useState(false);
   async function load(includeAll = all) {
     setLoading(true);
     setError('');
     try {
       const response = await api<{ reviews: Review[] }>(
-        '/v1/reviews/today' + (includeAll ? '?all=true' : ''),
+        '/v1/reviews/today?source=travel' + (includeAll ? '&all=true' : ''),
       );
       setReviews(response.reviews);
     } catch (e) {
@@ -56,15 +51,11 @@ export default function ReviewsFlow({
   useEffect(() => {
     void load(all);
   }, [all]);
-  if (lessonId)
+  if (quick)
     return (
-      <LearningFlow
-        lessonId={lessonId}
-        review
-        onSettings={onSettings}
-        onClose={() => setLessonId(null)}
-        onComplete={() => {
-          setLessonId(null);
+      <QuickReview
+        onClose={() => {
+          setQuick(false);
           void load();
         }}
       />
@@ -110,11 +101,11 @@ export default function ReviewsFlow({
         <View style={[f.card, { alignItems: 'center', paddingVertical: 38 }]}>
           <CalendarCheck color={palette.teal} size={35} />
           <Text style={[f.cardTitle, { textAlign: 'center' }]}>
-            {all ? 'Tu jardín empieza con una lección.' : '¡Por hoy, todo al día!'}
+            {all ? 'Todavía no hay palabras para repasar.' : '¡Por hoy, todo al día!'}
           </Text>
           <Text style={[f.body, { textAlign: 'center' }]}>
             {all
-              ? 'Cuando practiques una habilidad, la encontrarás aquí. Comienza con una lección y construiremos tu plan de repaso.'
+              ? 'Cuando practiques una habilidad, la encontrarás aquí. Comienza una misión y construiremos tu plan de repaso.'
               : 'Vuelve mañana para darle otra vuelta a lo aprendido. También puedes seguir tu camino o practicar una habilidad cuando quieras.'}
           </Text>
           <Action secondary onPress={onClose}>
@@ -145,7 +136,7 @@ export default function ReviewsFlow({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(Math.min(0.95, Math.max(0, review.mastery)) * 100)}
-              accessibilityLabel={`Dominio: ${review.targetLabelEs}`}
+              accessibilityLabel={`Evidencia de práctica: ${review.targetLabelEs}`}
               accessibilityValue={{
                 min: 0,
                 max: 100,
@@ -168,9 +159,9 @@ export default function ReviewsFlow({
               <Pressable
                 accessibilityRole="button"
                 style={s.practice}
-                onPress={() => setLessonId(review.lessonId!)}
+                onPress={() => setQuick(true)}
               >
-                <Text style={s.practiceText}>Practicar esta habilidad</Text>
+                <Text style={s.practiceText}>Abrir repaso rápido</Text>
                 <ArrowRight color={palette.teal} size={17} />
               </Pressable>
             )}

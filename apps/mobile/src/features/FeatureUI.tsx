@@ -93,6 +93,7 @@ export function FlowFrame({
   progress,
   stepKey,
   journal,
+  onVoiceSettings,
 }: {
   title: string;
   eyebrow: string;
@@ -103,6 +104,7 @@ export function FlowFrame({
   progress?: number;
   stepKey?: string;
   journal?: { onListen?: () => void; onSettings?: () => void };
+  onVoiceSettings?: () => void;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
@@ -175,11 +177,11 @@ export function FlowFrame({
             <JournalBrand small />
             <View style={f.row}>
               <ThemeButton />
-              {journal.onSettings && (
+              {(journal.onSettings || onVoiceSettings) && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Configuración"
-                  onPress={journal.onSettings}
+                  accessibilityLabel={onVoiceSettings ? 'Configuración de voz' : 'Configuración'}
+                  onPress={journal.onSettings ?? onVoiceSettings}
                   style={f.journalIcon}
                 >
                   <Settings2 size={21} color={palette.ink} />
@@ -219,6 +221,15 @@ export function FlowFrame({
               <Volume2 size={23} color={palette.ink} />
             </Pressable>
           )
+        ) : onVoiceSettings ? (
+          <Pressable
+            accessibilityLabel="Configuración de voz"
+            accessibilityRole="button"
+            onPress={onVoiceSettings}
+            style={f.close}
+          >
+            <Volume2 size={20} color={palette.teal} />
+          </Pressable>
         ) : (
           <View style={f.safetyDot}>
             <View style={f.dot} />
@@ -315,7 +326,7 @@ export function useFeatureStyles() {
       gap: 16,
       paddingHorizontal: 24,
       paddingVertical: 22,
-      backgroundColor: tone('white', 'background'),
+      backgroundColor: palette.white,
       borderBottomWidth: 1,
       borderBottomColor: palette.line,
     },
@@ -382,7 +393,7 @@ export function useFeatureStyles() {
       paddingVertical: 18,
       borderTopWidth: 1,
       borderTopColor: palette.line,
-      backgroundColor: tone('white', 'background'),
+      backgroundColor: palette.white,
     },
     footerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 12 },
     action: {
@@ -398,14 +409,14 @@ export function useFeatureStyles() {
     actionPrimary: {
       backgroundColor: palette.primary,
       borderBottomWidth: 4,
-      borderBottomColor: '#105B54',
+      borderBottomColor: '#61261A',
     },
     journalAction: { borderRadius: 17, borderBottomWidth: 0, minHeight: 49, paddingVertical: 9 },
     journalActionText: { fontFamily: 'LoraBold', fontWeight: 'normal', fontSize: 17 },
     actionSecondary: {
       borderWidth: 1,
-      borderColor: tone('#BED9CD', 'border'),
-      backgroundColor: tone('#F8FCF9', 'background'),
+      borderColor: palette.line,
+      backgroundColor: palette.white,
     },
     actionText: {
       fontFamily: 'Manrope',
@@ -416,8 +427,8 @@ export function useFeatureStyles() {
     title: { fontFamily: 'LoraBold', fontSize: 32, lineHeight: 40, color: palette.ink },
     body: { fontFamily: 'Manrope', fontSize: 15, lineHeight: 25, color: palette.muted },
     card: {
-      backgroundColor: tone('white', 'background'),
-      borderRadius: 22,
+      backgroundColor: palette.white,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: palette.line,
       padding: 25,
@@ -432,7 +443,7 @@ export function useFeatureStyles() {
       backgroundColor: tone('#FFF8F3', 'background'),
       gap: 14,
     },
-    errorTitle: { fontFamily: 'Outfit', fontSize: 20, color: palette.ink },
+    errorTitle: { fontFamily: 'Journal', fontSize: 20, color: palette.ink },
     row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     quiet: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 20, color: palette.muted },
     back: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 44 },

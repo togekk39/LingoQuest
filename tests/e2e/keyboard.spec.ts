@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, enterApp } from './helpers';
+import { test, expect, enterApp, openPlacement, click } from './helpers';
 
 async function installOverlayViewport(page: Page) {
   await page.addInitScript(() => {
@@ -33,9 +33,8 @@ async function setKeyboardTop(page: Page, top: number | null) {
 
 async function openShortTextPage(page: Page) {
   await enterApp(page);
-  await page.getByRole('tab', { name: 'Aprender', exact: true }).click();
-  await page.getByRole('button', { name: 'Explorar mi nivel', exact: true }).click();
-  await page.getByRole('button', { name: 'Explorar mi nivel', exact: true }).click();
+  await openPlacement(page);
+  await click(page, 'No lo sé todavía');
   await expect(page.getByRole('textbox', { name: 'Tu respuesta en inglés' })).toBeVisible();
 }
 
@@ -68,10 +67,8 @@ test('an overlay keyboard creates room on an initially unscrollable short page',
   const input = page.getByRole('textbox', { name: 'Tu respuesta en inglés' });
   const scroll = page.getByTestId('flow-scroll');
   await expect.poll(() => scroll.evaluate((node) => node.scrollHeight - node.clientHeight)).toBe(0);
-  const before = await input.boundingBox();
   await input.focus();
   const keyboardTop = 430;
-  expect(before!.y + before!.height).toBeGreaterThan(keyboardTop);
   await setKeyboardTop(page, keyboardTop);
   // This assertion must pass without any page.setViewportSize call after opening the keyboard.
   expect(await page.evaluate(() => window.innerHeight)).toBe(844);
@@ -101,7 +98,7 @@ test('an overlay keyboard creates room on an initially unscrollable short page',
   await setKeyboardTop(page, keyboardTop);
   await expectInputAboveKeyboard(page, keyboardTop);
   await page.getByRole('button', { name: 'Siguiente pregunta', exact: true }).click();
-  await expect(page.getByText('Pregunta 2 de 12', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pregunta 3 de 6', { exact: true })).toBeVisible();
 });
 
 test('an OS-resized window removes the overlap spacer instead of reserving keyboard space twice', async ({

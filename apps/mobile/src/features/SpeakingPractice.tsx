@@ -15,7 +15,19 @@ import { File } from 'expo-file-system';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { AudioLines, ShieldCheck, Volume2 } from 'lucide-react-native';
 import { Action, useFeatureStyles, FlowFrame } from './FeatureUI';
-export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => void }) {
+export function SpeakingPanel({
+  text,
+  onDone,
+  onPlay,
+  onStopReference,
+  offlineOnly = false,
+}: {
+  text: string;
+  onDone: () => void;
+  onPlay?: () => void;
+  onStopReference?: () => void;
+  offlineOnly?: boolean;
+}) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
@@ -72,6 +84,7 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
     setMessage('');
     try {
       stt.cancel();
+      onStopReference?.();
       await stopOfflineSpeech();
       if (!mounted.current) return;
       const result = await AudioModule.requestRecordingPermissionsAsync();
@@ -133,6 +146,7 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
   }
   async function finish() {
     stt.cancel();
+    onStopReference?.();
     try {
       if (recorder.isRecording) await recorder.stop();
       pausePracticePlayback(player, Platform.OS);
@@ -166,7 +180,9 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
             disabled: busy || stt.phase !== 'idle' || recorderState.isRecording,
           }}
           onPress={() => {
-            if (stt.phase === 'idle' && !recorderState.isRecording && !busy) void playOffline(text);
+            if (stt.phase !== 'idle' || recorderState.isRecording || busy) return;
+            if (onPlay) onPlay();
+            else void playOffline(text);
           }}
         >
           <Volume2 color={palette.teal} size={19} />
@@ -178,42 +194,46 @@ export function SpeakingPanel({ text, onDone }: { text: string; onDone: () => vo
           {speechMessage}
         </Text>
       )}
-      <Text style={f.quiet}>
-        Al practicar con reconocimiento, el servicio de voz del sistema o del navegador puede
-        procesar tu audio en línea. El texto es orientativo y no es una nota de pronunciación. Si
-        prefieres practicar sin conexión, elige solo grabar.
-      </Text>
-      <Action
-        disabled={busy || recorderState.isRecording || stt.phase === 'stopping'}
-        busy={stt.phase === 'starting'}
-        onPress={() => {
-          if (stt.phase === 'listening') stt.stop();
-          else {
-            setMessage('');
-            void stt.start(() => pausePracticePlayback(player, Platform.OS));
-          }
-        }}
-      >
-        {stt.phase === 'listening' ? 'Terminar reconocimiento' : 'Practicar con mi voz'}
-      </Action>
-      {stt.phase === 'listening' && (
-        <Text accessibilityLiveRegion="polite" style={f.quiet}>
-          Te escuchamos. Lee la frase en inglés.
-        </Text>
-      )}
-      {!!stt.transcript && (
-        <View accessibilityLiveRegion="polite" style={f.card}>
-          <Text style={f.eyebrow}>Esto entendió el sistema</Text>
-          <Text style={f.body}>{stt.transcript}</Text>
+      {!offlineOnly && (
+        <>
           <Text style={f.quiet}>
-            Compara el texto con la frase y vuelve a practicar cuando quieras.
+            Al practicar con reconocimiento, el servicio de voz del sistema o del navegador puede
+            procesar tu audio en línea. El texto es orientativo y no es una nota de pronunciación.
+            Si prefieres practicar sin conexión, elige solo grabar.
           </Text>
-        </View>
-      )}
-      {!!stt.message && (
-        <Text accessibilityRole="alert" style={f.body}>
-          {stt.message}
-        </Text>
+          <Action
+            disabled={busy || recorderState.isRecording || stt.phase === 'stopping'}
+            busy={stt.phase === 'starting'}
+            onPress={() => {
+              if (stt.phase === 'listening') stt.stop();
+              else {
+                setMessage('');
+                void stt.start(() => pausePracticePlayback(player, Platform.OS));
+              }
+            }}
+          >
+            {stt.phase === 'listening' ? 'Terminar reconocimiento' : 'Practicar con mi voz'}
+          </Action>
+          {stt.phase === 'listening' && (
+            <Text accessibilityLiveRegion="polite" style={f.quiet}>
+              Te escuchamos. Lee la frase en inglés.
+            </Text>
+          )}
+          {!!stt.transcript && (
+            <View accessibilityLiveRegion="polite" style={f.card}>
+              <Text style={f.eyebrow}>Esto entendió el sistema</Text>
+              <Text style={f.body}>{stt.transcript}</Text>
+              <Text style={f.quiet}>
+                Compara el texto con la frase y vuelve a practicar cuando quieras.
+              </Text>
+            </View>
+          )}
+          {!!stt.message && (
+            <Text accessibilityRole="alert" style={f.body}>
+              {stt.message}
+            </Text>
+          )}
+        </>
       )}
       {recorderState.isRecording ? (
         <Action

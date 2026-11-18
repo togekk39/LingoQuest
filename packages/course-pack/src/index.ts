@@ -3,7 +3,7 @@ import { sha256Hex, utf8Bytes } from './hash.ts';
 export { sha256Hex, utf8Bytes } from './hash.ts';
 export const COURSE_PACK_FORMAT = 'lingoquest-course-pack' as const;
 export const COURSE_PACK_SCHEMA_VERSION = 2 as const;
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '2.0.0';
 export const MAX_PACK_BYTES = 4 * 1024 * 1024;
 const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor']);
 const id = z
