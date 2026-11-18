@@ -1,19 +1,21 @@
-# 驗證紀錄
+# Online prototype verification record
 
-執行日期：2026-11-08。本機 Node.js 24、系統 Chromium、PostgreSQL 16。
+[Español (Latinoamérica)](VERIFICATION_ONLINE_PROTOTYPE.es-419.md)
 
-| 檢查                              | 結果                                 |
-| --------------------------------- | ------------------------------------ |
-| TypeScript 嚴格型別與 ESLint      | 通過                                 |
-| Fastify API／安全整合測試         | 17 項通過                            |
-| Playwright 桌面／390px 手機瀏覽器 | 12 項通過                            |
-| PostgreSQL 遷移與 RLS 隔離        | 通過；以最小 Supabase Auth stub 驗證 |
-| Expo web production export        | 通過                                 |
-| Expo Android Hermes bundle export | 通過；非 APK、非真機驗收             |
-| Prettier                          | 通過                                 |
+The checks on 2026-11-08 ran locally with Node.js 24, system Chromium, and PostgreSQL 16.
 
-瀏覽器實測涵蓋整堂答錯依然可完成、略過口說、持久進度、離線下載及重連只計一次 XP、帳號切換與同步交錯隔離、登出／刪除不誤清其他帳號佇列、離線冷啟動、40 組發音練習、12 題診斷、機場情境、13 級挑戰入口、閱讀獨立時間預算、失敗不影響學習，以及回應遺失後重送不重複扣心。
+| Check                                        | Result                                                     |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| Strict TypeScript and ESLint                 | Passed.                                                    |
+| Fastify API and security integration tests   | 17 passed.                                                 |
+| Playwright desktop and 390 px mobile browser | 12 passed.                                                 |
+| PostgreSQL migrations and RLS isolation      | Passed with a minimal Supabase Auth stub.                  |
+| Expo web production export                   | Passed.                                                    |
+| Expo Android Hermes bundle export            | Passed. APK and physical-device verification are separate. |
+| Prettier                                     | Passed.                                                    |
 
-後端測試包含全部 320 題／32 課完整走完、伺服器時鐘、冪等、JWT 與跨帳號隔離、13 級、私人題庫快照、資料刪除與匯出，以及跨日無提示產出。
+Browser tests covered completing a lesson with every answer wrong, skipping speaking, persistent progress, offline downloads and XP credited once on reconnect, isolation when account changes overlap with sync, preserving other accounts' queues during logout and deletion, offline cold start, 40 pronunciation drills, a 12-question assessment, the airport scenario, access to 13 challenge levels, an independent reading time budget, learning progress preserved after failure, and heart deductions applied only once when retrying after a lost response.
 
-RLS 測試在一次性 PostgreSQL 容器執行，沒有連線到 Hosted Supabase。沒有呼叫付費 API、沒有部署雲端，也沒有聲稱教材已經人工審核或教育成效已被證實。正式發行工作見 `PRODUCTION_SETUP.md`。
+Backend tests covered all 320 exercises and 32 lessons, server time, idempotency, JWT and cross-account isolation, 13 levels, private question-pool snapshots, data deletion and export, and unassisted production across days.
+
+RLS tests ran in a disposable PostgreSQL container without connecting to Hosted Supabase. The checks used no paid APIs or cloud deployment. Human curriculum review and educational outcomes were outside their scope. See the [production setup instructions](PRODUCTION_SETUP.md).
