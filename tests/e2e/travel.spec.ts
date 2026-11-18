@@ -19,6 +19,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await page.getByRole('button', exact('Elegir lugar de origen')).click();
   await page.getByRole('textbox', exact('Buscar lugar de origen')).fill('dominicana');
   await page.getByRole('button', exact('República Dominicana')).click();
+  await expect(page.getByRole('textbox', exact('Buscar lugar de origen'))).toBeHidden();
   await page.getByRole('tab', exact('Inicio')).click();
   await expect(page.getByText('República Dominicana', { exact: true })).toBeVisible();
   await page.getByRole('button', exact('Continuar viaje')).click();

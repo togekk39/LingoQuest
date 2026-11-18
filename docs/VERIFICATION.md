@@ -8,6 +8,8 @@ The travel implementation was verified locally on 2026-11-18 before integrating 
 
 Chromium verified that the travel chapter could run offline from a Caribbean origin, restore a partial answer and feedback after reload, play Sam’s bundled audio, award one stamp, and save a travel journal entry. A separate offline check opened course reference material without changing practice records or XP. The home layout was checked at 320, 360, and 390 px with text scaled to 150%.
 
+After rebasing onto the current `main`, TypeScript, ESLint, LQP verification, 65 unit and integration tests, Web and Hermes exports, and Android native prebuild passed. Of 22 targeted browser scenarios, 21 passed in one run. The remaining travel test passed on rerun after waiting for the origin picker to close. The browser tests verified that travel speaking uses local recording and the ordinary course keeps opt-in recognition.
+
 ### Screenshots
 
 - [Desktop home](screenshots/01-inicio-web.jpg)

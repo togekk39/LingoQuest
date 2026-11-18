@@ -8,6 +8,8 @@ La implementación del viaje se verificó en local el 18 de noviembre de 2026, a
 
 Chromium verificó que se podía recorrer el capítulo sin conexión con un origen del Caribe, recuperar una respuesta parcial y su devolución al recargar, reproducir el audio incluido de Sam, recibir un solo sello y guardar una entrada de diario. Otra comprobación sin conexión abrió el material de consulta sin cambiar los registros de práctica ni los XP. El inicio se comprobó a 320, 360 y 390 px con texto ampliado al 150 %.
 
+Después de incorporar el `main` actual, pasaron TypeScript, ESLint, la verificación de LQP, 65 pruebas unitarias y de integración, las exportaciones web y Hermes y la generación del proyecto nativo de Android. De 22 escenarios específicos de navegador, 21 pasaron en una ejecución. La prueba de viaje restante pasó al repetirla tras esperar el cierre del selector de origen. Las pruebas verificaron que el viaje usa grabación local y el curso regular conserva el reconocimiento opcional.
+
 ### Capturas
 
 - [Inicio en pantalla de escritorio](screenshots/01-inicio-web.jpg)
