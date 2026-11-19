@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAudioPlayer } from 'expo-audio';
+import { useClipPlayer } from './useClipPlayer';
 import {
   getSpeechPreferences,
   stopOfflineSpeech,
@@ -8,7 +8,7 @@ import {
 import { audioClips } from './audioClips';
 
 export function useChapterAudio() {
-  const player = useAudioPlayer(null);
+  const player = useClipPlayer();
   const [speechMessage, setSpeechMessage] = useState('');
   const ticket = useRef(0);
   useEffect(
@@ -23,7 +23,7 @@ export function useChapterAudio() {
       const id = ++ticket.current;
       setSpeechMessage('');
       try {
-        player.pause();
+        player.stop();
         await stopOfflineSpeech();
         const preferences = await getSpeechPreferences();
         if (ticket.current !== id) return;
@@ -34,10 +34,10 @@ export function useChapterAudio() {
           setSpeechMessage(result.message);
           return;
         }
-        player.replace(clip);
-        player.setPlaybackRate(preferences.rate ?? 1, 'high');
-        player.play();
-        setSpeechMessage('Voz del sistema no disponible. Estás escuchando el audio incluido.');
+        await player.play(clip, preferences.rate ?? 1);
+        if (ticket.current === id) {
+          setSpeechMessage('Voz del sistema no disponible. Estás escuchando el audio incluido.');
+        }
       } catch {
         if (ticket.current === id)
           setSpeechMessage('No pudimos reproducir la frase. Revisa la configuración de voz.');
@@ -47,7 +47,7 @@ export function useChapterAudio() {
   );
   const stop = useCallback(() => {
     ticket.current++;
-    player.pause();
+    player.stop();
     setSpeechMessage('');
     void stopOfflineSpeech();
   }, [player]);

@@ -1,5 +1,13 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  Text,
+  View,
+  type ImageSourcePropType,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Compass, Mountain, PencilLine } from 'lucide-react-native';
 import notebookEdge from '../assets/journal/notebook-edge.png';
 import grain from '../assets/journal/paper-grain.png';
@@ -8,15 +16,19 @@ import postcardEdge from '../assets/journal/postcard-edge.png';
 import portrait from '../assets/journal/sam.jpg';
 import { useTheme } from './theme';
 
-const notebookColor = '#FAEDDB';
+const notebookColor = '#FCF0DD';
 const postcardColor = '#FEF1DC';
 
-export function PaperGrain({ opacity = 0.38 }: { opacity?: number }) {
+export function PaperGrain({ opacity = 0.11 }: { opacity?: number }) {
   const { mode } = useTheme();
   if (mode !== 'light') return null;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Image resizeMode="repeat" source={grain} style={[styles.grain, { opacity }]} />
+      <Image
+        resizeMode="repeat"
+        source={grain}
+        style={[styles.grain, { opacity: opacity * 0.55 }]}
+      />
     </View>
   );
 }
@@ -71,7 +83,7 @@ export function PlazaPostcard() {
           styles.traveler,
           {
             borderColor: colors.line,
-            borderLeftColor: colors.accent,
+
             backgroundColor: colors.white,
           },
         ]}
@@ -130,6 +142,73 @@ export function Notebook({ title, children }: { title: string; children: React.R
   );
 }
 
+export function JournalArt({
+  source,
+  label,
+  aspectRatio = 2.2,
+  taped = false,
+}: {
+  source: ImageSourcePropType;
+  label?: string;
+  aspectRatio?: number;
+  taped?: boolean;
+}) {
+  const { colors, mode } = useTheme();
+  return (
+    <View style={[styles.artFrame, { backgroundColor: colors.white }, taped && styles.tapedFrame]}>
+      <View style={[styles.artCrop, { aspectRatio, backgroundColor: colors.mint }]}>
+        <Image
+          accessible={!!label}
+          accessibilityLabel={label}
+          source={source}
+          resizeMode="cover"
+          style={[StyleSheet.absoluteFillObject, styles.grain]}
+        />
+      </View>
+      {taped && mode === 'light' && <View pointerEvents="none" style={styles.tape} />}
+    </View>
+  );
+}
+
+export function JournalLeaf({
+  children,
+  style,
+  tint = 'white',
+}: {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  tint?: 'white' | 'mint';
+}) {
+  const { colors } = useTheme();
+  return <View style={[styles.leaf, { backgroundColor: colors[tint] }, style]}>{children}</View>;
+}
+
+export function JournalSpread({
+  source,
+  title,
+  detail,
+  children,
+}: {
+  source: ImageSourcePropType;
+  title: string;
+  detail?: string;
+  children?: React.ReactNode;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.spread}>
+      <JournalArt source={source} taped />
+      <JournalLeaf style={styles.caption}>
+        <Text accessibilityRole="header" style={[styles.spreadTitle, { color: colors.ink }]}>
+          {title}
+        </Text>
+        {!!detail && <Text style={[styles.spreadDetail, { color: colors.muted }]}>{detail}</Text>}
+        {children}
+      </JournalLeaf>
+    </View>
+  );
+}
+
 const liftedPaper = {
   shadowColor: '#533016',
   shadowOpacity: 0.16,
@@ -140,6 +219,14 @@ const liftedPaper = {
 
 const styles = StyleSheet.create({
   grain: { width: '100%', height: '100%' },
+  artFrame: { padding: 5, borderRadius: 13, ...liftedPaper },
+  tapedFrame: { marginHorizontal: 4, marginTop: 8 },
+  artCrop: { width: '100%', overflow: 'hidden', borderRadius: 9 },
+  leaf: { borderRadius: 15, padding: 15, gap: 9, ...liftedPaper },
+  spread: { gap: 0 },
+  caption: { marginTop: -17, marginHorizontal: 12 },
+  spreadTitle: { fontFamily: 'LoraBold', fontSize: 24, letterSpacing: -0.35 },
+  spreadDetail: { fontFamily: 'Manrope', fontSize: 14, lineHeight: 21 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   wordmark: { fontFamily: 'LoraBold', letterSpacing: -0.7 },
   photo: { padding: 7, borderRadius: 9, ...liftedPaper },
@@ -173,8 +260,7 @@ const styles = StyleSheet.create({
     paddingLeft: 102,
     paddingRight: 66,
     borderRadius: 19,
-    borderWidth: 1,
-    borderLeftWidth: 6,
+    borderWidth: StyleSheet.hairlineWidth,
     justifyContent: 'center',
     flexDirection: 'row',
     alignItems: 'center',

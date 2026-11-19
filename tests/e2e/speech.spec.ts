@@ -113,6 +113,7 @@ test('travel words use bundled offline audio when a system voice is unavailable'
       n,
     );
   await expect.poll(() => wordPlays(1)).toBe(1);
+  await click(page, 'Revelar significado');
   await expect(page.getByText('hola', { exact: true })).toBeVisible();
   await expect(page.getByText(/Estás escuchando el audio incluido/)).toBeVisible();
   await click(page, 'Escuchar: Hi');

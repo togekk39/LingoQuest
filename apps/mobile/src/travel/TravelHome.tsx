@@ -37,11 +37,10 @@ import {
   type TravelState,
 } from '@lingoquest/offline-engine';
 import type { Progress } from '@lingoquest/contracts';
-import { PaperGrain } from '../Journal';
-import { Button, Card, Heading, Label } from '../ui';
+import { JournalArt, JournalLeaf, JournalSpread, Notebook, PaperGrain } from '../Journal';
+import { illustrations, placeIllustration } from './illustrations';
+import { Button, Heading, Label } from '../ui';
 import { useTheme } from '../theme';
-import { stop } from './TravelAppearance';
-import plaza from '../../assets/journal/plaza.jpg';
 
 import hometown from '../../assets/travel/hometown.jpg';
 import world from '../../assets/travel/world.png';
@@ -115,7 +114,7 @@ export function TravelHome({
         <View testID="home-mission-postcard" style={[s.missionPostcard, wide && { flex: 1.35 }]}>
           <View style={[s.postcardView, wide && { height: 270 }]}>
             <Image
-              source={!next || next.id === 'hello' ? plaza : stop}
+              source={next ? placeIllustration(next.place) : illustrations.passport}
               accessible={false}
               resizeMode="cover"
               style={s.postcardImage}
@@ -355,14 +354,12 @@ export function TravelRoute({
   const horizon = width < 800 || fontScale > 1.25;
   const active = travel.active;
   return (
-    <View style={{ gap: 18 }}>
-      <View style={{ gap: 9 }}>
-        <Text accessibilityRole="header" style={s.pageTitle}>
-          Mapa del viaje
-        </Text>
-        <Label style={s.copy}>
-          20 paradas, 7 continentes. Explora el mapa o elige un destino en la lista.
-        </Label>
+    <View testID="world-atlas" style={{ gap: 15 }}>
+      <JournalSpread
+        source={illustrations.atlas}
+        title="Mapa del viaje"
+        detail="20 paradas, 7 continentes. Explora el mapa o elige un destino en la lista."
+      >
         <View style={[s.row, { flexWrap: 'wrap' }]}>
           <Button variant="secondary" icon={Flag} onPress={onCountry}>
             Elegir lugar de origen
@@ -371,60 +368,62 @@ export function TravelRoute({
             Pasaporte
           </Button>
         </View>
-      </View>
-      <View style={s.world}>
-        <Image
-          accessible={false}
-          source={world}
-          resizeMode="stretch"
-          style={StyleSheet.absoluteFill}
-        />
-        {!isHome && (
-          <View
-            pointerEvents="none"
-            style={[
-              s.destinationPin,
-              {
-                left: `${(selected.position[0] + 180) / 3.6}%`,
-                top: `${(90 - selected.position[1]) / 1.8}%`,
-              },
-            ]}
+      </JournalSpread>
+      <JournalLeaf style={{ padding: 6 }}>
+        <View style={s.world}>
+          <Image
+            accessible={false}
+            source={world}
+            resizeMode="stretch"
+            style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]}
           />
-        )}
-        {mapGroups.map((region, i) => (
-          <Pressable
-            key={region.target}
-            accessibilityRole="button"
-            accessibilityLabel={region.name}
-            accessibilityState={{ selected: selectedContinent === region.name }}
-            onPress={() => {
-              const target = homeIsInSouthAmerica
-                ? region.target === 'home'
-                  ? 'mexico'
-                  : region.target === 'colombia'
-                    ? 'home'
-                    : region.target
-                : region.target;
-              onSelect(target);
-            }}
-            style={[
-              s.mapTarget,
-              {
-                left: `${(region.position[0] + 180) / 3.6}%`,
-                top: `${(90 - region.position[1]) / 1.8}%`,
-              },
-            ]}
-          >
-            <View style={[s.mapMarker, selectedContinent === region.name && s.mapSelected]}>
-              <Text style={s.markerText}>{i + 1}</Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
+          {!isHome && (
+            <View
+              pointerEvents="none"
+              style={[
+                s.destinationPin,
+                {
+                  left: `${(selected.position[0] + 180) / 3.6}%`,
+                  top: `${(90 - selected.position[1]) / 1.8}%`,
+                },
+              ]}
+            />
+          )}
+          {mapGroups.map((region, i) => (
+            <Pressable
+              key={region.target}
+              accessibilityRole="button"
+              accessibilityLabel={region.name}
+              accessibilityState={{ selected: selectedContinent === region.name }}
+              onPress={() => {
+                const target = homeIsInSouthAmerica
+                  ? region.target === 'home'
+                    ? 'mexico'
+                    : region.target === 'colombia'
+                      ? 'home'
+                      : region.target
+                  : region.target;
+                onSelect(target);
+              }}
+              style={[
+                s.mapTarget,
+                {
+                  left: `${(region.position[0] + 180) / 3.6}%`,
+                  top: `${(90 - region.position[1]) / 1.8}%`,
+                },
+              ]}
+            >
+              <View style={[s.mapMarker, selectedContinent === region.name && s.mapSelected]}>
+                <Text style={s.markerText}>{i + 1}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </JournalLeaf>
       <View
         style={{ flexDirection: horizon ? 'column' : 'row', alignItems: 'flex-start', gap: 16 }}
       >
-        <Card
+        <JournalLeaf
           style={[
             s.routeDetail,
             { width: horizon ? '100%' : undefined, flex: horizon ? undefined : 1.4 },
@@ -487,8 +486,8 @@ export function TravelRoute({
               Historia en preparación · Plan de estudio {selected.band}
             </Label>
           )}
-        </Card>
-        <Card
+        </JournalLeaf>
+        <JournalLeaf
           style={[
             s.routeDetail,
             { width: horizon ? '100%' : undefined, flex: horizon ? undefined : 1 },
@@ -507,7 +506,18 @@ export function TravelRoute({
               ]}
               accessibilityLabel={`${i + 1}. ${destination.name}`}
             >
-              <Text style={s.meta}>{displayNumber(i + 1)}</Text>
+              <View
+                style={[
+                  s.routeIndex,
+                  { backgroundColor: destination.id === selected.id ? C.primary : C.paper },
+                ]}
+              >
+                <Text
+                  style={[s.meta, { color: destination.id === selected.id ? C.onPrimary : C.ink }]}
+                >
+                  {displayNumber(i + 1)}
+                </Text>
+              </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={s.rowTitle}>
                   {destination.id === 'home' ? homeName(travel) : destination.name}
@@ -523,7 +533,7 @@ export function TravelRoute({
               <ChevronRight size={17} color={C.teal} />
             </Pressable>
           ))}
-        </Card>
+        </JournalLeaf>
       </View>
     </View>
   );
@@ -608,20 +618,14 @@ export function Passport({
   }
   return (
     <View style={{ gap: 17 }}>
-      <View style={{ gap: 5 }}>
-        <Text accessibilityRole="header" style={s.pageTitle}>
-          Pasaporte
-        </Text>
-        <Label style={s.copy}>
-          {homeName(travel)} · {stamp ? '1 sello' : '0 sellos'}
-        </Label>
-      </View>
-      <Card style={s.routeDetail}>
-        <View style={s.row}>
-          <View style={s.tileIcon}>
-            <Stamp color={C.teal} size={23} />
-          </View>
-          <Heading style={{ flex: 1 }}>Sellos del viaje</Heading>
+      <JournalSpread
+        source={illustrations.passport}
+        title="Pasaporte"
+        detail={`${homeName(travel)} · ${stamp ? '1 sello' : '0 sellos'}`}
+      />
+      <Notebook title="Sellos del viaje">
+        <View style={[s.passportSeal, { borderColor: C.accent, backgroundColor: C.mint }]}>
+          <Stamp size={27} color={C.accent} />
         </View>
         <Label style={s.copy}>
           {stamp
@@ -633,25 +637,16 @@ export function Passport({
             Continuar viaje
           </Button>
         )}
-      </Card>
+      </Notebook>
       {stamp && (
         <>
-          <Card style={s.routeDetail}>
+          <JournalLeaf style={s.routeDetail}>
             <Heading>{chapter.postcard}</Heading>
-            <Image
-              source={hometown}
-              resizeMode="cover"
-              style={{ width: '100%', height: 190, borderRadius: 13 }}
-              accessible={false}
-            />
+            <JournalArt source={hometown} taped />
             <Text style={s.rowTitle}>{chapter.collectible}</Text>
             <Label style={s.copy}>{chapter.message}</Label>
-          </Card>
-          <Card style={s.routeDetail}>
-            <View style={s.row}>
-              <NotebookPen color={C.teal} size={22} />
-              <Heading>Diario de viaje</Heading>
-            </View>
+          </JournalLeaf>
+          <Notebook title="Diario de viaje">
             <Label style={s.copy}>
               ¿Qué frase usarías para ayudar a un visitante en tu comunidad?
             </Label>
@@ -676,7 +671,7 @@ export function Passport({
                 {status}
               </Text>
             )}
-          </Card>
+          </Notebook>
         </>
       )}
     </View>
@@ -861,6 +856,22 @@ function useStyles() {
       backgroundColor: C.mint,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    routeIndex: {
+      width: 36,
+      minHeight: 34,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    passportSeal: {
+      width: 58,
+      height: 58,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderRadius: 29,
+      transform: [{ rotate: '-9deg' }],
     },
     routeDetail: { padding: 18, gap: 13, borderRadius: 19, minWidth: 0 },
     routeItem: {

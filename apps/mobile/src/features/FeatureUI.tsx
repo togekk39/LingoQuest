@@ -16,8 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardOverlap } from './useKeyboardOverlap';
 import { MotionEntrance, MotionPressable } from '../motion';
 import { ProgressBar } from '../ui';
-import { JournalBrand, PaperGrain } from '../Journal';
-import { ThemeButton } from '../ThemePicker';
+import { PaperGrain } from '../Journal';
 
 export const InputViewportContext = createContext<{
   revealInput: (input: TextInput | null) => void;
@@ -171,26 +170,6 @@ export function FlowFrame({
       onLayout={measureOverlap}
     >
       {journal && <PaperGrain />}
-      {journal && (
-        <View style={f.masthead}>
-          <View style={f.mastheadContent}>
-            <JournalBrand small />
-            <View style={f.row}>
-              <ThemeButton />
-              {(journal.onSettings || onVoiceSettings) && (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={onVoiceSettings ? 'Configuración de voz' : 'Configuración'}
-                  onPress={journal.onSettings ?? onVoiceSettings}
-                  style={f.journalIcon}
-                >
-                  <Settings2 size={21} color={palette.ink} />
-                </Pressable>
-              )}
-            </View>
-          </View>
-        </View>
-      )}
       <View style={journal ? f.journalTopbar : f.topbar}>
         <Pressable
           accessibilityLabel="Cerrar y volver"
@@ -211,16 +190,28 @@ export function FlowFrame({
           </Text>
         </View>
         {journal ? (
-          journal.onListen && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Escuchar ejemplo de la lección"
-              onPress={journal.onListen}
-              style={[f.close, f.journalControl]}
-            >
-              <Volume2 size={23} color={palette.ink} />
-            </Pressable>
-          )
+          <View style={f.journalTools}>
+            {journal.onListen && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Escuchar ejemplo de la lección"
+                onPress={journal.onListen}
+                style={f.journalControl}
+              >
+                <Volume2 size={23} color={palette.ink} />
+              </Pressable>
+            )}
+            {(journal.onSettings || onVoiceSettings) && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={onVoiceSettings ? 'Configuración de voz' : 'Configuración'}
+                onPress={journal.onSettings ?? onVoiceSettings}
+                style={f.journalControl}
+              >
+                <Settings2 size={21} color={palette.ink} />
+              </Pressable>
+            )}
+          </View>
         ) : onVoiceSettings ? (
           <Pressable
             accessibilityLabel="Configuración de voz"
@@ -242,7 +233,7 @@ export function FlowFrame({
           <ProgressBar
             accessibilityLabel={`Progreso: ${Math.round(progress * 100)} por ciento`}
             value={progress}
-            height={journal ? 8 : 5}
+            height={5}
             color={journal ? palette.accent : palette.primary}
           />
         </View>
@@ -348,39 +339,35 @@ export function useFeatureStyles() {
       textTransform: 'uppercase',
     },
     topTitle: { fontFamily: 'Outfit', fontSize: 19, color: palette.ink, marginTop: 3 },
-    masthead: { borderBottomWidth: 1, borderBottomColor: palette.line, paddingHorizontal: 18 },
-    mastheadContent: {
-      alignSelf: 'center',
-      width: '100%',
-      maxWidth: 650,
-      minHeight: 55,
-      paddingVertical: 4,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: 10,
-    },
-    journalIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     journalTopbar: {
       width: '100%',
       maxWidth: 686,
       alignSelf: 'center',
-      paddingHorizontal: 18,
-      paddingVertical: 11,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 13,
     },
-    journalControl: { width: 46, height: 46, borderColor: palette.line, borderRadius: 14 },
+    journalTools: { flexDirection: 'row', alignItems: 'center' },
+    journalControl: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 0,
+      borderRadius: 13,
+      backgroundColor: palette.mint,
+    },
     journalTitle: {
       fontFamily: 'LoraBold',
-      fontSize: 23,
-      lineHeight: 29,
+      fontSize: 19,
+      lineHeight: 24,
       marginTop: 2,
       color: palette.ink,
     },
     journalProgress: { width: '100%', maxWidth: 686, alignSelf: 'center', paddingHorizontal: 16 },
-    journalScroll: { paddingHorizontal: 18, paddingVertical: 15 },
+    journalScroll: { paddingHorizontal: 15, paddingVertical: 12 },
     journalWidth: { maxWidth: 650 },
     journalFooter: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: palette.paper },
     safetyDot: { flexDirection: 'row', gap: 7, alignItems: 'center' },

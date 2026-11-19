@@ -1,3 +1,5 @@
+import { JournalArt, JournalLeaf, JournalSpread } from '../Journal';
+import { illustrations } from '../travel/illustrations';
 import { useTheme } from '../theme';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -23,7 +25,6 @@ import {
   Medal,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   Trophy,
   X,
 } from 'lucide-react-native';
@@ -376,39 +377,11 @@ export function ChallengesScreen({
   if (view === 'hub')
     return (
       <View style={s.page}>
-        <View style={s.pageHeading}>
-          <SmallLabel>UN RETO, CUANDO TÚ QUIERAS</SmallLabel>
-          <Text style={s.title}>Un paso más allá.</Text>
-          <Text style={s.subtitle}>Aprende a tu ritmo. Después, pon a prueba lo que sabes.</Text>
-        </View>
-        <View style={[s.hero, narrow && { flexDirection: 'column' }]}>
-          <View style={{ flex: 1, gap: 14 }}>
-            <View style={s.badge}>
-              <Sparkles size={13} color={C.teal} />
-              <Text style={s.badgeText}>SIEMPRE OPCIONAL</Text>
-            </View>
-            <Text style={s.heroTitle}>Tu única competencia{narrow ? '\n' : ' '}eres tú.</Text>
-            <Text style={s.heroCopy}>
-              13 niveles para explorar tus habilidades. Sin arriesgar tus lecciones, tu XP ni lo que
-              ya aprendiste.
-            </Text>
-            <View style={s.inline}>
-              <ShieldCheck size={17} color={C.teal} />
-              <Text style={s.safetyText}>Tu progreso está a salvo.</Text>
-            </View>
-          </View>
-          <View style={s.trophyArt}>
-            <View style={s.artCircle}>
-              <Trophy size={70} color={C.teal} strokeWidth={1.25} />
-            </View>
-            <View style={s.artSpark}>
-              <Sparkles size={23} color="#B77A32" />
-            </View>
-            <View style={s.artMedal}>
-              <Medal size={27} color={C.teal} />
-            </View>
-          </View>
-        </View>
+        <JournalSpread
+          source={illustrations.expedition}
+          title="Un paso más allá."
+          detail="13 niveles para explorar tus habilidades. Practica sin arriesgar tu progreso."
+        />
         <View style={s.sectionHeading}>
           <Text style={s.sectionTitle}>Encuentra tu desafío</Text>
           <Text style={s.sectionNote}>3 tipos de prueba</Text>
@@ -515,7 +488,10 @@ export function ChallengesScreen({
           }}
         />
         <SmallLabel>PRÁCTICA LOCAL · SIN CLASIFICACIÓN</SmallLabel>
-        <Text style={s.title}>{track?.titleEs.replace(/^Desafío:\s*/, '')}</Text>
+        <JournalSpread
+          source={illustrations.expedition}
+          title={track?.titleEs.replace(/^Desafío:\s*/, '') ?? 'Desafíos'}
+        />
         <Text style={s.subtitle}>Elige una forma de practicar y encuentra tu siguiente reto.</Text>
         <View style={s.typeSelector}>
           {(Object.keys(gameNames) as GameType[]).map((key) => (
@@ -563,7 +539,7 @@ export function ChallengesScreen({
             <ActivityIndicator color={C.teal} />
           </View>
         ) : (
-          <View style={s.levelGrid}>
+          <JournalLeaf style={s.levelGrid}>
             {levels.map((item) => (
               <Pressable
                 key={item.level}
@@ -579,7 +555,6 @@ export function ChallengesScreen({
                 }}
                 style={({ pressed }) => [
                   s.levelCard,
-                  { width: narrow ? '47%' : '22.8%' },
                   item.level > 10 && s.levelExtreme,
                   pressed && { opacity: 0.75 },
                 ]}
@@ -594,30 +569,32 @@ export function ChallengesScreen({
                     <ChevronRight size={18} color={C.muted} />
                   )}
                 </View>
-                <Text style={s.levelName}>{item.nameEs}</Text>
-                <View style={s.inline}>
-                  <Heart size={13} color={C.coral} />
-                  <Text style={s.levelDetail}>{item.hearts}</Text>
-                  <Text style={s.levelDot}>·</Text>
-                  <Clock3 size={13} color={C.muted} />
-                  <Text style={s.levelDetail}>{clock(item.seconds)}</Text>
+                <View style={s.levelDescription}>
+                  <Text style={s.levelName}>{item.nameEs}</Text>
+                  <View style={s.inline}>
+                    <Heart size={13} color={C.coral} />
+                    <Text style={s.levelDetail}>{item.hearts}</Text>
+                    <Text style={s.levelDot}>·</Text>
+                    <Clock3 size={13} color={C.muted} />
+                    <Text style={s.levelDetail}>{clock(item.seconds)}</Text>
+                  </View>
+                  {item.bestScore > 0 ? (
+                    <Text style={s.bestScore}>Mejor práctica: {item.bestScore} pts</Text>
+                  ) : (
+                    <Text style={s.bestScore}>
+                      {!item.unlocked
+                        ? item.planned
+                          ? 'En preparación'
+                          : 'Completa el capítulo'
+                        : item.level > 10
+                          ? 'Reto avanzado'
+                          : 'Listo para explorar'}
+                    </Text>
+                  )}
                 </View>
-                {item.bestScore > 0 ? (
-                  <Text style={s.bestScore}>Mejor práctica: {item.bestScore} pts</Text>
-                ) : (
-                  <Text style={s.bestScore}>
-                    {!item.unlocked
-                      ? item.planned
-                        ? 'En preparación'
-                        : 'Completa el capítulo'
-                      : item.level > 10
-                        ? 'Reto avanzado'
-                        : 'Listo para explorar'}
-                  </Text>
-                )}
               </Pressable>
             ))}
-          </View>
+          </JournalLeaf>
         )}
         <View style={s.softFooter}>
           <ShieldCheck size={19} color={C.teal} />
@@ -639,9 +616,7 @@ export function ChallengesScreen({
           }}
         />
         <View style={s.preflightCard}>
-          <View style={s.largeIcon}>
-            <Trophy size={40} color={C.teal} strokeWidth={1.5} />
-          </View>
+          <JournalArt source={illustrations.expedition} aspectRatio={3.3} taped />
           <SmallLabel>
             NIVEL {level?.level} · {gameNames[type].title.toUpperCase()}
           </SmallLabel>
@@ -793,9 +768,10 @@ export function ChallengesScreen({
           </View>
         )}
         {run.question ? (
-          <View style={s.questionCard}>
+          <JournalLeaf style={s.questionCard}>
             {run.question.passage && (
               <View style={s.passage}>
+                <JournalArt source={illustrations.writing} aspectRatio={4.8} />
                 <SmallLabel>LEE CON ATENCIÓN</SmallLabel>
                 <Text style={s.passageText}>{run.question.passage}</Text>
               </View>
@@ -869,7 +845,7 @@ export function ChallengesScreen({
                 onPress={() => void refreshRun()}
               />
             )}
-          </View>
+          </JournalLeaf>
         ) : (
           <View style={s.loading}>
             <ActivityIndicator color={C.teal} />
@@ -1196,22 +1172,19 @@ export function useStyles() {
     typeTabSelected: { borderColor: C.teal, backgroundColor: tone('#EEF7F0', 'background') },
     typeText: { fontFamily: 'ManropeBold', fontSize: 12, color: C.ink },
     typeCaption: { fontFamily: 'Manrope', fontSize: 10, color: C.muted },
-    levelGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15 },
+    levelGrid: { paddingVertical: 2, gap: 0 },
+    levelDescription: { flex: 1, minWidth: 0, gap: 3 },
     levelCard: {
-      padding: 18,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
       gap: 13,
-      borderRadius: 15,
-      borderWidth: 1,
-      borderColor: C.line,
-      backgroundColor: C.white,
-      minWidth: 115,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: C.line,
     },
-    levelExtreme: {
-      backgroundColor: tone('#FFF8ED', 'background'),
-      borderColor: tone('#EEDDC3', 'border'),
-    },
-    levelTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    levelNumber: { fontFamily: 'OutfitMedium', fontSize: 27, color: C.teal },
+    levelExtreme: { opacity: 0.83 },
+    levelTop: { minWidth: 55, flexDirection: 'row', alignItems: 'center', gap: 5 },
+    levelNumber: { fontFamily: 'LoraBold', fontSize: 24, color: C.teal },
     levelName: { fontFamily: 'ManropeBold', fontSize: 11, lineHeight: 18, color: C.ink },
     levelDetail: { fontFamily: 'ManropeMedium', fontSize: 10, color: C.muted },
     levelDot: { color: tone('#B1BEB5', 'text'), fontSize: 12 },
@@ -1219,11 +1192,9 @@ export function useStyles() {
     softFooter: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingTop: 6 },
     preflightCard: {
       backgroundColor: C.white,
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 22,
-      padding: 28,
-      gap: 20,
+      borderRadius: 18,
+      padding: 15,
+      gap: 13,
       alignItems: 'stretch',
     },
     largeIcon: {
@@ -1295,14 +1266,7 @@ export function useStyles() {
     },
     progressFill: { height: 7, borderRadius: 5, backgroundColor: C.primary },
     questionCount: { marginTop: -12, flexDirection: 'row', justifyContent: 'space-between' },
-    questionCard: {
-      padding: 26,
-      backgroundColor: C.white,
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 20,
-      gap: 23,
-    },
+    questionCard: { padding: 15, borderRadius: 16, gap: 14 },
     passage: {
       backgroundColor: tone('#F3F7F2', 'background'),
       borderRadius: 13,

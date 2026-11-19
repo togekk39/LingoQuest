@@ -32,3 +32,33 @@ for (const width of [390, 1280]) {
     );
   });
 }
+
+test('the illustrated vocabulary guide offers matching and a fill-in without scoring progress', async ({
+  page,
+}) => {
+  await enterApp(page);
+  await page.getByRole('tab', exact('Aprender')).click();
+  await expect(page.getByTestId('illustrated-vocabulary').first()).toBeVisible();
+  await click(page, 'Relacionar palabras');
+  for (const [word, meaning] of [
+    ['Hi', 'hola'],
+    ['I am', 'soy / estoy'],
+    ['My name is', 'me llamo'],
+  ]) {
+    await click(page, `Relacionar: ${word}`);
+    await click(page, `Significado: ${meaning}`);
+  }
+  await click(page, 'Comprobar parejas y frases');
+  const success = page.getByText('¡Bien! Ya puedes usar lo que acabas de practicar.', {
+    exact: true,
+  });
+  await expect(success).toBeVisible();
+  await click(page, 'Volver a las palabras');
+  await click(page, 'Completar una frase');
+  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('is');
+  await click(page, 'Comprobar parejas y frases');
+  await expect(success).toBeVisible();
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('lq_offline_state_v1')!).xp),
+  ).toBe(0);
+});

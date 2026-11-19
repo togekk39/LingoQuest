@@ -36,7 +36,7 @@ import { QuickReview } from './travel/QuickReview';
 import { TravelWelcome } from './travel/TravelWelcome';
 import { TravelPlacementFlow } from './travel/TravelPlacementFlow';
 import { TravelGuide, TravelPronunciation } from './travel/TravelGuide';
-import { JournalBrand, PaperGrain } from './Journal';
+import { JournalBrand, JournalLeaf, PaperGrain } from './Journal';
 import { SpeechSettings } from './features/SpeechSettings';
 import { MotionProvider, useReducedMotion } from './motion';
 
@@ -192,7 +192,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           <X size={22} color={C.ink} />
         </Pressable>
       </View>
-      <SpeechSettings />
+      <JournalLeaf tint="mint">
+        <SpeechSettings />
+      </JournalLeaf>
       {settings === 'general' && (
         <>
           <Heading style={{ fontSize: 22 }}>Privacidad</Heading>
@@ -332,6 +334,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           </View>
           <ScrollView
             ref={scroll}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={[s.content, { padding: desktop ? 31 : 15 }]}
           >
             {loading ? (

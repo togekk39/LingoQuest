@@ -284,11 +284,11 @@ export function AnswerFeedback({
         style={[
           s.feedback,
           !result.correct && {
-            backgroundColor: tone('#FFF3E7', 'background'),
-            borderColor: tone('#ECD2B6', 'border'),
+            backgroundColor: tone('#FFF1DD', 'background'),
           },
         ]}
       >
+        <PaperGrain />
         <View style={f.row}>
           {result.correct ? (
             <Celebration size={72}>
@@ -437,13 +437,15 @@ export function useStyles() {
       gap: 8,
     },
     feedback: {
-      padding: 22,
-      gap: 13,
-      borderRadius: 19,
-      borderWidth: 1,
-      borderColor: tone('#B8DBC6', 'border'),
-      backgroundColor: tone('#E6F5EB', 'background'),
-      marginTop: 8,
+      padding: 16,
+      gap: 9,
+      borderRadius: 20,
+      backgroundColor: palette.mint,
+      shadowColor: '#53402C',
+      shadowOpacity: 0.16,
+      shadowOffset: { width: 0, height: 6 },
+      shadowRadius: 14,
+      elevation: 2,
     },
     accepted: {
       fontFamily: 'Manrope',

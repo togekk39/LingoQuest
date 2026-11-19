@@ -1,16 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Image, Keyboard, StyleSheet, Text, View } from 'react-native';
-import {
-  ArrowRight,
-  Backpack,
-  BusFront,
-  Check,
-  Compass,
-  LocateFixed,
-  Stamp,
-  Trees,
-  Volume2,
-} from 'lucide-react-native';
+import { ArrowRight, Check, Compass, Stamp, Volume2 } from 'lucide-react-native';
 import {
   chapter,
   type TravelCheckpoint,
@@ -26,10 +16,19 @@ import { AnswerFeedback } from '../features/LessonStages';
 import { SpeakingPanel } from '../features/SpeakingPractice';
 import { Button, Card, Heading, Label } from '../ui';
 import { QuestBuddy } from '../QuestBuddy';
-import { Notebook, PaperGrain, PlazaPhoto, PlazaPostcard } from '../Journal';
+import {
+  JournalArt,
+  JournalSpread,
+  Notebook,
+  PaperGrain,
+  PlazaPhoto,
+  PlazaPostcard,
+} from '../Journal';
 import { useTheme } from '../theme';
+import { Celebration } from '../motion';
 import { useChapterAudio } from './useChapterAudio';
-import { TravelScene, VocabularyCard } from './TravelAppearance';
+import { illustrations, placeIllustration } from './illustrations';
+import { GrammarWorkbench, TravelScene, VocabularyCard } from './TravelAppearance';
 
 function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: string) => void }) {
   const s = useStyles();
@@ -78,9 +77,7 @@ function DialoguePostcard({
               ) : step.speaker === 'QuestBuddy' ? (
                 <QuestBuddy size={54} />
               ) : (
-                <View style={[s.avatar, s.hostAvatar]}>
-                  <Text style={s.hostInitial}>{step.speaker[0]}</Text>
-                </View>
+                <Image source={illustrations.luz} accessible={false} style={s.avatar} />
               )}
               <View style={{ flex: 1 }}>
                 <Heading style={{ fontSize: 25 }}>{step.speaker}</Heading>
@@ -107,39 +104,6 @@ function DialoguePostcard({
             <Label style={s.storyText}>{mission.objective}</Label>
           </View>
         </View>
-      )}
-    </View>
-  );
-}
-
-function SceneClue({ type }: { type: 'directions' | 'bag' }) {
-  const { colors: C } = useTheme();
-  const s = useStyles();
-  return (
-    <View style={s.clue}>
-      {type === 'directions' ? (
-        <>
-          <View style={s.landmark}>
-            <BusFront size={28} color={C.teal} />
-            <Label>Parada de bus</Label>
-          </View>
-          <LocateFixed size={19} color={C.muted} />
-          <View style={s.landmark}>
-            <Trees size={28} color={C.teal} />
-            <Label>Parque</Label>
-          </View>
-        </>
-      ) : (
-        <>
-          <View style={s.landmark}>
-            <Backpack size={36} color="#3582B9" />
-            <Label>Mochila azul</Label>
-          </View>
-          <View style={s.landmark}>
-            <Backpack size={36} color={C.red} />
-            <Label>Mochila roja</Label>
-          </View>
-        </>
       )}
     </View>
   );
@@ -298,6 +262,7 @@ export function TravelFlow({
     </Action>
   ) : undefined;
 
+  const inlineAdvance = current.finished || step.type === 'dialogue';
   return (
     <FlowFrame
       title={mission.title}
@@ -314,7 +279,7 @@ export function TravelFlow({
           : undefined
       }
       progress={current.finished ? 1 : (current.step + 1) / mission.steps.length}
-      footer={footer}
+      footer={inlineAdvance ? undefined : footer}
       feedback={
         step.type === 'exercise' && current.result ? (
           <AnswerFeedback
@@ -334,23 +299,28 @@ export function TravelFlow({
       )}
       <View key={current.token} testID={`travel-step-${step.type}`} style={{ gap: 14 }}>
         {current.finished ? (
-          <Card style={s.completion}>
-            <PaperGrain opacity={0.18} />
-            <View style={s.completionSeal}>
-              {mission.id === 'bag' ? (
-                <Stamp size={28} color={C.teal} />
-              ) : (
-                <Check size={28} color={C.teal} />
-              )}
-            </View>
-            <Heading style={s.completionText}>¡Misión completada!</Heading>
-            <Label style={[s.storyText, s.completionText]}>{mission.success}</Label>
+          <JournalSpread
+            source={
+              mission.id === 'bag' ? illustrations.passport : placeIllustration(mission.place)
+            }
+            title="¡Misión completada!"
+            detail={mission.success}
+          >
+            <Celebration size={64}>
+              <View style={s.completionSeal}>
+                {mission.id === 'bag' ? (
+                  <Stamp size={28} color={C.teal} />
+                ) : (
+                  <Check size={28} color={C.teal} />
+                )}
+              </View>
+            </Celebration>
             {mission.id === 'bag' && (
               <Label style={[s.storyText, s.completionText]}>
                 Sello obtenido · {chapter.stamp}
               </Label>
             )}
-          </Card>
+          </JournalSpread>
         ) : step.type === 'dialogue' ? (
           <DialoguePostcard
             mission={mission}
@@ -366,24 +336,36 @@ export function TravelFlow({
                 {wordIndex + 1} / {mission.vocabulary.length}
               </Label>
             </View>
-            <VocabularyCard word={word} play={(value) => void play(value)} />
+            <VocabularyCard key={word.term} word={word} play={play} recall />
           </>
         ) : step.type === 'teach' ? (
-          <>
-            <Notebook title={step.title}>
-              <Label style={s.storyText}>{step.text}</Label>
-            </Notebook>
-            {step.examples.map((example) => (
-              <Phrase key={example.en} {...example} play={play} />
-            ))}
-          </>
+          <GrammarWorkbench step={step} play={play} />
         ) : step.type === 'exercise' ? (
           <>
             {greetingExample && <Phrase {...greetingExample} play={play} />}
+            {!!step.visual && (
+              <JournalArt source={placeIllustration(mission.place)} aspectRatio={2.8} />
+            )}
+            {!!step.audio && <JournalArt source={illustrations.review} aspectRatio={3.1} taped />}
             <View testID="travel-workbook">
-              <Notebook title="Ahora te toca a ti">
+              <Notebook
+                title={
+                  step.audio
+                    ? 'Escucha y decide'
+                    : step.exercise.passage
+                      ? 'Lee el mensaje'
+                      : 'Ahora te toca a ti'
+                }
+              >
                 <Label style={s.storyText}>{step.situation}</Label>
-                {step.visual && <SceneClue type={step.visual} />}
+                {!!step.visual && (
+                  <Label style={f.quiet}>
+                    {step.visual === 'directions'
+                      ? 'La parada está junto al parque.'
+                      : 'En el mostrador hay una mochila azul y una mochila roja.'}
+                  </Label>
+                )}
+
                 {step.audio && (
                   <View style={s.audioClue}>
                     <Button
@@ -453,6 +435,7 @@ export function TravelFlow({
           {speechMessage}
         </Text>
       )}
+      {inlineAdvance && footer}
     </FlowFrame>
   );
 }
@@ -486,7 +469,6 @@ function useStyles() {
     listen: { alignSelf: 'stretch', marginTop: 11 },
     audioClue: { gap: 5, padding: 10, backgroundColor: C.paper, borderRadius: 12 },
     hint: { alignSelf: 'flex-start', paddingHorizontal: 3 },
-    completion: { padding: 24, gap: 12, alignItems: 'center', overflow: 'hidden' },
     completionSeal: {
       width: 64,
       height: 64,
@@ -512,22 +494,5 @@ function useStyles() {
       height: 54,
       borderRadius: 27,
     },
-    hostAvatar: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: C.mint,
-    },
-    hostInitial: { fontFamily: 'LoraBold', fontSize: 26, color: C.teal },
-    clue: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 14,
-      backgroundColor: C.paper,
-      borderRadius: 12,
-      padding: 12,
-    },
-    landmark: { alignItems: 'center', gap: 5, padding: 7, flexShrink: 1 },
   });
 }

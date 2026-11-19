@@ -1,3 +1,4 @@
+import { JournalLeaf, Notebook } from '../Journal';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Text, View } from 'react-native';
 import { Compass, CornerDownRight, MapPin, Volume2 } from 'lucide-react-native';
@@ -12,7 +13,7 @@ import { ExerciseInput, hasAnswer, type ExerciseAnswer } from '../features/Exerc
 import { Action, ErrorCard, FlowFrame, useFeatureStyles } from '../features/FeatureUI';
 import { api } from '../lib/api';
 import { useTheme } from '../theme';
-import { Button, Card, Heading, Label } from '../ui';
+import { Button, Heading, Label } from '../ui';
 import { TravelScene } from './TravelAppearance';
 import { useChapterAudio } from './useChapterAudio';
 
@@ -117,6 +118,7 @@ export function TravelPlacementFlow({
   ) : undefined;
   return (
     <FlowFrame
+      journal={{}}
       title="Tu punto de partida"
       eyebrow="La primera postal"
       onClose={onClose}
@@ -135,7 +137,7 @@ export function TravelPlacementFlow({
       {result && recommended ? (
         <>
           <TravelScene place={recommended.place} />
-          <Card style={{ gap: 12, borderLeftWidth: 4, borderLeftColor: C.accent }}>
+          <JournalLeaf tint="mint">
             <MapPin size={23} color={C.accent} />
             <Label>Tu misión sugerida</Label>
             <Heading style={{ fontSize: 28 }}>{recommended.title}</Heading>
@@ -146,7 +148,7 @@ export function TravelPlacementFlow({
             {recommended.id !== 'hello' && (
               <Label>Puedes volver a las misiones anteriores desde Aprender.</Label>
             )}
-          </Card>
+          </JournalLeaf>
         </>
       ) : started && item ? (
         <>
@@ -154,7 +156,7 @@ export function TravelPlacementFlow({
             Pregunta {answers.length + 1} de {questions.length}
           </Text>
           {item.audio && (
-            <Card style={{ gap: 8 }}>
+            <JournalLeaf tint="mint">
               <Button variant="secondary" icon={Volume2} onPress={() => void play(item.audio!)}>
                 Escuchar a Sam
               </Button>
@@ -166,15 +168,18 @@ export function TravelPlacementFlow({
                 </Button>
               )}
               {!!speechMessage && <Label>{speechMessage}</Label>}
-            </Card>
+            </JournalLeaf>
           )}
-          <ExerciseInput
-            key={item.exercise.id}
-            exercise={item.exercise}
-            answer={answer}
-            setAnswer={setAnswer}
-            disabled={busy}
-          />
+          <Notebook title="Tu respuesta">
+            <ExerciseInput
+              journal
+              key={item.exercise.id}
+              exercise={item.exercise}
+              answer={answer}
+              setAnswer={setAnswer}
+              disabled={busy}
+            />
+          </Notebook>
         </>
       ) : (
         questions.length > 0 && (

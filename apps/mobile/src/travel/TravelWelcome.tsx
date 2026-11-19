@@ -4,8 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight, ChevronRight, Compass, MapPin, Route, X } from 'lucide-react-native';
 import { chapter } from '@lingoquest/offline-engine';
 import { Button } from '../ui';
-import { JournalBrand, PaperGrain, PlazaPhoto } from '../Journal';
+import { JournalArt, JournalBrand, PaperGrain } from '../Journal';
 import { useTheme } from '../theme';
+import { illustrations } from './illustrations';
 
 export function TravelWelcome({
   busy,
@@ -46,7 +47,7 @@ export function TravelWelcome({
             <Text style={[styles.copy, { color: C.muted }]}>
               Sigue la historia de Sam y practica el inglés que necesitas en cada parada.
             </Text>
-            <PlazaPhoto />
+            <JournalArt source={illustrations.welcome} aspectRatio={2.25} taped />
             <View style={styles.location}>
               <MapPin size={16} color={C.accent} />
               <Text style={[styles.locationText, { color: C.accent }]}>{firstMission.place}</Text>

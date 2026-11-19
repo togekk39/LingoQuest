@@ -1,3 +1,5 @@
+import { JournalSpread } from '../Journal';
+import { illustrations } from '../travel/illustrations';
 import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -61,7 +63,13 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
       />
     );
   return (
-    <FlowFrame title="Lo aprendido se queda contigo" eyebrow="Repaso inteligente" onClose={onClose}>
+    <FlowFrame
+      journal={{}}
+      title="Lo aprendido se queda contigo"
+      eyebrow="Repaso inteligente"
+      onClose={onClose}
+    >
+      <JournalSpread source={illustrations.review} title="Vuelve a tus palabras" />
       <View style={s.headerIcon}>
         <Sprout color={palette.teal} size={37} strokeWidth={1.5} />
       </View>
