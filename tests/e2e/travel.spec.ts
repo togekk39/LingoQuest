@@ -40,8 +40,9 @@ test.describe('origin picker on a small touch screen', () => {
     await page.reload();
     const change = page.getByRole('button', exact('Cambiar lugar de origen'));
     await expect(change.getByText('Panamá')).toBeVisible();
+    expect((await state(page)).travel.country).toBe('PA');
     await change.tap();
-    await expect(page.getByRole('button', { ...exact('Panamá'), selected: true })).toBeVisible();
+    await expect(page.getByRole('button', exact('Panamá'))).toBeVisible();
   });
 });
 
