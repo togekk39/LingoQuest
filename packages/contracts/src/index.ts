@@ -71,6 +71,18 @@ export type ExerciseType =
   'single_choice' | 'meaning' | 'matching' | 'cloze' | 'reorder' | 'correction' | 'short_text';
 export type EvidenceDimension =
   'vocabulary_recognition' | 'vocabulary_recall' | 'grammar_understanding' | 'grammar_production';
+export const learningErrorSchema = z.enum([
+  'subject_omission',
+  'be_omission',
+  'be_agreement',
+  'third_person',
+  'tense',
+  'preposition',
+  'article',
+  'word_order',
+  'false_friend',
+]);
+export type LearningError = z.infer<typeof learningErrorSchema>;
 export interface Translation {
   en: string;
   es: string;
@@ -180,6 +192,7 @@ export interface AttemptResult {
   correct: boolean;
   feedbackEs: string;
   acceptedAnswer?: string;
+  errorType?: LearningError;
   xpAwarded: number;
   pending: false;
 }

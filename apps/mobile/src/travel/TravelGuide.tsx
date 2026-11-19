@@ -3,9 +3,11 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import {
   ArrowRight,
   AudioLines,
+  BookOpen,
   Bookmark,
   Headphones,
   MapPin,
+  RotateCcw,
   Route,
   Volume2,
 } from 'lucide-react-native';
@@ -17,7 +19,7 @@ import { useTheme } from '../theme';
 import { JournalLeaf, JournalSpread } from '../Journal';
 import { illustrations, placeIllustration } from './illustrations';
 import { WordWorkshop } from './WordWorkshop';
-import { VocabularyCard } from './TravelAppearance';
+import { GrammarWorkbench, VocabularyCard } from './TravelAppearance';
 import { useChapterAudio } from './useChapterAudio';
 
 export function TravelGuide({
@@ -26,12 +28,18 @@ export function TravelGuide({
   onAssessment,
   onSpeech,
   onVoiceSettings,
+  onGrammar,
+  onLegacy,
+  onReview,
 }: {
   travel: TravelState;
   onMission: (id: string) => void;
   onAssessment: () => void;
   onSpeech: () => void;
   onVoiceSettings: () => void;
+  onGrammar: () => void;
+  onLegacy: () => void;
+  onReview?: () => void;
 }) {
   const { colors: C } = useTheme();
   const { width } = useWindowDimensions();
@@ -52,14 +60,22 @@ export function TravelGuide({
         title="Palabras del viaje"
         detail={chapter.title}
       >
-        <Button
-          variant="ghost"
-          icon={Volume2}
-          onPress={configureVoice}
-          style={{ alignSelf: 'flex-start' }}
-        >
-          Configuración de voz
-        </Button>
+        <View style={styles.actions}>
+          <Button variant="secondary" icon={BookOpen} onPress={onGrammar}>
+            Manual de gramática
+          </Button>
+          <Button variant="secondary" onPress={onLegacy}>
+            Cursos A1–A2
+          </Button>
+          {!!onReview && (
+            <Button variant="ghost" icon={RotateCcw} onPress={onReview}>
+              Mis habilidades
+            </Button>
+          )}
+          <Button variant="ghost" icon={Volume2} onPress={configureVoice}>
+            Configuración de voz
+          </Button>
+        </View>
       </JournalSpread>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
         {chapter.missions.map((item, i) => (
@@ -67,6 +83,7 @@ export function TravelGuide({
             key={item.id}
             accessibilityRole="tab"
             accessibilityState={{ selected: i === index }}
+            aria-selected={i === index}
             onPress={() => {
               stop();
               select(i);
@@ -87,6 +104,16 @@ export function TravelGuide({
         <Bookmark size={20} color={C.accent} />
         <Heading style={{ flex: 1, fontSize: 25 }}>{mission.title}</Heading>
       </View>
+      <Button
+        icon={ArrowRight}
+        disabled={!unlocked}
+        onPress={() => {
+          stop();
+          onMission(mission.id);
+        }}
+      >
+        {unlocked ? 'Abrir misión' : 'Completa la misión anterior'}
+      </Button>
       {workshop ? (
         <WordWorkshop
           key={workshop}
@@ -114,16 +141,6 @@ export function TravelGuide({
         </>
       )}
       {!!speechMessage && <Label>{speechMessage}</Label>}
-      <Button
-        icon={ArrowRight}
-        disabled={!unlocked}
-        onPress={() => {
-          stop();
-          onMission(mission.id);
-        }}
-      >
-        {unlocked ? 'Abrir misión' : 'Completa la misión anterior'}
-      </Button>
       <View style={{ gap: 10, flexDirection: desktop ? 'row' : 'column' }}>
         <Button variant="secondary" icon={Headphones} onPress={onSpeech}>
           Practicar pronunciación
@@ -133,6 +150,64 @@ export function TravelGuide({
         </Button>
       </View>
     </View>
+  );
+}
+
+const grammarTopics = chapter.missions.flatMap((mission) =>
+  mission.steps.filter((step) => step.type === 'teach'),
+);
+
+export function TravelGrammar({
+  onClose,
+  onVoiceSettings,
+}: {
+  onClose: () => void;
+  onVoiceSettings: () => void;
+}) {
+  const { colors: C } = useTheme();
+  const [index, select] = useState(0);
+  const { play, stop, speechMessage } = useChapterAudio();
+  const topic = grammarTopics[index];
+  return (
+    <FlowFrame
+      journal={{}}
+      title="Manual de gramática"
+      eyebrow={chapter.title}
+      onClose={onClose}
+      onVoiceSettings={() => {
+        stop();
+        onVoiceSettings();
+      }}
+    >
+      <View style={styles.actions}>
+        {grammarTopics.map((step, i) => (
+          <Pressable
+            key={step.id}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: i === index }}
+            aria-selected={i === index}
+            onPress={() => {
+              stop();
+              select(i);
+            }}
+            style={[
+              styles.tab,
+              { backgroundColor: i === index ? C.primary : C.white, borderColor: C.line },
+            ]}
+          >
+            <Text style={[styles.tabText, { color: i === index ? C.onPrimary : C.ink }]}>
+              {step.title}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <GrammarWorkbench key={topic.id} step={topic} play={play} />
+      {!!speechMessage && (
+        <Text accessibilityRole="alert" style={[styles.copy, { color: C.muted }]}>
+          {speechMessage}
+        </Text>
+      )}
+    </FlowFrame>
   );
 }
 
@@ -225,6 +300,8 @@ export function TravelPronunciation({
 }
 
 const styles = StyleSheet.create({
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  copy: { fontSize: 15, lineHeight: 23 },
   tab: {
     minHeight: 46,
     paddingHorizontal: 12,

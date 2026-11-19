@@ -2,13 +2,52 @@
 
 [Español (Latinoamérica)](VERIFICATION.es-419.md)
 
-## Travel curriculum and redesigned welcome
+## Phase 3 Learning First
 
-The current version opens the chapter directly or offers a short assessment to choose among its three missions. Browser checks cover welcome action spacing at 320 px, the recommended starting mission, offline vocabulary and audio, saved progress, and preserved archived history. Screenshots came from the locally built Web export.
+| Command                | Observed result                                                                                      |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| `npm run check`        | Workspace TypeScript checks and ESLint passed.                                                       |
+| `npm test`             | 75 passed across native speech integration, the API prototype, course packs, and the offline engine. |
+| `npm run packs:verify` | The 433,869-byte LQP 2.1.0 pack matched its catalog and SHA-256 sidecar.                             |
+| `npm run build:web`    | Exported the static app and generated the offline shell for 76 assets.                               |
+| `npm run test:e2e`     | All 41 Chromium scenarios passed in one run on the final Web export.                                 |
+| `npm run build:apk`    | Built and verified the standalone 2.1.0 preview APK (version code 100084) for ARM64 and ARMv7.       |
+
+The Android module task `:offline-tts:testReleaseUnitTest` passed all five JVM tests for English voice selection.
+
+Run `npm run build:web`, start `npm run preview`, then run `npm run test:e2e`. Set `SCREENSHOTS_DIR` to a writable directory to capture the same screens. The browser suite blocks API and external requests. Offline scenarios wait for the service worker to take control before disconnecting Chromium.
+
+The first full suite passed 39 of 41 scenarios. The grammar handbook and A1–A2 lesson tests exposed missing accessibility states for Web tabs and radio buttons. The final run includes both fixes and verifies that the selected answer is restored after reload.
+
+New browser scenarios exercise the full first chapter, independent responses in new settings, retry evidence, targeted `be` practice, and a review after two simulated days. They open the grammar handbook from **Aprender**, compare sentence patterns by keyboard at a narrow viewport, and complete the original **Me presento** lesson offline through **Cursos A1–A2**. Challenge checks visit both the travel trial and the separate 13-level textbook track. The course lesson, travel chapter and challenge views use their own saved progress.
+
+The delayed interval and enlarged text checks use a controlled browser clock and CSS font scaling. Recording and system recognition browser scenarios use controlled fixtures. Physical-device checks include installation, first launch in airplane mode, microphone recovery and replay, TalkBack, system font scaling, and low-end performance. [Offline acceptance plan](OFFLINE_TEST_PLAN.md)
+
+The Android archive contains the Hermes runtime for both architectures, the embedded travel and textbook content, 19 fonts, 18 bundled MP3 clips, and the journal artwork. All 18 MP3s and 11 journal JPEGs match the source files byte for byte. The APK signature, ZIP integrity, SHA-256 sidecar, and manifest were checked. The manifest declares `com.lingoquest.app`, API 24 minimum, target API 36, and disabled automatic backup. The 49,138,078-byte APK uses the existing preview signing certificate. Its SHA-256 is `ef8b58e65fc04d5aa5b97147cbfbc51d6f32c3a15166feb565bec62c49d17f48`. Device installation stays pending because this environment has no attached Android device or emulator acceleration. [APK build and signing](APK_BUILDS.md)
+
+The browser checks verify application behavior. The pretest, posttest, and delayed-test protocol is for collecting learning outcomes with real beginners. [Chapter 1 assessment design](CHAPTER_1_ASSESSMENT.md)
+
+### Phase 3 screenshots
+
+Captured in Chromium at a 390 × 844 CSS-pixel viewport from the local Web app.
+
+- [Greeting Sam in the plaza](screenshots/phase-3/01-plaza-dialogue.jpg)
+- [Speaking rehearsal with local recording](screenshots/phase-3/02-speaking.jpg)
+- [Offline dictation in the directions mission](screenshots/phase-3/03-offline-dictation.jpg)
+- [Writing for a different lost-property situation](screenshots/phase-3/04-transfer.jpg)
+- [Feedback on agreement with be](screenshots/phase-3/05-be-agreement-feedback.jpg)
+- [Vocabulary reference in the original A1–A2 course](screenshots/phase-3/06-legacy-reference.jpg)
+- [Passport and saved journal entry](screenshots/phase-3/07-passport.jpg)
+- [Adaptive review after repeated errors](screenshots/phase-3/08-adaptive-review.jpg)
+- [Sentence patterns in the grammar handbook](screenshots/phase-3/09-grammar-handbook.jpg)
+
+## Travel curriculum and redesigned welcome history
+
+That version opened the chapter directly or offered a short assessment to choose among its three missions. Browser checks covered welcome action spacing at 320 px, the recommended starting mission, offline vocabulary and audio, saved progress, and preserved archived history. Screenshots came from the locally built Web export.
 
 TypeScript, ESLint, 67 unit and integration tests, the archived LQP checksum, the Web export, Android Hermes export, and Android native prebuild passed. The Web service worker includes 58 offline files. Both bundles include the travel exercises and omit the old textbook pack. Physical Android acceptance remains pending.
 
-### Current screenshots
+### Screenshots from that revision
 
 - [Welcome on a 390 px viewport](screenshots/08-bienvenida.jpg)
 - [Starting-mission recommendation](screenshots/09-prueba-ruta.jpg)

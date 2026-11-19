@@ -73,7 +73,7 @@ export function VocabularyCard({
         <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
           {word.example.en}
         </Text>
-        <Label style={[styles.copy, { color: C.muted }]}>{word.example.es}</Label>
+        {revealed && <Label style={[styles.copy, { color: C.muted }]}>{word.example.es}</Label>}
         <Button
           variant="secondary"
           icon={Volume2}
@@ -97,7 +97,10 @@ export function GrammarWorkbench({
   const { colors: C } = useTheme();
   const [selected, select] = useState(0);
   const [showTranslation, reveal] = useState(false);
+  const [compare, setCompare] = useState(false);
   const example = step.examples[selected];
+  const pattern = step.patterns?.[selected];
+  const alternative = step.examples.find((item) => item !== example);
   return (
     <View testID="grammar-workbench" style={{ gap: 12 }}>
       <JournalArt source={illustrations.writing} aspectRatio={3.1} taped />
@@ -109,9 +112,11 @@ export function GrammarWorkbench({
               key={item.en}
               accessibilityRole="tab"
               accessibilityState={{ selected: index === selected }}
+              aria-selected={index === selected}
               onPress={() => {
                 select(index);
                 reveal(false);
+                setCompare(false);
               }}
               style={[styles.sample, { backgroundColor: index === selected ? C.primary : C.white }]}
             >
@@ -123,23 +128,37 @@ export function GrammarWorkbench({
         </View>
         {!!example && (
           <View style={{ gap: 10 }}>
-            <View
-              accessible
-              accessibilityLabel={example.en}
-              accessibilityLanguage="en-US"
-              style={styles.samples}
-            >
-              {example.en.split(/\s+/).map((token, i) => (
-                <JournalLeaf
-                  compact
-                  kind="notebook"
-                  key={i}
-                  style={[styles.token, { backgroundColor: i < 2 ? C.mint : C.white }]}
-                >
-                  <Text style={[styles.quotation, { color: C.ink }]}>{token}</Text>
-                </JournalLeaf>
-              ))}
-            </View>
+            {pattern ? (
+              <View style={styles.samples}>
+                {pattern.parts.map(({ text, role }, index) => (
+                  <JournalLeaf
+                    compact
+                    kind="notebook"
+                    key={index}
+                    style={[
+                      styles.token,
+                      {
+                        backgroundColor: C.white,
+                        borderTopWidth: 3,
+                        borderTopColor: [C.teal, C.accent, C.gold][index % 3],
+                      },
+                    ]}
+                  >
+                    <Text
+                      accessibilityLanguage="en-US"
+                      style={[styles.quotation, { color: C.ink }]}
+                    >
+                      {text}
+                    </Text>
+                    <Text style={[styles.part, { color: C.muted }]}>{role}</Text>
+                  </JournalLeaf>
+                ))}
+              </View>
+            ) : (
+              <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
+                {example.en}
+              </Text>
+            )}
             <View style={styles.samples}>
               <Button variant="secondary" icon={Volume2} onPress={() => play(example.en)}>
                 Escuchar frase
@@ -147,11 +166,24 @@ export function GrammarWorkbench({
               <Button variant="ghost" icon={Eye} onPress={() => reveal(!showTranslation)}>
                 {showTranslation ? 'Ocultar traducción' : 'Ver traducción'}
               </Button>
+              {!!alternative && (
+                <Button variant="ghost" onPress={() => setCompare(!compare)}>
+                  {compare ? 'Cerrar comparación' : 'Comparar ejemplos'}
+                </Button>
+              )}
             </View>
             {showTranslation && (
               <Text accessibilityLiveRegion="polite" style={[styles.copy, { color: C.ink }]}>
                 {example.es}
               </Text>
+            )}
+            {compare && alternative && (
+              <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite">
+                <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
+                  {alternative.en}
+                </Text>
+                <Label style={styles.copy}>{alternative.es}</Label>
+              </JournalLeaf>
             )}
           </View>
         )}
@@ -196,4 +228,5 @@ const styles = StyleSheet.create({
   samples: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   sample: { justifyContent: 'center', minHeight: 44, borderRadius: 11, paddingHorizontal: 12 },
   token: { paddingVertical: 7, paddingHorizontal: 9, borderRadius: 6 },
+  part: { fontFamily: 'ManropeBold', fontSize: 12 },
 });

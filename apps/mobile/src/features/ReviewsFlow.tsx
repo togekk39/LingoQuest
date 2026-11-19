@@ -1,47 +1,54 @@
-import { JournalSpread, JournalLeaf } from '../Journal';
-import { illustrations } from '../travel/illustrations';
-import { useTheme } from '../theme';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight, BookOpen, CalendarCheck, Check, Sprout } from 'lucide-react-native';
+import { ArrowRight, BookOpen, CalendarCheck } from 'lucide-react-native';
+import type { TravelReviewRow } from '@lingoquest/offline-engine';
+import { JournalLeaf, JournalSpread } from '../Journal';
+import { useTheme } from '../theme';
 import { api } from '../lib/api';
-import { Action, ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
 import { QuickReview } from '../travel/QuickReview';
-interface Review {
-  key: string;
-  skillId: string;
-  targetId: string;
-  targetLabelEs: string;
-  dimension:
-    'vocabulary_recognition' | 'vocabulary_recall' | 'grammar_understanding' | 'grammar_production';
-  mastery: number;
-  dueAt: string;
-  lessonId?: string;
-  due?: boolean;
-  travel?: boolean;
-}
-const dimensionNames: Record<Review['dimension'], string> = {
-  vocabulary_recognition: 'Reconocer palabras',
-  vocabulary_recall: 'Recordar palabras sin opciones',
-  grammar_understanding: 'Entender la gramática en contexto',
-  grammar_production: 'Usar la gramática al escribir',
+import { illustrations } from '../travel/illustrations';
+import { Action, ErrorCard, FlowFrame, useFeatureStyles } from './FeatureUI';
+
+const skillLabels: Record<TravelReviewRow['skill'], string> = {
+  vocabulary: 'Vocabulario',
+  grammar: 'Gramática',
+  listening: 'Comprensión auditiva',
+  reading: 'Lectura',
+  writing: 'Escritura',
+  speaking: 'Expresión oral',
 };
-export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
+const evidenceStages = [
+  ['recognition', 'Reconocer'],
+  ['understanding', 'Comprender'],
+  ['recall', 'Recordar sin opciones'],
+  ['production', 'Crear una respuesta'],
+  ['transfer', 'Aplicar en otra situación'],
+] as const;
+
+export default function ReviewsFlow({
+  onClose,
+  onVoiceSettings,
+  showAll = false,
+}: {
+  onClose: () => void;
+  onVoiceSettings?: () => void;
+  showAll?: boolean;
+}) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
-
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<TravelReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [all, setAll] = useState(false);
-  const [quick, setQuick] = useState(false);
-  async function load(includeAll = all) {
+  const [all, setAll] = useState(showAll);
+  const [target, setTarget] = useState<string>();
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await api<{ reviews: Review[] }>(
-        '/v1/reviews/today?source=travel' + (includeAll ? '&all=true' : ''),
+      const response = await api<{ reviews: TravelReviewRow[] }>(
+        '/v1/reviews/today?source=travel' + (all ? '&all=true' : ''),
       );
       setReviews(response.reviews);
     } catch (e) {
@@ -49,162 +56,194 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
     } finally {
       setLoading(false);
     }
-  }
-  useEffect(() => {
-    void load(all);
   }, [all]);
-  if (quick)
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (target)
     return (
       <QuickReview
+        target={target}
+        onVoiceSettings={onVoiceSettings}
         onClose={() => {
-          setQuick(false);
+          setTarget(undefined);
           void load();
         }}
       />
     );
+
   return (
-    <FlowFrame
-      journal={{}}
-      title="Lo aprendido se queda contigo"
-      eyebrow="Repaso inteligente"
-      onClose={onClose}
-    >
-      <JournalSpread source={illustrations.review} title="Vuelve a tus palabras" />
-      <JournalLeaf compact kind="stamp" style={s.headerIcon}>
-        <Sprout color={palette.teal} size={37} strokeWidth={1.5} />
-      </JournalLeaf>
-      <Text style={f.title}>Un pequeño repaso hace la diferencia.</Text>
-      <Text style={f.body}>
-        Volver a una idea después de unos días te ayuda a recordarla. Aquí no hay prisa y siempre
-        puedes intentar de nuevo.
-      </Text>
+    <FlowFrame journal={{}} title="Mis habilidades" eyebrow="Repaso inteligente" onClose={onClose}>
+      <JournalSpread source={illustrations.review} title="Vuelve a lo aprendido" />
       <JournalLeaf compact kind="postcard" style={s.switcher}>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: !all }}
-          onPress={() => setAll(false)}
-          style={[s.tab, !all && s.activeTab]}
-        >
-          <Text style={[s.tabText, !all && s.activeTabText]}>Para hoy</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: all }}
-          onPress={() => setAll(true)}
-          style={[s.tab, all && s.activeTab]}
-        >
-          <Text style={[s.tabText, all && s.activeTabText]}>Todas mis habilidades</Text>
-        </Pressable>
+        {[false, true].map((showEverything) => (
+          <Pressable
+            key={String(showEverything)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: all === showEverything }}
+              aria-selected={all === showEverything}
+            onPress={() => setAll(showEverything)}
+            style={[s.tab, all === showEverything && s.activeTab]}
+          >
+            <Text style={[s.tabText, all === showEverything && s.activeTabText]}>
+              {showEverything ? 'Todas mis habilidades' : 'Para hoy'}
+            </Text>
+          </Pressable>
+        ))}
       </JournalLeaf>
       {loading && <ActivityIndicator color={palette.teal} size="large" />}
-      {!!error && (
-        <ErrorCard
-          message={error}
-          onRetry={() => {
-            void load();
-          }}
-        />
-      )}
-      {!loading && !error && !reviews.length && (
+      {!!error && <ErrorCard message={error} onRetry={() => void load()} />}
+      {!loading && !error && !all && !reviews.length && (
         <JournalLeaf
           compact
           kind="postcard"
           style={[f.card, { alignItems: 'center', paddingVertical: 38 }]}
         >
           <CalendarCheck color={palette.teal} size={35} />
-          <Text style={[f.cardTitle, { textAlign: 'center' }]}>
-            {all ? 'Todavía no hay palabras para repasar.' : '¡Por hoy, todo al día!'}
-          </Text>
+          <Text style={[f.cardTitle, { textAlign: 'center' }]}>¡Por hoy, todo al día!</Text>
           <Text style={[f.body, { textAlign: 'center' }]}>
-            {all
-              ? 'Cuando practiques una habilidad, la encontrarás aquí. Comienza una misión y construiremos tu plan de repaso.'
-              : 'Vuelve mañana para darle otra vuelta a lo aprendido. También puedes seguir tu camino o practicar una habilidad cuando quieras.'}
+            Puedes continuar tu viaje o consultar tus habilidades para practicar cuando quieras.
           </Text>
-          <Action secondary onPress={onClose}>
+          <Action journal secondary onPress={onClose}>
             Volver a mi camino
           </Action>
         </JournalLeaf>
       )}
       {!loading &&
-        reviews.map((review) => (
-          <JournalLeaf compact kind="postcard" style={f.card} key={review.key}>
-            <View style={s.cardTop}>
-              <JournalLeaf compact kind="stamp" style={s.skillIcon}>
-                <BookOpen color={palette.teal} size={22} />
-              </JournalLeaf>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={f.cardTitle}>{review.targetLabelEs}</Text>
-                <Text style={f.quiet}>{dimensionNames[review.dimension]}</Text>
-                <Text style={f.quiet}>
-                  {review.due
-                    ? 'Un buen momento para recordar'
-                    : `Siguiente repaso: ${new Date(review.dueAt).toLocaleDateString('es-419', { day: 'numeric', month: 'short' })}`}
-                </Text>
-              </View>
-              {review.due ? <View style={s.dueDot} /> : <Check color={palette.muted} size={18} />}
+        !error &&
+        Object.entries(skillLabels).map(([skill, label]) => {
+          const items = reviews.filter((review) => review.skill === skill);
+          if (!all && !items.length) return null;
+          return (
+            <View key={skill} style={{ gap: 8 }}>
+              <Text accessibilityRole="header" style={f.cardTitle}>
+                {label}
+              </Text>
+              {items.length ? (
+                items.map((review) => (
+                  <ReviewCard key={review.key} review={review} onPractice={setTarget} />
+                ))
+              ) : (
+                <Text style={f.quiet}>Todavía no hay práctica registrada.</Text>
+              )}
             </View>
-            <View
-              accessibilityRole="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(Math.min(0.95, Math.max(0, review.mastery)) * 100)}
-              accessibilityLabel={`Evidencia de práctica: ${review.targetLabelEs}`}
-              accessibilityValue={{
-                min: 0,
-                max: 100,
-                now: Math.round(Math.min(0.95, Math.max(0, review.mastery)) * 100),
-              }}
-              style={s.progressTrack}
-            >
-              <View
-                style={[
-                  s.progressFill,
-                  { width: `${Math.min(0.95, Math.max(0, review.mastery)) * 100}%` },
-                ]}
-              />
-            </View>
-            <Text style={f.quiet}>
-              La evidencia se construye con práctica y tiempo. Una lección completada no significa
-              dominio de la habilidad.
-            </Text>
-            {review.lessonId && (
-              <Pressable
-                accessibilityRole="button"
-                style={s.practice}
-                onPress={() => setQuick(true)}
-              >
-                <Text style={s.practiceText}>Abrir repaso rápido</Text>
-                <ArrowRight color={palette.teal} size={17} />
-              </Pressable>
-            )}
-          </JournalLeaf>
-        ))}
-      <JournalLeaf compact kind="notebook" style={s.note}>
-        <Text style={f.eyebrow}>Dale tiempo a tu memoria</Text>
+          );
+        })}
+      <JournalLeaf compact kind="notebook" tint="mint">
         <Text style={f.body}>
-          Nuestro punto de partida: volver a practicar en 1, 3, 7 y 14 días. El plan se adapta a tus
-          respuestas, sin castigos.
+          Si una idea te cuesta, la practicas antes con otra escena. Si la recuerdas sin pistas, el
+          próximo repaso se puede espaciar.
         </Text>
       </JournalLeaf>
     </FlowFrame>
   );
 }
-export function useStyles() {
+
+function ReviewCard({
+  review,
+  onPractice,
+}: {
+  review: TravelReviewRow;
+  onPractice: (target: string) => void;
+}) {
+  const { colors: palette } = useTheme();
+  const f = useFeatureStyles();
+  const s = useStyles();
+  const [showDetails, setShowDetails] = useState(false);
+  const counts = [
+    ['Aciertos sin ayuda', review.independentSuccesses],
+    ['Aciertos con ayuda', review.assistedSuccesses],
+    ['Recuerdo después de un intervalo', review.delayedSuccesses],
+    ['Uso en otra situación', review.transferSuccesses],
+  ] as const;
+  const speechPracticeCount = Object.values(review.speakingPractice).reduce(
+    (total, count = 0) => total + count,
+    0,
+  );
+
+  return (
+    <JournalLeaf compact kind="postcard" style={f.card}>
+      <View style={s.cardTop}>
+        <JournalLeaf compact kind="stamp" style={s.skillIcon}>
+          <BookOpen color={palette.teal} size={22} />
+        </JournalLeaf>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={f.cardTitle}>{review.targetLabelEs}</Text>
+          {review.canPractice && (
+            <Text style={f.quiet}>
+              {review.reason === 'remediation'
+                ? 'Conviene reforzar esta idea'
+                : review.due
+                  ? 'Lista para repasar'
+                  : review.dueAt
+                    ? 'Siguiente repaso: ' +
+                      new Date(review.dueAt).toLocaleDateString('es-419', {
+                        day: 'numeric',
+                        month: 'short',
+                      })
+                    : 'Disponible para practicar'}
+            </Text>
+          )}
+        </View>
+        {review.due && <View style={s.dueDot} />}
+      </View>
+      {review.skill === 'speaking' ? (
+        <Text style={f.quiet}>Prácticas de voz: {speechPracticeCount} · Sin calificación</Text>
+      ) : (
+        <View style={{ gap: 3 }}>
+          {counts.map(([label, count]) => (
+            <Text key={label} style={f.quiet}>
+              {label}: {count}
+            </Text>
+          ))}
+          {Object.keys(review.successes).length > 0 && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showDetails }}
+              style={s.practice}
+              onPress={() => setShowDetails(!showDetails)}
+            >
+              <Text style={s.practiceText}>
+                {showDetails ? 'Ocultar tipos de práctica' : 'Ver tipos de práctica'}
+              </Text>
+            </Pressable>
+          )}
+          {showDetails &&
+            evidenceStages.map(([stage, label]) => {
+              const evidence = review.successes[stage];
+              return evidence ? (
+                <Text key={stage} style={f.quiet}>
+                  {label}: {evidence.independent} sin ayuda · {evidence.assisted} con ayuda
+                </Text>
+              ) : null;
+            })}
+        </View>
+      )}
+      {review.canPractice && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={'Abrir repaso rápido: ' + review.targetLabelEs}
+          style={s.practice}
+          onPress={() => onPractice(review.key)}
+        >
+          <Text style={s.practiceText}>Abrir repaso rápido</Text>
+          <ArrowRight color={palette.teal} size={17} />
+        </Pressable>
+      )}
+    </JournalLeaf>
+  );
+}
+
+function useStyles() {
   const { colors: palette, tone } = useTheme();
   return StyleSheet.create({
-    headerIcon: {
-      width: 82,
-      height: 82,
-      backgroundColor: palette.mint,
-      borderRadius: 25,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     switcher: {
       flexDirection: 'row',
       gap: 4,
       padding: 5,
-      backgroundColor: tone('#E9F0E8', 'background'),
+      backgroundColor: palette.mint,
       borderRadius: 13,
     },
     tab: {
@@ -216,9 +255,9 @@ export function useStyles() {
       justifyContent: 'center',
       borderRadius: 9,
     },
-    activeTab: { backgroundColor: tone('white', 'background') },
-    tabText: { color: palette.muted, fontFamily: 'Manrope', fontSize: 12 },
-    activeTabText: { color: palette.teal, fontWeight: '700' },
+    activeTab: { backgroundColor: palette.white },
+    tabText: { color: palette.muted, fontFamily: 'Manrope', fontSize: 13 },
+    activeTabText: { color: palette.teal, fontFamily: 'ManropeBold' },
     cardTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     skillIcon: {
       width: 45,
@@ -229,21 +268,8 @@ export function useStyles() {
       alignItems: 'center',
     },
     dueDot: { width: 9, height: 9, backgroundColor: palette.orange, borderRadius: 5 },
-    progressTrack: {
-      height: 6,
-      borderRadius: 5,
-      backgroundColor: tone('#EAF0E7', 'background'),
-      overflow: 'hidden',
-    },
-    progressFill: { height: 6, backgroundColor: palette.teal, borderRadius: 5 },
     practice: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
-    practiceText: { fontFamily: 'Manrope', fontSize: 13, fontWeight: '700', color: palette.teal },
-    note: {
-      backgroundColor: tone('#EDF4EB', 'background'),
-      borderRadius: 20,
-      padding: 23,
-      gap: 10,
-    },
+    practiceText: { fontFamily: 'ManropeBold', fontSize: 13, color: palette.teal },
   });
 }
 

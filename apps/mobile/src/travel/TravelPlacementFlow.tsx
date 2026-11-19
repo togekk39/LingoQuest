@@ -157,7 +157,11 @@ export function TravelPlacementFlow({
           </Text>
           {item.audio && (
             <JournalLeaf tint="mint">
-              <Button variant="secondary" icon={Volume2} onPress={() => void play(item.audio!)}>
+              <Button
+                variant="secondary"
+                icon={Volume2}
+                onPress={() => void play(item.audio!, true)}
+              >
                 Escuchar a Sam
               </Button>
               {transcript ? (

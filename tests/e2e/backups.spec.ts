@@ -1,9 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { test, expect, click, exact, enterApp, state } from './helpers';
 
-test('retiring the old course preserves its local history and leaves backup available', async ({
-  page,
-}) => {
+test('older course history survives in a format 2 backup', async ({ page }) => {
   await enterApp(page);
   await page.evaluate(() => {
     const key = 'lq_offline_state_v1';

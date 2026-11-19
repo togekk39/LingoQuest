@@ -1,4 +1,5 @@
-import type { TravelState } from '@lingoquest/offline-engine';
+import { mkdirSync } from 'node:fs';
+import type { TravelLearningState, TravelState } from '@lingoquest/offline-engine';
 import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
 
 export interface LocalState {
@@ -17,6 +18,7 @@ export interface LocalState {
   runs: Record<string, any>;
   challengeProgress: unknown[];
   travel: TravelState;
+  travelLearning?: TravelLearningState;
 }
 interface NetworkGuard {
   attempted: string[];
@@ -85,12 +87,44 @@ export async function finishVocabulary(page: Page) {
   await click(page, 'Probar en la historia');
 }
 
+export async function checkTravelAnswer(page: Page) {
+  await click(page, 'Comprobar respuesta');
+  await click(page, 'Seguir la historia');
+}
+
+export async function answerTravelChoice(page: Page, id: string, option: string) {
+  await page.getByTestId(`exercise-${id}`).getByRole('radio', exact(option)).click();
+  await checkTravelAnswer(page);
+}
+
+export async function answerTravelReorder(page: Page, id: string, words: string[]) {
+  const exercise = page.getByTestId(`exercise-${id}`);
+  for (const word of words)
+    await exercise.getByRole('button', exact(`Agregar palabra: ${word}`)).click();
+  await checkTravelAnswer(page);
+}
+
+export async function answerTravelText(page: Page, id: string, answer: string) {
+  await page
+    .getByTestId(`exercise-${id}`)
+    .getByRole('textbox', exact('Tu respuesta en inglés'))
+    .fill(answer);
+  await checkTravelAnswer(page);
+}
+
+export async function finishGreetingPractice(page: Page) {
+  await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
+  await answerTravelReorder(page, 'travel_hello_build', ['I', 'am', 'Luz']);
+  await answerTravelText(page, 'travel_hello_recall', 'Hi');
+}
+
 export async function openTravelWriting(page: Page) {
   await click(page, 'Continuar viaje');
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await finishVocabulary(page);
-  await expect(page.getByRole('textbox', exact('Tu respuesta en inglés'))).toBeVisible();
+  await finishGreetingPractice(page);
+  await expect(page.getByTestId('exercise-travel_hello_write')).toBeVisible();
 }
 
 export async function openPlacement(page: Page) {
@@ -105,4 +139,17 @@ export async function readyOfflineShell(page: Page, context: BrowserContext) {
   });
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
   await context.setOffline(true);
+}
+
+export async function capture(page: Page, name: string) {
+  const dir = process.env.SCREENSHOTS_DIR;
+  if (!dir) return;
+  mkdirSync(dir, { recursive: true });
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  await page.screenshot({
+    path: `${dir}/${name}.jpg`,
+    type: 'jpeg',
+    quality: 89,
+    animations: 'disabled',
+  });
 }

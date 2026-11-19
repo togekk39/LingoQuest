@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   OfflineEngine,
   OFFLINE_STATE_KEY,
+  chapter,
   type CourseData,
   type OfflineState,
   type CourseExercise,
@@ -196,6 +197,35 @@ test('thirteen local practice levels are available; official online/ranked modes
   );
   for (const path of ['/v1/auth/login', '/v1/sync/attempts'])
     await assert.rejects(engine.request(path, {}), /sin cuenta/);
+});
+test('bundling the textbook preserves the travel challenge rules and keeps rank progress separate', async () => {
+  const { engine, store } = fixture();
+  await engine.initialize();
+  const state = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  state.travel = { completed: {}, stamps: { [chapter.id]: '2026-11-08T12:00:00.000Z' } };
+  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(state));
+
+  type Rank = { nameEs: string; seconds: number; hearts: number; unlocked: boolean };
+  const [travel, textbook] = await Promise.all([
+    engine.request<{ levels: Rank[] }>('/v1/challenges/tracks/home_journey/levels'),
+    engine.request<{ levels: Rank[] }>('/v1/challenges/tracks/present_simple/levels'),
+  ]);
+  assert.equal(travel.levels[0].nameEs, 'Explorador');
+  assert.equal(travel.levels[0].hearts, 3);
+  assert.equal(travel.levels[0].seconds, 85);
+  assert.equal(travel.levels.filter((rank) => rank.unlocked).length, 3);
+  assert.equal(textbook.levels[0].nameEs, 'Primeros pasos');
+  assert.equal(textbook.levels[0].seconds, 180);
+  assert.equal(textbook.levels.filter((rank) => rank.unlocked).length, 0);
+  const run = await engine.request<RunView>('/v1/challenges/runs', {
+    clientRequestId: 'travel-rank-with-textbook',
+    trackId: 'home_journey',
+    type: 'grammar_rush',
+    level: 1,
+    mode: 'practice',
+  });
+  assert.equal(run.heartsRemaining, 3);
+  assert.equal(Date.parse(run.deadlineAt!) - Date.parse(run.serverNow), 85_000);
 });
 test('upper travel ranks require the matching lessons and use production without options', async () => {
   const { engine } = fixture();

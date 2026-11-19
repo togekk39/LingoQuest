@@ -7,6 +7,7 @@ import {
   readyOfflineShell,
   state,
   openPlacement,
+  capture,
 } from './helpers';
 
 test('first launch offers two spaced travel routes and opens the first scene', async ({
@@ -83,7 +84,7 @@ test('placement skips can recommend the first mission without awarding progress'
   expect((await state(page)).xp).toBe(before.xp);
 });
 
-test('the library offers travel-only vocabulary and examples', async ({ page }) => {
+test('the travel guide offers vocabulary and examples for each mission', async ({ page }) => {
   await enterApp(page);
   await click(page, 'Palabras del viaje');
   await expect(page.getByRole('button', exact('Escuchar: Hi'))).toBeVisible();
@@ -92,4 +93,39 @@ test('the library offers travel-only vocabulary and examples', async ({ page }) 
   await expect(page.getByRole('button', exact('Escuchar: blue'))).toBeVisible();
   await expect(page.getByText('Mi mochila es azul.', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('button', exact('Completa la misión anterior'))).toBeDisabled();
+});
+
+test('the grammar handbook compares examples offline and reflows with enlarged text', async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enterApp(page);
+  await readyOfflineShell(page, context);
+  const before = await state(page);
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Manual de gramática');
+  const workbench = page.getByTestId('grammar-workbench');
+  await expect(workbench.getByText('Sujeto', { exact: true })).toBeVisible();
+  await click(page, 'Comparar ejemplos');
+  await expect(workbench.getByText('My name is Luz.', { exact: true })).toBeVisible();
+  await capture(page, '09-grammar-handbook');
+  await page.setViewportSize({ width: 320, height: 720 });
+  await workbench.evaluate((root) => {
+    for (const element of root.querySelectorAll<HTMLElement>('div, span')) {
+      if (element.children.length || !element.textContent?.trim()) continue;
+      const style = getComputedStyle(element);
+      element.style.fontSize = `${Number.parseFloat(style.fontSize) * 1.5}px`;
+      const lineHeight = Number.parseFloat(style.lineHeight);
+      if (Number.isFinite(lineHeight)) element.style.lineHeight = `${lineHeight * 1.5}px`;
+    }
+  });
+  await click(page, 'Cerrar comparación');
+  const second = workbench.getByRole('tab', exact('Ejemplo 2'));
+  await second.focus();
+  await second.press('Enter');
+  await expect(second).toHaveAttribute('aria-selected', 'true');
+  await expect(workbench.getByText('My name', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  expect((await state(page)).attempts).toEqual(before.attempts);
 });
