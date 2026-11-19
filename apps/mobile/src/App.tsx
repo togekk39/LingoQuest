@@ -385,6 +385,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
               <TravelHome
                 travel={travel}
                 progress={progress}
+                starting={starting}
+                onMission={startMission}
                 onContinue={() => startMission()}
                 onReview={() => setFlow('quick')}
                 onRoute={() => go('Mapa')}

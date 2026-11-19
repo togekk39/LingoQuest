@@ -1,10 +1,11 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowRight, Compass, Route, X } from 'lucide-react-native';
+import { ArrowRight, ChevronRight, Compass, MapPin, Route, X } from 'lucide-react-native';
+import { chapter } from '@lingoquest/offline-engine';
 import { Button } from '../ui';
+import { JournalBrand, PaperGrain, PlazaPhoto } from '../Journal';
 import { useTheme } from '../theme';
-import { TravelMark, WelcomePicture } from './TravelAppearance';
 
 export function TravelWelcome({
   busy,
@@ -17,91 +18,78 @@ export function TravelWelcome({
   onAssessment: () => void;
   onClose: () => void;
 }) {
-  const { colors: C, mode } = useTheme();
-  const { width, height, fontScale } = useWindowDimensions();
-  const wide = width >= 850 && fontScale < 1.4;
-  const artHeight = wide
-    ? Math.min(510, Math.max(430, height - 170))
-    : Math.min(270, Math.max(150, height * 0.29));
+  const { colors: C } = useTheme();
+  const { width, fontScale } = useWindowDimensions();
+  const wide = width >= 950 && fontScale <= 1.25;
+  const firstMission = chapter.missions[0];
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: C.paper }]}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={[styles.wrap, { justifyContent: wide ? 'center' : 'flex-start' }]}
-      >
-        <View
-          style={[
-            styles.ticket,
-            { borderColor: C.line, backgroundColor: C.white, maxWidth: wide ? 1120 : 540 },
-          ]}
+      <PaperGrain />
+      <View style={[styles.header, { borderColor: C.line }]}>
+        <JournalBrand small />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Explorar primero"
+          disabled={busy}
+          onPress={onClose}
+          style={styles.close}
         >
-          <View style={styles.brandBar}>
-            <TravelMark size={33} />
-            <Text style={styles.brand}>LingoQuest</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Explorar primero"
-              disabled={busy}
-              onPress={onClose}
-              style={({ pressed }) => [styles.close, { opacity: pressed ? 0.6 : 1 }]}
-            >
-              <X size={21} color="#FFF3D6" />
-            </Pressable>
+          <X size={22} color={C.ink} />
+        </Pressable>
+      </View>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={[styles.body, wide && styles.columns]}>
+          <View style={styles.intro}>
+            <Text accessibilityRole="header" style={[styles.title, { color: C.ink }]}>
+              Empieza tu viaje en inglés
+            </Text>
+            <Text style={[styles.copy, { color: C.muted }]}>
+              Sigue la historia de Sam y practica el inglés que necesitas en cada parada.
+            </Text>
+            <PlazaPhoto />
+            <View style={styles.location}>
+              <MapPin size={16} color={C.accent} />
+              <Text style={[styles.locationText, { color: C.accent }]}>{firstMission.place}</Text>
+            </View>
           </View>
-          <View style={{ flexDirection: wide ? 'row' : 'column' }}>
-            <View style={{ flex: wide ? 1.12 : undefined }}>
-              <WelcomePicture height={artHeight} />
-              <View pointerEvents="none" style={styles.caption}>
-                <Compass size={14} color="#472D1B" strokeWidth={2} />
-                <Text style={styles.ticketCaption}>La primera postal</Text>
+
+          <View style={[styles.choices, { backgroundColor: C.white, borderColor: C.line }]}>
+            <Text accessibilityRole="header" style={[styles.choiceTitle, { color: C.ink }]}>
+              ¿Por dónde quieres empezar?
+            </Text>
+            <View style={[styles.departure, { borderColor: C.line }]}>
+              <View style={[styles.icon, { backgroundColor: C.mint }]}>
+                <Compass size={22} color={C.teal} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                <Text style={[styles.option, { color: C.ink }]}>{firstMission.title}</Text>
+                <Text style={[styles.detail, { color: C.muted }]}>
+                  Escucha a Sam y ensaya cómo presentarte · {firstMission.minutes} min
+                </Text>
               </View>
             </View>
-            <View
-              style={[
-                styles.words,
-                { flex: wide ? 1 : undefined, padding: wide ? 32 : width < 355 ? 19 : 23 },
+            <Button loading={busy} icon={ArrowRight} onPress={onStart} style={styles.start}>
+              Empezar mi viaje
+            </Button>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Ya sé algo de inglés"
+              disabled={busy}
+              onPress={onAssessment}
+              style={({ pressed }) => [
+                styles.placement,
+                { borderColor: C.line, backgroundColor: pressed ? C.mint : C.white },
               ]}
             >
-              <View style={[styles.line, { borderColor: C.line }]}>
-                <Text
-                  accessibilityRole="header"
-                  style={[
-                    styles.title,
-                    { color: C.ink, fontSize: wide ? 49 : width > 375 ? 36 : 30 },
-                  ]}
-                >
-                  Aprende inglés, descubre el mundo.
-                </Text>
-                <Text style={[styles.intro, { color: C.muted }]}>
-                  Tu viaje empieza cerca de casa. Usa el inglés para ayudar a Sam a encontrar su
-                  camino.
-                </Text>
-              </View>
-              <View style={{ gap: 12 }}>
-                <Button loading={busy} icon={ArrowRight} style={styles.button} onPress={onStart}>
-                  Empezar mi viaje
-                </Button>
-                <Button
-                  disabled={busy}
-                  variant="secondary"
-                  icon={Route}
-                  style={[
-                    styles.button,
-                    {
-                      backgroundColor: mode === 'light' ? '#EEE0CC' : C.mint,
-                      borderWidth: 1,
-                      borderColor: C.line,
-                    },
-                  ]}
-                  onPress={onAssessment}
-                >
-                  Ya sé algo de inglés
-                </Button>
+              <Route size={20} color={C.teal} />
+              <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                <Text style={[styles.option, { color: C.ink }]}>Ya sé algo de inglés</Text>
                 <Text style={[styles.detail, { color: C.muted }]}>
                   Seis preguntas para encontrar tu punto de partida.
                 </Text>
               </View>
-            </View>
+              <ChevronRight size={18} color={C.accent} />
+            </Pressable>
           </View>
         </View>
       </ScrollView>
@@ -111,35 +99,49 @@ export function TravelWelcome({
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  wrap: { flexGrow: 1, padding: 14, alignItems: 'center' },
-  ticket: { width: '100%', borderRadius: 13, borderWidth: 1, overflow: 'hidden' },
-  brandBar: {
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    gap: 10,
-    backgroundColor: '#293D31',
-  },
-  brand: { fontFamily: 'Journal', fontSize: 21, color: '#FFE6B8', flex: 1 },
-  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  caption: {
-    position: 'absolute',
-    bottom: 12,
-    left: 14,
-    flexDirection: 'row',
-    backgroundColor: '#F7E5C3',
-    alignItems: 'center',
-    gap: 5,
+    borderBottomWidth: 1,
+    paddingHorizontal: 17,
     paddingVertical: 5,
-    paddingHorizontal: 8,
-    borderRadius: 4,
   },
-  ticketCaption: { fontFamily: 'ManropeBold', color: '#472D1B', fontSize: 11 },
-  words: { gap: 17, justifyContent: 'center' },
-  line: { gap: 10, borderBottomWidth: 1, paddingBottom: 15 },
-  title: { fontFamily: 'Journal', letterSpacing: -0.7 },
-  intro: { fontFamily: 'Manrope', fontSize: 15, lineHeight: 23 },
-  button: { minHeight: 51, borderRadius: 8 },
-  detail: { fontFamily: 'Manrope', fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 17 },
+  body: { width: '100%', maxWidth: 560, alignSelf: 'center', gap: 18 },
+  columns: { flexDirection: 'row', alignItems: 'center', maxWidth: 1070, gap: 28 },
+  intro: { flex: 1, minWidth: 0, gap: 11 },
+  title: { fontFamily: 'LoraBold', fontSize: 30, letterSpacing: -0.5 },
+  copy: { fontFamily: 'Manrope', fontSize: 14, lineHeight: 21 },
+  location: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -2 },
+  locationText: { fontFamily: 'ManropeBold', fontSize: 12 },
+  choices: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 18, gap: 11, padding: 15 },
+  choiceTitle: { fontFamily: 'LoraBold', fontSize: 22 },
+  departure: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderTopWidth: 1,
+    paddingTop: 10,
+  },
+  icon: {
+    width: 41,
+    height: 41,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  option: { fontFamily: 'ManropeBold', fontSize: 14 },
+  detail: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 17 },
+  start: { minHeight: 48 },
+  placement: {
+    borderWidth: 1,
+    borderRadius: 10,
+    minHeight: 52,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
 });

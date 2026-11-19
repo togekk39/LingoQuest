@@ -1,6 +1,5 @@
-import { Notebook, PlazaPhoto } from '../Journal';
 import React, { useEffect, useRef, useState } from 'react';
-import { Keyboard, StyleSheet, Text, View } from 'react-native';
+import { Image, Keyboard, StyleSheet, Text, View } from 'react-native';
 import {
   ArrowRight,
   Backpack,
@@ -8,7 +7,6 @@ import {
   Check,
   Compass,
   LocateFixed,
-  MapPin,
   Stamp,
   Trees,
   Volume2,
@@ -20,6 +18,7 @@ import {
   type TravelOperation,
   type TravelState,
 } from '@lingoquest/offline-engine';
+import samPortrait from '../../assets/journal/sam.jpg';
 import { api } from '../lib/api';
 import { Action, ErrorCard, FlowFrame, useFeatureStyles } from '../features/FeatureUI';
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from '../features/ExerciseInput';
@@ -27,24 +26,92 @@ import { AnswerFeedback } from '../features/LessonStages';
 import { SpeakingPanel } from '../features/SpeakingPractice';
 import { Button, Card, Heading, Label } from '../ui';
 import { QuestBuddy } from '../QuestBuddy';
+import { Notebook, PaperGrain, PlazaPhoto, PlazaPostcard } from '../Journal';
 import { useTheme } from '../theme';
 import { useChapterAudio } from './useChapterAudio';
 import { TravelScene, VocabularyCard } from './TravelAppearance';
 
 function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: string) => void }) {
-  const f = useFeatureStyles();
+  const s = useStyles();
   return (
-    <View style={f.card}>
-      <Text accessibilityLanguage="en-US" style={f.cardTitle}>
+    <View testID="travel-reference-phrase" style={s.phrase}>
+      <PaperGrain opacity={0.18} />
+      <Text accessibilityLanguage="en-US" style={s.phraseEnglish}>
         {en}
       </Text>
-      <Text style={f.body}>{es}</Text>
-      <Button variant="secondary" icon={Volume2} onPress={() => play(en)}>
+      <Text style={s.phraseSpanish}>{es}</Text>
+      <Button variant="secondary" icon={Volume2} onPress={() => play(en)} style={s.listen}>
         Escuchar frase
       </Button>
     </View>
   );
 }
+
+function DialoguePostcard({
+  mission,
+  step,
+  opening,
+  play,
+}: {
+  mission: TravelMission;
+  step: Extract<TravelMission['steps'][number], { type: 'dialogue' }>;
+  opening: boolean;
+  play: (phrase: string) => void;
+}) {
+  const s = useStyles();
+  const { colors: C } = useTheme();
+  const plaza = mission.id === 'hello';
+  const sam = step.speaker === 'Sam';
+  const samPostcard = plaza && sam;
+  return (
+    <View testID="travel-dialogue-postcard" style={s.dialogue}>
+      {samPostcard ? (
+        <PlazaPostcard />
+      ) : (
+        <View>
+          {opening && (plaza ? <PlazaPhoto /> : <TravelScene place={mission.place} />)}
+          <Card style={[s.speakerCard, opening && s.overlappingSpeaker]}>
+            <PaperGrain opacity={0.18} />
+            <View style={s.speakerRow}>
+              {sam ? (
+                <Image source={samPortrait} accessible={false} style={s.avatar} />
+              ) : step.speaker === 'QuestBuddy' ? (
+                <QuestBuddy size={54} />
+              ) : (
+                <View style={[s.avatar, s.hostAvatar]}>
+                  <Text style={s.hostInitial}>{step.speaker[0]}</Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Heading style={{ fontSize: 25 }}>{step.speaker}</Heading>
+                <Label>
+                  {step.speaker === 'Luz'
+                    ? 'Mesa de bienvenida'
+                    : sam
+                      ? 'Viajero'
+                      : 'Tu compañero de viaje'}
+                </Label>
+              </View>
+              <Stamp color={C.accent} size={24} />
+            </View>
+            <Label style={s.storyText}>{step.text}</Label>
+          </Card>
+        </View>
+      )}
+      {step.line && <Phrase {...step.line} play={play} />}
+      {opening && !step.line && (
+        <View style={s.missionBrief}>
+          <Compass color={C.teal} size={23} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.missionBriefTitle}>Tu misión</Text>
+            <Label style={s.storyText}>{mission.objective}</Label>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
 function SceneClue({ type }: { type: 'directions' | 'bag' }) {
   const { colors: C } = useTheme();
   const s = useStyles();
@@ -108,6 +175,18 @@ export function TravelFlow({
   const wordIndex = current.word ?? 0;
   const word =
     !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
+  const greetingExample =
+    !current.finished && step.type === 'exercise' && mission.id === 'hello'
+      ? mission.vocabulary[0]?.example
+      : undefined;
+  const referenceAudio = current.finished
+    ? undefined
+    : (word?.term ??
+      (step.type === 'dialogue'
+        ? step.line?.en
+        : step.type === 'exercise'
+          ? (step.audio ?? greetingExample?.en)
+          : undefined));
   useEffect(() => {
     if (word) void play(word.term);
   }, [play, word]);
@@ -225,7 +304,7 @@ export function TravelFlow({
       eyebrow={`${mission.place} · ${mission.minutes} min`}
       stepKey={`${current.token}-${wordIndex}`}
       onClose={() => void close()}
-      journal={{}}
+      journal={{ onListen: referenceAudio ? () => void play(referenceAudio) : undefined }}
       onVoiceSettings={
         step.type !== 'speak'
           ? () => {
@@ -255,54 +334,30 @@ export function TravelFlow({
       )}
       <View key={current.token} testID={`travel-step-${step.type}`} style={{ gap: 14 }}>
         {current.finished ? (
-          <Card style={s.story}>
-            <View style={s.npc}>
+          <Card style={s.completion}>
+            <PaperGrain opacity={0.18} />
+            <View style={s.completionSeal}>
               {mission.id === 'bag' ? (
                 <Stamp size={28} color={C.teal} />
               ) : (
                 <Check size={28} color={C.teal} />
               )}
-              <Heading style={{ flex: 1 }}>¡Misión completada!</Heading>
             </View>
-            <Label style={s.storyText}>{mission.success}</Label>
+            <Heading style={s.completionText}>¡Misión completada!</Heading>
+            <Label style={[s.storyText, s.completionText]}>{mission.success}</Label>
             {mission.id === 'bag' && (
-              <Label style={s.storyText}>Sello obtenido · {chapter.stamp}</Label>
+              <Label style={[s.storyText, s.completionText]}>
+                Sello obtenido · {chapter.stamp}
+              </Label>
             )}
           </Card>
         ) : step.type === 'dialogue' ? (
-          <>
-            {current.step === 0 &&
-              (/plaza/i.test(mission.place) ? (
-                <PlazaPhoto />
-              ) : (
-                <TravelScene place={mission.place} />
-              ))}
-            <Card style={s.story}>
-              <View style={s.npc}>
-                {step.speaker === 'QuestBuddy' ? (
-                  <QuestBuddy size={53} />
-                ) : (
-                  <View
-                    style={[s.portrait, step.speaker === 'Sam' && { backgroundColor: '#F5CBB0' }]}
-                  >
-                    <Text style={s.initial}>{step.speaker[0]}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Heading style={{ fontSize: 24 }}>{step.speaker}</Heading>
-                  <Label>
-                    {step.speaker === 'Luz'
-                      ? 'Mesa de bienvenida'
-                      : step.speaker === 'Sam'
-                        ? 'Viajera'
-                        : 'Tu compañero de viaje'}
-                  </Label>
-                </View>
-              </View>
-              <Label style={s.storyText}>{step.text}</Label>
-            </Card>
-            {step.line && <Phrase {...step.line} play={(value) => void play(value)} />}
-          </>
+          <DialoguePostcard
+            mission={mission}
+            step={step}
+            opening={current.step === 0}
+            play={play}
+          />
         ) : word ? (
           <>
             <View style={s.chapterHead}>
@@ -315,61 +370,67 @@ export function TravelFlow({
           </>
         ) : step.type === 'teach' ? (
           <>
-            <Text style={f.title}>{step.title}</Text>
-            <Text style={f.body}>{step.text}</Text>
+            <Notebook title={step.title}>
+              <Label style={s.storyText}>{step.text}</Label>
+            </Notebook>
             {step.examples.map((example) => (
-              <Phrase key={example.en} {...example} play={(value) => void play(value)} />
+              <Phrase key={example.en} {...example} play={play} />
             ))}
           </>
         ) : step.type === 'exercise' ? (
           <>
-            <View style={s.recap}>
-              <MapPin size={19} color={C.teal} />
-              <Label style={[s.storyText, { flex: 1 }]}>{step.situation}</Label>
-            </View>
-            {step.visual && <SceneClue type={step.visual} />}
-            {step.audio && (
-              <View style={{ gap: 9 }}>
-                <Button variant="secondary" icon={Volume2} onPress={() => void play(step.audio!)}>
-                  Escuchar a Sam
-                </Button>
-                {current.transcript || current.result ? (
-                  <Text accessibilityLanguage="en-US" style={f.body}>
-                    {step.transcript}
-                  </Text>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    disabled={busy}
-                    onPress={() => void act({ action: 'transcript', token: current.token })}
-                  >
-                    Leer la transcripción
-                  </Button>
+            {greetingExample && <Phrase {...greetingExample} play={play} />}
+            <View testID="travel-workbook">
+              <Notebook title="Ahora te toca a ti">
+                <Label style={s.storyText}>{step.situation}</Label>
+                {step.visual && <SceneClue type={step.visual} />}
+                {step.audio && (
+                  <View style={s.audioClue}>
+                    <Button
+                      variant="secondary"
+                      icon={Volume2}
+                      onPress={() => void play(step.audio!)}
+                    >
+                      Escuchar a Sam
+                    </Button>
+                    {current.transcript || current.result ? (
+                      <Text accessibilityLanguage="en-US" style={f.body}>
+                        {step.transcript}
+                      </Text>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        disabled={busy}
+                        onPress={() => void act({ action: 'transcript', token: current.token })}
+                      >
+                        Leer la transcripción
+                      </Button>
+                    )}
+                  </View>
                 )}
-              </View>
-            )}
-            <Notebook title="Ahora te toca a ti">
-              <ExerciseInput
-                journal
-                exercise={step.exercise}
-                answer={answer}
-                setAnswer={draft}
-                disabled={busy || !!current.result}
-              />
-            </Notebook>
-            {step.hint &&
-              !current.result &&
-              (current.hint ? (
-                <Label style={s.storyText}>{step.hint}</Label>
-              ) : (
-                <Button
-                  variant="ghost"
-                  disabled={busy}
-                  onPress={() => void act({ action: 'hint', token: current.token })}
-                >
-                  Pedir una pista
-                </Button>
-              ))}
+                <ExerciseInput
+                  journal
+                  exercise={step.exercise}
+                  answer={answer}
+                  setAnswer={draft}
+                  disabled={busy || !!current.result}
+                />
+                {step.hint &&
+                  !current.result &&
+                  (current.hint ? (
+                    <Label style={s.storyText}>{step.hint}</Label>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onPress={() => void act({ action: 'hint', token: current.token })}
+                      style={s.hint}
+                    >
+                      Pedir una pista
+                    </Button>
+                  ))}
+              </Notebook>
+            </View>
           </>
         ) : (
           <>
@@ -399,8 +460,44 @@ function useStyles() {
   const { colors: C } = useTheme();
   return StyleSheet.create({
     chapterHead: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-    story: { gap: 15, padding: 18, borderLeftWidth: 4, borderLeftColor: C.accent },
-    npc: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    dialogue: { gap: 15 },
+    speakerCard: { gap: 12, padding: 16, borderLeftWidth: 4, borderLeftColor: C.accent },
+    overlappingSpeaker: { marginTop: -10, marginHorizontal: 6 },
+    speakerRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    missionBrief: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 15,
+      borderTopWidth: 1,
+      borderColor: C.line,
+    },
+    missionBriefTitle: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 13, marginBottom: 3 },
+    phrase: {
+      padding: 17,
+      borderRadius: 17,
+      borderWidth: 1,
+      borderColor: C.line,
+      backgroundColor: C.white,
+      overflow: 'hidden',
+    },
+    phraseEnglish: { fontFamily: 'LoraBold', fontSize: 25, lineHeight: 32, color: C.ink },
+    phraseSpanish: { fontFamily: 'Manrope', fontSize: 16, lineHeight: 23, color: C.muted },
+    listen: { alignSelf: 'stretch', marginTop: 11 },
+    audioClue: { gap: 5, padding: 10, backgroundColor: C.paper, borderRadius: 12 },
+    hint: { alignSelf: 'flex-start', paddingHorizontal: 3 },
+    completion: { padding: 24, gap: 12, alignItems: 'center', overflow: 'hidden' },
+    completionSeal: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      borderWidth: 1,
+      borderColor: C.accent,
+      backgroundColor: C.mint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    completionText: { textAlign: 'center' },
     storyText: { color: C.ink, fontSize: 16, lineHeight: 24 },
     recap: {
       flexDirection: 'row',
@@ -410,15 +507,17 @@ function useStyles() {
       padding: 12,
       backgroundColor: C.mint,
     },
-    portrait: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
+    avatar: {
+      width: 54,
+      height: 54,
+      borderRadius: 27,
+    },
+    hostAvatar: {
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#C9DCCC',
+      backgroundColor: C.mint,
     },
-    initial: { fontFamily: 'OutfitSemiBold', fontSize: 26, color: '#24463B' },
+    hostInitial: { fontFamily: 'LoraBold', fontSize: 26, color: C.teal },
     clue: {
       flexDirection: 'row',
       flexWrap: 'wrap',

@@ -33,16 +33,27 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await expect(page.getByRole('textbox', exact('Buscar lugar de origen'))).toBeHidden();
   await page.getByRole('tab', exact('Inicio')).click();
   await expect(page.getByText('República Dominicana', { exact: true })).toBeVisible();
-  await page.getByRole('button', exact('Continuar viaje')).click();
+  const postcard = page.getByTestId('home-mission-postcard');
+  await postcard.getByRole('button', exact('Continuar viaje')).click();
   const click = (name: string) => page.getByRole('button', exact(name)).click();
+  await expect(page.getByTestId('travel-dialogue-postcard')).toBeVisible();
   await click('Continuar');
+  await expect(
+    page.getByTestId('travel-reference-phrase').getByText('Hi! My name is Sam.', { exact: true }),
+  ).toBeVisible();
   await click('Continuar');
   await finishVocabulary(page);
-  const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
+  const input = page
+    .getByTestId('travel-workbook')
+    .getByRole('textbox', exact('Tu respuesta en inglés'));
   await input.fill('Hi! I am');
   const travelState = () =>
     page.evaluate(() => JSON.parse(localStorage.getItem('lq_offline_state_v1')!).travel);
   await expect.poll(async () => (await travelState()).active.answer.text).toBe('Hi! I am');
+  await click('Cerrar y volver');
+  await expect(
+    page.getByTestId('home-stop-hello').getByText('En curso', { exact: true }),
+  ).toBeVisible();
   await page.reload();
   await click('Continuar viaje');
   await expect(input).toHaveValue('Hi! I am');

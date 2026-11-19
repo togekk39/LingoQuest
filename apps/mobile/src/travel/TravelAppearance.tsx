@@ -1,13 +1,13 @@
 import React from 'react';
-import { Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Compass, MapPin, Volume2 } from 'lucide-react-native';
+import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MapPin, Volume2 } from 'lucide-react-native';
 import type { TravelVocabulary } from '@lingoquest/offline-engine';
 import { Button, Label } from '../ui';
 import { useTheme } from '../theme';
 import hometown from '../../assets/travel/hometown.jpg';
 import stop from '../../assets/travel/plaza.jpg';
 
-export { hometown, stop };
+export { stop };
 
 export function TravelScene({ place, compact = false }: { place: string; compact?: boolean }) {
   const { colors: C } = useTheme();
@@ -78,35 +78,6 @@ export function VocabularyCard({
         </Button>
       </View>
     </View>
-  );
-}
-
-export function TravelMark({ size = 38, color = '#FFE6B8' }: { size?: number; color?: string }) {
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        borderWidth: 1,
-        borderColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Compass size={size * 0.59} color={color} strokeWidth={1.5} />
-    </View>
-  );
-}
-
-export function WelcomePicture({ height }: { height: number }) {
-  return (
-    <Image
-      source={hometown}
-      accessible={false}
-      resizeMode="cover"
-      style={{ width: '100%', height }}
-    />
   );
 }
 

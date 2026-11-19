@@ -1,5 +1,14 @@
 import type { Locator } from '@playwright/test';
-import { test, expect, enterApp, openTravelWriting, click, exact, state } from './helpers';
+import {
+  test,
+  expect,
+  enterApp,
+  finishVocabulary,
+  openTravelWriting,
+  click,
+  exact,
+  state,
+} from './helpers';
 
 test.use({ reducedMotion: 'no-preference' });
 
@@ -21,13 +30,6 @@ test('the companion animates and responds live to the system motion preference',
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await enterApp(page);
-  const buddy = page.getByTestId('buddy-body').first();
-  expect(await transformCount(buddy)).toBeGreaterThan(1);
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect.poll(() => transformCount(buddy)).toBe(1);
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await expect.poll(() => transformCount(buddy)).toBeGreaterThan(1);
-
   const button = page.getByRole('button', { name: 'Continuar viaje', exact: true });
   await button.hover();
   await page.mouse.down();
@@ -39,6 +41,17 @@ test('the companion animates and responds live to the system motion preference',
   await button.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
+  await click(page, 'Continuar');
+  await click(page, 'Continuar');
+  await finishVocabulary(page);
+  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hello.');
+  await click(page, 'Comprobar respuesta');
+  const buddy = page.getByTestId('buddy-body').first();
+  await expect.poll(() => transformCount(buddy)).toBeGreaterThan(1);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(() => transformCount(buddy)).toBe(1);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect.poll(() => transformCount(buddy)).toBeGreaterThan(1);
   expect(errors).toEqual([]);
 });
 
@@ -75,14 +88,13 @@ test('saved reduced motion survives reload and suppresses celebration on a narro
   await page.getByRole('button', { name: 'Guardar preferencias', exact: true }).click();
   await expect.poll(async () => (await state(page)).user.reducedMotion).toBe(true);
   await page.reload();
-  const buddy = page.getByTestId('buddy-body').first();
-  await expect(buddy).toBeVisible();
-  expect(await transformCount(buddy)).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await openTravelWriting(page);
   await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hi! I am Luz.');
   await page.getByRole('button', { name: 'Comprobar respuesta', exact: true }).click();
   await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
+  const buddy = page.getByTestId('buddy-body').first();
+  await expect(buddy).toBeVisible();
   await expect(page.getByTestId('celebration-particles')).toHaveCount(0);
-  expect(await transformCount(page.getByTestId('buddy-body').first())).toBe(1);
+  expect(await transformCount(buddy)).toBe(1);
 });
