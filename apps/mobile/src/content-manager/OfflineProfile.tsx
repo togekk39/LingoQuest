@@ -1,10 +1,10 @@
-import { JournalLeaf, JournalSpread, Notebook } from '../Journal';
+import { JournalLeaf, JournalSpread, Notebook, PaperInput } from '../Journal';
 import { illustrations } from '../travel/illustrations';
 import { ThemePicker } from '../ThemePicker';
 import { useTheme } from '../theme';
 import { useReducedMotion } from '../motion';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Switch, Modal, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Switch, Modal, StyleSheet } from 'react-native';
 import {
   BookOpen,
   Zap,
@@ -102,9 +102,9 @@ export function OfflineProfile({
       />
       <JournalLeaf>
         <View style={[s.row, { gap: 17 }]}>
-          <View style={s.avatar}>
+          <JournalLeaf compact kind="stamp" style={s.avatar}>
             <Text style={s.avatarText}>{progress.user.name?.slice(0, 1).toUpperCase()}</Text>
-          </View>
+          </JournalLeaf>
           <View style={{ flex: 1 }}>
             <Heading>{progress.user.name}</Heading>
             <Label>Perfil local · La primera postal</Label>
@@ -121,11 +121,11 @@ export function OfflineProfile({
             { value: progress.xp, label: 'XP de aprendizaje', icon: Zap },
             { value: progress.streak, label: 'Días consecutivos', icon: Flame },
           ].map(({ value, label, icon: Icon }) => (
-            <View key={label} style={s.profileStat}>
+            <JournalLeaf compact kind="stamp" key={label} style={s.profileStat}>
               <Icon size={18} color={C.teal} />
               <Text style={s.statNumber}>{value}</Text>
               <Label style={{ fontSize: 10, textAlign: 'center' }}>{label}</Label>
-            </View>
+            </JournalLeaf>
           ))}
         </View>
         <Label style={{ fontSize: 11 }}>
@@ -136,7 +136,7 @@ export function OfflineProfile({
       <Notebook title="A tu manera">
         <ThemePicker />
         <Label style={{ marginTop: 17 }}>Tu nombre</Label>
-        <TextInput
+        <PaperInput
           accessibilityLabel="Tu nombre"
           value={name}
           onChangeText={setName}

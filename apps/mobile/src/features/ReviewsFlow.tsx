@@ -1,4 +1,4 @@
-import { JournalSpread } from '../Journal';
+import { JournalSpread, JournalLeaf } from '../Journal';
 import { illustrations } from '../travel/illustrations';
 import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
@@ -70,15 +70,15 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
       onClose={onClose}
     >
       <JournalSpread source={illustrations.review} title="Vuelve a tus palabras" />
-      <View style={s.headerIcon}>
+      <JournalLeaf compact kind="stamp" style={s.headerIcon}>
         <Sprout color={palette.teal} size={37} strokeWidth={1.5} />
-      </View>
+      </JournalLeaf>
       <Text style={f.title}>Un pequeño repaso hace la diferencia.</Text>
       <Text style={f.body}>
         Volver a una idea después de unos días te ayuda a recordarla. Aquí no hay prisa y siempre
         puedes intentar de nuevo.
       </Text>
-      <View style={s.switcher}>
+      <JournalLeaf compact kind="postcard" style={s.switcher}>
         <Pressable
           accessibilityRole="tab"
           accessibilityState={{ selected: !all }}
@@ -95,7 +95,7 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
         >
           <Text style={[s.tabText, all && s.activeTabText]}>Todas mis habilidades</Text>
         </Pressable>
-      </View>
+      </JournalLeaf>
       {loading && <ActivityIndicator color={palette.teal} size="large" />}
       {!!error && (
         <ErrorCard
@@ -106,7 +106,11 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
         />
       )}
       {!loading && !error && !reviews.length && (
-        <View style={[f.card, { alignItems: 'center', paddingVertical: 38 }]}>
+        <JournalLeaf
+          compact
+          kind="postcard"
+          style={[f.card, { alignItems: 'center', paddingVertical: 38 }]}
+        >
           <CalendarCheck color={palette.teal} size={35} />
           <Text style={[f.cardTitle, { textAlign: 'center' }]}>
             {all ? 'Todavía no hay palabras para repasar.' : '¡Por hoy, todo al día!'}
@@ -119,15 +123,15 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
           <Action secondary onPress={onClose}>
             Volver a mi camino
           </Action>
-        </View>
+        </JournalLeaf>
       )}
       {!loading &&
         reviews.map((review) => (
-          <View style={f.card} key={review.key}>
+          <JournalLeaf compact kind="postcard" style={f.card} key={review.key}>
             <View style={s.cardTop}>
-              <View style={s.skillIcon}>
+              <JournalLeaf compact kind="stamp" style={s.skillIcon}>
                 <BookOpen color={palette.teal} size={22} />
-              </View>
+              </JournalLeaf>
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={f.cardTitle}>{review.targetLabelEs}</Text>
                 <Text style={f.quiet}>{dimensionNames[review.dimension]}</Text>
@@ -173,15 +177,15 @@ export default function ReviewsFlow({ onClose }: { onClose: () => void }) {
                 <ArrowRight color={palette.teal} size={17} />
               </Pressable>
             )}
-          </View>
+          </JournalLeaf>
         ))}
-      <View style={s.note}>
+      <JournalLeaf compact kind="notebook" style={s.note}>
         <Text style={f.eyebrow}>Dale tiempo a tu memoria</Text>
         <Text style={f.body}>
           Nuestro punto de partida: volver a practicar en 1, 3, 7 y 14 días. El plan se adapta a tus
           respuestas, sin castigos.
         </Text>
-      </View>
+      </JournalLeaf>
     </FlowFrame>
   );
 }

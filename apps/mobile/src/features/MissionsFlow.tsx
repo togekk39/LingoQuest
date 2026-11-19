@@ -1,3 +1,4 @@
+import { JournalLeaf } from '../Journal';
 import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -151,16 +152,16 @@ export default function MissionsFlow({
       )}
       {selected && !started && (
         <>
-          <View style={s.icon}>
+          <JournalLeaf compact kind="stamp" style={s.icon}>
             {selected.id === 'airport' ? (
               <Plane size={38} color={palette.teal} />
             ) : (
               <BriefcaseBusiness size={38} color={palette.teal} />
             )}
-          </View>
+          </JournalLeaf>
           <Text style={f.title}>{selected.titleEs}</Text>
           <Text style={f.body}>{selected.descriptionEs}</Text>
-          <View style={f.card}>
+          <JournalLeaf compact kind="postcard" style={f.card}>
             <Text style={f.cardTitle}>Tú eliges cómo responder.</Text>
             <Text style={f.body}>
               Lee lo que dice la otra persona y elige una frase para continuar. Todas las opciones
@@ -169,24 +170,24 @@ export default function MissionsFlow({
             <Text style={f.quiet}>
               Conversación guiada · No es un chat con inteligencia artificial.
             </Text>
-          </View>
+          </JournalLeaf>
         </>
       )}
       {started &&
         history.map((exchange, index) => (
           <View key={index} style={{ gap: 11 }}>
-            <View style={s.promptBubble}>
+            <JournalLeaf compact kind="postcard" style={s.promptBubble}>
               <Text style={f.eyebrow}>{exchange.speaker}</Text>
               <Text style={s.promptText}>{exchange.prompt}</Text>
-            </View>
-            <View style={s.replyBubble}>
+            </JournalLeaf>
+            <JournalLeaf compact kind="notebook" style={s.replyBubble}>
               <Text style={s.replyText}>{exchange.response}</Text>
-            </View>
+            </JournalLeaf>
           </View>
         ))}
       {started && step && (
         <>
-          <View style={s.promptBubble}>
+          <JournalLeaf compact kind="postcard" style={s.promptBubble}>
             <View
               style={{
                 flexDirection: 'row',
@@ -208,7 +209,7 @@ export default function MissionsFlow({
             </View>
             <Text style={s.promptText}>{step.promptEn}</Text>
             <Text style={f.quiet}>{step.hintEs}</Text>
-          </View>
+          </JournalLeaf>
           {step.options.length > 0 && <Text style={f.eyebrow}>¿Qué te gustaría decir?</Text>}
           <View style={{ gap: 11 }}>
             {step.options.map((option) => (
@@ -226,7 +227,9 @@ export default function MissionsFlow({
         </>
       )}
       {done && (
-        <View
+        <JournalLeaf
+          compact
+          kind="postcard"
           style={[
             f.card,
             {
@@ -244,7 +247,7 @@ export default function MissionsFlow({
           <Action secondary onPress={() => selected && start(selected)}>
             Practicar otra vez
           </Action>
-        </View>
+        </JournalLeaf>
       )}
     </FlowFrame>
   );

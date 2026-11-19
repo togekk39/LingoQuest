@@ -53,6 +53,10 @@ Las postales tienen bordes ondulados y una sombra elevada. Los cuadernos tienen 
 
 [Compara el diálogo y la escritura antes y después del cambio de papel](ui-journal/paper-finishes.jpg).
 
+Los bordes de postal enmarcan las ilustraciones, los paneles del mapa y las ventanas de configuración. Los bordes de cuaderno identifican las notas de las lecciones, los campos de escritura y los comentarios sobre las respuestas. El papel perforado distingue las etiquetas pequeñas y los coleccionables. Los botones y las opciones de respuesta conservan su apariencia.
+
+[Mira los marcos de papel en el atlas, el ejercicio de escritura, el pasaporte y la configuración](ui-journal/shared-frames.jpg).
+
 ## Límites de la verificación
 
 El atlas muestra las 20 etapas y los desafíos conservan los 13 niveles. El contenido publicado permite jugar el primer capítulo y los tres niveles de desafío asociados. Las capturas documentan la interfaz Web móvil. El tamaño de texto se amplió en Chromium y las pruebas de teclado simularon la superposición y el redimensionamiento de la ventana. La escala de fuente del sistema y la interacción del teclado en un teléfono Android requieren comprobación en un dispositivo.

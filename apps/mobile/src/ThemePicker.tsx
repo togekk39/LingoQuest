@@ -1,3 +1,4 @@
+import { JournalLeaf } from './Journal';
 import React, { useState } from 'react';
 import { Modal, Pressable, Text, View, ScrollView } from 'react-native';
 import { Check, Moon, Sun, X, Eclipse } from 'lucide-react-native';
@@ -93,32 +94,33 @@ export function ThemeButton() {
             padding: 20,
           }}
         >
-          <ScrollView
-            style={{ maxHeight: '90%', width: '100%', maxWidth: 430 }}
-            contentContainerStyle={{
-              padding: 24,
-              borderRadius: 20,
-              backgroundColor: C.white,
-              borderWidth: 1,
-              borderColor: C.line,
-            }}
+          <JournalLeaf
+            compact
+            kind="notebook"
+            style={{ maxHeight: '90%', width: '100%', maxWidth: 430, flexShrink: 1 }}
           >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar apariencia"
-              onPress={() => setOpen(false)}
-              style={{
-                minWidth: 44,
-                minHeight: 44,
-                alignSelf: 'flex-end',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+            <ScrollView
+              style={{ flexGrow: 0, flexShrink: 1 }}
+              contentContainerStyle={{ padding: 20 }}
+              keyboardShouldPersistTaps="handled"
             >
-              <X color={C.ink} size={22} />
-            </Pressable>
-            <ThemePicker />
-          </ScrollView>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar apariencia"
+                onPress={() => setOpen(false)}
+                style={{
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignSelf: 'flex-end',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X color={C.ink} size={22} />
+              </Pressable>
+              <ThemePicker />
+            </ScrollView>
+          </JournalLeaf>
         </View>
       </Modal>
     </>

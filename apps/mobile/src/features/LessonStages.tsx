@@ -8,7 +8,7 @@ import { useFeatureStyles } from './FeatureUI';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { Celebration, MotionEntrance, MotionPressable } from '../motion';
 import { QuestBuddy } from '../QuestBuddy';
-import { Notebook, PaperGrain, PlazaPostcard } from '../Journal';
+import { Notebook, PaperGrain, PlazaPostcard, JournalLeaf } from '../Journal';
 
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
 export type StageKind = CourseLesson['stages'][number]['type'];
@@ -55,7 +55,7 @@ export function GoalStage({
       {lesson.id === 'u01_l01' ? (
         <>
           <PlazaPostcard />
-          <View style={[f.card, s.phraseCard]}>
+          <JournalLeaf compact kind="postcard" style={[f.card, s.phraseCard]}>
             <PaperGrain opacity={0.32} />
             <Text accessibilityLanguage="en-US" style={s.phrase}>
               {plazaExample.en}
@@ -65,7 +65,7 @@ export function GoalStage({
               <Volume2 color={palette.ink} size={21} />
               <Text style={s.phraseButtonText}>Escuchar frase</Text>
             </MotionPressable>
-          </View>
+          </JournalLeaf>
         </>
       ) : (
         <QuestBuddy size={80} />
@@ -74,7 +74,7 @@ export function GoalStage({
         <Text style={f.cardTitle}>{lesson.objectiveEs}</Text>
         <Text style={f.body}>{lesson.contextEs}</Text>
       </Notebook>
-      <View style={f.card}>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <Text style={f.cardTitle}>Una situación, paso a paso</Text>
         <Text style={f.body}>
           Primero conocerás las palabras. Después verás cómo se conectan en una conversación y las
@@ -83,7 +83,7 @@ export function GoalStage({
         <Text style={f.quiet}>
           {lesson.cefr} · Aproximadamente {lesson.estimatedMinutes} minutos · Sin prisa
         </Text>
-      </View>
+      </JournalLeaf>
       <View style={s.supportive}>
         <Sparkles size={19} color={palette.teal} />
         <Text style={[f.body, { flex: 1 }]}>
@@ -123,7 +123,7 @@ export function VocabularyCard({
         Palabra o expresión {position + 1} de {total}
       </Text>
       <Text style={f.title}>Palabras para esta situación</Text>
-      <View style={[f.card, { gap: 18 }]}>
+      <JournalLeaf compact kind="postcard" style={[f.card, { gap: 18 }]}>
         <View style={s.wordHeader}>
           <View style={{ flex: 1, gap: 5 }}>
             <Text style={s.word}>{item.en}</Text>
@@ -134,12 +134,12 @@ export function VocabularyCard({
         <Text style={f.quiet}>
           {item.partOfSpeech} · {item.status === 'new' ? 'Una palabra nueva' : 'La volvemos a usar'}
         </Text>
-        <View style={s.example}>
+        <JournalLeaf compact kind="notebook" style={s.example}>
           <Text style={f.eyebrow}>En esta situación</Text>
           <Text style={s.english}>{item.example.en}</Text>
           <Text style={f.body}>{item.example.es}</Text>
-        </View>
-      </View>
+        </JournalLeaf>
+      </JournalLeaf>
       <Text accessibilityLiveRegion="polite" style={f.quiet}>
         {speechMessage ||
           'Escucha con la voz sin conexión del dispositivo. Puedes cambiar la voz y la velocidad en Configuración.'}
@@ -178,21 +178,21 @@ export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
     <>
       <Text style={f.eyebrow}>Gramática en contexto</Text>
       <Text style={f.title}>Una idea para usar estas palabras</Text>
-      <View style={f.card}>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <View style={f.row}>
           <Lightbulb size={22} color={palette.teal} />
           <Text style={f.cardTitle}>Mira cómo funciona</Text>
         </View>
         <Text style={f.body}>{lesson.grammar.explanationEs}</Text>
         {!!lesson.grammar.taughtForms?.length && (
-          <View style={s.forms}>
+          <JournalLeaf compact kind="notebook" style={s.forms}>
             <Text style={f.eyebrow}>Estas pequeñas palabras también cuentan</Text>
             {lesson.grammar.taughtForms.map((form) => (
               <Text key={form.en} style={f.body}>
                 <Text style={{ color: palette.ink }}>{form.en}</Text> · {form.es}
               </Text>
             ))}
-          </View>
+          </JournalLeaf>
         )}
         {lesson.grammar.examples.map((example, index) => (
           <View key={`${example.en}-${index}`} style={s.exampleRow}>
@@ -203,7 +203,7 @@ export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
             <AudioButton text={example.en} onPlay={playOffline} />
           </View>
         ))}
-      </View>
+      </JournalLeaf>
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={f.quiet}>
           {speechMessage}
@@ -224,7 +224,9 @@ export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
       <Text style={f.title}>Una conversación cercana</Text>
       <Text style={f.body}>{lesson.contextEs}</Text>
       {lesson.dialogue.map((turn, index) => (
-        <View
+        <JournalLeaf
+          compact
+          kind="postcard"
           key={`${turn.speaker}-${index}`}
           style={[f.card, index % 2 === 1 && { backgroundColor: tone('#EEF7F0', 'background') }]}
         >
@@ -239,7 +241,7 @@ export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
               {gloss.en} · {gloss.es}
             </Text>
           ))}
-        </View>
+        </JournalLeaf>
       ))}
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={f.quiet}>
@@ -277,7 +279,9 @@ export function AnswerFeedback({
 
   return (
     <MotionEntrance>
-      <View
+      <JournalLeaf
+        compact
+        kind="notebook"
         testID="answer-feedback"
         accessibilityRole="alert"
         accessibilityLiveRegion="polite"
@@ -315,7 +319,7 @@ export function AnswerFeedback({
           <Text style={s.accepted}>Una respuesta posible: {result.acceptedAnswer}</Text>
         )}
         <Text style={[f.body, { color: palette.ink }]}>{result.feedbackEs}</Text>
-      </View>
+      </JournalLeaf>
     </MotionEntrance>
   );
 }
@@ -354,26 +358,26 @@ export function RecapStage({
         <Text style={[f.body, { textAlign: 'center' }]}>
           Tu progreso está guardado en este dispositivo. Ya diste un paso para: {lesson.objectiveEs}
         </Text>
-        <View style={s.xp}>
+        <JournalLeaf compact kind="stamp" style={s.xp}>
           <Sparkles size={23} color="#BC8130" />
           <Text style={s.xpText}>+{xp} XP de aprendizaje</Text>
-        </View>
+        </JournalLeaf>
       </View>
-      <View style={f.card}>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <Text style={f.cardTitle}>Palabras para recordar</Text>
         {vocabulary.map((item) => (
           <Text key={item.id} style={f.body}>
             <Text style={{ color: palette.ink }}>{item.en}</Text> · {item.es}
           </Text>
         ))}
-      </View>
-      <View style={f.card}>
+      </JournalLeaf>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <Text style={f.cardTitle}>Una idea que ya puedes usar</Text>
         <Text style={f.body}>{lesson.grammar.explanationEs}</Text>
         <Text style={s.english}>{lesson.grammar.examples[0].en}</Text>
         <Text style={f.body}>{lesson.grammar.examples[0].es}</Text>
-      </View>
-      <View style={f.card}>
+      </JournalLeaf>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <Text style={f.cardTitle}>Aprender hoy. Recordar mañana.</Text>
         <Text style={f.body}>
           {nextReviewAt
@@ -391,7 +395,7 @@ export function RecapStage({
           Completar la lección es un logro. Recordar con el tiempo necesita varias prácticas. Tus
           desafíos tienen su propio progreso.
         </Text>
-      </View>
+      </JournalLeaf>
     </>
   );
 }

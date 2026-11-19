@@ -4,9 +4,12 @@ import {
   Platform,
   StyleSheet,
   Text,
+  TextInput,
   View,
+  type ColorValue,
   type ImageSourcePropType,
-  type StyleProp,
+  type TextInputProps,
+  type ViewProps,
   type ViewStyle,
 } from 'react-native';
 import { Compass, Mountain, PencilLine } from 'lucide-react-native';
@@ -49,41 +52,44 @@ export function JournalBrand({ small = false }: { small?: boolean }) {
   );
 }
 
-function PaperEdges({ kind }: { kind: 'notebook' | 'postcard' }) {
+const edgeStyles = {
+  top: 'edgeTop',
+  bottom: 'edgeBottom',
+  left: 'edgeLeft',
+  right: 'edgeRight',
+} as const;
+type Edge = keyof typeof edgeStyles;
+type PaperKind = 'notebook' | 'postcard' | 'stamp';
+
+export function PaperEdge({ edge, tint }: { edge: Edge; tint: ColorValue }) {
+  return <PaperEdges kind="postcard" edge={edge} tint={tint} />;
+}
+
+function PaperEdges({
+  kind,
+  edge,
+  tint,
+}: {
+  kind: Exclude<PaperKind, 'stamp'>;
+  edge?: Edge;
+  tint?: ColorValue;
+}) {
   const { mode, colors } = useTheme();
   const horizontal = kind === 'notebook' ? notebookEdge : postcardEdge;
   const vertical = kind === 'notebook' ? notebookSide : postcardSide;
-  const tint = mode === 'light' ? undefined : colors.white;
+  const sides = edge ? [edge] : (Object.keys(edgeStyles) as Edge[]);
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Image
-        accessible={false}
-        source={horizontal}
-        tintColor={tint}
-        resizeMode="stretch"
-        style={styles.edgeTop}
-      />
-      <Image
-        accessible={false}
-        source={horizontal}
-        tintColor={tint}
-        resizeMode="stretch"
-        style={styles.edgeBottom}
-      />
-      <Image
-        accessible={false}
-        source={vertical}
-        tintColor={tint}
-        resizeMode="stretch"
-        style={styles.edgeLeft}
-      />
-      <Image
-        accessible={false}
-        source={vertical}
-        tintColor={tint}
-        resizeMode="stretch"
-        style={styles.edgeRight}
-      />
+      {sides.map((side) => (
+        <Image
+          key={side}
+          accessible={false}
+          source={side === 'top' || side === 'bottom' ? horizontal : vertical}
+          tintColor={tint ?? (mode === 'light' ? undefined : colors.white)}
+          resizeMode="stretch"
+          style={styles[edgeStyles[side]]}
+        />
+      ))}
     </View>
   );
 }
@@ -165,11 +171,11 @@ export function PlazaPostcard() {
         style={[
           styles.traveler,
           {
-            borderColor: colors.line,
             backgroundColor: colors.white,
           },
         ]}
       >
+        <PaperEdges kind="postcard" tint={colors.white} />
         <PaperGrain opacity={0.32} />
         <Image source={portrait} style={[styles.portrait, { borderColor: colors.white }]} />
         <View style={{ flex: 1 }}>
@@ -254,31 +260,73 @@ export function JournalArt({
       />
     </View>
   );
-  return taped ? (
-    <JournalPostcardFrame taped>{image}</JournalPostcardFrame>
-  ) : (
-    <View style={[styles.artFrame, { backgroundColor: colors.white }]}>{image}</View>
-  );
+  return <JournalPostcardFrame taped={taped}>{image}</JournalPostcardFrame>;
 }
 
 export function JournalLeaf({
   children,
   style,
   tint = 'white',
-  testID,
-}: {
-  children: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
-  tint?: 'white' | 'mint';
-  testID?: string;
+  kind = 'postcard',
+  compact = false,
+  ...props
+}: ViewProps & {
+  tint?: 'white' | 'mint' | 'paper';
+  kind?: PaperKind;
+  compact?: boolean;
 }) {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
+  const backgroundColor = StyleSheet.flatten(style)?.backgroundColor ?? colors[tint];
   return (
-    <View testID={testID} style={[styles.leaf, { backgroundColor: colors[tint] }, style]}>
+    <View
+      {...props}
+      style={[
+        styles.leaf,
+        compact && styles.compactLeaf,
+        { backgroundColor },
+        style,
+        styles.leafEdge,
+        kind === 'stamp' && styles.stampLeaf,
+      ]}
+    >
+      {kind === 'stamp' ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Image
+            accessible={false}
+            source={postagePaper}
+            tintColor={mode === 'light' ? undefined : colors.mint}
+            style={styles.grain}
+            resizeMode="stretch"
+          />
+        </View>
+      ) : (
+        <PaperEdges kind={kind} tint={backgroundColor} />
+      )}
       {children}
     </View>
   );
 }
+
+export const PaperInput = React.forwardRef<TextInput, TextInputProps>(function PaperInput(
+  { style, ...props },
+  ref,
+) {
+  const { colors } = useTheme();
+  return (
+    <JournalLeaf kind="notebook" compact tint="paper">
+      <TextInput
+        underlineColorAndroid="transparent"
+        {...props}
+        ref={ref}
+        style={[
+          style,
+          styles.paperInput,
+          Platform.OS === 'web' && [styles.paperInputWeb, { outlineColor: colors.teal }],
+        ]}
+      />
+    </JournalLeaf>
+  );
+});
 
 export function JournalSpread({
   source,
@@ -317,10 +365,22 @@ function paperShadow(offset: number, blur: number): ViewStyle {
 
 const styles = StyleSheet.create({
   grain: { width: '100%', height: '100%' },
-  artFrame: { padding: 5, paddingBottom: 9, borderRadius: 8, ...paperShadow(3, 9) },
   tapedFrame: { marginHorizontal: 4, marginTop: 8 },
   artCrop: { width: '100%', overflow: 'hidden', borderRadius: 4 },
-  leaf: { borderRadius: 16, padding: 15, gap: 9, ...paperShadow(4, 11) },
+  leaf: { borderRadius: 5, padding: 15, gap: 9, ...paperShadow(4, 11) },
+  leafEdge: {
+    borderWidth: 0,
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderRadius: 5,
+    overflow: 'visible',
+  },
+  compactLeaf: { padding: 0, gap: 0, ...paperShadow(2, 6) },
+  stampLeaf: { backgroundColor: 'transparent', boxShadow: 'none', elevation: 0 },
+  paperInput: { backgroundColor: 'transparent', borderRadius: 4, borderWidth: 0 },
+  paperInputWeb: { zIndex: 1, outlineOffset: -4 },
   spread: { gap: 0 },
   caption: { marginTop: -17, marginHorizontal: 12 },
   spreadTitle: { fontFamily: 'LoraBold', fontSize: 24, letterSpacing: -0.35 },
@@ -380,8 +440,7 @@ const styles = StyleSheet.create({
     marginTop: -4,
     paddingLeft: 102,
     paddingRight: 66,
-    borderRadius: 19,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 5,
     justifyContent: 'center',
     flexDirection: 'row',
     alignItems: 'center',

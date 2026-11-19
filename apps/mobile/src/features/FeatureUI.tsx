@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardOverlap } from './useKeyboardOverlap';
 import { MotionEntrance, MotionPressable } from '../motion';
 import { ProgressBar } from '../ui';
-import { PaperGrain } from '../Journal';
+import { JournalLeaf, PaperEdge, PaperGrain } from '../Journal';
 
 export const InputViewportContext = createContext<{
   revealInput: (input: TextInput | null) => void;
@@ -171,6 +171,7 @@ export function FlowFrame({
     >
       {journal && <PaperGrain />}
       <View style={journal ? f.journalTopbar : f.topbar}>
+        {!journal && <PaperEdge edge="bottom" tint={palette.white} />}
         <Pressable
           accessibilityLabel="Cerrar y volver"
           accessibilityRole="button"
@@ -283,7 +284,7 @@ export function FlowFrame({
       </ScrollView>
       {footer && (
         <View testID="flow-footer" style={journal ? f.journalFooter : f.footer}>
-          {journal && <PaperGrain />}
+          {journal ? <PaperGrain /> : <PaperEdge edge="top" tint={palette.white} />}
           <View style={[f.footerContent, journal && f.journalWidth]}>{footer}</View>
         </View>
       )}
@@ -296,7 +297,7 @@ export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () 
   const f = useFeatureStyles();
 
   return (
-    <View accessibilityRole="alert" style={f.error}>
+    <JournalLeaf compact kind="notebook" accessibilityRole="alert" style={f.error}>
       <Text style={f.errorTitle}>No pudimos conectar</Text>
       <Text style={f.body}>{message}</Text>
       {onRetry && (
@@ -304,7 +305,7 @@ export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () 
           Intentar de nuevo
         </Action>
       )}
-    </View>
+    </JournalLeaf>
   );
 }
 export function useFeatureStyles() {
@@ -318,8 +319,7 @@ export function useFeatureStyles() {
       paddingHorizontal: 24,
       paddingVertical: 22,
       backgroundColor: palette.white,
-      borderBottomWidth: 1,
-      borderBottomColor: palette.line,
+      zIndex: 1,
     },
     close: {
       width: 44,
@@ -378,8 +378,7 @@ export function useFeatureStyles() {
     footer: {
       paddingHorizontal: 24,
       paddingVertical: 18,
-      borderTopWidth: 1,
-      borderTopColor: palette.line,
+      zIndex: 1,
       backgroundColor: palette.white,
     },
     footerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 12 },

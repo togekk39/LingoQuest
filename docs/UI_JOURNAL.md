@@ -53,6 +53,10 @@ Postcards use scalloped edges and a lifted shadow. Notebooks use irregular edges
 
 [Compare the dialogue and writing screens before and after the paper update](ui-journal/paper-finishes.jpg).
 
+Postcard edges frame illustrations, map panels, and settings sheets. Notebook edges mark lesson notes, writing fields, and feedback. Perforated postage paper distinguishes smaller labels and collectibles. Buttons and answer choices keep their existing appearance.
+
+[See the shared paper frames in the atlas, writing exercise, passport, and settings](ui-journal/shared-frames.jpg).
+
 ## Verification limits
 
 The atlas exposes all 20 stages and the challenges retain 13 levels. The published content makes the first story chapter and its three associated challenge levels playable. The captures document mobile Web. Text enlargement was tested in Chromium, and the keyboard scenarios simulate overlay and window resizing. System font scaling and keyboard behavior on an Android phone require a device check.

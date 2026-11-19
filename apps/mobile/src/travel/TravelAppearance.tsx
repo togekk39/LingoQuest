@@ -15,10 +15,10 @@ export function TravelScene({ place, compact = false }: { place: string; compact
   return (
     <View>
       <JournalArt source={placeIllustration(place)} aspectRatio={compact ? 2.65 : 2.1} taped />
-      <View style={[styles.sceneLabel, { backgroundColor: C.white }]}>
+      <JournalLeaf compact kind="stamp" style={styles.sceneLabel}>
         <MapPin size={14} color={C.accent} />
         <Text style={[styles.sceneText, { color: C.ink }]}>{place}</Text>
-      </View>
+      </JournalLeaf>
     </View>
   );
 }
@@ -130,9 +130,14 @@ export function GrammarWorkbench({
               style={styles.samples}
             >
               {example.en.split(/\s+/).map((token, i) => (
-                <View key={i} style={[styles.token, { backgroundColor: i < 2 ? C.mint : C.white }]}>
+                <JournalLeaf
+                  compact
+                  kind="notebook"
+                  key={i}
+                  style={[styles.token, { backgroundColor: i < 2 ? C.mint : C.white }]}
+                >
                   <Text style={[styles.quotation, { color: C.ink }]}>{token}</Text>
-                </View>
+                </JournalLeaf>
               ))}
             </View>
             <View style={styles.samples}>

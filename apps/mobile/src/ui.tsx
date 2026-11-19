@@ -1,3 +1,4 @@
+import { JournalLeaf } from './Journal';
 import { useTheme } from './theme';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -32,7 +33,7 @@ export function Card({
 }) {
   const u = useStyles();
 
-  return <View style={[u.card, style]}>{children}</View>;
+  return <JournalLeaf style={[u.card, style]}>{children}</JournalLeaf>;
 }
 export function Button({
   children,
@@ -113,19 +114,20 @@ export function Pill({
   bg ??= C.mint;
 
   return (
-    <View
+    <JournalLeaf
+      compact
+      kind="stamp"
       style={{
         alignSelf: 'flex-start',
         paddingHorizontal: 10,
         paddingVertical: 5,
-        borderRadius: 8,
         backgroundColor: bg,
       }}
     >
       <Text style={{ fontFamily: 'ManropeBold', fontSize: 10, color, letterSpacing: 0.6 }}>
         {children}
       </Text>
-    </View>
+    </JournalLeaf>
   );
 }
 export function ProgressBar({
@@ -188,9 +190,6 @@ export function useStyles() {
     heading: { fontFamily: 'LoraBold', fontSize: 25, color: C.ink },
     card: {
       backgroundColor: tone('white', 'background'),
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 20,
       padding: 24,
     },
     button: {

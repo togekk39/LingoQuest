@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -45,6 +44,7 @@ import {
   JournalStamp,
   Notebook,
   PaperGrain,
+  PaperInput,
 } from '../Journal';
 import { illustrations, placeIllustration } from './illustrations';
 import { Button, Heading, Label } from '../ui';
@@ -129,10 +129,10 @@ export function TravelHome({
                 style={s.postcardImage}
               />
               <View style={s.postcardTop}>
-                <View style={s.postcardPlace}>
+                <JournalLeaf compact kind="stamp" style={s.postcardPlace}>
                   <MapPin size={16} color="#304835" />
                   <Text style={s.postcardPlaceText}>{next?.place ?? homeName(travel)}</Text>
-                </View>
+                </JournalLeaf>
                 <JournalStamp source={illustrations.expedition} size={49} rotation={9} />
               </View>
             </View>
@@ -165,7 +165,11 @@ export function TravelHome({
                     : 'Puedes volver a cualquiera de estas misiones desde la ruta.'))}
             </Text>
             <View style={s.postcardAction}>
-              {!!next && <Text style={s.missionTime}>{next.minutes} min</Text>}
+              {!!next && (
+                <JournalLeaf compact kind="stamp" style={s.missionTime}>
+                  <Text style={s.missionTimeText}>{next.minutes} min</Text>
+                </JournalLeaf>
+              )}
               <Button
                 icon={next ? ArrowRight : Stamp}
                 style={s.missionAction}
@@ -179,7 +183,7 @@ export function TravelHome({
         </View>
 
         <View style={[s.homeRail, wide && { flex: 1 }]}>
-          <View testID="home-route" style={s.homeRoute}>
+          <JournalLeaf compact kind="notebook" testID="home-route" style={s.homeRoute}>
             <View style={s.routeHeader}>
               <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                 <Text accessibilityRole="header" style={s.homeSubheading}>
@@ -187,7 +191,9 @@ export function TravelHome({
                 </Text>
                 <Text style={s.muted}>{chapter.title}</Text>
               </View>
-              <View
+              <JournalLeaf
+                compact
+                kind="stamp"
                 accessible
                 accessibilityLabel={`${count} de ${chapter.missions.length} misiones completadas`}
                 style={s.routeTally}
@@ -196,7 +202,7 @@ export function TravelHome({
                 <Text style={s.tallyText}>
                   {count} / {chapter.missions.length}
                 </Text>
-              </View>
+              </JournalLeaf>
             </View>
             <View style={s.routeStops}>
               <View pointerEvents="none" style={s.routeTrack} />
@@ -250,12 +256,12 @@ export function TravelHome({
             <Button variant="ghost" icon={MapPinned} style={s.openMap} onPress={onRoute}>
               Ver mapa y misiones
             </Button>
-          </View>
+          </JournalLeaf>
           <View testID="home-practice" style={s.practice}>
             <Text accessibilityRole="header" style={s.homeSubheading}>
               Practicar a tu ritmo
             </Text>
-            <View style={s.practiceList}>
+            <JournalLeaf compact kind="notebook" style={s.practiceList}>
               <PracticeRow
                 icon={RotateCcw}
                 title="Repaso rápido"
@@ -274,7 +280,7 @@ export function TravelHome({
               />
               <PracticeRow icon={Headphones} title="Practicar pronunciación" onPress={onSpeech} />
               <PracticeRow icon={NotebookPen} title="Repasar un poquito" onPress={onFullReview} />
-            </View>
+            </JournalLeaf>
           </View>
         </View>
       </View>
@@ -571,7 +577,7 @@ export function CountryPicker({
     <View style={{ gap: 12 }}>
       <Heading style={{ fontSize: 27 }}>¿Desde dónde viajas?</Heading>
       <Label style={s.copy}>La primera historia empieza en tu comunidad.</Label>
-      <TextInput
+      <PaperInput
         accessibilityLabel="Buscar lugar de origen"
         placeholder="Buscar país o territorio"
         placeholderTextColor={C.muted}
@@ -635,9 +641,13 @@ export function Passport({
         {stamp ? (
           <JournalStamp source={illustrations.plaza} size={76} />
         ) : (
-          <View style={[s.passportSeal, { borderColor: C.line, backgroundColor: C.paper }]}>
+          <JournalLeaf
+            compact
+            kind="stamp"
+            style={[s.passportSeal, { borderColor: C.line, backgroundColor: C.paper }]}
+          >
             <Stamp size={27} color={C.muted} />
-          </View>
+          </JournalLeaf>
         )}
         <Label style={s.copy}>
           {stamp
@@ -662,7 +672,7 @@ export function Passport({
             <Label style={s.copy}>
               ¿Qué frase usarías para ayudar a un visitante en tu comunidad?
             </Label>
-            <TextInput
+            <PaperInput
               accessibilityLabel="Mi recuerdo"
               multiline
               maxLength={500}
@@ -743,7 +753,7 @@ function useStyles() {
       borderRadius: 5,
       backgroundColor: '#FFF0D7',
     },
-    postcardPlaceText: { fontFamily: 'ManropeBold', color: '#304835', fontSize: 12, flexShrink: 1 },
+    postcardPlaceText: { fontFamily: 'ManropeBold', color: C.ink, fontSize: 12, flexShrink: 1 },
     postcardTicket: {
       borderRadius: 20,
       marginHorizontal: 9,
@@ -765,16 +775,9 @@ function useStyles() {
     missionTitle: { color: C.ink, fontFamily: 'LoraBold', fontSize: 26, letterSpacing: -0.45 },
     missionBrief: { color: C.muted, fontFamily: 'Manrope', fontSize: 13 },
     postcardAction: { flexDirection: 'row', gap: 9, alignItems: 'center', marginTop: 5 },
-    missionTime: {
-      color: C.teal,
-      fontFamily: 'ManropeBold',
-      fontSize: 12,
-      maxWidth: '31%',
-      padding: 7,
-      backgroundColor: C.mint,
-      borderRadius: 7,
-    },
+    missionTime: { maxWidth: '31%', padding: 8 },
     missionAction: { flex: 1, minHeight: 48, paddingHorizontal: 10 },
+    missionTimeText: { color: C.ink, fontFamily: 'ManropeBold', fontSize: 12 },
     homeRoute: {
       backgroundColor: C.white,
       borderColor: C.line,
@@ -893,8 +896,6 @@ function useStyles() {
       marginLeft: -6,
       marginTop: -6,
       backgroundColor: '#9b3e23',
-      borderColor: '#f4fffb',
-      borderWidth: 2,
       borderRadius: 6,
     },
     mapTarget: {

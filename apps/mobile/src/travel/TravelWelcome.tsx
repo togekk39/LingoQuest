@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight, ChevronRight, Compass, MapPin, Route, X } from 'lucide-react-native';
 import { chapter } from '@lingoquest/offline-engine';
 import { Button } from '../ui';
-import { JournalArt, JournalBrand, PaperGrain } from '../Journal';
+import { JournalArt, JournalBrand, JournalLeaf, PaperEdge, PaperGrain } from '../Journal';
 import { useTheme } from '../theme';
 import { illustrations } from './illustrations';
 
@@ -26,7 +26,8 @@ export function TravelWelcome({
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: C.paper }]}>
       <PaperGrain />
-      <View style={[styles.header, { borderColor: C.line }]}>
+      <View style={[styles.header, { backgroundColor: C.paper }]}>
+        <PaperEdge edge="bottom" tint={C.paper} />
         <JournalBrand small />
         <Pressable
           accessibilityRole="button"
@@ -54,21 +55,29 @@ export function TravelWelcome({
             </View>
           </View>
 
-          <View style={[styles.choices, { backgroundColor: C.white, borderColor: C.line }]}>
+          <JournalLeaf
+            compact
+            kind="notebook"
+            style={[styles.choices, { backgroundColor: C.white, borderColor: C.line }]}
+          >
             <Text accessibilityRole="header" style={[styles.choiceTitle, { color: C.ink }]}>
               ¿Por dónde quieres empezar?
             </Text>
-            <View style={[styles.departure, { borderColor: C.line }]}>
-              <View style={[styles.icon, { backgroundColor: C.mint }]}>
+            <JournalLeaf
+              compact
+              kind="postcard"
+              style={[styles.departure, { borderColor: C.line }]}
+            >
+              <JournalLeaf compact kind="stamp" style={[styles.icon, { backgroundColor: C.mint }]}>
                 <Compass size={22} color={C.teal} />
-              </View>
+              </JournalLeaf>
               <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                 <Text style={[styles.option, { color: C.ink }]}>{firstMission.title}</Text>
                 <Text style={[styles.detail, { color: C.muted }]}>
                   Escucha a Sam y ensaya cómo presentarte · {firstMission.minutes} min
                 </Text>
               </View>
-            </View>
+            </JournalLeaf>
             <Button loading={busy} icon={ArrowRight} onPress={onStart} style={styles.start}>
               Empezar mi viaje
             </Button>
@@ -91,7 +100,7 @@ export function TravelWelcome({
               </View>
               <ChevronRight size={18} color={C.accent} />
             </Pressable>
-          </View>
+          </JournalLeaf>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -104,7 +113,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
+    zIndex: 1,
     paddingHorizontal: 17,
     paddingVertical: 5,
   },

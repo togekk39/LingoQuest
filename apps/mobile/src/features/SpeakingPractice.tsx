@@ -1,4 +1,4 @@
-import { JournalArt, Notebook } from '../Journal';
+import { JournalArt, Notebook, JournalLeaf } from '../Journal';
 import { illustrations } from '../travel/illustrations';
 import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
@@ -218,13 +218,13 @@ export function SpeakingPanel({
             </Text>
           )}
           {!!stt.transcript && (
-            <View accessibilityLiveRegion="polite" style={f.card}>
+            <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite" style={f.card}>
               <Text style={f.eyebrow}>Esto entendió el sistema</Text>
               <Text style={f.body}>{stt.transcript}</Text>
               <Text style={f.quiet}>
                 Compara el texto con la frase y vuelve a practicar cuando quieras.
               </Text>
-            </View>
+            </JournalLeaf>
           )}
           {!!stt.message && (
             <Text accessibilityRole="alert" style={f.body}>
@@ -271,9 +271,9 @@ export function SpeakingPanel({
         </Action>
       )}
       {message ? (
-        <View accessibilityRole="alert" style={s.neutral}>
+        <JournalLeaf compact kind="notebook" accessibilityRole="alert" style={s.neutral}>
           <Text style={f.body}>{message}</Text>
-        </View>
+        </JournalLeaf>
       ) : null}
       <View style={s.privacy}>
         <ShieldCheck size={19} color={palette.muted} />

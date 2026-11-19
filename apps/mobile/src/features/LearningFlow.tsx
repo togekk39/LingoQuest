@@ -5,7 +5,7 @@ import type { AttemptResult, Progress } from '@lingoquest/contracts';
 import type { LessonCheckpoint } from '@lingoquest/offline-engine';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
-import { Notebook } from '../Journal';
+import { Notebook, JournalLeaf } from '../Journal';
 import { Action, ErrorCard, useFeatureStyles, FlowFrame, newEventId } from './FeatureUI';
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from './ExerciseInput';
 import { SpeakingPanel } from './SpeakingPractice';
@@ -397,7 +397,7 @@ export default function LearningFlow({
                 </Action>
               )}
               {helpOpen && (
-                <View style={f.card}>
+                <JournalLeaf compact kind="postcard" style={f.card}>
                   <Text style={f.cardTitle}>Una ayuda para seguir</Text>
                   {lesson.vocabulary.map((item) => (
                     <Text key={item.id} style={f.body}>
@@ -413,7 +413,7 @@ export default function LearningFlow({
                     Usar esta ayuda también es aprender. En el repaso volverás a intentarlo sin
                     apoyo.
                   </Text>
-                </View>
+                </JournalLeaf>
               )}
             </View>
           ) : stage.type === 'goal' ? (

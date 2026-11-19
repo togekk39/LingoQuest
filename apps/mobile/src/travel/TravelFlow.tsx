@@ -99,13 +99,13 @@ function DialoguePostcard({
       )}
       {step.line && <Phrase {...step.line} play={play} />}
       {opening && !step.line && (
-        <View style={s.missionBrief}>
+        <JournalLeaf compact kind="notebook" style={s.missionBrief}>
           <Compass color={C.teal} size={23} />
           <View style={{ flex: 1 }}>
             <Text style={s.missionBriefTitle}>Tu misión</Text>
             <Label style={s.storyText}>{mission.objective}</Label>
           </View>
-        </View>
+        </JournalLeaf>
       )}
     </View>
   );
@@ -294,10 +294,10 @@ export function TravelFlow({
     >
       {error && <ErrorCard message={error} />}
       {returning && (
-        <View style={s.recap}>
+        <JournalLeaf compact kind="notebook" style={s.recap}>
           <Compass size={19} color={C.teal} />
           <Label style={{ flex: 1 }}>Retomamos donde lo dejaste. {mission.objective}</Label>
-        </View>
+        </JournalLeaf>
       )}
       <View key={current.token} testID={`travel-step-${step.type}`} style={{ gap: 14 }}>
         {current.finished ? (
@@ -309,13 +309,13 @@ export function TravelFlow({
             detail={mission.success}
           >
             <Celebration size={64}>
-              <View style={s.completionSeal}>
+              <JournalLeaf compact kind="stamp" style={s.completionSeal}>
                 {mission.id === 'bag' ? (
                   <Stamp size={28} color={C.teal} />
                 ) : (
                   <Check size={28} color={C.teal} />
                 )}
-              </View>
+              </JournalLeaf>
             </Celebration>
             {mission.id === 'bag' && (
               <Label style={[s.storyText, s.completionText]}>
@@ -369,7 +369,7 @@ export function TravelFlow({
                 )}
 
                 {step.audio && (
-                  <View style={s.audioClue}>
+                  <JournalLeaf compact kind="notebook" style={s.audioClue}>
                     <Button
                       variant="secondary"
                       icon={Volume2}
@@ -390,7 +390,7 @@ export function TravelFlow({
                         Leer la transcripción
                       </Button>
                     )}
-                  </View>
+                  </JournalLeaf>
                 )}
                 <ExerciseInput
                   journal

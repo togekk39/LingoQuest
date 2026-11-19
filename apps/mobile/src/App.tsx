@@ -36,7 +36,7 @@ import { QuickReview } from './travel/QuickReview';
 import { TravelWelcome } from './travel/TravelWelcome';
 import { TravelPlacementFlow } from './travel/TravelPlacementFlow';
 import { TravelGuide, TravelPronunciation } from './travel/TravelGuide';
-import { JournalBrand, JournalLeaf, PaperGrain } from './Journal';
+import { JournalBrand, JournalLeaf, PaperEdge, PaperGrain } from './Journal';
 import { SpeechSettings } from './features/SpeechSettings';
 import { MotionProvider, useReducedMotion } from './motion';
 
@@ -266,6 +266,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   }
   const nav = (
     <View style={desktop ? s.desktopNav : s.mobileNav}>
+      {!desktop && <PaperEdge edge="top" tint={C.white} />}
       {tabs.map(({ id, icon: Icon }) => (
         <Pressable
           key={id}
@@ -299,6 +300,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       <View style={s.layout}>
         {desktop && (
           <View style={s.sidebar}>
+            <PaperEdge edge="right" tint={C.white} />
             <View style={s.sidebarBrand}>
               <JournalBrand />
             </View>
@@ -311,6 +313,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={s.topbar}>
+            <PaperEdge edge="bottom" tint={C.white} />
             {desktop ? (
               <Text style={[s.sectionLabel, { color: C.accent }]}>{tab}</Text>
             ) : (
@@ -510,14 +513,16 @@ function Sheet({
   return (
     <Modal visible transparent animationType={reduced ? 'none' : 'fade'} onRequestClose={close}>
       <SafeAreaView style={s.shade}>
-        <ScrollView
-          style={s.sheet}
-          contentContainerStyle={{ padding: 20, gap: 14 }}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
-        >
-          {children}
-        </ScrollView>
+        <JournalLeaf compact kind="notebook" style={s.sheet}>
+          <ScrollView
+            style={{ flexGrow: 0, flexShrink: 1 }}
+            contentContainerStyle={{ padding: 20, gap: 14 }}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {children}
+          </ScrollView>
+        </JournalLeaf>
       </SafeAreaView>
     </Modal>
   );
@@ -533,8 +538,7 @@ function useStyles() {
       paddingHorizontal: 16,
       paddingBottom: 18,
       backgroundColor: C.white,
-      borderRightWidth: 1,
-      borderRightColor: C.line,
+      zIndex: 1,
     },
     sidebarBrand: {
       gap: 9,
@@ -560,8 +564,7 @@ function useStyles() {
       padding: 4,
       gap: 3,
       backgroundColor: C.white,
-      borderTopWidth: 1,
-      borderTopColor: C.line,
+      zIndex: 1,
     },
     mobileTab: {
       flex: 1,
@@ -586,8 +589,7 @@ function useStyles() {
     topbar: {
       minHeight: 61,
       backgroundColor: C.white,
-      borderBottomWidth: 1,
-      borderBottomColor: C.line,
+      zIndex: 1,
       paddingHorizontal: 14,
       paddingVertical: 6,
       flexDirection: 'row',
@@ -608,14 +610,10 @@ function useStyles() {
       padding: 18,
     },
     sheet: {
-      flexGrow: 0,
+      flexShrink: 1,
       maxHeight: '93%',
       maxWidth: 510,
       width: '100%',
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 12,
-      backgroundColor: C.white,
     },
     sheetTitle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   });

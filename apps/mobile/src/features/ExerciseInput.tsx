@@ -1,3 +1,4 @@
+import { JournalLeaf, PaperInput } from '../Journal';
 import { useTheme } from '../theme';
 import React, { useContext, useRef, useState } from 'react';
 import type { PublicExercise, Answer } from '@lingoquest/contracts';
@@ -64,10 +65,10 @@ export function ExerciseInput({
   return (
     <View testID={`exercise-${exercise.id}`} style={{ gap: journal ? 13 : 22 }}>
       {exercise.passage && (
-        <View style={[s.passage, journal && s.journalPassage]}>
+        <JournalLeaf compact kind="notebook" style={[s.passage, journal && s.journalPassage]}>
           <Text style={f.eyebrow}>Lee con calma</Text>
           <Text style={s.passageText}>{exercise.passage}</Text>
-        </View>
+        </JournalLeaf>
       )}
       <View style={{ gap: journal ? 6 : 12 }}>
         <Text style={f.eyebrow}>{kindLabels[exercise.type]}</Text>
@@ -75,14 +76,14 @@ export function ExerciseInput({
         {exercise.sentence && <Text style={s.sentence}>{exercise.sentence}</Text>}
       </View>
       {!!exercise.contextualGlosses?.length && (
-        <View style={s.glosses}>
+        <JournalLeaf compact kind="notebook" style={s.glosses}>
           <Text style={f.eyebrow}>Ayuda para esta situación</Text>
           {exercise.contextualGlosses.map((gloss) => (
             <Text key={gloss.en} style={f.body}>
               <Text style={{ color: palette.ink }}>{gloss.en}</Text> · {gloss.es}
             </Text>
           ))}
-        </View>
+        </JournalLeaf>
       )}
       {exercise.type === 'matching' ? (
         <View style={{ gap: 14 }}>
@@ -207,7 +208,7 @@ export function ExerciseInput({
         </View>
       ) : exercise.type === 'reorder' ? (
         <View style={{ gap: 16 }}>
-          <View style={s.tokenAnswer}>
+          <JournalLeaf compact kind="notebook" style={s.tokenAnswer}>
             {selectedTokens.length ? (
               selectedTokens.map((token, index) => (
                 <Pressable
@@ -226,7 +227,7 @@ export function ExerciseInput({
             ) : (
               <Text style={f.quiet}>Toca las palabras para formar una oración.</Text>
             )}
-          </View>
+          </JournalLeaf>
           <View style={s.tokenList}>
             {remainingTokens.map(({ text, index }) => (
               <Pressable
@@ -248,7 +249,7 @@ export function ExerciseInput({
         </View>
       ) : (
         <View>
-          <TextInput
+          <PaperInput
             ref={input}
             onFocus={() => revealInput(input.current)}
             onBlur={() => revealInput(null)}

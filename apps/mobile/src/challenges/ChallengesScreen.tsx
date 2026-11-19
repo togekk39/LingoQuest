@@ -1,4 +1,4 @@
-import { JournalArt, JournalLeaf, JournalSpread } from '../Journal';
+import { JournalArt, JournalLeaf, JournalSpread, PaperInput } from '../Journal';
 import { illustrations } from '../travel/illustrations';
 import { useTheme } from '../theme';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -142,7 +141,7 @@ function ErrorBox({ message, retry }: { message: string; retry?: () => void }) {
   const s = useStyles();
 
   return (
-    <View accessibilityRole="alert" style={s.errorBox}>
+    <JournalLeaf compact kind="notebook" accessibilityRole="alert" style={s.errorBox}>
       <Text style={s.errorText}>{message}</Text>
       {retry && (
         <Pressable accessibilityRole="button" onPress={retry} style={s.inlineButton}>
@@ -150,7 +149,7 @@ function ErrorBox({ message, retry }: { message: string; retry?: () => void }) {
           <Text style={s.link}>Reintentar</Text>
         </Pressable>
       )}
-    </View>
+    </JournalLeaf>
   );
 }
 function SmallLabel({ children, color }: { children: React.ReactNode; color?: string }) {
@@ -386,13 +385,13 @@ export function ChallengesScreen({
           <Text style={s.sectionTitle}>Encuentra tu desafío</Text>
           <Text style={s.sectionNote}>3 tipos de prueba</Text>
         </View>
-        <View style={s.notice}>
+        <JournalLeaf compact kind="notebook" style={s.notice}>
           <BookOpen color={C.teal} size={19} />
           <Text style={s.noticeText}>
             Los niveles 1 a 3 corresponden a La primera postal. Las siguientes pruebas llegarán con
             nuevas lecciones del viaje.
           </Text>
-        </View>
+        </JournalLeaf>
         {error ? <ErrorBox message={error} retry={() => void loadTracks()} /> : null}
         {loading ? (
           <View style={s.loading}>
@@ -402,9 +401,16 @@ export function ChallengesScreen({
         ) : (
           <View style={[s.trackGrid, narrow && { flexDirection: 'column' }]}>
             {tracks.map((item, i) => (
-              <View key={item.id} style={[s.trackCard, !narrow && { flex: 1 }]}>
+              <JournalLeaf
+                compact
+                kind="postcard"
+                key={item.id}
+                style={[s.trackCard, !narrow && { flex: 1 }]}
+              >
                 <View style={s.trackTop}>
-                  <View
+                  <JournalLeaf
+                    compact
+                    kind="stamp"
                     style={[
                       s.trackIcon,
                       {
@@ -423,18 +429,18 @@ export function ChallengesScreen({
                     ) : (
                       <BookOpen size={25} color="#65799B" />
                     )}
-                  </View>
-                  <View style={s.draftTag}>
+                  </JournalLeaf>
+                  <JournalLeaf compact kind="stamp" style={s.draftTag}>
                     <Text style={s.draftText}>
                       {(item.available ?? item.id === 'present_simple')
                         ? 'SIN CONEXIÓN'
                         : 'PRÓXIMAMENTE'}
                     </Text>
-                  </View>
+                  </JournalLeaf>
                 </View>
                 <Text style={s.trackTitle}>{item.titleEs.replace(/^Desafío:\s*/, '')}</Text>
                 <Text style={s.trackDescription}>{item.descriptionEs}</Text>
-                <View style={s.requirement}>
+                <JournalLeaf compact kind="postcard" style={s.requirement}>
                   {item.unlocked ? (
                     <Check size={16} color={C.teal} />
                   ) : (
@@ -445,7 +451,7 @@ export function ChallengesScreen({
                       ? 'Material relacionado aprendido'
                       : `${item.completedLessons} de ${item.requiredLessons} misiones necesarias`}
                   </Text>
-                </View>
+                </JournalLeaf>
                 <Text style={s.previewCopy}>
                   {!(item.available ?? item.id === 'present_simple')
                     ? 'Este paquete todavía no incluye preguntas para este tema.'
@@ -465,7 +471,7 @@ export function ChallengesScreen({
                   secondary
                   onPress={() => openTrack(item)}
                 />
-              </View>
+              </JournalLeaf>
             ))}
           </View>
         )}
@@ -517,14 +523,14 @@ export function ChallengesScreen({
           <Text style={s.body}>{gameNames[type].detail}</Text>
         </View>
         {!track?.unlocked && (
-          <View style={s.notice}>
+          <JournalLeaf compact kind="notebook" style={s.notice}>
             <LockKeyhole color={C.teal} size={18} />
             <Text style={s.noticeText}>
               Completa primero las{' '}
               {Math.max(0, (track?.requiredLessons ?? 4) - (track?.completedLessons ?? 0))}{' '}
               lecciones relacionadas para desbloquear estos retos sin conexión.
             </Text>
-          </View>
+          </JournalLeaf>
         )}
         {error ? (
           <ErrorBox
@@ -615,7 +621,7 @@ export function ChallengesScreen({
             if (!busy) returnToTrack();
           }}
         />
-        <View style={s.preflightCard}>
+        <JournalLeaf compact kind="notebook" style={s.preflightCard}>
           <JournalArt source={illustrations.expedition} aspectRatio={3.3} taped />
           <SmallLabel>
             NIVEL {level?.level} · {gameNames[type].title.toUpperCase()}
@@ -635,7 +641,7 @@ export function ChallengesScreen({
               <Text style={s.muted}>{relaxed ? 'a tu ritmo' : 'tiempo total'}</Text>
             </View>
           </View>
-          <View style={s.setting}>
+          <JournalLeaf compact kind="notebook" style={s.setting}>
             <View style={{ flex: 1, gap: 5 }}>
               <Text style={s.settingTitle}>Practicar sin reloj</Text>
               <Text style={s.muted}>Más espacio para leer y pensar. Sin clasificación.</Text>
@@ -651,7 +657,7 @@ export function ChallengesScreen({
               trackColor={{ false: '#CCDAD3', true: C.teal }}
               thumbColor={C.onPrimary}
             />
-          </View>
+          </JournalLeaf>
           <View style={s.rules}>
             <Text style={s.rule}>• Cada error usa un corazón de esta práctica.</Text>
             <Text style={s.rule}>
@@ -663,13 +669,13 @@ export function ChallengesScreen({
             <Text style={s.rule}>• Puedes salir y volver a intentarlo cuando quieras.</Text>
             <Text style={s.rule}>• Las respuestas se comprueban aquí, sin conexión.</Text>
           </View>
-          <View style={s.notice}>
+          <JournalLeaf compact kind="notebook" style={s.notice}>
             <ShieldCheck size={18} color={C.teal} />
             <Text style={s.noticeText}>
               Práctica personal guardada en este dispositivo. No da XP de aprendizaje ni participa
               en clasificaciones. Tu progreso de las lecciones no cambia.
             </Text>
-          </View>
+          </JournalLeaf>
           {error ? <ErrorBox message={error} /> : null}
           <Action label="Empezar práctica" busy={busy} onPress={() => void startRun()} />
           <Action
@@ -679,7 +685,7 @@ export function ChallengesScreen({
             onPress={onLearn}
             icon={false}
           />
-        </View>
+        </JournalLeaf>
       </View>
     );
 
@@ -714,7 +720,9 @@ export function ChallengesScreen({
               />
             ))}
           </View>
-          <View
+          <JournalLeaf
+            compact
+            kind="postcard"
             style={[
               s.timer,
               remaining < 20 && !run.relaxed && { backgroundColor: tone('#FCEAE4', 'background') },
@@ -729,7 +737,7 @@ export function ChallengesScreen({
             >
               {run.relaxed ? 'Sin reloj' : clock(remaining)}
             </Text>
-          </View>
+          </JournalLeaf>
         </View>
         <View style={s.progressTrack}>
           <View
@@ -746,7 +754,7 @@ export function ChallengesScreen({
           <Text style={s.muted}>Sin clasificación</Text>
         </View>
         {exitConfirm && (
-          <View style={s.exitBox}>
+          <JournalLeaf compact kind="notebook" style={s.exitBox}>
             <Text style={s.settingTitle}>¿Quieres dejar esta práctica?</Text>
             <Text style={s.body}>
               Tus lecciones y tu XP quedan igual. Siempre puedes volver a intentar.
@@ -765,16 +773,16 @@ export function ChallengesScreen({
                 onPress={() => void abandon()}
               />
             </View>
-          </View>
+          </JournalLeaf>
         )}
         {run.question ? (
           <JournalLeaf style={s.questionCard}>
             {run.question.passage && (
-              <View style={s.passage}>
+              <JournalLeaf compact kind="postcard" style={s.passage}>
                 <JournalArt source={illustrations.writing} aspectRatio={4.8} />
                 <SmallLabel>LEE CON ATENCIÓN</SmallLabel>
                 <Text style={s.passageText}>{run.question.passage}</Text>
-              </View>
+              </JournalLeaf>
             )}
             <Text style={s.questionPrompt}>{run.question.promptEs}</Text>
             {run.question.sentence && (
@@ -814,7 +822,7 @@ export function ChallengesScreen({
                 ))}
               </View>
             ) : (
-              <TextInput
+              <PaperInput
                 accessibilityLabel="Tu respuesta"
                 style={s.textInput}
                 value={text}
@@ -859,8 +867,10 @@ export function ChallengesScreen({
     const passed = run.status === 'passed';
     return (
       <View style={[s.page, s.focused]}>
-        <View style={s.preflightCard}>
-          <View
+        <JournalLeaf compact kind="notebook" style={s.preflightCard}>
+          <JournalLeaf
+            compact
+            kind="stamp"
             style={[s.largeIcon, !passed && { backgroundColor: tone('#FFF0DC', 'background') }]}
           >
             {passed ? (
@@ -868,7 +878,7 @@ export function ChallengesScreen({
             ) : (
               <RefreshCw size={38} color="#B77A32" strokeWidth={1.5} />
             )}
-          </View>
+          </JournalLeaf>
           <SmallLabel>PRÁCTICA COMPLETADA · SIN CLASIFICACIÓN</SmallLabel>
           <Text style={s.centerTitle}>
             {passed
@@ -887,30 +897,37 @@ export function ChallengesScreen({
                   : 'No pasa nada. Repasa, respira y vuelve a intentarlo.'}
           </Text>
           <View style={s.resultStats}>
-            <View style={s.resultStat}>
+            <JournalLeaf compact kind="stamp" style={s.resultStat}>
               <Text style={s.statValue}>
                 {run.correctCount}/{run.questionsTotal}
               </Text>
               <Text style={s.muted}>respuestas correctas</Text>
-            </View>
-            <View style={s.resultStat}>
+            </JournalLeaf>
+            <JournalLeaf compact kind="stamp" style={s.resultStat}>
               <Text style={s.statValue}>{run.score}</Text>
               <Text style={s.muted}>puntos de práctica</Text>
-            </View>
+            </JournalLeaf>
           </View>
-          <View style={s.notice}>
+          <JournalLeaf compact kind="notebook" style={s.notice}>
             <ShieldCheck size={20} color={C.teal} />
             <Text style={s.noticeText}>
               Tus lecciones, tu XP y tus habilidades siguen intactos. El resultado de esta práctica
               se guarda en este dispositivo.
             </Text>
-          </View>
+          </JournalLeaf>
           {run.feedback && run.feedback.length > 0 && (
-            <View style={s.feedbackList}>
+            <JournalLeaf compact kind="notebook" style={s.feedbackList}>
               <Text style={s.settingTitle}>Lo que puedes llevarte</Text>
               {run.feedback.map((item, i) => (
-                <View key={`${item.questionId}-${i}`} style={s.feedbackItem}>
-                  <View
+                <JournalLeaf
+                  compact
+                  kind="postcard"
+                  key={`${item.questionId}-${i}`}
+                  style={s.feedbackItem}
+                >
+                  <JournalLeaf
+                    compact
+                    kind="stamp"
                     style={[
                       s.feedbackMarker,
                       { backgroundColor: item.correct ? C.mint : tone('#FFF0DC', 'background') },
@@ -921,14 +938,14 @@ export function ChallengesScreen({
                     ) : (
                       <BookOpen size={15} color="#B77A32" />
                     )}
-                  </View>
+                  </JournalLeaf>
                   <View style={{ flex: 1, gap: 4 }}>
                     <Text style={s.feedbackText}>{item.feedbackEs}</Text>
                     {!item.correct && <Text style={s.accepted}>{item.acceptedAnswer}</Text>}
                   </View>
-                </View>
+                </JournalLeaf>
               ))}
-            </View>
+            </JournalLeaf>
           )}
           <Action
             label="Volver a practicar"
@@ -943,7 +960,7 @@ export function ChallengesScreen({
             <BookOpen size={18} color={C.teal} />
             <Text style={s.link}>Seguir aprendiendo</Text>
           </Pressable>
-        </View>
+        </JournalLeaf>
       </View>
     );
   }
