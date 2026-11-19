@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import {
   ArrowRight,
   Backpack,
   BookOpen,
   BusFront,
   Check,
+  ChevronDown,
   ChevronRight,
   Compass,
   Flag,
@@ -68,6 +61,7 @@ export function TravelHome({
   onReview,
   onRoute,
   onGuide,
+  onCountry,
   onPassport,
   onSpeech,
   onFullReview,
@@ -80,6 +74,7 @@ export function TravelHome({
   onReview: () => void;
   onRoute: () => void;
   onGuide: () => void;
+  onCountry: () => void;
   onPassport: () => void;
   onSpeech: () => void;
   onFullReview: () => void;
@@ -98,10 +93,21 @@ export function TravelHome({
     <View style={s.home}>
       <View style={s.homeHeader}>
         <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
-          <View style={s.homeLocation}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              travel.country ? 'Cambiar lugar de origen' : 'Elegir lugar de origen'
+            }
+            onPress={onCountry}
+            hitSlop={5}
+            style={({ pressed }) => [s.homeLocation, pressed && { opacity: 0.7 }]}
+          >
             <MapPin size={14} color={C.accent} />
-            <Text style={s.homeKicker}>{homeName(travel)}</Text>
-          </View>
+            <Text style={s.homeKicker}>
+              {travel.country ? homeName(travel) : 'Elegir lugar de origen'}
+            </Text>
+            <ChevronDown size={14} color={C.accent} />
+          </Pressable>
           <Text accessibilityRole="header" style={[s.pageTitle, wide && { fontSize: 42 }]}>
             Cuaderno de viaje
           </Text>
@@ -555,12 +561,18 @@ export function TravelRoute({
 
 export function CountryPicker({
   selected,
+  beforeLesson,
+  onClose,
   onSelect,
 }: {
   selected?: HomeCountry;
-  onSelect: (value: HomeCountry) => void;
+  beforeLesson: boolean;
+  onClose: () => void;
+  onSelect: (value: HomeCountry) => Promise<void>;
 }) {
   const [filter, setFilter] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const { colors: C } = useTheme();
   const s = useStyles();
   const normalize = (text: string) =>
@@ -573,10 +585,33 @@ export function CountryPicker({
     .sort(([codeA, a], [codeB, b]) =>
       codeA === 'OTHER' ? 1 : codeB === 'OTHER' ? -1 : a.localeCompare(b, 'es'),
     );
+
+  async function select(country: HomeCountry) {
+    setSaving(true);
+    setError('');
+    try {
+      await onSelect(country);
+    } catch (e) {
+      setError((e as Error).message);
+      setSaving(false);
+    }
+  }
+
   return (
     <View style={{ gap: 12 }}>
-      <Heading style={{ fontSize: 27 }}>¿Desde dónde viajas?</Heading>
-      <Label style={s.copy}>La primera historia empieza en tu comunidad.</Label>
+      <View style={s.countryHeader}>
+        <Text accessibilityRole="header" style={s.countryTitle}>
+          ¿Desde dónde viajas?
+        </Text>
+        <Button variant="ghost" disabled={saving} onPress={onClose}>
+          Cerrar
+        </Button>
+      </View>
+      <Label style={s.copy}>
+        {beforeLesson
+          ? 'Elige tu lugar de origen antes de empezar. Puedes cambiarlo después.'
+          : 'La primera historia empieza en tu comunidad.'}
+      </Label>
       <PaperInput
         accessibilityLabel="Buscar lugar de origen"
         placeholder="Buscar país o territorio"
@@ -584,22 +619,29 @@ export function CountryPicker({
         style={s.input}
         value={filter}
         onChangeText={setFilter}
+        autoCorrect={false}
       />
-      <ScrollView style={{ maxHeight: 300 }} keyboardShouldPersistTaps="handled">
+      {!!error && (
+        <Text accessibilityLiveRegion="polite" style={{ color: C.red }}>
+          {error}
+        </Text>
+      )}
+      <View>
         {choices.map(([code, name]) => (
           <Pressable
             key={code}
             accessibilityRole="button"
-            accessibilityState={{ selected: selected === code }}
+            accessibilityState={{ selected: selected === code, disabled: saving }}
+            disabled={saving}
             style={s.routeItem}
-            onPress={() => onSelect(code)}
+            onPress={() => void select(code)}
           >
             <Text style={[s.rowTitle, { flex: 1 }]}>{name}</Text>
             {selected === code && <Check color={C.teal} size={18} />}
           </Pressable>
         ))}
         {!choices.length && <Label style={s.copy}>No encontramos ese lugar.</Label>}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -710,7 +752,14 @@ function useStyles() {
     row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     home: { gap: 20 },
     homeHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    homeLocation: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    homeLocation: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      minHeight: 34,
+      maxWidth: '100%',
+      gap: 5,
+    },
     homeKicker: { color: C.accent, fontFamily: 'ManropeBold', fontSize: 11, flexShrink: 1 },
     passportButton: {
       alignItems: 'center',
@@ -921,6 +970,8 @@ function useStyles() {
     mapSelected: { backgroundColor: '#9b3e23' },
     markerText: { color: '#fff', fontFamily: 'ManropeBold', fontSize: 12 },
     status: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 14, paddingVertical: 7 },
+    countryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+    countryTitle: { flex: 1, fontFamily: 'LoraBold', fontSize: 27, color: C.ink },
     input: {
       minHeight: 48,
       borderWidth: 1,

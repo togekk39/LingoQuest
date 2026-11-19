@@ -59,10 +59,15 @@ export const test = base.extend<{ networkGuard: NetworkGuard }>({
 });
 export { expect };
 
-export async function enterApp(page: Page) {
+export async function enterApp(page: Page, { chooseOrigin = true } = {}) {
   await page.addInitScript(() => localStorage.setItem('lq_setting:onboarded', 'true'));
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Continuar viaje', exact: true })).toBeVisible();
+  if (chooseOrigin) {
+    await click(page, 'Elegir lugar de origen');
+    await click(page, 'Honduras');
+    await expect(page.getByRole('textbox', exact('Buscar lugar de origen'))).toBeHidden();
+  }
 }
 export async function state(page: Page): Promise<LocalState> {
   return page.evaluate(() => JSON.parse(localStorage.getItem('lq_offline_state_v1') ?? 'null'));

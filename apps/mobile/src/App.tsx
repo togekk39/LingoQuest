@@ -49,6 +49,8 @@ const tabs = [
 ] as const;
 type Tab = (typeof tabs)[number]['id'];
 type Flow = 'placement' | 'speech' | 'reviews' | 'quick';
+type WelcomeChoice = 'start' | 'placement' | 'explore';
+type AfterOrigin = (journey: TravelState) => Promise<void> | void;
 
 export default function App() {
   const [reducedMotion, setReducedMotion] = useState(true);
@@ -70,7 +72,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
   const [mission, setMission] = useState<TravelCheckpoint | null>(null);
   const [destination, setDestination] = useState('home');
-  const [countryPicker, setCountryPicker] = useState(false);
+  const [originPicker, setOriginPicker] = useState<{ afterSave?: AfterOrigin } | null>(null);
   const [passport, setPassport] = useState(false);
   const [starting, setStarting] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -132,12 +134,25 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setTravel(value);
     return value;
   }
+  function askForOrigin(journey: TravelState, afterSave: AfterOrigin) {
+    if (
+      journey.country ||
+      journey.active ||
+      Object.keys(journey.completed).length ||
+      Object.keys(journey.paused ?? {}).length
+    ) {
+      return false;
+    }
+    setOriginPicker({ afterSave });
+    return true;
+  }
   async function openMission(id?: string, journey = travel) {
     const target = id ?? nextTravelMission(journey)?.id;
     if (!target) {
       setPassport(true);
       return;
     }
+    if (askForOrigin(journey, (saved) => openMission(target, saved))) return;
     const value = await updateTravel({ action: 'start', missionId: target });
     if (value.active?.missionId !== target)
       throw new Error('Completa la misión anterior para continuar.');
@@ -152,20 +167,30 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       .catch((e) => setNotice(e.message))
       .finally(() => setStarting(false));
   }
-  async function chooseWelcome(choice: 'start' | 'placement' | 'explore') {
+  async function finishWelcome(choice: WelcomeChoice, journey: TravelState) {
+    await localSettings.set('onboarded', true);
+    if (choice === 'start') await openMission(undefined, journey);
+    if (choice === 'placement') setFlow('placement');
+    setWelcome(false);
+  }
+  async function chooseWelcome(choice: WelcomeChoice) {
     if (starting) return;
+    if (choice !== 'explore' && askForOrigin(travel, (saved) => finishWelcome(choice, saved))) {
+      return;
+    }
     setStarting(true);
     try {
-      await localSettings.set('onboarded', true);
-      if (choice === 'start') await openMission();
-      if (choice === 'placement') setFlow('placement');
-      setWelcome(false);
+      await finishWelcome(choice, travel);
     } catch (e) {
       setNotice((e as Error).message);
       setWelcome(false);
     } finally {
       setStarting(false);
     }
+  }
+  function startPlacement() {
+    const open = () => setFlow('placement');
+    if (!askForOrigin(travel, open)) open();
   }
   const finishFlow = () => {
     setFlow(null);
@@ -177,6 +202,22 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   };
   const openVoiceSettings = () => setSettings('voice');
   const closeSettings = () => setSettings(null);
+  const openOriginPicker = () => setOriginPicker({});
+  const closeOriginPicker = () => setOriginPicker(null);
+  const originSheet = originPicker && (
+    <Sheet visible close={closeOriginPicker} reduced={reducedMotion}>
+      <CountryPicker
+        selected={travel.country}
+        beforeLesson={!!originPicker.afterSave}
+        onClose={closeOriginPicker}
+        onSelect={async (country) => {
+          const saved = await updateTravel({ action: 'country', country });
+          await originPicker.afterSave?.(saved);
+          closeOriginPicker();
+        }}
+      />
+    </Sheet>
+  );
   const settingsSheet = (
     <Sheet visible={settings !== null} close={closeSettings} reduced={reducedMotion}>
       <View style={s.sheetTitle}>
@@ -216,14 +257,15 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       )}
     </Sheet>
   );
-  const withSettings = (content: React.ReactNode) => (
+  const withSheets = (content: React.ReactNode) => (
     <>
       {content}
       {settingsSheet}
+      {originSheet}
     </>
   );
   if (mission)
-    return withSettings(
+    return withSheets(
       <TravelFlow
         key={mission.missionId}
         initial={mission}
@@ -237,7 +279,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       />,
     );
   if (flow === 'placement')
-    return withSettings(
+    return withSheets(
       <TravelPlacementFlow
         onClose={finishFlow}
         onStart={openMission}
@@ -245,19 +287,19 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       />,
     );
   if (flow === 'speech')
-    return withSettings(
+    return withSheets(
       <TravelPronunciation onClose={finishFlow} onVoiceSettings={openVoiceSettings} />,
     );
   if (flow === 'reviews') return <ReviewsFlow onClose={finishFlow} />;
   if (flow === 'quick') return <QuickReview onClose={finishFlow} />;
   if (welcome && !loading && !error)
-    return (
+    return withSheets(
       <TravelWelcome
         busy={starting}
         onStart={() => void chooseWelcome('start')}
         onAssessment={() => void chooseWelcome('placement')}
         onClose={() => void chooseWelcome('explore')}
-      />
+      />,
     );
 
   function go(next: Tab) {
@@ -397,6 +439,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onReview={() => setFlow('quick')}
                 onRoute={() => go('Mapa')}
                 onGuide={() => go('Aprender')}
+                onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
                 onSpeech={() => setFlow('speech')}
                 onFullReview={() => setFlow('reviews')}
@@ -410,14 +453,14 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   scroll.current?.scrollTo({ y: 0, animated: false });
                 }}
                 onStart={startMission}
-                onCountry={() => setCountryPicker(true)}
+                onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
               />
             ) : tab === 'Aprender' ? (
               <TravelGuide
                 travel={travel}
                 onMission={startMission}
-                onAssessment={() => setFlow('placement')}
+                onAssessment={startPlacement}
                 onVoiceSettings={openVoiceSettings}
                 onSpeech={() => setFlow('speech')}
               />
@@ -437,7 +480,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 }
                 onRefresh={refresh}
                 onNotice={setNotice}
-                onPlacement={() => setFlow('placement')}
+                onPlacement={startPlacement}
               />
             ) : null}
           </ScrollView>
@@ -449,22 +492,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           {!desktop && nav}
         </View>
       </View>
-      <Sheet visible={countryPicker} close={() => setCountryPicker(false)} reduced={reducedMotion}>
-        <CountryPicker
-          selected={travel.country}
-          onSelect={(country) => {
-            if (starting) return;
-            setStarting(true);
-            void updateTravel({ action: 'country', country })
-              .then(() => setCountryPicker(false))
-              .catch((e) => setNotice(e.message))
-              .finally(() => setStarting(false));
-          }}
-        />
-        <Button variant="ghost" onPress={() => setCountryPicker(false)}>
-          Cerrar
-        </Button>
-      </Sheet>
+      {originSheet}
       <Sheet visible={recoveryReset} close={() => setRecoveryReset(false)} reduced={reducedMotion}>
         <Heading>¿Restablecer los datos locales?</Heading>
         <Label>
