@@ -1,3 +1,4 @@
+import { JournalLeaf } from './Journal';
 import { useTheme } from './theme';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -32,7 +33,7 @@ export function Card({
 }) {
   const u = useStyles();
 
-  return <View style={[u.card, style]}>{children}</View>;
+  return <JournalLeaf style={[u.card, style]}>{children}</JournalLeaf>;
 }
 export function Button({
   children,
@@ -51,8 +52,9 @@ export function Button({
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { colors: C, tone } = useTheme();
+  const { colors: C, tone, mode } = useTheme();
   const u = useStyles();
+  const primary = mode === 'light' ? C.accent : C.primary;
 
   return (
     <MotionPressable
@@ -63,7 +65,7 @@ export function Button({
       style={({ pressed }) => [
         u.button,
         variant === 'primary'
-          ? { backgroundColor: C.primary }
+          ? { backgroundColor: primary }
           : variant === 'secondary'
             ? { backgroundColor: C.mint }
             : variant === 'danger'
@@ -71,7 +73,6 @@ export function Button({
               : { backgroundColor: 'transparent' },
         style,
         { opacity: disabled || loading ? 0.45 : pressed ? 0.9 : 1 },
-        variant === 'primary' && { borderBottomWidth: 4, borderBottomColor: '#61261A' },
       ]}
     >
       {loading ? (
@@ -113,19 +114,20 @@ export function Pill({
   bg ??= C.mint;
 
   return (
-    <View
+    <JournalLeaf
+      compact
+      kind="stamp"
       style={{
         alignSelf: 'flex-start',
         paddingHorizontal: 10,
         paddingVertical: 5,
-        borderRadius: 8,
         backgroundColor: bg,
       }}
     >
       <Text style={{ fontFamily: 'ManropeBold', fontSize: 10, color, letterSpacing: 0.6 }}>
         {children}
       </Text>
-    </View>
+    </JournalLeaf>
   );
 }
 export function ProgressBar({
@@ -185,12 +187,9 @@ export function useStyles() {
   const { colors: C, tone } = useTheme();
   return StyleSheet.create({
     label: { fontFamily: 'Manrope', fontSize: 13, color: C.muted, lineHeight: 21 },
-    heading: { fontFamily: 'Journal', fontSize: 25, color: C.ink },
+    heading: { fontFamily: 'LoraBold', fontSize: 25, color: C.ink },
     card: {
       backgroundColor: tone('white', 'background'),
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 20,
       padding: 24,
     },
     button: {

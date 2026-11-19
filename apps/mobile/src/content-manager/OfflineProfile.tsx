@@ -1,8 +1,10 @@
+import { JournalLeaf, JournalSpread, Notebook, PaperInput } from '../Journal';
+import { illustrations } from '../travel/illustrations';
 import { ThemePicker } from '../ThemePicker';
 import { useTheme } from '../theme';
 import { useReducedMotion } from '../motion';
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Switch, Modal, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Switch, Modal, StyleSheet } from 'react-native';
 import {
   BookOpen,
   Zap,
@@ -93,19 +95,16 @@ export function OfflineProfile({
     });
   return (
     <View style={{ maxWidth: 920, gap: 24 }}>
-      <View>
-        <Text style={s.eyebrow}>CADA PASO CUENTA</Text>
-        <Heading style={{ fontSize: 32, marginTop: 7 }}>Tu historia hasta aquí</Heading>
-        <Label>Tu camino vive en este dispositivo. No necesitas una cuenta.</Label>
-      </View>
-      <Card>
-        <ThemePicker />
-      </Card>
-      <Card>
+      <JournalSpread
+        source={illustrations.review}
+        title="Tu historia hasta aquí"
+        detail="Tu progreso se guarda en este dispositivo."
+      />
+      <JournalLeaf>
         <View style={[s.row, { gap: 17 }]}>
-          <View style={s.avatar}>
+          <JournalLeaf compact kind="stamp" style={s.avatar}>
             <Text style={s.avatarText}>{progress.user.name?.slice(0, 1).toUpperCase()}</Text>
-          </View>
+          </JournalLeaf>
           <View style={{ flex: 1 }}>
             <Heading>{progress.user.name}</Heading>
             <Label>Perfil local · La primera postal</Label>
@@ -122,22 +121,22 @@ export function OfflineProfile({
             { value: progress.xp, label: 'XP de aprendizaje', icon: Zap },
             { value: progress.streak, label: 'Días consecutivos', icon: Flame },
           ].map(({ value, label, icon: Icon }) => (
-            <View key={label} style={s.profileStat}>
+            <JournalLeaf compact kind="stamp" key={label} style={s.profileStat}>
               <Icon size={18} color={C.teal} />
               <Text style={s.statNumber}>{value}</Text>
               <Label style={{ fontSize: 10, textAlign: 'center' }}>{label}</Label>
-            </View>
+            </JournalLeaf>
           ))}
         </View>
         <Label style={{ fontSize: 11 }}>
           Las misiones y los XP muestran tu práctica. La retención se construye con repasos en
           distintos días. Los desafíos guardan sus propios resultados.
         </Label>
-      </Card>
-      <Card>
-        <Heading style={{ fontSize: 22 }}>A tu manera</Heading>
+      </JournalLeaf>
+      <Notebook title="A tu manera">
+        <ThemePicker />
         <Label style={{ marginTop: 17 }}>Tu nombre</Label>
-        <TextInput
+        <PaperInput
           accessibilityLabel="Tu nombre"
           value={name}
           onChangeText={setName}
@@ -171,9 +170,8 @@ export function OfflineProfile({
         <Button loading={busy} onPress={save} icon={Check}>
           Guardar preferencias
         </Button>
-      </Card>
-      <Card>
-        <Heading style={{ fontSize: 22 }}>Lo que estás construyendo</Heading>
+      </Notebook>
+      <Notebook title="Lo que estás construyendo">
         {travelEvidence.length ? (
           travelEvidence.map((m) => (
             <View key={`${m.dimension}:${m.targetId}`} style={{ marginTop: 18 }}>
@@ -196,8 +194,8 @@ export function OfflineProfile({
         <Button variant="ghost" icon={Compass} onPress={onPlacement}>
           Explorar mi nivel sin presión
         </Button>
-      </Card>
-      <Card>
+      </Notebook>
+      <JournalLeaf>
         <View style={s.row}>
           <ShieldCheck color={C.teal} size={23} />
           <Heading style={{ fontSize: 22 }}>Tus datos te pertenecen</Heading>
@@ -257,7 +255,7 @@ export function OfflineProfile({
             {error}
           </Text>
         )}
-      </Card>
+      </JournalLeaf>
       <Modal
         visible={confirmReset || pendingBackup !== null}
         transparent

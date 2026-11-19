@@ -1,3 +1,4 @@
+import { JournalLeaf } from '../Journal';
 import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -57,21 +58,21 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
   const current = drills.filter((drill) => drill.category === category);
   return (
     <FlowFrame title="Encuentra tu voz" eyebrow="Escuchar · Practicar · Comparar" onClose={onClose}>
-      <View style={s.icon}>
+      <JournalLeaf compact kind="stamp" style={s.icon}>
         <AudioLines size={37} color={palette.teal} strokeWidth={1.5} />
-      </View>
+      </JournalLeaf>
       <Text style={f.title}>Tu inglés tiene algo que decir.</Text>
       <Text style={f.body}>
         {drills.length || 40} pequeñas prácticas para explorar sonidos, ritmo y palabras. Lee cada
         frase y, si quieres, graba tu voz y vuelve a escucharla.
       </Text>
-      <View style={s.disclosure}>
+      <JournalLeaf compact kind="notebook" style={s.disclosure}>
         <Info color={palette.teal} size={19} />
         <Text style={[f.quiet, { flex: 1 }]}>
           Los ejemplos y el modo solo grabar funcionan sin conexión. El reconocimiento del sistema o
           del navegador puede procesar tu audio en línea. No genera puntajes de pronunciación.
         </Text>
-      </View>
+      </JournalLeaf>
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={f.quiet}>
           {speechMessage}
@@ -114,7 +115,7 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
           )}
           <View style={{ gap: 13 }}>
             {current.map((drill, index) => (
-              <View key={drill.id} style={s.drill}>
+              <JournalLeaf compact kind="postcard" key={drill.id} style={s.drill}>
                 <View style={s.index}>
                   <Text style={s.indexText}>{String(index + 1).padStart(2, '0')}</Text>
                 </View>
@@ -145,7 +146,7 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
                     <ArrowRight size={18} color="white" />
                   </Pressable>
                 </View>
-              </View>
+              </JournalLeaf>
             ))}
           </View>
           <Text style={[f.quiet, { textAlign: 'center', marginVertical: 8 }]}>

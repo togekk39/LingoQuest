@@ -12,6 +12,7 @@
     "build:android": "node ../../scripts/expo.mjs export --platform android --output-dir dist-android"
   },
   "dependencies": {
+    "@expo-google-fonts/lora": "^0.4.2",
     "@expo-google-fonts/manrope": "^0.4.3",
     "@expo-google-fonts/outfit": "^0.4.3",
     "@lingoquest/contracts": "*",

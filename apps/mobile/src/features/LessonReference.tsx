@@ -1,3 +1,4 @@
+import { JournalLeaf } from '../Journal';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
@@ -41,7 +42,7 @@ export function LessonReference({ id, onClose }: { id: string; onClose: () => vo
         <View style={{ gap: 15 }}>
           <Text style={f.title}>Vocabulario</Text>
           {lesson.vocabulary.map((item) => (
-            <View key={item.id} style={f.card}>
+            <JournalLeaf compact kind="postcard" key={item.id} style={f.card}>
               <Text style={f.cardTitle} accessibilityLanguage="en-US">
                 {item.en}
               </Text>
@@ -59,7 +60,7 @@ export function LessonReference({ id, onClose }: { id: string; onClose: () => vo
               >
                 Escuchar ejemplo
               </Button>
-            </View>
+            </JournalLeaf>
           ))}
           {!!speechMessage && (
             <Text accessibilityRole="alert" style={f.quiet}>

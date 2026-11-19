@@ -11,10 +11,12 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { ArrowLeft, ArrowRight, Volume2, X } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Settings2, Volume2, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardOverlap } from './useKeyboardOverlap';
 import { MotionEntrance, MotionPressable } from '../motion';
 import { ProgressBar } from '../ui';
+import { JournalLeaf, PaperEdge, PaperGrain } from '../Journal';
 
 export const InputViewportContext = createContext<{
   revealInput: (input: TextInput | null) => void;
@@ -32,6 +34,7 @@ export function Action({
   secondary = false,
   disabled = false,
   busy = false,
+  journal = false,
   style,
 }: {
   children: React.ReactNode;
@@ -39,10 +42,12 @@ export function Action({
   secondary?: boolean;
   disabled?: boolean;
   busy?: boolean;
+  journal?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const { colors: palette } = useTheme();
+  const { colors: palette, mode } = useTheme();
   const f = useFeatureStyles();
+  const clay = journal && !secondary && mode === 'light';
 
   return (
     <MotionPressable
@@ -53,7 +58,9 @@ export function Action({
       style={({ pressed }) => [
         f.action,
         secondary ? f.actionSecondary : f.actionPrimary,
-        (disabled || busy) && { opacity: 0.48 },
+        journal && f.journalAction,
+        clay && { backgroundColor: disabled ? '#AA6350' : palette.accent },
+        (disabled || busy) && !clay && { opacity: 0.48 },
         pressed && { opacity: 0.8 },
         style,
       ]}
@@ -61,7 +68,15 @@ export function Action({
       {busy ? (
         <ActivityIndicator color={secondary ? palette.teal : 'white'} />
       ) : (
-        <Text style={[f.actionText, secondary && { color: palette.teal }]}>{children}</Text>
+        <Text
+          style={[
+            f.actionText,
+            journal && f.journalActionText,
+            secondary && { color: palette.teal },
+          ]}
+        >
+          {children}
+        </Text>
       )}
       {!secondary && !busy && <ArrowRight color="white" size={18} />}
     </MotionPressable>
@@ -76,6 +91,7 @@ export function FlowFrame({
   feedback,
   progress,
   stepKey,
+  journal,
   onVoiceSettings,
 }: {
   title: string;
@@ -86,10 +102,12 @@ export function FlowFrame({
   feedback?: React.ReactNode;
   progress?: number;
   stepKey?: string;
+  journal?: { onListen?: () => void; onSettings?: () => void };
   onVoiceSettings?: () => void;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
+  const insets = useSafeAreaInsets();
   const frame = useRef<View>(null);
   const scroll = useRef<ScrollView>(null);
   const { overlap, measureOverlap } = useKeyboardOverlap(frame);
@@ -143,21 +161,59 @@ export function FlowFrame({
   }, [hasFeedback, stepKey]);
 
   return (
-    <View ref={frame} style={f.frame} onLayout={measureOverlap}>
-      <View style={f.topbar}>
+    <View
+      ref={frame}
+      style={[
+        f.frame,
+        journal && { paddingTop: insets.top, paddingBottom: overlap ? 0 : insets.bottom },
+      ]}
+      onLayout={measureOverlap}
+    >
+      {journal && <PaperGrain />}
+      <View style={journal ? f.journalTopbar : f.topbar}>
+        {!journal && <PaperEdge edge="bottom" tint={palette.white} />}
         <Pressable
           accessibilityLabel="Cerrar y volver"
           accessibilityRole="button"
           onPress={onClose}
-          style={f.close}
+          style={[f.close, journal && f.journalControl]}
         >
-          <X size={22} color={palette.ink} />
+          {journal ? (
+            <ArrowLeft size={24} color={palette.ink} />
+          ) : (
+            <X size={22} color={palette.ink} />
+          )}
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={f.eyebrow}>{eyebrow}</Text>
-          <Text style={f.topTitle}>{title}</Text>
+          <Text accessibilityRole="header" style={journal ? f.journalTitle : f.topTitle}>
+            {title}
+          </Text>
         </View>
-        {onVoiceSettings ? (
+        {journal ? (
+          <View style={f.journalTools}>
+            {journal.onListen && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Escuchar ejemplo de la lección"
+                onPress={journal.onListen}
+                style={f.journalControl}
+              >
+                <Volume2 size={23} color={palette.ink} />
+              </Pressable>
+            )}
+            {(journal.onSettings || onVoiceSettings) && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={onVoiceSettings ? 'Configuración de voz' : 'Configuración'}
+                onPress={journal.onSettings ?? onVoiceSettings}
+                style={f.journalControl}
+              >
+                <Settings2 size={21} color={palette.ink} />
+              </Pressable>
+            )}
+          </View>
+        ) : onVoiceSettings ? (
           <Pressable
             accessibilityLabel="Configuración de voz"
             accessibilityRole="button"
@@ -174,18 +230,20 @@ export function FlowFrame({
         )}
       </View>
       {progress !== undefined && (
-        <ProgressBar
-          accessibilityLabel={`Progreso: ${Math.round(progress * 100)} por ciento`}
-          value={progress}
-          height={5}
-          color={palette.primary}
-        />
+        <View style={journal && f.journalProgress}>
+          <ProgressBar
+            accessibilityLabel={`Progreso: ${Math.round(progress * 100)} por ciento`}
+            value={progress}
+            height={5}
+            color={journal ? palette.accent : palette.primary}
+          />
+        </View>
       )}
       <ScrollView
         ref={scroll}
         testID="flow-scroll"
         style={{ flex: 1 }}
-        contentContainerStyle={f.scroll}
+        contentContainerStyle={[f.scroll, journal && f.journalScroll]}
         keyboardShouldPersistTaps="handled"
         onLayout={(event) => {
           // Leave space around the field; long answers scroll inside the input.
@@ -199,12 +257,12 @@ export function FlowFrame({
       >
         <InputViewportContext.Provider value={{ revealInput, maxHeight: inputMaxHeight }}>
           <View
-            style={f.content}
+            style={[f.content, journal && f.journalWidth]}
             onLayout={(event) => {
               contentTop.current = event.nativeEvent.layout.y;
             }}
           >
-            <MotionEntrance key={stepKey} style={{ gap: 22 }}>
+            <MotionEntrance key={stepKey} style={{ gap: journal ? 16 : 22 }}>
               {children}
               {hasFeedback && (
                 <View
@@ -225,8 +283,9 @@ export function FlowFrame({
         </InputViewportContext.Provider>
       </ScrollView>
       {footer && (
-        <View testID="flow-footer" style={f.footer}>
-          <View style={f.footerContent}>{footer}</View>
+        <View testID="flow-footer" style={journal ? f.journalFooter : f.footer}>
+          {journal ? <PaperGrain /> : <PaperEdge edge="top" tint={palette.white} />}
+          <View style={[f.footerContent, journal && f.journalWidth]}>{footer}</View>
         </View>
       )}
       {/* A real layout spacer creates scroll room even when the OS overlays the keyboard. */}
@@ -238,7 +297,7 @@ export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () 
   const f = useFeatureStyles();
 
   return (
-    <View accessibilityRole="alert" style={f.error}>
+    <JournalLeaf compact kind="notebook" accessibilityRole="alert" style={f.error}>
       <Text style={f.errorTitle}>No pudimos conectar</Text>
       <Text style={f.body}>{message}</Text>
       {onRetry && (
@@ -246,7 +305,7 @@ export function ErrorCard({ message, onRetry }: { message: string; onRetry?: () 
           Intentar de nuevo
         </Action>
       )}
-    </View>
+    </JournalLeaf>
   );
 }
 export function useFeatureStyles() {
@@ -260,8 +319,7 @@ export function useFeatureStyles() {
       paddingHorizontal: 24,
       paddingVertical: 22,
       backgroundColor: palette.white,
-      borderBottomWidth: 1,
-      borderBottomColor: palette.line,
+      zIndex: 1,
     },
     close: {
       width: 44,
@@ -280,7 +338,38 @@ export function useFeatureStyles() {
       color: palette.muted,
       textTransform: 'uppercase',
     },
-    topTitle: { fontFamily: 'Journal', fontSize: 19, color: palette.ink, marginTop: 3 },
+    topTitle: { fontFamily: 'Outfit', fontSize: 19, color: palette.ink, marginTop: 3 },
+    journalTopbar: {
+      width: '100%',
+      maxWidth: 686,
+      alignSelf: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 13,
+    },
+    journalTools: { flexDirection: 'row', alignItems: 'center' },
+    journalControl: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 0,
+      borderRadius: 13,
+      backgroundColor: palette.mint,
+    },
+    journalTitle: {
+      fontFamily: 'LoraBold',
+      fontSize: 19,
+      lineHeight: 24,
+      marginTop: 2,
+      color: palette.ink,
+    },
+    journalProgress: { width: '100%', maxWidth: 686, alignSelf: 'center', paddingHorizontal: 16 },
+    journalScroll: { paddingHorizontal: 15, paddingVertical: 12 },
+    journalWidth: { maxWidth: 650 },
+    journalFooter: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: palette.paper },
     safetyDot: { flexDirection: 'row', gap: 7, alignItems: 'center' },
     dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.primary },
     safetyText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 11 },
@@ -289,8 +378,7 @@ export function useFeatureStyles() {
     footer: {
       paddingHorizontal: 24,
       paddingVertical: 18,
-      borderTopWidth: 1,
-      borderTopColor: palette.line,
+      zIndex: 1,
       backgroundColor: palette.white,
     },
     footerContent: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: 12 },
@@ -309,6 +397,8 @@ export function useFeatureStyles() {
       borderBottomWidth: 4,
       borderBottomColor: '#61261A',
     },
+    journalAction: { borderRadius: 17, borderBottomWidth: 0, minHeight: 49, paddingVertical: 9 },
+    journalActionText: { fontFamily: 'LoraBold', fontWeight: 'normal', fontSize: 17 },
     actionSecondary: {
       borderWidth: 1,
       borderColor: palette.line,
@@ -320,7 +410,7 @@ export function useFeatureStyles() {
       fontSize: 14,
       fontWeight: '700',
     },
-    title: { fontFamily: 'Journal', fontSize: 36, lineHeight: 43, color: palette.ink },
+    title: { fontFamily: 'LoraBold', fontSize: 32, lineHeight: 40, color: palette.ink },
     body: { fontFamily: 'Manrope', fontSize: 15, lineHeight: 25, color: palette.muted },
     card: {
       backgroundColor: palette.white,
@@ -330,7 +420,7 @@ export function useFeatureStyles() {
       padding: 25,
       gap: 15,
     },
-    cardTitle: { fontFamily: 'Journal', fontSize: 22, color: palette.ink },
+    cardTitle: { fontFamily: 'LoraBold', fontSize: 21, color: palette.ink },
     error: {
       padding: 22,
       borderRadius: 18,

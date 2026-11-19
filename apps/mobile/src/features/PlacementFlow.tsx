@@ -1,3 +1,4 @@
+import { JournalLeaf } from '../Journal';
 import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -112,22 +113,22 @@ export default function PlacementFlow({
       )}
       {!loading && position < 0 && !result && (
         <>
-          <View style={s.icon}>
+          <JournalLeaf compact kind="stamp" style={s.icon}>
             <Compass color={palette.teal} size={42} strokeWidth={1.5} />
-          </View>
+          </JournalLeaf>
           <Text style={f.title}>Tu camino empieza donde tú estás.</Text>
           <Text style={f.body}>
             Prueba {questions.length} pequeñas preguntas para orientarte. No es un examen: puedes
             tomarte el tiempo que necesites y omitirlo cuando quieras.
           </Text>
-          <View style={f.card}>
+          <JournalLeaf compact kind="postcard" style={f.card}>
             <Text style={f.cardTitle}>Un punto de partida, no una etiqueta.</Text>
             <Text style={f.body}>
               Vas a reconocer frases, ordenar ideas y escribir en inglés. Esta orientación no
               certifica tu nivel ni cambia tus lecciones completadas.
             </Text>
             <Text style={f.quiet}>Sin micrófono. Sin presión. A tu ritmo.</Text>
-          </View>
+          </JournalLeaf>
         </>
       )}
       {!result && questions[position] && (
@@ -145,26 +146,26 @@ export default function PlacementFlow({
       )}
       {result && (
         <View style={{ alignItems: 'center', gap: 23 }}>
-          <View style={s.icon}>
+          <JournalLeaf compact kind="stamp" style={s.icon}>
             <Sparkles color={palette.teal} size={40} />
-          </View>
+          </JournalLeaf>
           <Text style={f.eyebrow}>Una orientación para tu camino</Text>
           <Text style={[f.title, { textAlign: 'center' }]}>
             Tu próximo paso:{' '}
             {result.level === 'A1' ? 'construir una buena base' : 'conectar lo que ya sabes'}.
           </Text>
-          <View style={s.levelBadge}>
+          <JournalLeaf compact kind="stamp" style={s.levelBadge}>
             <Text style={s.levelText}>{result.level}</Text>
             <Text style={f.quiet}>Nivel sugerido · No certificado</Text>
-          </View>
+          </JournalLeaf>
           <Text style={[f.body, { textAlign: 'center' }]}>{result.feedbackEs}</Text>
-          <View style={[f.card, { width: '100%' }]}>
+          <JournalLeaf compact kind="postcard" style={[f.card, { width: '100%' }]}>
             <Text style={f.cardTitle}>Cada habilidad tiene su propio camino.</Text>
             <Text style={f.body}>
               Puedes explorar las unidades y elegir qué practicar. El repaso a lo largo de los días
               te ayudará a descubrir lo que ya recuerdas.
             </Text>
-          </View>
+          </JournalLeaf>
         </View>
       )}
     </FlowFrame>

@@ -36,7 +36,7 @@ import { QuickReview } from './travel/QuickReview';
 import { TravelWelcome } from './travel/TravelWelcome';
 import { TravelPlacementFlow } from './travel/TravelPlacementFlow';
 import { TravelGuide, TravelPronunciation } from './travel/TravelGuide';
-import { TravelMark } from './travel/TravelAppearance';
+import { JournalBrand, JournalLeaf, PaperEdge, PaperGrain } from './Journal';
 import { SpeechSettings } from './features/SpeechSettings';
 import { MotionProvider, useReducedMotion } from './motion';
 
@@ -49,6 +49,8 @@ const tabs = [
 ] as const;
 type Tab = (typeof tabs)[number]['id'];
 type Flow = 'placement' | 'speech' | 'reviews' | 'quick';
+type WelcomeChoice = 'start' | 'placement' | 'explore';
+type AfterOrigin = (journey: TravelState) => Promise<void> | void;
 
 export default function App() {
   const [reducedMotion, setReducedMotion] = useState(true);
@@ -70,7 +72,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
   const [mission, setMission] = useState<TravelCheckpoint | null>(null);
   const [destination, setDestination] = useState('home');
-  const [countryPicker, setCountryPicker] = useState(false);
+  const [originPicker, setOriginPicker] = useState<{ afterSave?: AfterOrigin } | null>(null);
   const [passport, setPassport] = useState(false);
   const [starting, setStarting] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -132,12 +134,25 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setTravel(value);
     return value;
   }
+  function askForOrigin(journey: TravelState, afterSave: AfterOrigin) {
+    if (
+      journey.country ||
+      journey.active ||
+      Object.keys(journey.completed).length ||
+      Object.keys(journey.paused ?? {}).length
+    ) {
+      return false;
+    }
+    setOriginPicker({ afterSave });
+    return true;
+  }
   async function openMission(id?: string, journey = travel) {
     const target = id ?? nextTravelMission(journey)?.id;
     if (!target) {
       setPassport(true);
       return;
     }
+    if (askForOrigin(journey, (saved) => openMission(target, saved))) return;
     const value = await updateTravel({ action: 'start', missionId: target });
     if (value.active?.missionId !== target)
       throw new Error('Completa la misión anterior para continuar.');
@@ -152,20 +167,30 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       .catch((e) => setNotice(e.message))
       .finally(() => setStarting(false));
   }
-  async function chooseWelcome(choice: 'start' | 'placement' | 'explore') {
+  async function finishWelcome(choice: WelcomeChoice, journey: TravelState) {
+    await localSettings.set('onboarded', true);
+    if (choice === 'start') await openMission(undefined, journey);
+    if (choice === 'placement') setFlow('placement');
+    setWelcome(false);
+  }
+  async function chooseWelcome(choice: WelcomeChoice) {
     if (starting) return;
+    if (choice !== 'explore' && askForOrigin(travel, (saved) => finishWelcome(choice, saved))) {
+      return;
+    }
     setStarting(true);
     try {
-      await localSettings.set('onboarded', true);
-      if (choice === 'start') await openMission();
-      if (choice === 'placement') setFlow('placement');
-      setWelcome(false);
+      await finishWelcome(choice, travel);
     } catch (e) {
       setNotice((e as Error).message);
       setWelcome(false);
     } finally {
       setStarting(false);
     }
+  }
+  function startPlacement() {
+    const open = () => setFlow('placement');
+    if (!askForOrigin(travel, open)) open();
   }
   const finishFlow = () => {
     setFlow(null);
@@ -177,6 +202,22 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   };
   const openVoiceSettings = () => setSettings('voice');
   const closeSettings = () => setSettings(null);
+  const openOriginPicker = () => setOriginPicker({});
+  const closeOriginPicker = () => setOriginPicker(null);
+  const originSheet = originPicker && (
+    <Sheet visible close={closeOriginPicker} reduced={reducedMotion}>
+      <CountryPicker
+        selected={travel.country}
+        beforeLesson={!!originPicker.afterSave}
+        onClose={closeOriginPicker}
+        onSelect={async (country) => {
+          const saved = await updateTravel({ action: 'country', country });
+          await originPicker.afterSave?.(saved);
+          closeOriginPicker();
+        }}
+      />
+    </Sheet>
+  );
   const settingsSheet = (
     <Sheet visible={settings !== null} close={closeSettings} reduced={reducedMotion}>
       <View style={s.sheetTitle}>
@@ -192,7 +233,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           <X size={22} color={C.ink} />
         </Pressable>
       </View>
-      <SpeechSettings />
+      <JournalLeaf tint="mint">
+        <SpeechSettings />
+      </JournalLeaf>
       {settings === 'general' && (
         <>
           <Heading style={{ fontSize: 22 }}>Privacidad</Heading>
@@ -214,14 +257,15 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       )}
     </Sheet>
   );
-  const withSettings = (content: React.ReactNode) => (
+  const withSheets = (content: React.ReactNode) => (
     <>
       {content}
       {settingsSheet}
+      {originSheet}
     </>
   );
   if (mission)
-    return withSettings(
+    return withSheets(
       <TravelFlow
         key={mission.missionId}
         initial={mission}
@@ -235,7 +279,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       />,
     );
   if (flow === 'placement')
-    return withSettings(
+    return withSheets(
       <TravelPlacementFlow
         onClose={finishFlow}
         onStart={openMission}
@@ -243,19 +287,19 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       />,
     );
   if (flow === 'speech')
-    return withSettings(
+    return withSheets(
       <TravelPronunciation onClose={finishFlow} onVoiceSettings={openVoiceSettings} />,
     );
   if (flow === 'reviews') return <ReviewsFlow onClose={finishFlow} />;
   if (flow === 'quick') return <QuickReview onClose={finishFlow} />;
   if (welcome && !loading && !error)
-    return (
+    return withSheets(
       <TravelWelcome
         busy={starting}
         onStart={() => void chooseWelcome('start')}
         onAssessment={() => void chooseWelcome('placement')}
         onClose={() => void chooseWelcome('explore')}
-      />
+      />,
     );
 
   function go(next: Tab) {
@@ -264,6 +308,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   }
   const nav = (
     <View style={desktop ? s.desktopNav : s.mobileNav}>
+      {!desktop && <PaperEdge edge="top" tint={C.white} />}
       {tabs.map(({ id, icon: Icon }) => (
         <Pressable
           key={id}
@@ -293,12 +338,13 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   );
   return (
     <SafeAreaView style={s.safe}>
+      <PaperGrain />
       <View style={s.layout}>
         {desktop && (
           <View style={s.sidebar}>
+            <PaperEdge edge="right" tint={C.white} />
             <View style={s.sidebarBrand}>
-              <TravelMark />
-              <Text style={s.brand}>LingoQuest</Text>
+              <JournalBrand />
             </View>
             {nav}
             <View style={{ flex: 1 }} />
@@ -309,12 +355,12 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={s.topbar}>
+            <PaperEdge edge="bottom" tint={C.white} />
             {desktop ? (
               <Text style={[s.sectionLabel, { color: C.accent }]}>{tab}</Text>
             ) : (
               <View style={s.mobileBrand}>
-                <TravelMark size={29} color={C.accent} />
-                <Text style={[s.brand, { color: C.ink, fontSize: 20 }]}>LingoQuest</Text>
+                <JournalBrand small />
               </View>
             )}
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
@@ -333,6 +379,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           </View>
           <ScrollView
             ref={scroll}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={[s.content, { padding: desktop ? 31 : 15 }]}
           >
             {loading ? (
@@ -386,10 +433,13 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
               <TravelHome
                 travel={travel}
                 progress={progress}
+                starting={starting}
+                onMission={startMission}
                 onContinue={() => startMission()}
                 onReview={() => setFlow('quick')}
                 onRoute={() => go('Mapa')}
                 onGuide={() => go('Aprender')}
+                onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
                 onSpeech={() => setFlow('speech')}
                 onFullReview={() => setFlow('reviews')}
@@ -403,14 +453,14 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   scroll.current?.scrollTo({ y: 0, animated: false });
                 }}
                 onStart={startMission}
-                onCountry={() => setCountryPicker(true)}
+                onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
               />
             ) : tab === 'Aprender' ? (
               <TravelGuide
                 travel={travel}
                 onMission={startMission}
-                onAssessment={() => setFlow('placement')}
+                onAssessment={startPlacement}
                 onVoiceSettings={openVoiceSettings}
                 onSpeech={() => setFlow('speech')}
               />
@@ -430,7 +480,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 }
                 onRefresh={refresh}
                 onNotice={setNotice}
-                onPlacement={() => setFlow('placement')}
+                onPlacement={startPlacement}
               />
             ) : null}
           </ScrollView>
@@ -442,22 +492,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           {!desktop && nav}
         </View>
       </View>
-      <Sheet visible={countryPicker} close={() => setCountryPicker(false)} reduced={reducedMotion}>
-        <CountryPicker
-          selected={travel.country}
-          onSelect={(country) => {
-            if (starting) return;
-            setStarting(true);
-            void updateTravel({ action: 'country', country })
-              .then(() => setCountryPicker(false))
-              .catch((e) => setNotice(e.message))
-              .finally(() => setStarting(false));
-          }}
-        />
-        <Button variant="ghost" onPress={() => setCountryPicker(false)}>
-          Cerrar
-        </Button>
-      </Sheet>
+      {originSheet}
       <Sheet visible={recoveryReset} close={() => setRecoveryReset(false)} reduced={reducedMotion}>
         <Heading>¿Restablecer los datos locales?</Heading>
         <Label>
@@ -506,14 +541,16 @@ function Sheet({
   return (
     <Modal visible transparent animationType={reduced ? 'none' : 'fade'} onRequestClose={close}>
       <SafeAreaView style={s.shade}>
-        <ScrollView
-          style={s.sheet}
-          contentContainerStyle={{ padding: 20, gap: 14 }}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
-        >
-          {children}
-        </ScrollView>
+        <JournalLeaf compact kind="notebook" style={s.sheet}>
+          <ScrollView
+            style={{ flexGrow: 0, flexShrink: 1 }}
+            contentContainerStyle={{ padding: 20, gap: 14 }}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {children}
+          </ScrollView>
+        </JournalLeaf>
       </SafeAreaView>
     </Modal>
   );
@@ -529,11 +566,9 @@ function useStyles() {
       paddingHorizontal: 16,
       paddingBottom: 18,
       backgroundColor: C.white,
-      borderRightWidth: 1,
-      borderRightColor: C.line,
+      zIndex: 1,
     },
     sidebarBrand: {
-      backgroundColor: '#293D31',
       gap: 9,
       padding: 13,
       marginHorizontal: -16,
@@ -541,7 +576,6 @@ function useStyles() {
       flexDirection: 'row',
     },
     mobileBrand: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
-    brand: { fontFamily: 'Journal', fontSize: 23, color: '#FFE6B8', flexShrink: 1 },
     desktopNav: { gap: 7, paddingTop: 25 },
     desktopTab: {
       flexDirection: 'row',
@@ -558,8 +592,7 @@ function useStyles() {
       padding: 4,
       gap: 3,
       backgroundColor: C.white,
-      borderTopWidth: 1,
-      borderTopColor: C.line,
+      zIndex: 1,
     },
     mobileTab: {
       flex: 1,
@@ -584,8 +617,7 @@ function useStyles() {
     topbar: {
       minHeight: 61,
       backgroundColor: C.white,
-      borderBottomWidth: 1,
-      borderBottomColor: C.line,
+      zIndex: 1,
       paddingHorizontal: 14,
       paddingVertical: 6,
       flexDirection: 'row',
@@ -606,14 +638,10 @@ function useStyles() {
       padding: 18,
     },
     sheet: {
-      flexGrow: 0,
+      flexShrink: 1,
       maxHeight: '93%',
       maxWidth: 510,
       width: '100%',
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 12,
-      backgroundColor: C.white,
     },
     sheetTitle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   });

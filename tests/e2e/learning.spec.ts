@@ -25,8 +25,15 @@ test('first launch offers two spaced travel routes and opens the first scene', a
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   await readyOfflineShell(page, context);
   await start.click();
+  await expect(page.getByRole('heading', exact('¿Desde dónde viajas?'))).toBeVisible();
+  expect((await state(page)).travel.active).toBeUndefined();
+  await click(page, 'Cerrar');
+  await expect(start).toBeVisible();
+  await start.click();
+  await click(page, 'Honduras');
   await expect(page.getByText('Un saludo en la plaza', { exact: true })).toBeVisible();
   await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
+  expect((await state(page)).travel.country).toBe('HN');
 });
 
 test('placement from the welcome evaluates travel listening and jumps to the recommended mission', async ({
@@ -37,6 +44,8 @@ test('placement from the welcome evaluates travel listening and jumps to the rec
   await expect(page.getByRole('button', exact('Ya sé algo de inglés'))).toBeVisible();
   await readyOfflineShell(page, context);
   await click(page, 'Ya sé algo de inglés');
+  await expect(page.getByRole('heading', exact('¿Desde dónde viajas?'))).toBeVisible();
+  await click(page, 'Honduras');
   await click(page, 'Empezar la prueba');
   await page.getByRole('radio', exact('Se está presentando.')).click();
   await click(page, 'Siguiente pregunta');

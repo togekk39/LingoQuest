@@ -11,6 +11,41 @@ import {
 
 const exact = (name: string) => ({ name, exact: true });
 
+test.describe('origin picker on a small touch screen', () => {
+  test.use({ viewport: { width: 320, height: 568 }, isMobile: true, hasTouch: true });
+
+  test('opens from home and the map and saves changes offline', async ({ page, context }) => {
+    await page.goto('/');
+    await readyOfflineShell(page, context);
+    const origin = page.getByRole('button', exact('Elegir lugar de origen'));
+    const search = page.getByRole('textbox', exact('Buscar lugar de origen'));
+
+    await page.getByRole('button', exact('Explorar primero')).tap();
+    await page.getByRole('button', exact('Continuar viaje')).tap();
+    await expect(search).toBeVisible();
+    expect((await state(page)).travel.active).toBeUndefined();
+    await page.getByRole('button', exact('Cerrar')).tap();
+    await origin.tap();
+    await page.getByRole('button', exact('Otro lugar')).tap();
+    await expect(search).toBeHidden();
+    await expect(
+      page.getByRole('button', exact('Cambiar lugar de origen')).getByText('Otro lugar'),
+    ).toBeVisible();
+
+    await page.getByRole('tab', exact('Mapa')).tap();
+    await origin.tap();
+    await search.fill('panama');
+    await page.getByRole('button', exact('Panamá')).tap();
+    await expect(search).toBeHidden();
+    await page.reload();
+    const change = page.getByRole('button', exact('Cambiar lugar de origen'));
+    await expect(change.getByText('Panamá')).toBeVisible();
+    expect((await state(page)).travel.country).toBe('PA');
+    await change.tap();
+    await expect(page.getByRole('button', exact('Panamá'))).toBeVisible();
+  });
+});
+
 test('an offline traveler can choose an origin, resume a draft and its feedback, and earn one stamp', async ({
   page,
   context,
@@ -19,7 +54,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await page.addInitScript(() => {
     if (window.speechSynthesis) window.speechSynthesis.getVoices = () => [];
   });
-  await enterApp(page);
+  await enterApp(page, { chooseOrigin: false });
   await readyOfflineShell(page, context);
   await page.getByRole('tab', exact('Mapa')).click();
   await expect(
@@ -33,16 +68,27 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await expect(page.getByRole('textbox', exact('Buscar lugar de origen'))).toBeHidden();
   await page.getByRole('tab', exact('Inicio')).click();
   await expect(page.getByText('República Dominicana', { exact: true })).toBeVisible();
-  await page.getByRole('button', exact('Continuar viaje')).click();
+  const postcard = page.getByTestId('home-mission-postcard');
+  await postcard.getByRole('button', exact('Continuar viaje')).click();
   const click = (name: string) => page.getByRole('button', exact(name)).click();
+  await expect(page.getByTestId('travel-dialogue-postcard')).toBeVisible();
   await click('Continuar');
+  await expect(
+    page.getByTestId('travel-reference-phrase').getByText('Hi! My name is Sam.', { exact: true }),
+  ).toBeVisible();
   await click('Continuar');
   await finishVocabulary(page);
-  const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
+  const input = page
+    .getByTestId('travel-workbook')
+    .getByRole('textbox', exact('Tu respuesta en inglés'));
   await input.fill('Hi! I am');
   const travelState = () =>
     page.evaluate(() => JSON.parse(localStorage.getItem('lq_offline_state_v1')!).travel);
   await expect.poll(async () => (await travelState()).active.answer.text).toBe('Hi! I am');
+  await click('Cerrar y volver');
+  await expect(
+    page.getByTestId('home-stop-hello').getByText('En curso', { exact: true }),
+  ).toBeVisible();
   await page.reload();
   await click('Continuar viaje');
   await expect(input).toHaveValue('Hi! I am');

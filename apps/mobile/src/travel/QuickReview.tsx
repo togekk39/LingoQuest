@@ -5,6 +5,8 @@ import { api } from '../lib/api';
 import { useTheme } from '../theme';
 import { Action, ErrorCard, FlowFrame, useFeatureStyles } from '../features/FeatureUI';
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from '../features/ExerciseInput';
+import { JournalArt, Notebook } from '../Journal';
+import { illustrations } from './illustrations';
 import { AnswerFeedback } from '../features/LessonStages';
 
 const path = '/v1/reviews/quick?source=travel';
@@ -75,6 +77,7 @@ export function QuickReview({ onClose }: { onClose: () => void }) {
   const exercise = review?.exercise;
   return (
     <FlowFrame
+      journal={{}}
       title="Repaso rápido"
       eyebrow="Una frase · 1 min"
       onClose={() => void finish(true)}
@@ -86,6 +89,7 @@ export function QuickReview({ onClose }: { onClose: () => void }) {
       footer={
         exercise ? (
           <Action
+            journal
             busy={busy}
             disabled={!review?.result && !hasAnswer(answer, exercise)}
             onPress={() => void finish()}
@@ -98,19 +102,23 @@ export function QuickReview({ onClose }: { onClose: () => void }) {
       {!!error && <ErrorCard message={error} onRetry={review ? undefined : () => void load()} />}
       {!exercise && !error && <ActivityIndicator color={colors.teal} />}
       {exercise && (
-        <View style={{ gap: 18 }}>
-          {review.starter && (
-            <Text style={f.body}>
-              En la plaza, Luz te enseña una palabra para saludar:{' '}
-              <Text style={f.cardTitle}>hi</Text> significa «hola».
-            </Text>
-          )}
-          <ExerciseInput
-            exercise={exercise}
-            answer={answer}
-            setAnswer={draft}
-            disabled={busy || !!review.result}
-          />
+        <View style={{ gap: 15 }}>
+          <JournalArt source={illustrations.review} aspectRatio={2.9} taped />
+          <Notebook title="Ponlo en práctica">
+            {review.starter && (
+              <Text style={f.body}>
+                En la plaza, Luz te enseña una palabra para saludar:{' '}
+                <Text style={f.cardTitle}>hi</Text> significa «hola».
+              </Text>
+            )}
+            <ExerciseInput
+              journal
+              exercise={exercise}
+              answer={answer}
+              setAnswer={draft}
+              disabled={busy || !!review.result}
+            />
+          </Notebook>
         </View>
       )}
     </FlowFrame>

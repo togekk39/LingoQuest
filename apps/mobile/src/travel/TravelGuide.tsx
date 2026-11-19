@@ -12,9 +12,12 @@ import {
 import { canStartTravelMission, chapter, type TravelState } from '@lingoquest/offline-engine';
 import { FlowFrame } from '../features/FeatureUI';
 import { SpeakingPanel } from '../features/SpeakingPractice';
-import { Button, Card, Heading, Label } from '../ui';
+import { Button, Heading, Label } from '../ui';
 import { useTheme } from '../theme';
-import { TravelScene, VocabularyCard } from './TravelAppearance';
+import { JournalLeaf, JournalSpread } from '../Journal';
+import { illustrations, placeIllustration } from './illustrations';
+import { WordWorkshop } from './WordWorkshop';
+import { VocabularyCard } from './TravelAppearance';
 import { useChapterAudio } from './useChapterAudio';
 
 export function TravelGuide({
@@ -33,6 +36,7 @@ export function TravelGuide({
   const { colors: C } = useTheme();
   const { width } = useWindowDimensions();
   const [index, select] = useState(0);
+  const [workshop, setWorkshop] = useState<'matching' | 'cloze'>();
   const { play, stop, speechMessage } = useChapterAudio();
   const mission = chapter.missions[index];
   const unlocked = canStartTravelMission(travel, mission.id);
@@ -43,10 +47,11 @@ export function TravelGuide({
   };
   return (
     <View style={{ gap: 18 }}>
-      <View style={{ gap: 7 }}>
-        <Text style={[styles.overline, { color: C.accent }]}>{chapter.title}</Text>
-        <Heading style={{ fontSize: desktop ? 38 : 31 }}>Palabras del viaje</Heading>
-        <Label style={styles.copy}>Consulta el vocabulario y los ejemplos de cada misión.</Label>
+      <JournalSpread
+        source={placeIllustration(mission.place)}
+        title="Palabras del viaje"
+        detail={chapter.title}
+      >
         <Button
           variant="ghost"
           icon={Volume2}
@@ -55,8 +60,7 @@ export function TravelGuide({
         >
           Configuración de voz
         </Button>
-      </View>
-      <TravelScene place={mission.place} compact={!desktop} />
+      </JournalSpread>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
         {chapter.missions.map((item, i) => (
           <Pressable
@@ -66,6 +70,7 @@ export function TravelGuide({
             onPress={() => {
               stop();
               select(i);
+              setWorkshop(undefined);
             }}
             style={[
               styles.tab,
@@ -82,11 +87,32 @@ export function TravelGuide({
         <Bookmark size={20} color={C.accent} />
         <Heading style={{ flex: 1, fontSize: 25 }}>{mission.title}</Heading>
       </View>
-      <View style={{ gap: 12 }}>
-        {mission.vocabulary.map((word) => (
-          <VocabularyCard key={word.term} word={word} play={(value) => void play(value)} />
-        ))}
-      </View>
+      {workshop ? (
+        <WordWorkshop
+          key={workshop}
+          words={mission.vocabulary}
+          kind={workshop}
+          onClose={() => setWorkshop(undefined)}
+        />
+      ) : (
+        <>
+          <JournalLeaf tint="mint" style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            <Button variant="secondary" onPress={() => setWorkshop('matching')}>
+              Relacionar palabras
+            </Button>
+            {mission.id === 'hello' && (
+              <Button variant="secondary" onPress={() => setWorkshop('cloze')}>
+                Completar una frase
+              </Button>
+            )}
+          </JournalLeaf>
+          <View style={{ gap: 18 }}>
+            {mission.vocabulary.map((word) => (
+              <VocabularyCard key={word.term} word={word} play={(value) => void play(value)} />
+            ))}
+          </View>
+        </>
+      )}
       {!!speechMessage && <Label>{speechMessage}</Label>}
       <Button
         icon={ArrowRight}
@@ -136,7 +162,7 @@ export function TravelPronunciation({
   };
   if (selected)
     return (
-      <FlowFrame title={selected} eyebrow="Práctica de pronunciación" onClose={leave}>
+      <FlowFrame journal={{}} title={selected} eyebrow="Práctica de pronunciación" onClose={leave}>
         <SpeakingPanel
           key={selected}
           text={selected}
@@ -149,16 +175,19 @@ export function TravelPronunciation({
     );
   return (
     <FlowFrame
+      journal={{}}
       title="Pronunciación"
       eyebrow={chapter.title}
       onClose={onClose}
       onVoiceSettings={configureVoice}
     >
-      <TravelScene place="La plaza" compact />
-      <Heading>Escucha y repite</Heading>
-      <Label style={styles.copy}>Escucha las frases de tu viaje y practica con tu voz.</Label>
+      <JournalSpread
+        source={illustrations.review}
+        title="Escucha y repite"
+        detail="Elige una frase y practica con tu voz."
+      />
       {drills.map(({ mission, text }) => (
-        <Card style={{ gap: 8 }} key={text}>
+        <JournalLeaf style={{ gap: 8 }} key={text}>
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
             <MapPin size={15} color={C.accent} />
             <Label>{mission.place}</Label>
@@ -188,7 +217,7 @@ export function TravelPronunciation({
               <Text style={[styles.tabText, { color: C.onPrimary }]}>Practicar</Text>
             </Pressable>
           </View>
-        </Card>
+        </JournalLeaf>
       ))}
       {!!speechMessage && <Label>{speechMessage}</Label>}
     </FlowFrame>
@@ -196,13 +225,6 @@ export function TravelPronunciation({
 }
 
 const styles = StyleSheet.create({
-  overline: {
-    fontFamily: 'ManropeBold',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    fontSize: 11,
-  },
-  copy: { fontSize: 15, lineHeight: 23 },
   tab: {
     minHeight: 46,
     paddingHorizontal: 12,

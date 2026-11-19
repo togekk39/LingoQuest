@@ -1,6 +1,7 @@
+import { JournalLeaf, PaperInput } from '../Journal';
 import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text } from 'react-native';
 import { BookOpen, Download, FolderOpen, PackageCheck, RotateCcw } from 'lucide-react-native';
 import { Button, Card, Heading, Label, Pill } from '../ui';
 import {
@@ -65,11 +66,11 @@ export function ContentManager({
         conexión. Solo usamos internet cuando tú descargas una actualización de GitHub.
       </Label>
       {info && (
-        <View
+        <JournalLeaf
+          kind="notebook"
           style={{
             marginVertical: 18,
             padding: 17,
-            borderRadius: 13,
             backgroundColor: tone('#F2F7F0', 'background'),
             gap: 9,
           }}
@@ -86,7 +87,7 @@ export function ContentManager({
             Formato LQP JSON · es-419 → en-US · Guardado en este dispositivo
           </Label>
           {!!info.recoveryMessage && <Label>{info.recoveryMessage}</Label>}
-        </View>
+        </JournalLeaf>
       )}
       <View style={{ gap: 12 }}>
         <Button
@@ -105,7 +106,7 @@ export function ContentManager({
         <Label style={{ marginTop: 5, fontSize: 12 }}>
           O pega el enlace del archivo .lqp.json en GitHub Releases
         </Label>
-        <TextInput
+        <PaperInput
           accessibilityLabel="URL del paquete de curso"
           autoCapitalize="none"
           autoCorrect={false}

@@ -1,17 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Keyboard, StyleSheet, Text, View } from 'react-native';
-import {
-  ArrowRight,
-  Backpack,
-  BusFront,
-  Check,
-  Compass,
-  LocateFixed,
-  MapPin,
-  Stamp,
-  Trees,
-  Volume2,
-} from 'lucide-react-native';
+import { Image, Keyboard, StyleSheet, Text, View } from 'react-native';
+import { ArrowRight, Check, Compass, Stamp, Volume2 } from 'lucide-react-native';
 import {
   chapter,
   type TravelCheckpoint,
@@ -19,59 +8,104 @@ import {
   type TravelOperation,
   type TravelState,
 } from '@lingoquest/offline-engine';
+import samPortrait from '../../assets/journal/sam.jpg';
 import { api } from '../lib/api';
 import { Action, ErrorCard, FlowFrame, useFeatureStyles } from '../features/FeatureUI';
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from '../features/ExerciseInput';
 import { AnswerFeedback } from '../features/LessonStages';
 import { SpeakingPanel } from '../features/SpeakingPractice';
-import { Button, Card, Heading, Label } from '../ui';
+import { Button, Heading, Label } from '../ui';
 import { QuestBuddy } from '../QuestBuddy';
+import {
+  JournalArt,
+  JournalLeaf,
+  JournalStamp,
+  JournalSpread,
+  Notebook,
+  PaperGrain,
+  PlazaPhoto,
+  PlazaPostcard,
+} from '../Journal';
 import { useTheme } from '../theme';
+import { Celebration } from '../motion';
 import { useChapterAudio } from './useChapterAudio';
-import { TravelScene, VocabularyCard } from './TravelAppearance';
+import { illustrations, placeIllustration } from './illustrations';
+import { GrammarWorkbench, TravelScene, VocabularyCard } from './TravelAppearance';
 
 function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: string) => void }) {
-  const f = useFeatureStyles();
-  return (
-    <View style={f.card}>
-      <Text accessibilityLanguage="en-US" style={f.cardTitle}>
-        {en}
-      </Text>
-      <Text style={f.body}>{es}</Text>
-      <Button variant="secondary" icon={Volume2} onPress={() => play(en)}>
-        Escuchar frase
-      </Button>
-    </View>
-  );
-}
-function SceneClue({ type }: { type: 'directions' | 'bag' }) {
-  const { colors: C } = useTheme();
   const s = useStyles();
   return (
-    <View style={s.clue}>
-      {type === 'directions' ? (
-        <>
-          <View style={s.landmark}>
-            <BusFront size={28} color={C.teal} />
-            <Label>Parada de bus</Label>
-          </View>
-          <LocateFixed size={19} color={C.muted} />
-          <View style={s.landmark}>
-            <Trees size={28} color={C.teal} />
-            <Label>Parque</Label>
-          </View>
-        </>
+    <JournalLeaf testID="travel-reference-phrase" style={s.phrase}>
+      <PaperGrain opacity={0.18} />
+      <Text accessibilityLanguage="en-US" style={s.phraseEnglish}>
+        {en}
+      </Text>
+      <Text style={s.phraseSpanish}>{es}</Text>
+      <Button variant="secondary" icon={Volume2} onPress={() => play(en)} style={s.listen}>
+        Escuchar frase
+      </Button>
+    </JournalLeaf>
+  );
+}
+
+function DialoguePostcard({
+  mission,
+  step,
+  opening,
+  play,
+}: {
+  mission: TravelMission;
+  step: Extract<TravelMission['steps'][number], { type: 'dialogue' }>;
+  opening: boolean;
+  play: (phrase: string) => void;
+}) {
+  const s = useStyles();
+  const { colors: C } = useTheme();
+  const plaza = mission.id === 'hello';
+  const sam = step.speaker === 'Sam';
+  const samPostcard = plaza && sam;
+  return (
+    <View testID="travel-dialogue-postcard" style={s.dialogue}>
+      {samPostcard ? (
+        <PlazaPostcard />
       ) : (
-        <>
-          <View style={s.landmark}>
-            <Backpack size={36} color="#3582B9" />
-            <Label>Mochila azul</Label>
+        <View>
+          {opening && (plaza ? <PlazaPhoto /> : <TravelScene place={mission.place} />)}
+          <JournalLeaf style={[s.speakerCard, opening && s.overlappingSpeaker]}>
+            <PaperGrain opacity={0.18} />
+            <View style={s.speakerRow}>
+              {sam ? (
+                <Image source={samPortrait} accessible={false} style={s.avatar} />
+              ) : step.speaker === 'QuestBuddy' ? (
+                <QuestBuddy size={54} />
+              ) : (
+                <Image source={illustrations.luz} accessible={false} style={s.avatar} />
+              )}
+              <View style={{ flex: 1 }}>
+                <Heading style={{ fontSize: 25 }}>{step.speaker}</Heading>
+                <Label>
+                  {step.speaker === 'Luz'
+                    ? 'Mesa de bienvenida'
+                    : sam
+                      ? 'Viajero'
+                      : 'Tu compañero de viaje'}
+                </Label>
+              </View>
+              <JournalStamp source={placeIllustration(mission.place)} size={46} />
+            </View>
+            <Label style={s.storyText}>{step.text}</Label>
+          </JournalLeaf>
+        </View>
+      )}
+      {step.line && <Phrase {...step.line} play={play} />}
+      {opening && !step.line && (
+        <JournalLeaf compact kind="notebook" style={s.missionBrief}>
+          <Compass color={C.teal} size={23} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.missionBriefTitle}>Tu misión</Text>
+            <Label style={s.storyText}>{mission.objective}</Label>
           </View>
-          <View style={s.landmark}>
-            <Backpack size={36} color={C.red} />
-            <Label>Mochila roja</Label>
-          </View>
-        </>
+        </JournalLeaf>
       )}
     </View>
   );
@@ -107,6 +141,18 @@ export function TravelFlow({
   const wordIndex = current.word ?? 0;
   const word =
     !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
+  const greetingExample =
+    !current.finished && step.type === 'exercise' && mission.id === 'hello'
+      ? mission.vocabulary[0]?.example
+      : undefined;
+  const referenceAudio = current.finished
+    ? undefined
+    : (word?.term ??
+      (step.type === 'dialogue'
+        ? step.line?.en
+        : step.type === 'exercise'
+          ? (step.audio ?? greetingExample?.en)
+          : undefined));
   useEffect(() => {
     if (word) void play(word.term);
   }, [play, word]);
@@ -167,7 +213,7 @@ export function TravelFlow({
   }
   const advance = () => void act({ action: 'advance', token: current.token });
   const footer = current.finished ? (
-    <Action busy={busy} onPress={() => void close(mission.id === 'bag')}>
+    <Action journal busy={busy} onPress={() => void close(mission.id === 'bag')}>
       {mission.id === 'bag' ? 'Abrir pasaporte' : 'Volver al viaje'}
     </Action>
   ) : step.type === 'exercise' ? (
@@ -175,6 +221,7 @@ export function TravelFlow({
       <View style={{ gap: 8 }}>
         {!current.result.correct && (
           <Action
+            journal
             secondary
             disabled={busy}
             onPress={() => void act({ action: 'retry', token: current.token })}
@@ -182,12 +229,13 @@ export function TravelFlow({
             Intentar otra vez
           </Action>
         )}
-        <Action busy={busy} onPress={advance}>
+        <Action journal busy={busy} onPress={advance}>
           {current.result.correct ? 'Seguir la historia' : 'Usar la respuesta de QuestBuddy'}
         </Action>
       </View>
     ) : (
       <Action
+        journal
         busy={busy}
         disabled={!hasAnswer(answer, step.exercise)}
         onPress={() => {
@@ -200,13 +248,14 @@ export function TravelFlow({
     )
   ) : word ? (
     <Action
+      journal
       busy={busy}
       onPress={() => void act({ action: 'word', token: current.token, position: wordIndex + 1 })}
     >
       {wordIndex + 1 < mission.vocabulary.length ? 'Siguiente palabra' : 'Ver la explicación'}
     </Action>
   ) : step.type !== 'speak' ? (
-    <Action busy={busy} onPress={advance}>
+    <Action journal busy={busy} onPress={advance}>
       {current.step === mission.steps.length - 1
         ? 'Completar misión'
         : step.type === 'teach'
@@ -215,12 +264,14 @@ export function TravelFlow({
     </Action>
   ) : undefined;
 
+  const inlineAdvance = current.finished || step.type === 'dialogue';
   return (
     <FlowFrame
       title={mission.title}
       eyebrow={`${mission.place} · ${mission.minutes} min`}
       stepKey={`${current.token}-${wordIndex}`}
       onClose={() => void close()}
+      journal={{ onListen: referenceAudio ? () => void play(referenceAudio) : undefined }}
       onVoiceSettings={
         step.type !== 'speak'
           ? () => {
@@ -230,7 +281,7 @@ export function TravelFlow({
           : undefined
       }
       progress={current.finished ? 1 : (current.step + 1) / mission.steps.length}
-      footer={footer}
+      footer={inlineAdvance ? undefined : footer}
       feedback={
         step.type === 'exercise' && current.result ? (
           <AnswerFeedback
@@ -243,56 +294,42 @@ export function TravelFlow({
     >
       {error && <ErrorCard message={error} />}
       {returning && (
-        <View style={s.recap}>
+        <JournalLeaf compact kind="notebook" style={s.recap}>
           <Compass size={19} color={C.teal} />
           <Label style={{ flex: 1 }}>Retomamos donde lo dejaste. {mission.objective}</Label>
-        </View>
+        </JournalLeaf>
       )}
       <View key={current.token} testID={`travel-step-${step.type}`} style={{ gap: 14 }}>
         {current.finished ? (
-          <Card style={s.story}>
-            <View style={s.npc}>
-              {mission.id === 'bag' ? (
-                <Stamp size={28} color={C.teal} />
-              ) : (
-                <Check size={28} color={C.teal} />
-              )}
-              <Heading style={{ flex: 1 }}>¡Misión completada!</Heading>
-            </View>
-            <Label style={s.storyText}>{mission.success}</Label>
-            {mission.id === 'bag' && (
-              <Label style={s.storyText}>Sello obtenido · {chapter.stamp}</Label>
-            )}
-          </Card>
-        ) : step.type === 'dialogue' ? (
-          <>
-            {current.step === 0 && <TravelScene place={mission.place} />}
-            <Card style={s.story}>
-              <View style={s.npc}>
-                {step.speaker === 'QuestBuddy' ? (
-                  <QuestBuddy size={53} />
+          <JournalSpread
+            source={
+              mission.id === 'bag' ? illustrations.passport : placeIllustration(mission.place)
+            }
+            title="¡Misión completada!"
+            detail={mission.success}
+          >
+            <Celebration size={64}>
+              <JournalLeaf compact kind="stamp" style={s.completionSeal}>
+                {mission.id === 'bag' ? (
+                  <Stamp size={28} color={C.teal} />
                 ) : (
-                  <View
-                    style={[s.portrait, step.speaker === 'Sam' && { backgroundColor: '#F5CBB0' }]}
-                  >
-                    <Text style={s.initial}>{step.speaker[0]}</Text>
-                  </View>
+                  <Check size={28} color={C.teal} />
                 )}
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Heading style={{ fontSize: 24 }}>{step.speaker}</Heading>
-                  <Label>
-                    {step.speaker === 'Luz'
-                      ? 'Mesa de bienvenida'
-                      : step.speaker === 'Sam'
-                        ? 'Viajera'
-                        : 'Tu compañero de viaje'}
-                  </Label>
-                </View>
-              </View>
-              <Label style={s.storyText}>{step.text}</Label>
-            </Card>
-            {step.line && <Phrase {...step.line} play={(value) => void play(value)} />}
-          </>
+              </JournalLeaf>
+            </Celebration>
+            {mission.id === 'bag' && (
+              <Label style={[s.storyText, s.completionText]}>
+                Sello obtenido · {chapter.stamp}
+              </Label>
+            )}
+          </JournalSpread>
+        ) : step.type === 'dialogue' ? (
+          <DialoguePostcard
+            mission={mission}
+            step={step}
+            opening={current.step === 0}
+            play={play}
+          />
         ) : word ? (
           <>
             <View style={s.chapterHead}>
@@ -301,62 +338,83 @@ export function TravelFlow({
                 {wordIndex + 1} / {mission.vocabulary.length}
               </Label>
             </View>
-            <VocabularyCard word={word} play={(value) => void play(value)} />
+            <VocabularyCard key={word.term} word={word} play={play} recall />
           </>
         ) : step.type === 'teach' ? (
-          <>
-            <Text style={f.title}>{step.title}</Text>
-            <Text style={f.body}>{step.text}</Text>
-            {step.examples.map((example) => (
-              <Phrase key={example.en} {...example} play={(value) => void play(value)} />
-            ))}
-          </>
+          <GrammarWorkbench step={step} play={play} />
         ) : step.type === 'exercise' ? (
           <>
-            <View style={s.recap}>
-              <MapPin size={19} color={C.teal} />
-              <Label style={[s.storyText, { flex: 1 }]}>{step.situation}</Label>
-            </View>
-            {step.visual && <SceneClue type={step.visual} />}
-            {step.audio && (
-              <View style={{ gap: 9 }}>
-                <Button variant="secondary" icon={Volume2} onPress={() => void play(step.audio!)}>
-                  Escuchar a Sam
-                </Button>
-                {current.transcript || current.result ? (
-                  <Text accessibilityLanguage="en-US" style={f.body}>
-                    {step.transcript}
-                  </Text>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    disabled={busy}
-                    onPress={() => void act({ action: 'transcript', token: current.token })}
-                  >
-                    Leer la transcripción
-                  </Button>
-                )}
-              </View>
+            {greetingExample && <Phrase {...greetingExample} play={play} />}
+            {!!step.visual && (
+              <JournalArt source={placeIllustration(mission.place)} aspectRatio={2.8} />
             )}
-            <ExerciseInput
-              exercise={step.exercise}
-              answer={answer}
-              setAnswer={draft}
-              disabled={busy || !!current.result}
-            />
-            {step.hint &&
-              !current.result &&
-              (current.hint ? (
-                <Label style={s.storyText}>{step.hint}</Label>
-              ) : (
-                <Button
-                  variant="ghost"
-                  disabled={busy}
-                  onPress={() => void act({ action: 'hint', token: current.token })}
-                >
-                  Pedir una pista
-                </Button>
-              ))}
+            {!!step.audio && <JournalArt source={illustrations.review} aspectRatio={3.1} taped />}
+            <View testID="travel-workbook">
+              <Notebook
+                title={
+                  step.audio
+                    ? 'Escucha y decide'
+                    : step.exercise.passage
+                      ? 'Lee el mensaje'
+                      : 'Ahora te toca a ti'
+                }
+              >
+                <Label style={s.storyText}>{step.situation}</Label>
+                {!!step.visual && (
+                  <Label style={f.quiet}>
+                    {step.visual === 'directions'
+                      ? 'La parada está junto al parque.'
+                      : 'En el mostrador hay una mochila azul y una mochila roja.'}
+                  </Label>
+                )}
+
+                {step.audio && (
+                  <JournalLeaf compact kind="notebook" style={s.audioClue}>
+                    <Button
+                      variant="secondary"
+                      icon={Volume2}
+                      onPress={() => void play(step.audio!)}
+                    >
+                      Escuchar a Sam
+                    </Button>
+                    {current.transcript || current.result ? (
+                      <Text accessibilityLanguage="en-US" style={f.body}>
+                        {step.transcript}
+                      </Text>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        disabled={busy}
+                        onPress={() => void act({ action: 'transcript', token: current.token })}
+                      >
+                        Leer la transcripción
+                      </Button>
+                    )}
+                  </JournalLeaf>
+                )}
+                <ExerciseInput
+                  journal
+                  exercise={step.exercise}
+                  answer={answer}
+                  setAnswer={draft}
+                  disabled={busy || !!current.result}
+                />
+                {step.hint &&
+                  !current.result &&
+                  (current.hint ? (
+                    <Label style={s.storyText}>{step.hint}</Label>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onPress={() => void act({ action: 'hint', token: current.token })}
+                      style={s.hint}
+                    >
+                      Pedir una pista
+                    </Button>
+                  ))}
+              </Notebook>
+            </View>
           </>
         ) : (
           <>
@@ -379,6 +437,7 @@ export function TravelFlow({
           {speechMessage}
         </Text>
       )}
+      {inlineAdvance && footer}
     </FlowFrame>
   );
 }
@@ -386,8 +445,40 @@ function useStyles() {
   const { colors: C } = useTheme();
   return StyleSheet.create({
     chapterHead: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-    story: { gap: 15, padding: 18, borderLeftWidth: 4, borderLeftColor: C.accent },
-    npc: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    dialogue: { gap: 15 },
+    speakerCard: { gap: 12, padding: 16, borderLeftWidth: 4, borderLeftColor: C.accent },
+    overlappingSpeaker: { marginTop: -10, marginHorizontal: 6 },
+    speakerRow: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+    missionBrief: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 15,
+      borderTopWidth: 1,
+      borderColor: C.line,
+    },
+    missionBriefTitle: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 13, marginBottom: 3 },
+    phrase: {
+      padding: 17,
+      borderRadius: 20,
+      gap: 2,
+    },
+    phraseEnglish: { fontFamily: 'LoraBold', fontSize: 25, lineHeight: 32, color: C.ink },
+    phraseSpanish: { fontFamily: 'Manrope', fontSize: 16, lineHeight: 23, color: C.muted },
+    listen: { alignSelf: 'stretch', marginTop: 11 },
+    audioClue: { gap: 5, padding: 10, backgroundColor: C.paper, borderRadius: 12 },
+    hint: { alignSelf: 'flex-start', paddingHorizontal: 3 },
+    completionSeal: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      borderWidth: 1,
+      borderColor: C.accent,
+      backgroundColor: C.mint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    completionText: { textAlign: 'center' },
     storyText: { color: C.ink, fontSize: 16, lineHeight: 24 },
     recap: {
       flexDirection: 'row',
@@ -397,25 +488,10 @@ function useStyles() {
       padding: 12,
       backgroundColor: C.mint,
     },
-    portrait: {
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#C9DCCC',
+    avatar: {
+      width: 54,
+      height: 54,
+      borderRadius: 27,
     },
-    initial: { fontFamily: 'OutfitSemiBold', fontSize: 26, color: '#24463B' },
-    clue: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 14,
-      backgroundColor: C.paper,
-      borderRadius: 12,
-      padding: 12,
-    },
-    landmark: { alignItems: 'center', gap: 5, padding: 7, flexShrink: 1 },
   });
 }

@@ -1,3 +1,5 @@
+import { JournalArt, Notebook, JournalLeaf } from '../Journal';
+import { illustrations } from '../travel/illustrations';
 import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
 import { useSystemSTT } from './useSystemSTT';
@@ -13,7 +15,7 @@ import {
 } from 'expo-audio';
 import { File } from 'expo-file-system';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
-import { AudioLines, ShieldCheck, Volume2 } from 'lucide-react-native';
+import { ShieldCheck, Volume2 } from 'lucide-react-native';
 import { Action, useFeatureStyles, FlowFrame } from './FeatureUI';
 export function SpeakingPanel({
   text,
@@ -160,16 +162,12 @@ export function SpeakingPanel({
     onDone();
   }
   return (
-    <View style={{ gap: 22 }}>
-      <View style={s.speechIcon}>
-        <AudioLines size={40} color={palette.teal} strokeWidth={1.5} />
-      </View>
-      <Text style={f.title}>Dale voz a lo que aprendiste.</Text>
-      <Text style={f.body}>
-        Esta parte es opcional. Lee, repite y descubre cómo suena tu inglés. Puedes grabarte sin
-        conexión. Tu acento también cuenta tu historia.
-      </Text>
-      <View style={f.card}>
+    <View testID="speaking-studio" style={{ gap: 12 }}>
+      <JournalArt source={illustrations.review} aspectRatio={3.1} taped />
+      <Notebook title="Dale voz a lo que aprendiste.">
+        <Text style={f.quiet}>
+          Escucha la frase y vuelve a decirla a tu ritmo. Grabar es opcional.
+        </Text>
         <Text style={f.eyebrow}>Tu frase para practicar</Text>
         <Text style={s.reference}>{text}</Text>
         <Pressable
@@ -188,7 +186,7 @@ export function SpeakingPanel({
           <Volume2 color={palette.teal} size={19} />
           <Text style={s.listenText}>Escuchar ejemplo</Text>
         </Pressable>
-      </View>
+      </Notebook>
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={f.quiet}>
           {speechMessage}
@@ -220,13 +218,13 @@ export function SpeakingPanel({
             </Text>
           )}
           {!!stt.transcript && (
-            <View accessibilityLiveRegion="polite" style={f.card}>
+            <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite" style={f.card}>
               <Text style={f.eyebrow}>Esto entendió el sistema</Text>
               <Text style={f.body}>{stt.transcript}</Text>
               <Text style={f.quiet}>
                 Compara el texto con la frase y vuelve a practicar cuando quieras.
               </Text>
-            </View>
+            </JournalLeaf>
           )}
           {!!stt.message && (
             <Text accessibilityRole="alert" style={f.body}>
@@ -273,9 +271,9 @@ export function SpeakingPanel({
         </Action>
       )}
       {message ? (
-        <View accessibilityRole="alert" style={s.neutral}>
+        <JournalLeaf compact kind="notebook" accessibilityRole="alert" style={s.neutral}>
           <Text style={f.body}>{message}</Text>
-        </View>
+        </JournalLeaf>
       ) : null}
       <View style={s.privacy}>
         <ShieldCheck size={19} color={palette.muted} />
@@ -307,6 +305,7 @@ export default function SpeakingPractice({
 }) {
   return (
     <FlowFrame
+      journal={{}}
       title="Tu voz, tu inglés"
       eyebrow="Práctica de pronunciación"
       onClose={onClose ?? onDone}

@@ -3,14 +3,16 @@ import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { CourseLesson } from '@lingoquest/course-pack';
 import type { Answer, AttemptResult, PublicExercise } from '@lingoquest/contracts';
-import { Check, Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
+import { Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
 import { useFeatureStyles } from './FeatureUI';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { Celebration, MotionEntrance, MotionPressable } from '../motion';
 import { QuestBuddy } from '../QuestBuddy';
+import { Notebook, PaperGrain, PlazaPostcard, JournalLeaf } from '../Journal';
 
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
 export type StageKind = CourseLesson['stages'][number]['type'];
+export const plazaExample = { en: 'Hi! My name is Sam.', es: '¡Hola! Me llamo Sam.' };
 export const stageLabels: Record<StageKind, string> = {
   goal: 'Meta',
   vocabulary: 'Vocabulario',
@@ -27,40 +29,52 @@ export function StageProgress({
   lesson: IntegratedLesson;
   position: number;
 }) {
-  const { colors: palette } = useTheme();
-  const s = useStyles();
   const f = useFeatureStyles();
 
   return (
-    <View style={{ gap: 10 }}>
-      <Text accessibilityLiveRegion="polite" style={f.eyebrow}>
-        Paso {position + 1} de {lesson.stages.length} · {stageLabels[lesson.stages[position].type]}
-      </Text>
-      <View style={s.stageList}>
-        {lesson.stages.map((stage, index) => (
-          <View key={stage.type} style={[s.stagePill, index === position && s.currentStage]}>
-            {index < position && <Check size={12} color={palette.teal} />}
-            <Text style={[s.stageText, index === position && { color: palette.teal }]}>
-              {stageLabels[stage.type]}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
+    <Text accessibilityLiveRegion="polite" style={f.eyebrow}>
+      Paso {position + 1} de {lesson.stages.length} · {stageLabels[lesson.stages[position].type]}
+    </Text>
   );
 }
-export function GoalStage({ lesson, review }: { lesson: IntegratedLesson; review: boolean }) {
+export function GoalStage({
+  lesson,
+  review,
+  onListen,
+}: {
+  lesson: IntegratedLesson;
+  review: boolean;
+  onListen?: () => void;
+}) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
 
   return (
     <>
-      <QuestBuddy size={96} />
-      <Text style={f.eyebrow}>{review ? 'Volver a usar lo que aprendiste' : 'Meta de hoy'}</Text>
-      <Text style={f.title}>{lesson.objectiveEs}</Text>
-      <Text style={f.body}>{lesson.contextEs}</Text>
-      <View style={f.card}>
+      {lesson.id === 'u01_l01' ? (
+        <>
+          <PlazaPostcard />
+          <JournalLeaf compact kind="postcard" style={[f.card, s.phraseCard]}>
+            <PaperGrain opacity={0.32} />
+            <Text accessibilityLanguage="en-US" style={s.phrase}>
+              {plazaExample.en}
+            </Text>
+            <Text style={s.phraseTranslation}>{plazaExample.es}</Text>
+            <MotionPressable accessibilityRole="button" style={s.phraseButton} onPress={onListen}>
+              <Volume2 color={palette.ink} size={21} />
+              <Text style={s.phraseButtonText}>Escuchar frase</Text>
+            </MotionPressable>
+          </JournalLeaf>
+        </>
+      ) : (
+        <QuestBuddy size={80} />
+      )}
+      <Notebook title={review ? 'Volver a usar lo que aprendiste' : 'Meta de hoy'}>
+        <Text style={f.cardTitle}>{lesson.objectiveEs}</Text>
+        <Text style={f.body}>{lesson.contextEs}</Text>
+      </Notebook>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <Text style={f.cardTitle}>Una situación, paso a paso</Text>
         <Text style={f.body}>
           Primero conocerás las palabras. Después verás cómo se conectan en una conversación y las
@@ -69,7 +83,7 @@ export function GoalStage({ lesson, review }: { lesson: IntegratedLesson; review
         <Text style={f.quiet}>
           {lesson.cefr} · Aproximadamente {lesson.estimatedMinutes} minutos · Sin prisa
         </Text>
-      </View>
+      </JournalLeaf>
       <View style={s.supportive}>
         <Sparkles size={19} color={palette.teal} />
         <Text style={[f.body, { flex: 1 }]}>
@@ -109,7 +123,7 @@ export function VocabularyCard({
         Palabra o expresión {position + 1} de {total}
       </Text>
       <Text style={f.title}>Palabras para esta situación</Text>
-      <View style={[f.card, { gap: 18 }]}>
+      <JournalLeaf compact kind="postcard" style={[f.card, { gap: 18 }]}>
         <View style={s.wordHeader}>
           <View style={{ flex: 1, gap: 5 }}>
             <Text style={s.word}>{item.en}</Text>
@@ -120,12 +134,12 @@ export function VocabularyCard({
         <Text style={f.quiet}>
           {item.partOfSpeech} · {item.status === 'new' ? 'Una palabra nueva' : 'La volvemos a usar'}
         </Text>
-        <View style={s.example}>
+        <JournalLeaf compact kind="notebook" style={s.example}>
           <Text style={f.eyebrow}>En esta situación</Text>
           <Text style={s.english}>{item.example.en}</Text>
           <Text style={f.body}>{item.example.es}</Text>
-        </View>
-      </View>
+        </JournalLeaf>
+      </JournalLeaf>
       <Text accessibilityLiveRegion="polite" style={f.quiet}>
         {speechMessage ||
           'Escucha con la voz sin conexión del dispositivo. Puedes cambiar la voz y la velocidad en Configuración.'}
@@ -164,21 +178,21 @@ export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
     <>
       <Text style={f.eyebrow}>Gramática en contexto</Text>
       <Text style={f.title}>Una idea para usar estas palabras</Text>
-      <View style={f.card}>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <View style={f.row}>
           <Lightbulb size={22} color={palette.teal} />
           <Text style={f.cardTitle}>Mira cómo funciona</Text>
         </View>
         <Text style={f.body}>{lesson.grammar.explanationEs}</Text>
         {!!lesson.grammar.taughtForms?.length && (
-          <View style={s.forms}>
+          <JournalLeaf compact kind="notebook" style={s.forms}>
             <Text style={f.eyebrow}>Estas pequeñas palabras también cuentan</Text>
             {lesson.grammar.taughtForms.map((form) => (
               <Text key={form.en} style={f.body}>
                 <Text style={{ color: palette.ink }}>{form.en}</Text> · {form.es}
               </Text>
             ))}
-          </View>
+          </JournalLeaf>
         )}
         {lesson.grammar.examples.map((example, index) => (
           <View key={`${example.en}-${index}`} style={s.exampleRow}>
@@ -189,7 +203,7 @@ export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
             <AudioButton text={example.en} onPlay={playOffline} />
           </View>
         ))}
-      </View>
+      </JournalLeaf>
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={f.quiet}>
           {speechMessage}
@@ -210,7 +224,9 @@ export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
       <Text style={f.title}>Una conversación cercana</Text>
       <Text style={f.body}>{lesson.contextEs}</Text>
       {lesson.dialogue.map((turn, index) => (
-        <View
+        <JournalLeaf
+          compact
+          kind="postcard"
           key={`${turn.speaker}-${index}`}
           style={[f.card, index % 2 === 1 && { backgroundColor: tone('#EEF7F0', 'background') }]}
         >
@@ -225,7 +241,7 @@ export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
               {gloss.en} · {gloss.es}
             </Text>
           ))}
-        </View>
+        </JournalLeaf>
       ))}
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={f.quiet}>
@@ -263,18 +279,20 @@ export function AnswerFeedback({
 
   return (
     <MotionEntrance>
-      <View
+      <JournalLeaf
+        compact
+        kind="notebook"
         testID="answer-feedback"
         accessibilityRole="alert"
         accessibilityLiveRegion="polite"
         style={[
           s.feedback,
           !result.correct && {
-            backgroundColor: tone('#FFF3E7', 'background'),
-            borderColor: tone('#ECD2B6', 'border'),
+            backgroundColor: tone('#FFF1DD', 'background'),
           },
         ]}
       >
+        <PaperGrain />
         <View style={f.row}>
           {result.correct ? (
             <Celebration size={72}>
@@ -301,7 +319,7 @@ export function AnswerFeedback({
           <Text style={s.accepted}>Una respuesta posible: {result.acceptedAnswer}</Text>
         )}
         <Text style={[f.body, { color: palette.ink }]}>{result.feedbackEs}</Text>
-      </View>
+      </JournalLeaf>
     </MotionEntrance>
   );
 }
@@ -340,26 +358,26 @@ export function RecapStage({
         <Text style={[f.body, { textAlign: 'center' }]}>
           Tu progreso está guardado en este dispositivo. Ya diste un paso para: {lesson.objectiveEs}
         </Text>
-        <View style={s.xp}>
+        <JournalLeaf compact kind="stamp" style={s.xp}>
           <Sparkles size={23} color="#BC8130" />
           <Text style={s.xpText}>+{xp} XP de aprendizaje</Text>
-        </View>
+        </JournalLeaf>
       </View>
-      <View style={f.card}>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <Text style={f.cardTitle}>Palabras para recordar</Text>
         {vocabulary.map((item) => (
           <Text key={item.id} style={f.body}>
             <Text style={{ color: palette.ink }}>{item.en}</Text> · {item.es}
           </Text>
         ))}
-      </View>
-      <View style={f.card}>
+      </JournalLeaf>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <Text style={f.cardTitle}>Una idea que ya puedes usar</Text>
         <Text style={f.body}>{lesson.grammar.explanationEs}</Text>
         <Text style={s.english}>{lesson.grammar.examples[0].en}</Text>
         <Text style={f.body}>{lesson.grammar.examples[0].es}</Text>
-      </View>
-      <View style={f.card}>
+      </JournalLeaf>
+      <JournalLeaf compact kind="postcard" style={f.card}>
         <Text style={f.cardTitle}>Aprender hoy. Recordar mañana.</Text>
         <Text style={f.body}>
           {nextReviewAt
@@ -377,39 +395,40 @@ export function RecapStage({
           Completar la lección es un logro. Recordar con el tiempo necesita varias prácticas. Tus
           desafíos tienen su propio progreso.
         </Text>
-      </View>
+      </JournalLeaf>
     </>
   );
 }
 export function useStyles() {
   const { colors: palette, tone } = useTheme();
   return StyleSheet.create({
-    stageList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-    stagePill: {
+    phraseCard: { gap: 4, padding: 17, overflow: 'hidden' },
+    phrase: { fontFamily: 'LoraBold', fontSize: 25, color: palette.ink, lineHeight: 32 },
+    phraseTranslation: { fontFamily: 'Manrope', fontSize: 17, color: palette.muted },
+    phraseButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      borderRadius: 9,
-      backgroundColor: tone('#EDF2ED', 'background'),
-      paddingVertical: 6,
-      paddingHorizontal: 9,
-    },
-    currentStage: {
+      justifyContent: 'center',
+      alignSelf: 'flex-start',
+      gap: 9,
+      minHeight: 44,
+      minWidth: '60%',
+      marginTop: 9,
+      paddingHorizontal: 12,
+      borderRadius: 12,
       backgroundColor: palette.mint,
-      borderWidth: 1,
-      borderColor: tone('#B0D3C5', 'border'),
     },
-    stageText: { fontFamily: 'Manrope', color: palette.muted, fontSize: 10 },
+    phraseButtonText: { fontFamily: 'ManropeBold', fontSize: 14, color: palette.ink },
     supportive: { flexDirection: 'row', gap: 13, alignItems: 'center', padding: 12 },
     wordHeader: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-    word: { fontFamily: 'Outfit', color: palette.teal, fontSize: 40, lineHeight: 48 },
-    meaning: { fontFamily: 'Outfit', color: palette.ink, fontSize: 27, lineHeight: 34 },
-    english: { fontFamily: 'Outfit', fontSize: 23, lineHeight: 32, color: palette.ink },
+    word: { fontFamily: 'LoraBold', color: palette.ink, fontSize: 36, lineHeight: 45 },
+    meaning: { fontFamily: 'Manrope', color: palette.muted, fontSize: 24, lineHeight: 32 },
+    english: { fontFamily: 'LoraBold', fontSize: 21, lineHeight: 29, color: palette.ink },
     sound: {
       width: 46,
       height: 46,
       borderRadius: 15,
-      backgroundColor: tone('#E0F1E7', 'background'),
+      backgroundColor: palette.mint,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -422,13 +441,15 @@ export function useStyles() {
       gap: 8,
     },
     feedback: {
-      padding: 22,
-      gap: 13,
-      borderRadius: 19,
-      borderWidth: 1,
-      borderColor: tone('#B8DBC6', 'border'),
-      backgroundColor: tone('#E6F5EB', 'background'),
-      marginTop: 8,
+      padding: 16,
+      gap: 9,
+      borderRadius: 20,
+      backgroundColor: palette.mint,
+      shadowColor: '#53402C',
+      shadowOpacity: 0.16,
+      shadowOffset: { width: 0, height: 6 },
+      shadowRadius: 14,
+      elevation: 2,
     },
     accepted: {
       fontFamily: 'Manrope',

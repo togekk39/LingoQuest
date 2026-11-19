@@ -28,8 +28,8 @@
       "output": "single",
       "name": "LingoQuest · Aprende inglés, descubre el mundo",
       "shortName": "LingoQuest",
-      "backgroundColor": "#F6F7F1",
-      "themeColor": "#167D72"
+      "backgroundColor": "#F5EBDD",
+      "themeColor": "#F5EBDD"
     },
     "plugins": [
       "expo-router",
