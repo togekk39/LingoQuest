@@ -47,6 +47,12 @@ Capturas de Chromium en una ventana móvil de 390 × 844 px, salvo la prueba de 
 | Tema oscuro                               | [Ver](ui-journal/before/22-dark.jpg)              | [Ver](ui-journal/after/22-dark.jpg)              |
 | 320 px con texto ampliado en el navegador | [Ver](ui-journal/before/23-narrow-large-text.jpg) | [Ver](ui-journal/after/23-narrow-large-text.jpg) |
 
+## Acabados del papel
+
+Las postales tienen bordes ondulados y una sombra elevada. Los cuadernos tienen bordes irregulares y perforaciones de encuadernación. Los sellos ilustrados tienen bordes dentados y se superponen a las postales como piezas separadas. Una sombra de contacto y otra más suave separan las piezas superpuestas.
+
+[Compara el diálogo y la escritura antes y después del cambio de papel](ui-journal/paper-finishes.jpg).
+
 ## Límites de la verificación
 
 El atlas muestra las 20 etapas y los desafíos conservan los 13 niveles. El contenido publicado permite jugar el primer capítulo y los tres niveles de desafío asociados. Las capturas documentan la interfaz Web móvil. El tamaño de texto se amplió en Chromium y las pruebas de teclado simularon la superposición y el redimensionamiento de la ventana. La escala de fuente del sistema y la interacción del teclado en un teléfono Android requieren comprobación en un dispositivo.

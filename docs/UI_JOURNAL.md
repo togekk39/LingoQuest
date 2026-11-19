@@ -47,6 +47,12 @@ Captured in Chromium at 390 × 844 px except the 320 px enlarged-text check. The
 | Dark theme                        | [View](ui-journal/before/22-dark.jpg)              | [View](ui-journal/after/22-dark.jpg)              |
 | 320 px with enlarged browser text | [View](ui-journal/before/23-narrow-large-text.jpg) | [View](ui-journal/after/23-narrow-large-text.jpg) |
 
+## Paper finishes
+
+Postcards use scalloped edges and a lifted shadow. Notebooks use irregular edges and punched binding holes. Illustrated postage stamps have perforated borders and sit on the postcard as separate pieces. A tighter contact shadow and a softer drop shadow separate overlapping pieces.
+
+[Compare the dialogue and writing screens before and after the paper update](ui-journal/paper-finishes.jpg).
+
 ## Verification limits
 
 The atlas exposes all 20 stages and the challenges retain 13 levels. The published content makes the first story chapter and its three associated challenge levels playable. The captures document mobile Web. Text enlargement was tested in Chromium, and the keyboard scenarios simulate overlay and window resizing. System font scaling and keyboard behavior on an Android phone require a device check.

@@ -37,7 +37,15 @@ import {
   type TravelState,
 } from '@lingoquest/offline-engine';
 import type { Progress } from '@lingoquest/contracts';
-import { JournalArt, JournalLeaf, JournalSpread, Notebook, PaperGrain } from '../Journal';
+import {
+  JournalArt,
+  JournalLeaf,
+  JournalPostcardFrame,
+  JournalSpread,
+  JournalStamp,
+  Notebook,
+  PaperGrain,
+} from '../Journal';
 import { illustrations, placeIllustration } from './illustrations';
 import { Button, Heading, Label } from '../ui';
 import { useTheme } from '../theme';
@@ -112,24 +120,24 @@ export function TravelHome({
       </View>
       <View style={[s.homeColumns, wide && s.homeColumnsWide]}>
         <View testID="home-mission-postcard" style={[s.missionPostcard, wide && { flex: 1.35 }]}>
-          <View style={[s.postcardView, wide && { height: 270 }]}>
-            <Image
-              source={next ? placeIllustration(next.place) : illustrations.passport}
-              accessible={false}
-              resizeMode="cover"
-              style={s.postcardImage}
-            />
-            <View style={s.postcardTop}>
-              <View style={s.postcardPlace}>
-                <MapPin size={16} color="#304835" />
-                <Text style={s.postcardPlaceText}>{next?.place ?? homeName(travel)}</Text>
-              </View>
-              <View pointerEvents="none" style={s.postcardStamp}>
-                <Compass size={27} color="#69442C" strokeWidth={1.4} />
+          <JournalPostcardFrame taped>
+            <View style={[s.postcardView, wide && { height: 270 }]}>
+              <Image
+                source={next ? placeIllustration(next.place) : illustrations.passport}
+                accessible={false}
+                resizeMode="cover"
+                style={s.postcardImage}
+              />
+              <View style={s.postcardTop}>
+                <View style={s.postcardPlace}>
+                  <MapPin size={16} color="#304835" />
+                  <Text style={s.postcardPlaceText}>{next?.place ?? homeName(travel)}</Text>
+                </View>
+                <JournalStamp source={illustrations.expedition} size={49} rotation={9} />
               </View>
             </View>
-          </View>
-          <View style={s.postcardTicket}>
+          </JournalPostcardFrame>
+          <JournalLeaf style={s.postcardTicket}>
             <PaperGrain opacity={0.26} />
             <View style={s.postcardChapter}>
               <View style={s.chapterLine} />
@@ -167,7 +175,7 @@ export function TravelHome({
                 {next ? 'Continuar viaje' : 'Ver mi pasaporte'}
               </Button>
             </View>
-          </View>
+          </JournalLeaf>
         </View>
 
         <View style={[s.homeRail, wide && { flex: 1 }]}>
@@ -624,9 +632,13 @@ export function Passport({
         detail={`${homeName(travel)} · ${stamp ? '1 sello' : '0 sellos'}`}
       />
       <Notebook title="Sellos del viaje">
-        <View style={[s.passportSeal, { borderColor: C.accent, backgroundColor: C.mint }]}>
-          <Stamp size={27} color={C.accent} />
-        </View>
+        {stamp ? (
+          <JournalStamp source={illustrations.plaza} size={76} />
+        ) : (
+          <View style={[s.passportSeal, { borderColor: C.line, backgroundColor: C.paper }]}>
+            <Stamp size={27} color={C.muted} />
+          </View>
+        )}
         <Label style={s.copy}>
           {stamp
             ? `${chapter.stamp} · ${new Date(stamp).toLocaleDateString('es-419')}`
@@ -709,9 +721,7 @@ function useStyles() {
     missionPostcard: { minWidth: 0 },
     postcardView: {
       height: 164,
-      borderWidth: 6,
-      borderColor: C.white,
-      borderRadius: 15,
+      borderRadius: 4,
       backgroundColor: C.mint,
       overflow: 'hidden',
     },
@@ -734,27 +744,13 @@ function useStyles() {
       backgroundColor: '#FFF0D7',
     },
     postcardPlaceText: { fontFamily: 'ManropeBold', color: '#304835', fontSize: 12, flexShrink: 1 },
-    postcardStamp: {
-      width: 47,
-      height: 47,
-      borderRadius: 24,
-      backgroundColor: '#FFF0D7',
-      borderWidth: 3,
-      borderColor: '#D1AC81',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transform: [{ rotate: '10deg' }],
-    },
     postcardTicket: {
-      backgroundColor: C.white,
-      borderColor: C.line,
-      borderWidth: 1,
-      borderRadius: 16,
-      marginHorizontal: 7,
-      marginTop: -20,
+      borderRadius: 20,
+      marginHorizontal: 9,
+      marginTop: -16,
       padding: 14,
       gap: 6,
-      overflow: 'hidden',
+      zIndex: 1,
     },
     postcardChapter: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     chapterLine: { backgroundColor: C.accent, width: 15, height: 2, borderRadius: 1 },

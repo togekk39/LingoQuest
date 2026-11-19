@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Image,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -10,9 +11,12 @@ import {
 } from 'react-native';
 import { Compass, Mountain, PencilLine } from 'lucide-react-native';
 import notebookEdge from '../assets/journal/notebook-edge.png';
+import notebookSide from '../assets/journal/notebook-side.png';
 import grain from '../assets/journal/paper-grain.png';
 import plaza from '../assets/journal/plaza.jpg';
 import postcardEdge from '../assets/journal/postcard-edge.png';
+import postcardSide from '../assets/journal/postcard-side.png';
+import postagePaper from '../assets/journal/postage-paper.png';
 import portrait from '../assets/journal/sam.jpg';
 import { useTheme } from './theme';
 
@@ -45,29 +49,108 @@ export function JournalBrand({ small = false }: { small?: boolean }) {
   );
 }
 
-export function PlazaPhoto() {
-  const { colors, mode } = useTheme();
-  const light = mode === 'light';
+function PaperEdges({ kind }: { kind: 'notebook' | 'postcard' }) {
+  const { mode, colors } = useTheme();
+  const horizontal = kind === 'notebook' ? notebookEdge : postcardEdge;
+  const vertical = kind === 'notebook' ? notebookSide : postcardSide;
+  const tint = mode === 'light' ? undefined : colors.white;
   return (
-    <View style={[styles.photo, { backgroundColor: light ? postcardColor : colors.white }]}>
-      <View style={styles.landscape}>
-        <Image
-          accessible
-          accessibilityLabel="Una plaza entre montañas, con una fuente y buganvilias"
-          resizeMode="cover"
-          source={plaza}
-          style={styles.grain}
-        />
-      </View>
-      {light && (
-        <>
-          <Image source={postcardEdge} resizeMode="stretch" style={styles.photoEdge} />
-          <View pointerEvents="none" style={styles.tape}>
-            <PaperGrain />
-          </View>
-        </>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Image
+        accessible={false}
+        source={horizontal}
+        tintColor={tint}
+        resizeMode="stretch"
+        style={styles.edgeTop}
+      />
+      <Image
+        accessible={false}
+        source={horizontal}
+        tintColor={tint}
+        resizeMode="stretch"
+        style={styles.edgeBottom}
+      />
+      <Image
+        accessible={false}
+        source={vertical}
+        tintColor={tint}
+        resizeMode="stretch"
+        style={styles.edgeLeft}
+      />
+      <Image
+        accessible={false}
+        source={vertical}
+        tintColor={tint}
+        resizeMode="stretch"
+        style={styles.edgeRight}
+      />
+    </View>
+  );
+}
+
+export function JournalPostcardFrame({
+  children,
+  taped = false,
+}: {
+  children: React.ReactNode;
+  taped?: boolean;
+}) {
+  const { colors, mode } = useTheme();
+  return (
+    <View
+      style={[
+        styles.photo,
+        { backgroundColor: mode === 'light' ? postcardColor : colors.white },
+        taped && styles.tapedFrame,
+      ]}
+    >
+      <PaperEdges kind="postcard" />
+      {children}
+      {taped && (
+        <View pointerEvents="none" style={[styles.tape, mode !== 'light' && styles.tapeDark]}>
+          <PaperGrain opacity={0.36} />
+        </View>
       )}
     </View>
+  );
+}
+
+export function JournalStamp({
+  source,
+  size = 56,
+  rotation = -9,
+}: {
+  source: ImageSourcePropType;
+  size?: number;
+  rotation?: number;
+}) {
+  return (
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[
+        styles.postage,
+        { width: size, height: size, transform: [{ rotate: `${rotation}deg` }] },
+      ]}
+    >
+      <Image accessible={false} source={postagePaper} style={styles.grain} />
+      <View style={styles.postageVignette}>
+        <Image accessible={false} source={source} style={styles.grain} resizeMode="cover" />
+        <View style={[StyleSheet.absoluteFillObject, styles.stampInk]} />
+      </View>
+    </View>
+  );
+}
+
+export function PlazaPhoto() {
+  return (
+    <JournalArt
+      source={plaza}
+      label="Una plaza entre montañas, con una fuente y buganvilias"
+      aspectRatio={2.36}
+      taped
+    />
   );
 }
 
@@ -83,7 +166,6 @@ export function PlazaPostcard() {
           styles.traveler,
           {
             borderColor: colors.line,
-
             backgroundColor: colors.white,
           },
         ]}
@@ -96,19 +178,25 @@ export function PlazaPostcard() {
         </View>
         <View
           pointerEvents="none"
-          style={[styles.stamp, { borderColor: colors.accent, backgroundColor: colors.white }]}
+          style={[
+            styles.postmarkSeal,
+            { borderColor: colors.accent, backgroundColor: colors.white },
+          ]}
         >
-          <View style={[styles.stampInner, { borderColor: colors.accent }]}>
+          <View style={[styles.postmarkInner, { borderColor: colors.accent }]}>
             <Mountain color={colors.accent} size={27} strokeWidth={1.4} />
           </View>
         </View>
-        {mode === 'light' && (
-          <View pointerEvents="none" style={styles.postmark}>
-            {[0, 1, 2].map((line) => (
-              <View key={line} style={styles.postmarkLine} />
-            ))}
-          </View>
-        )}
+        <View pointerEvents="none" style={styles.postmark}>
+          {mode === 'light' && (
+            <View style={styles.postmarkWaves}>
+              {[0, 1, 2].map((line) => (
+                <View key={line} style={styles.postmarkLine} />
+              ))}
+            </View>
+          )}
+          <JournalStamp source={plaza} size={49} rotation={-8} />
+        </View>
       </View>
     </View>
   );
@@ -119,18 +207,19 @@ export function Notebook({ title, children }: { title: string; children: React.R
   const light = mode === 'light';
   return (
     <View style={[styles.notebook, { backgroundColor: light ? notebookColor : colors.white }]}>
+      <PaperEdges kind="notebook" />
       <PaperGrain />
-      {light && (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Image source={notebookEdge} resizeMode="stretch" style={styles.notebookTop} />
-          <Image source={notebookEdge} resizeMode="stretch" style={styles.notebookBottom} />
-          <View style={styles.perforation}>
-            {[0, 1, 2, 3, 4].map((hole) => (
-              <View key={hole} style={[styles.hole, { backgroundColor: colors.paper }]} />
-            ))}
-          </View>
-        </View>
-      )}
+      <View pointerEvents="none" style={styles.perforation}>
+        {[0, 1, 2, 3, 4].map((hole) => (
+          <View
+            key={hole}
+            style={[
+              styles.hole,
+              { backgroundColor: colors.paper, borderBottomColor: light ? '#CEAF91' : colors.line },
+            ]}
+          />
+        ))}
+      </View>
       <View style={[styles.notebookHeading, { backgroundColor: light ? colors.ink : colors.mint }]}>
         <PencilLine color={light ? colors.white : colors.teal} size={19} />
         <Text style={[styles.notebookTitle, { color: light ? colors.white : colors.ink }]}>
@@ -153,20 +242,22 @@ export function JournalArt({
   aspectRatio?: number;
   taped?: boolean;
 }) {
-  const { colors, mode } = useTheme();
-  return (
-    <View style={[styles.artFrame, { backgroundColor: colors.white }, taped && styles.tapedFrame]}>
-      <View style={[styles.artCrop, { aspectRatio, backgroundColor: colors.mint }]}>
-        <Image
-          accessible={!!label}
-          accessibilityLabel={label}
-          source={source}
-          resizeMode="cover"
-          style={[StyleSheet.absoluteFillObject, styles.grain]}
-        />
-      </View>
-      {taped && mode === 'light' && <View pointerEvents="none" style={styles.tape} />}
+  const { colors } = useTheme();
+  const image = (
+    <View style={[styles.artCrop, { aspectRatio, backgroundColor: colors.mint }]}>
+      <Image
+        accessible={!!label}
+        accessibilityLabel={label}
+        source={source}
+        resizeMode="cover"
+        style={[StyleSheet.absoluteFillObject, styles.grain]}
+      />
     </View>
+  );
+  return taped ? (
+    <JournalPostcardFrame taped>{image}</JournalPostcardFrame>
+  ) : (
+    <View style={[styles.artFrame, { backgroundColor: colors.white }]}>{image}</View>
   );
 }
 
@@ -174,13 +265,19 @@ export function JournalLeaf({
   children,
   style,
   tint = 'white',
+  testID,
 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   tint?: 'white' | 'mint';
+  testID?: string;
 }) {
   const { colors } = useTheme();
-  return <View style={[styles.leaf, { backgroundColor: colors[tint] }, style]}>{children}</View>;
+  return (
+    <View testID={testID} style={[styles.leaf, { backgroundColor: colors[tint] }, style]}>
+      {children}
+    </View>
+  );
 }
 
 export function JournalSpread({
@@ -209,34 +306,45 @@ export function JournalSpread({
   );
 }
 
-const liftedPaper = {
-  shadowColor: '#533016',
-  shadowOpacity: 0.16,
-  shadowOffset: { width: 0, height: 5 },
-  shadowRadius: 9,
-  elevation: 2,
-};
+function paperShadow(offset: number, blur: number): ViewStyle {
+  if (Platform.OS === 'android' && Number(Platform.Version) < 28) {
+    return { elevation: 4, shadowColor: '#684425' };
+  }
+  return {
+    boxShadow: `0 1px 2px rgba(88, 52, 25, 0.22), 0 ${offset}px ${blur}px rgba(103, 61, 30, 0.22)`,
+  };
+}
 
 const styles = StyleSheet.create({
   grain: { width: '100%', height: '100%' },
-  artFrame: { padding: 5, borderRadius: 13, ...liftedPaper },
+  artFrame: { padding: 5, paddingBottom: 9, borderRadius: 8, ...paperShadow(3, 9) },
   tapedFrame: { marginHorizontal: 4, marginTop: 8 },
-  artCrop: { width: '100%', overflow: 'hidden', borderRadius: 9 },
-  leaf: { borderRadius: 15, padding: 15, gap: 9, ...liftedPaper },
+  artCrop: { width: '100%', overflow: 'hidden', borderRadius: 4 },
+  leaf: { borderRadius: 16, padding: 15, gap: 9, ...paperShadow(4, 11) },
   spread: { gap: 0 },
   caption: { marginTop: -17, marginHorizontal: 12 },
   spreadTitle: { fontFamily: 'LoraBold', fontSize: 24, letterSpacing: -0.35 },
   spreadDetail: { fontFamily: 'Manrope', fontSize: 14, lineHeight: 21 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   wordmark: { fontFamily: 'LoraBold', letterSpacing: -0.7 },
-  photo: { padding: 7, borderRadius: 9, ...liftedPaper },
-  landscape: { width: '100%', aspectRatio: 2.36, borderRadius: 5, overflow: 'hidden' },
-  photoEdge: {
+  photo: { padding: 6, borderRadius: 5, ...paperShadow(7, 12) },
+  edgeTop: { position: 'absolute', left: 0, top: -6, width: '100%', height: 14 },
+  edgeBottom: {
     position: 'absolute',
-    width: '100%',
-    height: 10,
-    top: -4,
     left: 0,
+    bottom: -6,
+    width: '100%',
+    height: 14,
+    transform: [{ scaleY: -1 }],
+  },
+  edgeLeft: { position: 'absolute', top: 0, left: -6, width: 14, height: '100%' },
+  edgeRight: {
+    position: 'absolute',
+    top: 0,
+    right: -6,
+    width: 14,
+    height: '100%',
+    transform: [{ scaleX: -1 }],
   },
   tape: {
     position: 'absolute',
@@ -245,18 +353,31 @@ const styles = StyleSheet.create({
     width: '17%',
     height: 23,
     borderRadius: 2,
-    backgroundColor: '#DAB78A',
+    backgroundColor: '#DFC49C',
     opacity: 0.94,
     transform: [{ rotate: '-6deg' }],
     overflow: 'hidden',
+    ...paperShadow(2, 3),
   },
+  tapeDark: { backgroundColor: '#A18057', opacity: 0.75 },
+  postage: { alignItems: 'center', justifyContent: 'center' },
+  postageVignette: {
+    position: 'absolute',
+    left: '17%',
+    right: '17%',
+    top: '15%',
+    bottom: '19%',
+    overflow: 'hidden',
+    backgroundColor: '#E7C6A0',
+  },
+  stampInk: { backgroundColor: '#B268423B' },
   postcard: { paddingTop: 9 },
   postcardPicture: { marginHorizontal: 8 },
   traveler: {
-    ...liftedPaper,
+    ...paperShadow(6, 12),
     minHeight: 83,
     paddingVertical: 11,
-    marginTop: -2,
+    marginTop: -4,
     paddingLeft: 102,
     paddingRight: 66,
     borderRadius: 19,
@@ -276,7 +397,7 @@ const styles = StyleSheet.create({
   },
   travelerName: { fontFamily: 'LoraBold', fontSize: 27 },
   travelerRole: { fontFamily: 'Manrope', fontSize: 15, marginTop: 1 },
-  stamp: {
+  postmarkSeal: {
     position: 'absolute',
     top: -22,
     right: 12,
@@ -285,7 +406,7 @@ const styles = StyleSheet.create({
     padding: 3,
     transform: [{ rotate: '-12deg' }],
   },
-  stampInner: {
+  postmarkInner: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -293,9 +414,10 @@ const styles = StyleSheet.create({
     width: 39,
     height: 39,
   },
-  postmark: { position: 'absolute', right: 32, bottom: 17, gap: 4 },
+  postmark: { position: 'absolute', right: 9, bottom: 5 },
+  postmarkWaves: { position: 'absolute', right: 40, top: 16, gap: 4 },
   postmarkLine: {
-    width: 43,
+    width: 28,
     height: 3,
     borderTopWidth: 1,
     borderColor: '#B88059',
@@ -303,28 +425,13 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-10deg' }],
   },
   notebook: {
-    ...liftedPaper,
-    borderRadius: 6,
+    ...paperShadow(8, 12),
+    borderRadius: 3,
     paddingTop: 15,
     paddingBottom: 17,
     paddingLeft: 23,
     paddingRight: 15,
     gap: 13,
-  },
-  notebookTop: {
-    position: 'absolute',
-    width: '100%',
-    height: 9,
-    top: -4,
-    left: 0,
-  },
-  notebookBottom: {
-    position: 'absolute',
-    width: '100%',
-    height: 9,
-    bottom: -4,
-    left: 0,
-    transform: [{ rotate: '180deg' }],
   },
   perforation: {
     position: 'absolute',
@@ -337,8 +444,7 @@ const styles = StyleSheet.create({
     width: 11,
     height: 11,
     borderRadius: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D3B392',
+    borderBottomWidth: 1.5,
   },
   notebookHeading: {
     alignSelf: 'flex-start',

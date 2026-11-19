@@ -14,10 +14,12 @@ import { Action, ErrorCard, FlowFrame, useFeatureStyles } from '../features/Feat
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from '../features/ExerciseInput';
 import { AnswerFeedback } from '../features/LessonStages';
 import { SpeakingPanel } from '../features/SpeakingPractice';
-import { Button, Card, Heading, Label } from '../ui';
+import { Button, Heading, Label } from '../ui';
 import { QuestBuddy } from '../QuestBuddy';
 import {
   JournalArt,
+  JournalLeaf,
+  JournalStamp,
   JournalSpread,
   Notebook,
   PaperGrain,
@@ -33,7 +35,7 @@ import { GrammarWorkbench, TravelScene, VocabularyCard } from './TravelAppearanc
 function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: string) => void }) {
   const s = useStyles();
   return (
-    <View testID="travel-reference-phrase" style={s.phrase}>
+    <JournalLeaf testID="travel-reference-phrase" style={s.phrase}>
       <PaperGrain opacity={0.18} />
       <Text accessibilityLanguage="en-US" style={s.phraseEnglish}>
         {en}
@@ -42,7 +44,7 @@ function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: strin
       <Button variant="secondary" icon={Volume2} onPress={() => play(en)} style={s.listen}>
         Escuchar frase
       </Button>
-    </View>
+    </JournalLeaf>
   );
 }
 
@@ -69,7 +71,7 @@ function DialoguePostcard({
       ) : (
         <View>
           {opening && (plaza ? <PlazaPhoto /> : <TravelScene place={mission.place} />)}
-          <Card style={[s.speakerCard, opening && s.overlappingSpeaker]}>
+          <JournalLeaf style={[s.speakerCard, opening && s.overlappingSpeaker]}>
             <PaperGrain opacity={0.18} />
             <View style={s.speakerRow}>
               {sam ? (
@@ -89,10 +91,10 @@ function DialoguePostcard({
                       : 'Tu compañero de viaje'}
                 </Label>
               </View>
-              <Stamp color={C.accent} size={24} />
+              <JournalStamp source={placeIllustration(mission.place)} size={46} />
             </View>
             <Label style={s.storyText}>{step.text}</Label>
-          </Card>
+          </JournalLeaf>
         </View>
       )}
       {step.line && <Phrase {...step.line} play={play} />}
@@ -458,11 +460,8 @@ function useStyles() {
     missionBriefTitle: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 13, marginBottom: 3 },
     phrase: {
       padding: 17,
-      borderRadius: 17,
-      borderWidth: 1,
-      borderColor: C.line,
-      backgroundColor: C.white,
-      overflow: 'hidden',
+      borderRadius: 20,
+      gap: 2,
     },
     phraseEnglish: { fontFamily: 'LoraBold', fontSize: 25, lineHeight: 32, color: C.ink },
     phraseSpanish: { fontFamily: 'Manrope', fontSize: 16, lineHeight: 23, color: C.muted },
