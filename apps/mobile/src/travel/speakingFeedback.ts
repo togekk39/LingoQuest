@@ -3,7 +3,8 @@ import { normalize } from '@lingoquest/offline-engine';
 function speechText(value: string) {
   return normalize(value.replace(/[.,!?;:]/g, ' '))
     .replace(/\bi'?m\b/g, 'i am')
-    .replace(/\bit'?s\b/g, 'it is');
+    .replace(/\bit'?s\b/g, 'it is')
+    .replace(/\b(my name|where|(?:my|the|her|luz's) (?:bag|backpack))'s\b/g, '$1 is');
 }
 
 const greeting = /^(?:hi|hello)\b/;
@@ -13,9 +14,10 @@ export function introductionFeedback(transcript: string) {
   const text = speechText(transcript);
   const hasGreeting = greeting.test(text);
   const hasIntroduction = introduction.test(text);
-  const name = text.replace(introduction, '').trim();
+  const name = hasIntroduction
+    ? text.replace(introduction, '').trim()
+    : (text.match(/^(?:(?:hi|hello) )?(.+) here$/)?.[1] ?? '');
   const hasName =
-    hasIntroduction &&
     /^\p{L}[\p{L}'-]*(?: \p{L}[\p{L}'-]*)*$/u.test(name) &&
     !/^(?:not|a|an|the)\b/.test(name) &&
     !/^(?:fine|good|okay|ok|(?:uh|um|er|ah)(?: (?:uh|um|er|ah))*)$/.test(name);
@@ -31,12 +33,13 @@ export function introductionFeedback(transcript: string) {
             : 'Saluda a Sam con Hi o Hello y preséntate con tu nombre.',
     grammar: hasIntroduction
       ? hasName
-        ? 'El texto usa una forma de presentación practicada: I am, I’m o My name is.'
-        : 'La estructura empieza bien. Coloca tu nombre después de I am, I’m o My name is.'
-      : 'Para presentarte, usa I am, I’m o My name is y luego tu nombre.',
+        ? 'El texto usa una forma de presentación practicada: I am, I’m, My name is o My name’s.'
+        : 'La estructura empieza bien. Coloca tu nombre después de I am, I’m, My name is o My name’s.'
+      : 'Para presentarte, usa I am, I’m, My name is o My name’s y luego tu nombre.',
   };
 }
 
+const itemColorSubject = "(?:it|(?:the|her|luz's) (?:bag|backpack))";
 const drillGrammar = {
   'where is the bus stop': {
     grammar: /^where is (?:the |a )?(?!(?:the|a|an)\b)\p{L}/u,
@@ -57,9 +60,11 @@ const drillGrammar = {
     clue: 'Indica que tu mochila es azul. Usa my bag y blue.',
   },
   'it is red': {
-    grammar: /^it is (?:red|blue)$/,
-    target: 'It’s / It is + color',
-    content: /\bred\b/,
+    grammar: new RegExp(`^${itemColorSubject} is (?:red|blue)$`),
+    target: 'sujeto + is + color, como It’s red',
+    content: new RegExp(
+      `^(?:red|the red one|${itemColorSubject} is (?:red|a red (?:bag|backpack)))$`,
+    ),
     clue: 'Indica que es rojo. Usa red para el color.',
   },
 };

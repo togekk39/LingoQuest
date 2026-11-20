@@ -60,10 +60,19 @@ test('travel speaking feedback accepts personal names and separates the greeting
 
   const noStructure = introductionFeedback('Hi, Marisol.');
   assert.match(noStructure.grammar, /usa I am/);
+  assert.deepEqual(introductionFeedback('Hi, my name’s Marisol.'), complete);
+  assert.equal(introductionFeedback('Hi, Marisol here.').content, complete.content);
+  assert.match(introductionFeedback('Hi, Marisol here.').grammar, /usa I am/);
   assert.match(drillFeedback('It is blue', 'It’s red.').content, /Usa red/);
   assert.match(drillFeedback('It is blue', 'It’s red.').grammar, /incluye la estructura/);
   assert.match(drillFeedback('Red', 'It’s red.').content, /incluye la idea/);
   assert.match(drillFeedback('Red', 'It’s red.').grammar, /Practica la estructura/);
+  assert.match(drillFeedback('Her backpack’s red', 'It’s red.').grammar, /incluye la estructura/);
+  assert.match(drillFeedback('My backpack is red', 'It’s red.').content, /Usa red/);
+  assert.match(
+    drillFeedback('Where’s the bus stop?', 'Where is the bus stop?').grammar,
+    /incluye la estructura/,
+  );
 });
 
 test('third-party system default is selected without Google and changes apply on next attempt', () => {
