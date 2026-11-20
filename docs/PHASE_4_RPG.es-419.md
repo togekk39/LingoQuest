@@ -43,3 +43,20 @@ La app usa `TravelFlow` para cada encuentro de aprendizaje, con sus explicacione
 6. En **Misiones**, abre **Otro día en objetos perdidos** e inicia el repaso adaptativo. Comprueba que una respuesta correcta completa la misión. Vuelve a abrir la historia y verifica que conserva las misiones completadas y la postal.
 
 Para un estudio con personas que jueguen el RPG, usa **Explorar aventura** como punto de entrada en el procedimiento existente de evaluación inicial, posterior inmediata y diferida. Las pruebas en dispositivos Android físicos y las evaluaciones con personas requieren sesiones independientes. [Evaluación del capítulo 1](CHAPTER_1_ASSESSMENT.es-419.md)
+
+## 4C · Validación
+
+| Verificación                                           | Cómo ejecutarla                                                                     |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Tipos, lint y pruebas unitarias del motor y de Android | `npm run check` y `npm test`                                                        |
+| Compilación web y caché para usar sin conexión         | `npm run build:web` y luego `npm run preview`                                       |
+| Recorridos y recuperación del capítulo en Chromium     | `npm run test:e2e -- tests/e2e/rpg-story.spec.ts` con la vista previa de producción |
+| Paquete de Android y APK instalable                    | `npm run build:android` y el [flujo de compilación del APK](APK_BUILDS.es-419.md)   |
+
+Las pruebas en el navegador completan las dos búsquedas y comparan sus desenlaces. Cortan la conexión después de la primera carga de la caché, recargan desde puntos de control de la historia y de las lecciones, comprueban una respuesta incorrecta y un reintento con ayuda, y usan el audio incluido y la ruta sin micrófono. También verifican la personalización por país, el requisito del objeto, el sello y la postal, la misión de repaso diferido, la navegación con teclado en una ventana angosta y la salida durante un guardado pendiente. Las pruebas del motor comprueban respaldos anteriores, escrituras fallidas, solicitudes repetidas, la evidencia definida para cada actividad y los resultados de práctica sin depender de la interfaz. [Pruebas en el navegador](../tests/e2e/rpg-story.spec.ts)
+
+La compilación web de producción y la exportación Hermes para Android pasaron.
+
+[Plaza](screenshots/phase-4/phase4-01-plaza.jpg) · [Parada](screenshots/phase-4/phase4-02-stop.jpg) · [Mochila](screenshots/phase-4/phase4-03-backpack.jpg) · [Pasaporte](screenshots/phase-4/phase4-04-passport.jpg)
+
+Queda pendiente la aceptación en Android físico. Instala el APK en un dispositivo y juega el capítulo en modo avión desde el primer inicio hasta el pasaporte. Fuerza el cierre durante un diálogo y durante una respuesta escrita sin terminar, y luego retoma ambos. Comprueba una voz de inglés instalada y el audio incluido. Verifica la denegación del micrófono, el reconocimiento opcional del sistema con un modelo local instalado, la opción de continuar sin permiso y la reproducción de la grabación temporal. Prueba TalkBack, el texto ampliado y la rapidez de interacción en un dispositivo de gama baja. También quedan pendientes los resultados del estudio con estudiantes. [Protocolo del estudio](CHAPTER_1_ASSESSMENT.es-419.md)

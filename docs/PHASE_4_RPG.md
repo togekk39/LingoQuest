@@ -43,3 +43,20 @@ The app uses the existing `TravelFlow` for each learning encounter, including it
 6. In **Misiones**, open **Otro día en objetos perdidos** and start the adaptive review. Confirm that a correct answer marks the quest complete. Reopen the story and check that the completed quests and postcard persist.
 
 For a learner study of the RPG, use **Explorar aventura** as the entry point in the existing pretest, immediate posttest, and delayed study procedure. Physical Android and learner assessments require separate sessions. [Chapter 1 assessment](CHAPTER_1_ASSESSMENT.md)
+
+## 4C · Validation
+
+| Check                                             | How to run it                                                                    |
+| ------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Type checking, lint, engine and native unit tests | `npm run check` and `npm test`                                                   |
+| Production Web and offline shell                  | `npm run build:web`, then `npm run preview`                                      |
+| Chapter playthroughs and recovery in Chromium     | `npm run test:e2e -- tests/e2e/rpg-story.spec.ts` against the production preview |
+| Android bundle and installable APK                | `npm run build:android` and the [Android APK workflow](APK_BUILDS.md)            |
+
+The browser suite completes both searches and compares the two outcomes. It turns off networking after the first cache load, reloads from story and lesson checkpoints, checks a wrong answer and assisted retry, and uses bundled audio and the microphone-free path. It also checks country personalization, the item gate, the stamp and postcard, the delayed review quest, keyboard navigation at a narrow viewport, and exit during a pending save. The engine suite checks older backups, failed writes, repeat requests, authored evidence, and practice outcomes independently of the interface. [Browser scenarios](../tests/e2e/rpg-story.spec.ts)
+
+The production Web build and Android Hermes export passed.
+
+[Plaza](screenshots/phase-4/phase4-01-plaza.jpg) · [Bus stop](screenshots/phase-4/phase4-02-stop.jpg) · [Backpack](screenshots/phase-4/phase4-03-backpack.jpg) · [Passport](screenshots/phase-4/phase4-04-passport.jpg)
+
+Physical Android acceptance remains open. On a device, install the APK and play the chapter in airplane mode from first launch through the passport. Force-stop during a dialogue and a typed draft, then resume. Verify an installed English voice and bundled fallback. Check microphone denial, optional system recognition with an installed on-device model, no-permission completion, and temporary recording playback. Check TalkBack, font enlargement, and interaction latency on a low-end device. The learner-study outcomes are also pending. [Study protocol](CHAPTER_1_ASSESSMENT.md)
