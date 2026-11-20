@@ -62,6 +62,13 @@ test('travel speaking targets require complete phrases and accept the chapter va
   assert.equal(matchesIntro(''), false);
   assert.equal(matchesIntro('Hi!'), false);
   assert.equal(matchesIntro('Hi, my name’s Luz!'), true);
+  assert.equal(matchesIntro('Hi, I’m Los.'), true);
+  assert.equal(matchesIntro('Hello, my name is Loose.'), true);
+  assert.equal(matchesIntro("Hi, I'm Lou’s."), true);
+  assert.equal(matchesIntro('My name is Los.'), false);
+  assert.equal(matchesIntro('Hi, Los.'), false);
+  assert.equal(matchesIntro('Hi, I am Los Angeles.'), false);
+  assert.equal(matchesIntro('Hi, I am Luke.'), false);
   assert.equal(matchesIntro('Hi, my name is Ana.'), false);
   assert.equal(matchesIntro('Hi, I am Luz. I am happy.'), false);
   assert.equal(matchesBag('It is red.'), true);

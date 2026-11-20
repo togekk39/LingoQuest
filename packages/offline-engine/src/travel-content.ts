@@ -398,7 +398,11 @@ export const chapter: TravelChapter = {
           type: 'speak',
           text: 'Saluda a Sam como si fueras Luz. Di el saludo y preséntate con el nombre de Luz.',
           phrase: 'Hi! I am Luz.',
-          acceptedPhrases: introductionAnswers('Luz', true),
+          // Accept likely speech transcriptions of Luz in this exercise.
+          // Acepta transcripciones probables de Luz en este ejercicio.
+          acceptedPhrases: ['Luz', 'Los', 'Lus', 'Luce', 'Loose', 'Lose', "Lou's"].flatMap((name) =>
+            introductionAnswers(name, true),
+          ),
           learning: {
             conceptId: 'introduction',
             skill: 'speaking',

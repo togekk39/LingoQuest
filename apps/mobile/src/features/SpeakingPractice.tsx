@@ -189,7 +189,7 @@ export function SpeakingPanel({
             {stt.phase === 'listening'
               ? 'Terminar reconocimiento'
               : android
-                ? 'Reconocer con el servicio de Android'
+                ? 'Practicar hablando'
                 : 'Practicar con mi voz'}
           </Action>
         </>
@@ -228,7 +228,7 @@ export function SpeakingPanel({
             {!!stt.finalTranscript && (
               <Text style={f.quiet}>
                 {passed
-                  ? 'La frase reconocida coincide con el objetivo.'
+                  ? 'La frase reconocida cumple el objetivo.'
                   : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
               </Text>
             )}
