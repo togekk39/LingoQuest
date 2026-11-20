@@ -167,7 +167,7 @@ export function TravelGrammar({
 }) {
   const { colors: C } = useTheme();
   const [index, select] = useState(0);
-  const { play, stop, speechMessage } = useChapterAudio();
+  const { play, playSequence, stop, speechMessage } = useChapterAudio();
   const topic = grammarTopics[index];
   return (
     <FlowFrame
@@ -202,7 +202,13 @@ export function TravelGrammar({
           </Pressable>
         ))}
       </View>
-      <GrammarWorkbench key={topic.id} step={topic} play={play} />
+      <GrammarWorkbench
+        key={topic.id}
+        step={topic}
+        play={play}
+        playSequence={playSequence}
+        stop={stop}
+      />
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={[styles.copy, { color: C.muted }]}>
           {speechMessage}

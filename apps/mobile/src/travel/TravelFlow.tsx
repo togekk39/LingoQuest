@@ -140,7 +140,7 @@ export function TravelFlow({
   const savedDraft = useRef(initial.answer);
   const mission: TravelMission = chapter.missions.find((m) => m.id === current.missionId)!;
   const step = mission.steps[current.step];
-  const { play, stop, speechMessage } = useChapterAudio();
+  const { play, playSequence, stop, speechMessage } = useChapterAudio();
   const wordIndex = current.word ?? 0;
   const word =
     !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
@@ -366,7 +366,7 @@ export function TravelFlow({
             <VocabularyCard key={word.term} word={word} play={play} recall />
           </>
         ) : step.type === 'teach' ? (
-          <GrammarWorkbench step={step} play={play} />
+          <GrammarWorkbench step={step} play={play} playSequence={playSequence} stop={stop} />
         ) : step.type === 'exercise' ? (
           <>
             {!!step.visual && (

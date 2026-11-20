@@ -107,6 +107,7 @@ test('the grammar handbook compares examples offline and reflows with enlarged t
   await page.getByRole('tab', exact('Aprender')).click();
   await click(page, 'Manual de gramática');
   const workbench = page.getByTestId('grammar-workbench');
+  await workbench.getByRole('tab', exact('Ejemplo 1')).click();
   await expect(workbench.getByText('Sujeto', { exact: true })).toBeVisible();
   await click(page, 'Comparar ejemplos');
   await expect(workbench.getByText('My name is Luz.', { exact: true })).toBeVisible();
