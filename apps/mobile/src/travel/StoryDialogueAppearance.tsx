@@ -85,6 +85,7 @@ export function StorySpeaker({
 
 export function StoryPhrase({
   line,
+  exampleLabel,
   showTranslation,
   onToggleTranslation,
   onListen,
@@ -92,6 +93,7 @@ export function StoryPhrase({
   testID,
 }: {
   line: { en: string; es: string };
+  exampleLabel?: string;
   showTranslation: boolean;
   onToggleTranslation: () => void;
   onListen: () => void;
@@ -104,6 +106,9 @@ export function StoryPhrase({
   return (
     <View testID={testID} style={styles.phrase}>
       <View style={[styles.quote, { backgroundColor: colors.mint, borderColor: colors.line }]}>
+        {!!exampleLabel && (
+          <Text style={[styles.toolLabel, { color: colors.teal }]}>{exampleLabel}</Text>
+        )}
         <Text {...english} style={[styles.phraseEnglish, { color: colors.ink }]}>
           {line.en}
         </Text>

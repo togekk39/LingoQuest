@@ -92,7 +92,12 @@ test('travel writes drafts, exact feedback, evidence, and a single stamp across 
           ? { optionId: e.correctOptionId }
           : e.tokens
             ? { tokens: e.acceptedAnswers[0].replace(/\./g, '').replace("It's", 'It’s').split(' ') }
-            : { text: e.acceptedAnswers[0] };
+            : {
+                text: (e.introduction?.model ?? e.acceptedAnswers[0]).replace(
+                  '[tu nombre]',
+                  'Camila',
+                ),
+              };
         if (e.type === 'short_text') {
           await update(engine, { action: 'draft', token, answer: { text: 'Hi!' } });
           engine = phone.open();
@@ -238,13 +243,20 @@ test('authored variants preserve meaning and the skill targeted by story and rev
   const cases = [
     ['travel_hello_transfer', "My name's Nico.", 'target'],
     ['travel_hello_transfer', 'MY NAME’S NICO!', 'target'],
-    ['travel_hello_transfer', 'My name is Ada.', 'incorrect'],
+    ['travel_hello_transfer', 'My name is Ada.', 'target'],
     ['travel_hello_transfer', 'Nico here.', 'communication'],
     ['travel_review_introduction', "My name's Ada.", 'target'],
     ['travel_review_introduction', 'Ada here.', 'communication'],
-    ['travel_hello_write', 'Good morning, my name’s Luz.', 'target'],
-    ['travel_hello_write', 'Good evening, Luz here.', 'communication'],
-    ['travel_hello_write', 'Goodbye, Luz here.', 'incorrect'],
+    ['travel_hello_write', 'Good morning, my name’s Raquel O’Connor.', 'target'],
+    ['travel_hello_write', 'Good evening, Raquel here.', 'communication'],
+    ['travel_hello_write', 'Goodbye, Raquel here.', 'incorrect'],
+    ['travel_hello_write', 'Hi Sam, I am Mei Lin.', 'target'],
+    ['travel_hello_write', 'Hello, I am Ái Añez.', 'target'],
+    ['travel_hello_write', 'Hello, I am called Jean-Luc.', 'communication'],
+    ['travel_hello_write', 'My name is Mei Lin.', 'incorrect'],
+    ['travel_hello_write', 'Hi, I am fine today.', 'incorrect'],
+    ['travel_hello_write', 'Hi, I am María. How are you?', 'incorrect'],
+    ['travel_hello_write', 'Hi, I am [tu nombre].', 'incorrect'],
     ['travel_bus_ask', "Where's the bus stop?", 'target'],
     ['travel_bus_ask', 'Where is the bus stop, please?', 'target'],
     ['travel_bus_ask', 'Where can I find the bus stop?', 'communication'],
@@ -306,7 +318,9 @@ test('authored variants preserve meaning and the skill targeted by story and rev
     if (!exercise.communicationOnly) continue;
     assert.equal(exercise.type, 'short_text', exercise.id);
     assert.ok(
-      exercise.communicationOnly.feedbackEs.trim() && exercise.communicationOnly.answers.length,
+      exercise.communicationOnly.feedbackEs.trim() &&
+        (exercise.introduction || exercise.communicationOnly.answers.length),
+      exercise.id,
     );
     const targets = new Set(exercise.acceptedAnswers.map(normalize));
     for (const variant of exercise.communicationOnly.answers)
@@ -460,7 +474,9 @@ test('an unassisted delayed answer lengthens review while a transcript-assisted 
   await engine.request(listening, {
     action: 'answer',
     token: resumed.token,
-    answer: e.correctOptionId ? { optionId: e.correctOptionId } : { text: e.acceptedAnswers[0] },
+    answer: e.correctOptionId
+      ? { optionId: e.correctOptionId }
+      : { text: (e.introduction?.model ?? e.acceptedAnswers[0]).replace('[tu nombre]', 'Camila') },
   });
   const listeningRecord = phone
     .state()

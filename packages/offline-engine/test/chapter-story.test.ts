@@ -68,7 +68,13 @@ const answerFor = (exercise: (typeof travelLesson.exercises)[number]): Answer =>
     return {
       tokens: exercise.acceptedAnswers[0].replace(/\./g, '').replace("It's", 'It’s').split(' '),
     };
-  return { text: exercise.acceptedAnswers[0] };
+  return {
+    text: exercise.introduction
+      ? exercise.introduction.greetingRequired
+        ? "Hi, I'm Ana Pérez."
+        : 'My name is Ana Pérez.'
+      : exercise.acceptedAnswers[0],
+  };
 };
 
 async function finishLesson(engine: OfflineEngine, endBefore?: string) {
@@ -148,9 +154,12 @@ test('another conversation can pause and restore a story lesson without losing a
   }
 
   await act({ action: 'interact', hotspotId: 'plaza-sam' });
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'sam');
+  assert.equal(snapshot.story.dialogue?.line?.en, "Hi! My name is Sam. What's your name?");
   await act({ action: 'interact', hotspotId: 'plaza-luz' });
   assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
   assert.equal(snapshot.story.dialogue?.line?.en, 'Hi! I am Luz.');
+  assert.equal(snapshot.story.dialogue?.exampleLabel, 'Ejemplo de Luz');
   assert.ok(snapshot.story.dialogue?.tip);
   await act({ action: 'interact', hotspotId: 'plaza-sam' });
   await act({ action: 'choose', choiceId: 'introduce-yourself' });
@@ -161,7 +170,7 @@ test('another conversation can pause and restore a story lesson without losing a
   const draft = await journey(engine, {
     action: 'draft',
     token: atWriting.active!.token,
-    answer: { text: 'Hi! I am' },
+    answer: { text: 'Hi! I am Ana' },
   });
   const introductionTurn = snapshot.story.turn;
   await act({ action: 'suspendEncounter' });
@@ -195,14 +204,24 @@ test('another conversation can pause and restore a story lesson without losing a
   assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
   snapshot = await engine.request<StoryResponse>(resumePath, { turn: snapshot.story.turn });
 
-  await finishLesson(engine);
+  const atSpeaking = await finishLesson(engine, 'hello_speak');
+  await journey(engine, {
+    action: 'speak',
+    token: atSpeaking.active!.token,
+    practice: 'imitated',
+  });
   await act({ action: 'finishEncounter' });
   assert.equal(snapshot.story.dialogue?.id, 'sam-after-introduction');
+  assert.deepEqual(
+    storage.state().travelLearning?.targets.find(({ skill }) => skill === 'speaking')
+      ?.speakingPractice,
+    { imitated: 1 },
+  );
   assert.equal(snapshot.story.quests.find(({ id }) => id === 'meet-sam')?.status, 'completed');
   assert.equal(snapshot.story.inventory.filter(({ id }) => id === 'bus-ticket').length, 1);
 });
 
-test('bag story requires canonical learning and item use before one passport reward', async () => {
+test('Luz search route requires canonical learning and item use before one passport reward', async () => {
   const storage = device();
   let engine = storage.open();
   let snapshot = await engine.request<StoryResponse>(storyPath);
@@ -233,11 +252,14 @@ test('bag story requires canonical learning and item use before one passport rew
   await finishLesson(engine);
   await finish();
   await interact('stop-sam-search');
-  await choose('search-bench');
+  await choose('ask-luz');
   await close();
-  await interact('stop-bench');
-  await choose('read-bench-note');
+  await interact('stop-to-plaza');
+  await interact('plaza-luz-search');
+  await choose('hear-luz-clue');
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
   await close();
+  await interact('plaza-to-stop');
   await interact('stop-to-lost-property');
   await interact('lost-sam-return');
   assert.equal(snapshot.story.dialogue, undefined);
@@ -270,6 +292,9 @@ test('bag story requires canonical learning and item use before one passport rew
   assert.equal(snapshot.story.inventory.find(({ id }) => id === 'sam-blue-bag')?.used, true);
   assert.deepEqual(await storage.open().request(storyPath, finishRequest), snapshot);
   assert.deepEqual(storage.state(), after);
+  await interact('lost-sam-finale-luz');
+  assert.equal(snapshot.story.dialogue?.id, 'sam-finale-luz');
+  await close();
   assert.ok(
     after.travelLearning?.targets.every(
       ({ speakingPractice }) => Object.keys(speakingPractice).length === 0,

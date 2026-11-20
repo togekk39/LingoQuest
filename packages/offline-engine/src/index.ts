@@ -19,6 +19,7 @@ import {
   type User,
 } from '@lingoquest/contracts';
 import { chapter, travelLesson } from './travel-content';
+import { meetsIntroduction, readIntroduction } from './introduction';
 import { chapterStory } from './chapter-story';
 import {
   emptyStory,
@@ -63,6 +64,7 @@ import {
   type TravelState,
 } from './travel';
 export { activeTravelCourse } from './travel-challenges';
+export { meetsIntroduction, readIntroduction } from './introduction';
 export { chapter } from './travel-content';
 export { learningSkills, travelConcepts, travelCurriculum } from './travel-curriculum';
 export type { TravelReviewRow } from './travel-review';
@@ -96,6 +98,7 @@ export interface CourseExercise extends PublicExercise {
   feedbackEs: string;
   acceptedAnswers: string[];
   communicationOnly?: { answers: string[]; feedbackEs: string };
+  introduction?: { greetingRequired: boolean; model: string };
   correctOptionId?: string;
   learning?: LearningTarget;
 }
@@ -227,6 +230,11 @@ export const normalize = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 export function grade(exercise: CourseExercise, answer: Answer) {
+  if (exercise.introduction)
+    return meetsIntroduction(
+      readIntroduction(answer.text ?? ''),
+      exercise.introduction.greetingRequired,
+    );
   if (exercise.type === 'matching') {
     const pairs = exercise.matchingPairs ?? [];
     return (
@@ -248,6 +256,7 @@ export function grade(exercise: CourseExercise, answer: Answer) {
   );
 }
 function displayedAnswer(e: CourseExercise) {
+  if (e.introduction) return e.introduction.model;
   if (e.type === 'matching')
     return (e.matchingPairs ?? []).map((p) => `${p.left} = ${p.right}`).join('; ');
   return (
@@ -738,9 +747,17 @@ export class OfflineEngine {
     const learning = lesson.id === travelLesson.id ? exercise.learning : undefined;
     const date = today(now);
     const alternative = exercise.communicationOnly;
+    const introduction =
+      exercise.introduction && parsed.answer.text !== undefined
+        ? readIntroduction(parsed.answer.text)
+        : undefined;
     if (learning && !correct && alternative && parsed.answer.text !== undefined) {
       const response = normalize(parsed.answer.text);
-      if (alternative.answers.some((answer) => normalize(answer) === response)) {
+      const communicates = introduction
+        ? introduction.form === 'alternative' &&
+          (introduction.greeting || !exercise.introduction?.greetingRequired)
+        : alternative.answers.some((answer) => normalize(answer) === response);
+      if (communicates) {
         recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning, {
           exerciseId: exercise.id,
           now,
@@ -760,7 +777,8 @@ export class OfflineEngine {
     }
     const errorType =
       learning && !correct
-        ? findLearningError(learning, parsed.answer, exercise.acceptedAnswers)
+        ? (introduction?.error ??
+          findLearningError(learning, parsed.answer, exercise.acceptedAnswers))
         : undefined;
     let unassisted = !parsed.hintUsed;
     if (learning && learning.skill !== 'speaking') {

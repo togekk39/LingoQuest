@@ -8,6 +8,7 @@ export interface TravelVocabulary {
   kind: string;
   explanation: string;
   example: Translation;
+  exampleBy?: 'Sam' | 'Luz';
 }
 
 export interface TravelPattern {
@@ -19,6 +20,8 @@ export interface TravelExerciseStep {
   id: string;
   type: 'exercise';
   situation: string;
+  response?: 'personal-introduction';
+  activityTitle?: string;
   exercise: CourseExercise;
   hint?: string;
   audio?: string;
@@ -40,6 +43,8 @@ export type TravelStep =
       id: string;
       type: 'teach';
       title: string;
+      speaker?: 'Luz';
+      exampleLabel?: string;
       text: string;
       examples: Translation[];
       presentation?: 'question-answer';
@@ -52,6 +57,8 @@ export type TravelStep =
       text: string;
       phrase: string;
       acceptedPhrases?: string[];
+      exampleLabel?: string;
+      response?: 'personal-introduction';
       learning: LearningTarget;
     };
 
@@ -78,19 +85,27 @@ export interface TravelChapter {
 }
 
 const informalGreetings = ['Hi', 'Hello', 'Hey', 'Hi there', 'Hello there', 'Hey there'];
-const introductionGreetings = [
-  ...informalGreetings,
-  'Good morning',
-  'Good afternoon',
-  'Good evening',
-];
+export const samGreeting = {
+  en: "Hi! My name is Sam. What's your name?",
+  es: '¡Hola! Me llamo Sam. ¿Cómo te llamas?',
+};
 
-function introductionAnswers(name: string, greetingRequired = false) {
-  const forms = [`I am ${name}.`, `I'm ${name}.`, `My name is ${name}.`, `My name's ${name}.`];
-  const greeted = introductionGreetings.flatMap((greeting) =>
-    forms.map((form) => `${greeting}! ${form}`),
-  );
-  return greetingRequired ? greeted : [...forms, ...greeted];
+function personalIntroduction(
+  greetingRequired = false,
+): Pick<CourseExercise, 'introduction' | 'acceptedAnswers' | 'communicationOnly' | 'feedbackEs'> {
+  const model = greetingRequired ? 'Hi! I am [tu nombre].' : 'I am [tu nombre].';
+  return {
+    introduction: { greetingRequired, model },
+    acceptedAnswers: [],
+    communicationOnly: {
+      answers: [],
+      feedbackEs:
+        'Se entiende tu nombre. Para practicar esta estructura, usa I am o My name is antes de tu nombre.',
+    },
+    feedbackEs:
+      (greetingRequired ? 'Empieza con un saludo como Hi o Hello. ' : '') +
+      'Para decir tu nombre, usa I am, I’m, My name is o My name’s antes de tu nombre.',
+  };
 }
 
 const redBagAnswers = [
@@ -109,17 +124,6 @@ const redBagAnswers = [
   "Her bag's red.",
   "Her backpack's red.",
 ];
-
-function introductionParaphrases(name: string, greetingRequired = false) {
-  const forms = [`${name} here.`, `You can call me ${name}.`, `I'm called ${name}.`];
-  const greeted = introductionGreetings.flatMap((greeting) =>
-    forms.map((form) => `${greeting}! ${form}`),
-  );
-  return {
-    answers: greetingRequired ? greeted : [...forms, ...greeted],
-    feedbackEs: `Se entiende tu nombre. Para practicar esta estructura, usa I am ${name} o My name is ${name}.`,
-  };
-}
 
 function locationQuestion(location: string) {
   const direct = [`Where is ${location}?`, `Where's ${location}?`];
@@ -182,7 +186,7 @@ export const chapter: TravelChapter = {
       id: 'hello',
       title: 'Un saludo en la plaza',
       place: 'La plaza',
-      objective: 'Preséntate con la tarjeta de bienvenida de Luz.',
+      objective: 'Preséntate a Sam en inglés con tu propio nombre.',
       minutes: [7, 11],
       success: 'Sam te agradece el saludo y te muestra el boleto del bus que busca.',
       vocabulary: [
@@ -191,6 +195,7 @@ export const chapter: TravelChapter = {
           meaning: 'hola',
           kind: 'saludo',
           explanation: 'Úsalo para saludar a alguien. Hello también funciona.',
+          exampleBy: 'Sam',
           example: {
             en: 'Hi! My name is Sam.',
             es: '¡Hola! Me llamo Sam.',
@@ -201,6 +206,7 @@ export const chapter: TravelChapter = {
           meaning: 'soy / estoy',
           kind: 'verbo',
           explanation: 'Para presentarte, di I am y agrega tu nombre. La forma breve es I’m.',
+          exampleBy: 'Luz',
           example: {
             en: 'Hi! I am Luz.',
             es: '¡Hola! Soy Luz.',
@@ -212,6 +218,7 @@ export const chapter: TravelChapter = {
           kind: 'expresión',
           explanation:
             'My indica que hablas de tu propio nombre. My name’s es la forma breve de My name is.',
+          exampleBy: 'Luz',
           example: {
             en: 'My name is Luz.',
             es: 'Me llamo Luz.',
@@ -223,20 +230,22 @@ export const chapter: TravelChapter = {
           id: 'hello_welcome',
           type: 'dialogue',
           speaker: 'Luz',
-          text: 'Ayudas en la mesa de bienvenida de la plaza. Sam se acerca con un boleto y saluda en inglés. Luz, que organiza la mesa, te presta su tarjeta para practicar.',
+          text: 'Trabajo en la mesa de bienvenida. Sam viene con un boleto. Escucha cómo se presenta. Luego te muestro cómo responder con tu propio nombre.',
         },
         {
           id: 'hello_sam',
           type: 'dialogue',
           speaker: 'Sam',
-          text: 'Sam saluda y te dice su nombre.',
-          line: { en: 'Hi! My name is Sam.', es: '¡Hola! Me llamo Sam.' },
+          text: 'Sam se presenta y te pregunta cómo te llamas.',
+          line: samGreeting,
         },
         {
           id: 'hello_teach',
           type: 'teach',
           title: 'Decir tu nombre',
-          text: 'Hi y hello significan «hola». En español puedes decir «Soy Luz». En inglés, incluye el sujeto: I am Luz. Con I va am. Al hablar o escribir, puedes usar I’m Luz. My name is Luz también funciona y se puede acortar a My name’s Luz.',
+          exampleLabel: 'Ejemplo de Luz',
+          speaker: 'Luz',
+          text: 'Para responderle a Sam, saluda con Hi o Hello. Luego usa I am o My name is y agrega tu propio nombre. Con I va am y con My name va is. También puedes usar I’m o My name’s. En mis ejemplos, I se refiere a mí, Luz. Cuando tú respondes, I se refiere a ti.',
           examples: [
             { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
             { en: 'My name is Luz.', es: 'Me llamo Luz.' },
@@ -264,6 +273,7 @@ export const chapter: TravelChapter = {
         {
           id: 'travel_hello_recognize',
           type: 'exercise',
+          activityTitle: 'Reconoce el saludo de Sam',
           situation: 'Sam empieza con «Hi!». Identifica lo que dijo para saber cómo responderle.',
           exercise: {
             id: 'travel_hello_recognize',
@@ -293,19 +303,20 @@ export const chapter: TravelChapter = {
         {
           id: 'travel_hello_build',
           type: 'exercise',
-          situation:
-            'A Luz se le mezclaron las palabras de su tarjeta. Ordénalas para que Sam pueda leerla.',
+          activityTitle: 'Lee el ejemplo de Luz',
+          situation: 'En su tarjeta, Luz dice «Soy Luz». Ordena las palabras de su ejemplo.',
           hint: 'Empieza con la persona que habla. Luego pon el verbo y, al final, el nombre.',
           exercise: {
             id: 'travel_hello_build',
             type: 'reorder',
-            promptEs: 'Arma «Soy Luz».',
+            promptEs: '¿Cómo se presenta Luz en inglés?',
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_understanding',
             difficulty: 1,
             tokens: ['Luz', 'I', 'am'],
             acceptedAnswers: ['I am Luz.'],
-            feedbackEs: 'En una presentación, I va primero y am va antes del nombre.',
+            feedbackEs:
+              'En el ejemplo de Luz, I se refiere a Luz. I va primero y am va antes del nombre.',
             learning: {
               conceptId: 'introduction',
               skill: 'grammar',
@@ -319,7 +330,8 @@ export const chapter: TravelChapter = {
         {
           id: 'travel_hello_recall',
           type: 'exercise',
-          situation: 'Luz te pide que escribas solo el saludo en el encabezado de la tarjeta.',
+          activityTitle: 'Recuerda el saludo',
+          situation: 'Antes de decirle tu nombre a Sam, recuerda cómo saludar en inglés.',
           exercise: {
             id: 'travel_hello_recall',
             type: 'short_text',
@@ -342,48 +354,43 @@ export const chapter: TravelChapter = {
         {
           id: 'travel_hello_write',
           type: 'exercise',
-          situation:
-            'Escribe el saludo que Luz dejó en su tarjeta. Sam puede leerlo en el mostrador.',
+          response: 'personal-introduction',
+          activityTitle: 'Tu saludo para Sam',
+          situation: 'Sam quiere saber cómo te llamas.',
           hint: 'Empieza con «Hi!». Después puedes usar «I am» o «My name is».',
           exercise: {
             id: 'travel_hello_write',
             type: 'short_text',
             promptEs:
-              'Escribe «¡Hola! Soy Luz» en inglés. Después del saludo, usa una de las dos formas de presentación de la lección: I o My name, el verbo be y tu nombre.',
+              'Escribe tu propio saludo para Sam. Saluda en inglés y preséntate con tu nombre.',
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_production',
             difficulty: 1,
-            acceptedAnswers: introductionAnswers('Luz', true),
-            communicationOnly: introductionParaphrases('Luz', true),
-            feedbackEs:
-              'Para presentarte, incluye I y usa am: Hi! I am Luz. Hi! My name is Luz también funciona.',
+            ...personalIntroduction(true),
             learning: {
               conceptId: 'introduction',
               skill: 'writing',
               evidence: 'production',
               contextId: 'welcome-desk',
               errors: ['subject_omission', 'be_omission', 'be_agreement', 'word_order'],
-              errorAnswers: { be_agreement: ['I is Luz.', 'I are Luz.'] },
             },
           },
         },
         {
           id: 'travel_hello_transfer',
           type: 'exercise',
+          response: 'personal-introduction',
+          activityTitle: 'Tu ficha en el puesto de fotos',
           situation:
-            'En otro puesto de la plaza hacen fotos. Nico te presta su ficha para que la completes como si tú fueras Nico.',
+            'En otro puesto de la plaza hacen fotos. La persona que toma las fotos te pide que te presentes en su ficha.',
           exercise: {
             id: 'travel_hello_transfer',
             type: 'short_text',
-            promptEs:
-              'Preséntate por escrito como Nico. Para practicar, usa I o My name, el verbo be y tu nombre, en ese orden.',
+            promptEs: 'Preséntate en inglés con tu nombre para la ficha de fotos.',
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_production',
             difficulty: 2,
-            acceptedAnswers: introductionAnswers('Nico'),
-            communicationOnly: introductionParaphrases('Nico'),
-            feedbackEs:
-              'I am Nico y My name is Nico dicen tu nombre con una frase completa. También funcionan I’m Nico y My name’s Nico.',
+            ...personalIntroduction(),
             learning: {
               conceptId: 'introduction',
               skill: 'writing',
@@ -396,13 +403,10 @@ export const chapter: TravelChapter = {
         {
           id: 'hello_speak',
           type: 'speak',
-          text: 'Saluda a Sam como si fueras Luz. Di el saludo y preséntate con el nombre de Luz.',
+          text: 'Saluda a Sam y preséntate con tu propio nombre.',
           phrase: 'Hi! I am Luz.',
-          // Accept likely speech transcriptions of Luz in this exercise.
-          // Acepta transcripciones probables de Luz en este ejercicio.
-          acceptedPhrases: ['Luz', 'Los', 'Lus', 'Luce', 'Loose', 'Lose', "Lou's"].flatMap((name) =>
-            introductionAnswers(name, true),
-          ),
+          exampleLabel: 'Ejemplo de Luz',
+          response: 'personal-introduction',
           learning: {
             conceptId: 'introduction',
             skill: 'speaking',
@@ -464,6 +468,7 @@ export const chapter: TravelChapter = {
         {
           id: 'bus_teach',
           type: 'teach',
+          speaker: 'Luz',
           presentation: 'question-answer',
           title: 'Ubicar un lugar',
           text: 'En «Where is the bus stop?», is va antes del lugar que buscas. En la respuesta, it se refiere a la parada. It’s es la forma corta de It is. Next to significa «junto a». Usa the cuando las dos personas saben de qué lugar hablan.',
@@ -703,6 +708,7 @@ export const chapter: TravelChapter = {
         {
           id: 'bag_teach',
           type: 'teach',
+          speaker: 'Luz',
           title: 'Describir con colores',
           text: 'My bag es «mi mochila». Usa my delante del nombre del objeto para decir que algo es tuyo. En My bag is blue, is une la mochila con su color. Si ya sabemos qué objeto describes, puedes decir It’s blue.',
           examples: [
@@ -931,29 +937,22 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       contextId: 'hostel-counter',
     },
   }),
-  practice(
-    'Un grupo de dibujo pide que cada participante se presente por escrito. Te toca escribir por Ada.',
-    {
-      id: 'travel_review_introduction',
-      type: 'short_text',
-      promptEs:
-        'Preséntate en inglés como Ada. Para practicar, usa I o My name, el verbo be y tu nombre, en ese orden.',
-      skillId: 'grammar.be_i_you',
-      dimension: 'grammar_production',
-      difficulty: 2,
-      acceptedAnswers: introductionAnswers('Ada'),
-      communicationOnly: introductionParaphrases('Ada'),
-      feedbackEs:
-        'Puedes presentarte con I am Ada o My name is Ada. Sus formas cortas son I’m Ada y My name’s Ada.',
-      learning: {
-        conceptId: 'introduction',
-        skill: 'writing',
-        evidence: 'transfer',
-        contextId: 'drawing-group',
-        errors: ['subject_omission', 'be_omission', 'be_agreement', 'word_order'],
-      },
+  practice('Un grupo de dibujo pide que cada participante se presente por escrito.', {
+    id: 'travel_review_introduction',
+    type: 'short_text',
+    promptEs: 'Preséntate en inglés con tu propio nombre para el grupo de dibujo.',
+    skillId: 'grammar.be_i_you',
+    dimension: 'grammar_production',
+    difficulty: 2,
+    ...personalIntroduction(),
+    learning: {
+      conceptId: 'introduction',
+      skill: 'writing',
+      evidence: 'transfer',
+      contextId: 'drawing-group',
+      errors: ['subject_omission', 'be_omission', 'be_agreement', 'word_order'],
     },
-  ),
+  }),
   practice('Ada prepara su tarjeta. Ayúdala a elegir el verbo que va con I.', {
     id: 'travel_remedy_introduction_be',
     type: 'short_text',
@@ -979,7 +978,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     {
       id: 'travel_remedy_introduction_subject',
       type: 'reorder',
-      promptEs: 'Ordena las palabras para decir «Soy Ada».',
+      promptEs: 'Ordena las palabras del ejemplo de Ada: «Soy Ada».',
       tokens: ['am', 'Ada', 'I'],
       skillId: 'grammar.be_i_you',
       difficulty: 1,

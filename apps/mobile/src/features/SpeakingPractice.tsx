@@ -31,6 +31,8 @@ export function SpeakingPanel({
   allowSystemRecognition = false,
   feedback,
   acceptedPhrases,
+  exampleLabel,
+  matchesTranscript,
   inline = false,
   ref,
 }: {
@@ -40,6 +42,8 @@ export function SpeakingPanel({
   onStopReference?: () => void;
   story?: { continueLabel: string; saving: boolean };
   acceptedPhrases?: string[];
+  exampleLabel?: string;
+  matchesTranscript?: (transcript: string) => boolean;
   allowSystemRecognition?: boolean;
   feedback?: (transcript: string) => { content: string; grammar: string };
   inline?: boolean;
@@ -64,7 +68,9 @@ export function SpeakingPanel({
   const recognizing = stt.phase !== 'idle';
   const audioBusy = comparing || recognizing;
   const textFeedback = stt.finalTranscript && feedback?.(stt.finalTranscript);
-  const passed = matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
+  const passed = matchesTranscript
+    ? matchesTranscript(stt.finalTranscript)
+    : matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
   const transcript = stt.finalTranscript || stt.liveTranscript;
   const transcriptStatus =
     stt.phase === 'starting'
@@ -157,8 +163,12 @@ export function SpeakingPanel({
     <View testID="speaking-studio" style={{ gap: 12 }}>
       {!inline && <JournalArt source={illustrations.review} aspectRatio={3.1} taped />}
       <Section title="Dale voz a lo que aprendiste.">
-        <Text style={f.quiet}>Escucha el ejemplo y di la frase para comprobar tu respuesta.</Text>
-        <Text style={f.eyebrow}>Tu frase para practicar</Text>
+        <Text style={f.quiet}>
+          {exampleLabel
+            ? 'Escucha el ejemplo. Luego saluda y di tu nombre en inglés.'
+            : 'Escucha el ejemplo y di la frase para comprobar tu respuesta.'}
+        </Text>
+        <Text style={f.eyebrow}>{exampleLabel ?? 'Tu frase para practicar'}</Text>
         <Text
           {...(Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' })}
           style={s.reference}
@@ -248,7 +258,9 @@ export function SpeakingPanel({
               <Text style={f.quiet}>
                 {passed
                   ? 'La frase reconocida cumple el objetivo.'
-                  : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
+                  : matchesTranscript
+                    ? 'Falta un saludo, una forma de presentación o tu nombre. Inténtalo otra vez.'
+                    : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
               </Text>
             )}
           </JournalLeaf>

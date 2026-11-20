@@ -1,4 +1,4 @@
-import { chapter } from './travel-content';
+import { chapter, samGreeting } from './travel-content';
 import type { StoryDefinition } from './story';
 
 const greeted = { type: 'event', id: 'greeted-sam' } as const;
@@ -392,8 +392,8 @@ export const chapterStory = {
     {
       id: 'sam-introduction',
       npcId: 'sam',
-      text: 'Sam se acerca a la mesa de bienvenida con un boleto en la mano. Quiere pedirte ayuda, pero primero se presenta.',
-      line: { en: 'Hi! My name is Sam.', es: '¡Hola! Me llamo Sam.' },
+      text: 'Sam se acerca con un boleto en la mano y te pregunta cómo te llamas.',
+      line: samGreeting,
       choices: [
         {
           id: 'introduce-yourself',
@@ -423,6 +423,7 @@ export const chapterStory = {
       npcId: 'luz',
       text: 'Para presentarte en inglés, puedes decir «I am» o «My name is» y agregar tu nombre.',
       line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
+      exampleLabel: 'Ejemplo de Luz',
       tip: 'Empieza con «Hi!». Si usas «I», el verbo va como «am».',
       choices: [
         {
@@ -438,6 +439,7 @@ export const chapterStory = {
       npcId: 'luz',
       text: 'Un saludo y tu nombre bastan para empezar. Si te fijas en las postales de {origin}, muchas cuentan cómo se conocieron dos personas.',
       line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
+      exampleLabel: 'Ejemplo de Luz',
       choices: [
         {
           id: 'ask-luz-about-origin-after-introduction',

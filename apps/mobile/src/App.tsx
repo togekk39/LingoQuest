@@ -337,11 +337,14 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       {originSheet}
     </>
   );
+  const profileName = progress?.user.name;
+  const playerName = profileName === 'Explorador' ? undefined : profileName;
   if (mission)
     return withSheets(
       <TravelFlow
         key={mission.missionId}
         initial={mission}
+        playerName={playerName}
         onUpdate={setTravel}
         onClose={closeMission}
         onVoiceSettings={openVoiceSettings}
@@ -399,6 +402,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       <StoryAdventure
         story={story}
         checkpoint={travel.active}
+        playerName={playerName}
         error={storyError}
         finishing={finishingEncounter}
         onAction={actStory}

@@ -27,7 +27,7 @@ const items: { missionId: string; audio?: string; exercise: CourseExercise }[] =
     exercise: {
       id: 'route_intro_write',
       type: 'short_text',
-      promptEs: 'Preséntate como Luz. Escribe «Soy Luz» en inglés.',
+      promptEs: 'Traduce el ejemplo de Luz: «Soy Luz».',
       acceptedAnswers: ['I am Luz', "I'm Luz", 'My name is Luz', "My name's Luz"],
       difficulty: 1,
       skillId: 'grammar.be_i_you',

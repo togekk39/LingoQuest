@@ -145,6 +145,7 @@ function StoryButton({
 export function StoryAdventure({
   story,
   checkpoint,
+  playerName,
   error,
   finishing,
   onAction,
@@ -157,6 +158,7 @@ export function StoryAdventure({
 }: {
   story: StoryView;
   checkpoint?: TravelCheckpoint;
+  playerName?: string;
   error?: string;
   finishing: boolean;
   onAction: (operation: StoryOperation) => Promise<void>;
@@ -326,6 +328,7 @@ export function StoryAdventure({
       {dialogue.line && (
         <StoryPhrase
           line={dialogue.line}
+          exampleLabel={dialogue.exampleLabel}
           showTranslation={translationsVisible}
           onToggleTranslation={toggleTranslation}
           onListen={() => dialogue.line && void play(dialogue.line.en, true)}
@@ -383,11 +386,11 @@ export function StoryAdventure({
           key={encounter.id}
           ref={lesson}
           initial={activeCheckpoint}
+          playerName={playerName}
           onUpdate={onLessonUpdate}
           embedded={{
             translationsVisible,
             onToggleTranslation: toggleTranslation,
-            speaker: encounter.npc?.name ?? 'Luz',
           }}
           onClose={closePanel}
           onPassport={() => void perform(onPassport)}

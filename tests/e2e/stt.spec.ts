@@ -189,8 +189,8 @@ test('travel speaking on an unsupported platform skips directly without opening 
   });
   await enterApp(page);
   await openTravelWriting(page);
-  await answerTravelText(page, 'travel_hello_write', 'Hi! I am Luz.');
-  await answerTravelText(page, 'travel_hello_transfer', "I'm Nico.");
+  await answerTravelText(page, 'travel_hello_write', 'Hi! I am Maya.');
+  await answerTravelText(page, 'travel_hello_transfer', "I'm Maya.");
   await expect(
     page.getByText(/reconocimiento de voz de la misión está disponible en Android/),
   ).toBeVisible();

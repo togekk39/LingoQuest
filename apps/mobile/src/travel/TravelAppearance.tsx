@@ -76,7 +76,7 @@ export function VocabularyCard({
         )}
         {revealed && <Label style={[styles.copy, { color: C.muted }]}>{word.explanation}</Label>}
       </WordSlip>
-      <Section title="En una conversación">
+      <Section title={word.exampleBy ? `Ejemplo de ${word.exampleBy}` : 'En una conversación'}>
         <Text {...english} style={[styles.quotation, { color: C.ink }]}>
           {word.example.en}
         </Text>
@@ -137,6 +137,9 @@ export function GrammarWorkbench({
       {!inline && <JournalArt source={illustrations.writing} aspectRatio={3.1} taped />}
       <Section title={step.title}>
         <Label style={styles.copy}>{step.text}</Label>
+        {!!step.exampleLabel && (
+          <Text style={[styles.meaning, { color: C.teal }]}>{step.exampleLabel}</Text>
+        )}
         {!dialogue && (
           <View style={styles.samples}>
             {step.examples.map((item, index) => (

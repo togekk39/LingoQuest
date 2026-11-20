@@ -40,11 +40,14 @@ import { GrammarWorkbench, TravelScene, VocabularyCard } from './TravelAppearanc
 import {
   StoryActivity,
   StoryPhrase,
-  StoryPortrait,
   StorySpeaker,
   type StoryTranslation,
 } from './StoryDialogueAppearance';
-import { drillFeedback, introductionFeedback } from './speakingFeedback';
+import {
+  drillFeedback,
+  introductionFeedback,
+  matchesPersonalIntroduction,
+} from './speakingFeedback';
 
 const english = Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' };
 
@@ -133,6 +136,7 @@ export type TravelFlowHandle = {
 
 export function TravelFlow({
   initial,
+  playerName,
   onUpdate,
   onClose,
   onPassport,
@@ -142,12 +146,13 @@ export function TravelFlow({
   ref,
 }: {
   initial: TravelCheckpoint;
+  playerName?: string;
   onUpdate: (travel: TravelState) => void;
   onClose: () => void;
   onPassport: () => void;
   onVoiceSettings: () => void;
   onReview?: (missionId: string) => void;
-  embedded?: StoryTranslation & { speaker: string };
+  embedded?: StoryTranslation;
   ref?: React.Ref<TravelFlowHandle>;
 }) {
   const [current, setCurrent] = useState(initial);
@@ -165,8 +170,16 @@ export function TravelFlow({
   const mission: TravelMission = chapter.missions.find((m) => m.id === current.missionId)!;
   const step = mission.steps[current.step];
   const inline = !!embedded;
-  const speaker =
-    step.type === 'dialogue' ? step.speaker : step.type === 'teach' ? 'Luz' : embedded?.speaker;
+  const speaker = step.type === 'dialogue' || step.type === 'teach' ? step.speaker : undefined;
+  const personalResponse =
+    (step.type === 'exercise' || step.type === 'speak') &&
+    step.response === 'personal-introduction';
+  const responseContext = personalResponse && (
+    <View style={{ gap: 3 }}>
+      <Text style={f.eyebrow}>Tu respuesta</Text>
+      {!!playerName && <Label style={f.quiet}>Tu nombre en el perfil: {playerName}</Label>}
+    </View>
+  );
   const Section = inline ? StoryActivity : Notebook;
   const { play, playSequence, stop, speechMessage } = useChapterAudio();
   const wordIndex = current.word ?? 0;
@@ -349,12 +362,7 @@ export function TravelFlow({
   const progress = current.finished ? 1 : (current.step + 1) / mission.steps.length;
   const feedback = step.type === 'exercise' && current.result && (
     <View ref={feedbackView} collapsable={false} style={{ gap: 8 }}>
-      <AnswerFeedback
-        result={current.result}
-        exercise={step.exercise}
-        answer={current.answer}
-        speaker={inline && speaker ? <StoryPortrait name={speaker} /> : undefined}
-      />
+      <AnswerFeedback result={current.result} exercise={step.exercise} answer={current.answer} />
       {review && !current.result.correct && !current.result.communicationOnly && (
         <Button variant="ghost" icon={RotateCcw} disabled={busy} onPress={review}>
           Repasar en otra escena
@@ -365,9 +373,9 @@ export function TravelFlow({
   const content = (
     <>
       {error && <ErrorCard message={error} />}
-      {inline && speaker && (
+      {inline && !current.finished && (
         <View ref={activity} collapsable={false}>
-          <StorySpeaker name={speaker} />
+          {speaker && <StorySpeaker name={speaker} />}
           <ProgressBar
             value={progress}
             accessibilityLabel={`Paso ${current.step + 1} de ${mission.steps.length}`}
@@ -474,11 +482,12 @@ export function TravelFlow({
             <View testID="travel-workbook">
               <Section
                 title={
-                  step.audio
+                  step.activityTitle ??
+                  (step.audio
                     ? 'Escucha el mensaje'
                     : step.exercise.passage
                       ? 'Lee el mensaje'
-                      : 'Ahora te toca a ti'
+                      : 'Ahora te toca a ti')
                 }
               >
                 <Label style={s.storyText}>{step.situation}</Label>
@@ -515,6 +524,7 @@ export function TravelFlow({
                     )}
                   </JournalLeaf>
                 )}
+                {responseContext}
                 <ExerciseInput
                   journal
                   inline={inline}
@@ -544,6 +554,7 @@ export function TravelFlow({
         ) : (
           <>
             <Label style={s.storyText}>{step.text}</Label>
+            {responseContext}
             <SpeakingPanel
               ref={speaking}
               inline={inline}
@@ -555,6 +566,8 @@ export function TravelFlow({
               onPlay={() => void play(step.phrase, true)}
               onStopReference={stop}
               acceptedPhrases={step.acceptedPhrases}
+              exampleLabel={step.exampleLabel}
+              matchesTranscript={personalResponse ? matchesPersonalIntroduction : undefined}
               story={{
                 continueLabel: lastStep ? 'Completar misión' : 'Seguir la historia',
                 saving: busy,
