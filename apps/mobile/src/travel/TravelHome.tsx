@@ -56,6 +56,7 @@ export function TravelHome({
   travel,
   progress,
   starting,
+  onAdventure,
   onContinue,
   onMission,
   onReview,
@@ -69,6 +70,7 @@ export function TravelHome({
   travel: TravelState;
   progress: Progress;
   starting: boolean;
+  onAdventure: () => void;
   onContinue: () => void;
   onMission: (id: string) => void;
   onReview: () => void;
@@ -170,6 +172,9 @@ export function TravelHome({
                     ? 'Tu primer sello y la postal de Sam están en el pasaporte.'
                     : 'Puedes volver a cualquiera de estas misiones desde la ruta.'))}
             </Text>
+            <Button icon={Compass} loading={starting} onPress={onAdventure}>
+              Explorar aventura
+            </Button>
             <View style={s.postcardAction}>
               {!!next && (
                 <JournalLeaf compact kind="stamp" style={s.missionTime}>
@@ -178,6 +183,7 @@ export function TravelHome({
               )}
               <Button
                 icon={next ? ArrowRight : Stamp}
+                variant="secondary"
                 style={s.missionAction}
                 loading={starting}
                 onPress={onContinue}
@@ -355,6 +361,7 @@ export function TravelRoute({
   selected,
   onSelect,
   onStart,
+  onAdventure,
   onCountry,
   onPassport,
 }: {
@@ -362,6 +369,7 @@ export function TravelRoute({
   selected: Destination;
   onSelect: (id: string) => void;
   onStart: (id: string) => void;
+  onAdventure: () => void;
   onCountry: () => void;
   onPassport: () => void;
 }) {
@@ -458,6 +466,9 @@ export function TravelRoute({
           <Text style={s.rowTitle}>{selected.goals.join(' · ')}</Text>
           {isHome ? (
             <>
+              <Button icon={Compass} onPress={onAdventure}>
+                Explorar aventura
+              </Button>
               {chapter.missions.map((mission, i) => {
                 const available = canStartTravelMission(travel, mission.id);
                 const inProgress =

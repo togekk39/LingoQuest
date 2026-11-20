@@ -59,6 +59,7 @@ export type StoryCondition = (
         | 'questComplete'
         | 'completedMission'
         | 'clearedMission'
+        | 'demonstratedConcept'
         | 'reviewCompletedMission';
       id: string;
     }
@@ -147,6 +148,7 @@ export interface StoryContext {
   country?: HomeCountry;
   completedMissions: readonly string[];
   clearedMissions: readonly string[];
+  demonstratedConcepts?: readonly string[];
   readyEncounterId?: string;
 }
 
@@ -234,6 +236,8 @@ function matches(condition: StoryCondition, state: StoryState, context: StoryCon
         return context.completedMissions.includes(condition.id);
       case 'clearedMission':
         return context.clearedMissions.includes(condition.id);
+      case 'demonstratedConcept':
+        return context.demonstratedConcepts?.includes(condition.id) === true;
       case 'reviewCompletedMission':
         return own(state.events, reviewEvent(condition.id)) === true;
     }
@@ -417,15 +421,13 @@ export function readStory(
   const scene = savedScene ?? byId(definition.scenes, definition.initialSceneId);
   if (!scene) throw new Error(`Missing initial scene: ${definition.initialSceneId}`);
   const origin =
-    context.country && context.country !== 'OTHER'
-      ? homeCountries[context.country]
-      : 'Tu lugar de origen';
-  const personalize = (text: string) => text.replaceAll('{origin}', origin);
+    context.country && context.country !== 'OTHER' ? homeCountries[context.country] : undefined;
+  const personalize = (text: string) => text.replaceAll('{origin}', origin ?? 'tu lugar de origen');
   const node = savedScene ? byId(definition.dialogues, current.dialogueId) : undefined;
   const encounter = byId(definition.encounters, current.encounterId);
   return {
     turn: current.turn,
-    origin,
+    origin: origin ?? 'Tu lugar de origen',
     scene: {
       id: scene.id,
       art: scene.art,

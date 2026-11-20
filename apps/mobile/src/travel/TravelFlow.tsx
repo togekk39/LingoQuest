@@ -119,6 +119,7 @@ export function TravelFlow({
   onPassport,
   onVoiceSettings,
   onReview,
+  adventure = false,
 }: {
   initial: TravelCheckpoint;
   onUpdate: (travel: TravelState) => void;
@@ -126,6 +127,7 @@ export function TravelFlow({
   onPassport: () => void;
   onVoiceSettings: () => void;
   onReview?: (missionId: string) => void;
+  adventure?: boolean;
 }) {
   const [current, setCurrent] = useState(initial);
   const [answer, setAnswer] = useState<ExerciseAnswer>(initial.answer);
@@ -272,7 +274,7 @@ export function TravelFlow({
   return (
     <FlowFrame
       title={mission.title}
-      eyebrow={`${mission.place} · ${mission.minutes.join('–')} min`}
+      eyebrow={adventure ? chapter.title : `${mission.place} · ${mission.minutes.join('–')} min`}
       stepKey={`${current.token}-${wordIndex}`}
       onClose={() => void close()}
       journal={{

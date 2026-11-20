@@ -17,6 +17,9 @@ import {
   chapter,
   nextTravelMission,
   route,
+  type StoryOperation,
+  type StoryResponse,
+  type StoryView,
   type TravelCheckpoint,
   type TravelOperation,
   type TravelState,
@@ -33,6 +36,7 @@ import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
 import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
 import { TravelFlow } from './travel/TravelFlow';
+import { StoryAdventure } from './travel/StoryAdventure';
 import { QuickReview } from './travel/QuickReview';
 import { TravelWelcome } from './travel/TravelWelcome';
 import { TravelPlacementFlow } from './travel/TravelPlacementFlow';
@@ -50,7 +54,7 @@ const tabs = [
 ] as const;
 type Tab = (typeof tabs)[number]['id'];
 type Flow = 'placement' | 'speech' | 'reviews' | 'skills' | 'quick' | 'grammar' | 'textbook';
-type WelcomeChoice = 'start' | 'placement' | 'explore';
+type WelcomeChoice = 'adventure' | 'start' | 'placement' | 'explore';
 type AfterOrigin = (journey: TravelState) => Promise<void> | void;
 
 export default function App() {
@@ -69,9 +73,12 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const { width, fontScale } = useWindowDimensions();
   const desktop = width >= 1080 && fontScale < 1.4;
   const scroll = useRef<ScrollView>(null);
+  const storySession = useRef(0);
   const [tab, setTab] = useState<Tab>('Inicio');
   const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
   const [mission, setMission] = useState<TravelCheckpoint | null>(null);
+  const [story, setStory] = useState<StoryView | null>(null);
+  const [storyError, setStoryError] = useState('');
   const [destination, setDestination] = useState('home');
   const [originPicker, setOriginPicker] = useState<{ afterSave?: AfterOrigin } | null>(null);
   const [passport, setPassport] = useState(false);
@@ -136,6 +143,68 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setTravel(value);
     return value;
   }
+  function showStory(response: StoryResponse) {
+    setTravel(response.travel);
+    setStory(response.story);
+    setStoryError('');
+  }
+  async function refreshStory() {
+    const session = storySession.current;
+    const response = await api<StoryResponse>('/v1/story');
+    if (session !== storySession.current) return false;
+    showStory(response);
+    return true;
+  }
+  async function openStory(journey = travel) {
+    if (askForOrigin(journey, openStory)) return;
+    if (!(await refreshStory())) return;
+    setPassport(false);
+    setFlow(null);
+  }
+  function startStory() {
+    if (starting) return;
+    setStarting(true);
+    void openStory()
+      .catch((e) => setNotice(e.message))
+      .finally(() => setStarting(false));
+  }
+  function openStoryLesson({ story: snapshot, travel: journey }: StoryResponse) {
+    if (!snapshot.encounter || snapshot.encounter.ready) return;
+    if (journey.active?.missionId !== snapshot.encounter.missionId)
+      throw new Error('No pudimos abrir la conversación. Vuelve a intentar.');
+    setMission(journey.active);
+  }
+  async function actStory(operation: StoryOperation) {
+    const session = storySession.current;
+    const response = await api<StoryResponse>('/v1/story', operation);
+    if (session !== storySession.current) return;
+    showStory(response);
+    if (response.story.encounter?.id !== story?.encounter?.id) openStoryLesson(response);
+  }
+  async function resumeStoryLesson() {
+    if (!story) return;
+    const session = storySession.current;
+    const response = await api<StoryResponse>('/v1/story/encounter', { turn: story.turn });
+    if (session !== storySession.current) return;
+    showStory(response);
+    openStoryLesson(response);
+  }
+  function updateMission(journey: TravelState) {
+    setTravel(journey);
+    if (!story?.encounter) return;
+    const { encounter, turn } = story;
+    if (
+      journey.active?.missionId !== encounter.missionId ||
+      (!journey.active.finished &&
+        (!encounter.endBeforeStepId || journey.active.stepId !== encounter.endBeforeStepId))
+    )
+      return;
+    setMission(null);
+    void actStory({ action: 'finishEncounter', turn }).catch(async (e) => {
+      await refreshStory().catch(() => {});
+      setStoryError(e.message);
+    });
+  }
   function askForOrigin(journey: TravelState, afterSave: AfterOrigin) {
     if (
       journey.country ||
@@ -171,6 +240,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   }
   async function finishWelcome(choice: WelcomeChoice, journey: TravelState) {
     await localSettings.set('onboarded', true);
+    if (choice === 'adventure') await openStory(journey);
     if (choice === 'start') await openMission(undefined, journey);
     if (choice === 'placement') setFlow('placement');
     setWelcome(false);
@@ -198,6 +268,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setFlow(null);
     setReviewMission(undefined);
     void refresh().catch((e) => setNotice(e.message));
+    if (story) void refreshStory().catch((e) => setStoryError(e.message));
   };
   const closeMission = () => {
     setMission(null);
@@ -276,8 +347,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       <TravelFlow
         key={mission.missionId}
         initial={mission}
-        onUpdate={setTravel}
+        onUpdate={updateMission}
         onClose={closeMission}
+        adventure={!!story}
         onVoiceSettings={openVoiceSettings}
         onReview={(missionId) => {
           closeMission();
@@ -328,10 +400,28 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         onVoiceSettings={openVoiceSettings}
       />,
     );
+  if (story && !passport)
+    return withSheets(
+      <StoryAdventure
+        story={story}
+        error={storyError}
+        onAction={actStory}
+        onClose={() => {
+          storySession.current++;
+          setStory(null);
+          void refresh().catch((e) => setNotice(e.message));
+        }}
+        onResumeEncounter={resumeStoryLesson}
+        onReview={openQuickReview}
+        onPassport={() => setPassport(true)}
+        onVoiceSettings={openVoiceSettings}
+      />,
+    );
   if (welcome && !loading && !error)
     return withSheets(
       <TravelWelcome
         busy={starting}
+        onAdventure={() => void chooseWelcome('adventure')}
         onStart={() => void chooseWelcome('start')}
         onAssessment={() => void chooseWelcome('placement')}
         onClose={() => void chooseWelcome('explore')}
@@ -341,6 +431,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   function go(next: Tab) {
     setTab(next);
     setPassport(false);
+    storySession.current++;
+    setStory(null);
   }
   const nav = (
     <View style={desktop ? s.desktopNav : s.mobileNav}>
@@ -459,7 +551,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 </Button>
                 <Passport
                   travel={travel}
-                  onContinue={() => startMission()}
+                  onContinue={startStory}
                   onNote={async (text) => {
                     await updateTravel({ action: 'note', text });
                   }}
@@ -472,6 +564,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 starting={starting}
                 onMission={startMission}
                 onContinue={() => startMission()}
+                onAdventure={startStory}
                 onReview={() => openQuickReview()}
                 onRoute={() => go('Mapa')}
                 onGuide={() => go('Aprender')}
@@ -489,6 +582,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   scroll.current?.scrollTo({ y: 0, animated: false });
                 }}
                 onStart={startMission}
+                onAdventure={startStory}
                 onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
               />

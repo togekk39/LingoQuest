@@ -209,7 +209,9 @@ test('the story persists distinct NPC responses and paths selected by its player
   const staff = emptyStory(story);
   const initial = view(ticket);
   assert.equal(initial.scene.description, 'Salida desde Chile.');
-  assert.equal(view(ticket, { ...context, country: 'OTHER' }).origin, 'Tu lugar de origen');
+  const other = view(ticket, { ...context, country: 'OTHER' });
+  assert.equal(other.origin, 'Tu lugar de origen');
+  assert.equal(other.scene.description, 'Salida desde tu lugar de origen.');
   assert.deepEqual(
     initial.hotspots.map((hotspot) => hotspot.id),
     ['sam'],
@@ -335,4 +337,29 @@ test('a story revision repairs deleted locations and checkpoints while retaining
   assert.deepEqual(state.inventory, { postcard: { used: true } });
   assert.equal(state.quests['find-stop'].status, 'completed');
   assert.deepEqual(state.choices, [{ dialogueId: 'directions', choiceId: 'reply' }]);
+});
+
+test('dialogue availability can depend on a demonstrated concept independently of completion', () => {
+  const practiced = {
+    ...story,
+    scenes: [
+      {
+        ...story.scenes[0],
+        hotspots: story.scenes[0].hotspots.map((hotspot) =>
+          hotspot.id === 'sam'
+            ? {
+                ...hotspot,
+                requires: [{ type: 'demonstratedConcept' as const, id: 'introduction' }],
+              }
+            : hotspot,
+        ),
+      },
+      story.scenes[1],
+    ],
+  };
+  const state = emptyStory(practiced);
+  const completed = { ...context, completedMissions: ['hello'] };
+  assert.equal(readStory(practiced, state, completed).hotspots.length, 0);
+  const demonstrated = { ...completed, demonstratedConcepts: ['introduction'] };
+  assert.equal(readStory(practiced, state, demonstrated).hotspots[0].id, 'sam');
 });

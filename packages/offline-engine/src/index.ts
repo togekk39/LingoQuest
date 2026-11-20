@@ -19,7 +19,18 @@ import {
   type User,
 } from '@lingoquest/contracts';
 import { chapter, travelLesson } from './travel-content';
-import { storyStateSchema, type StoryState } from './story';
+import { chapterStory } from './chapter-story';
+import {
+  emptyStory,
+  readStory,
+  recordStoryReview,
+  storyStateSchema,
+  updateStory,
+  upgradeStory,
+  type StoryContext,
+  type StoryState,
+  type StoryView,
+} from './story';
 import { travelPracticeStep, travelReviewPlans, travelReviewRows } from './travel-review';
 import {
   findLearningError,
@@ -73,6 +84,11 @@ export type {
 } from './travel-placement';
 export type { TravelCheckpoint, TravelState, TravelOperation } from './travel';
 export type { StoryOperation, StoryState, StoryView } from './story';
+
+export interface StoryResponse {
+  story: StoryView;
+  travel: TravelState;
+}
 
 /** Device-local learning only. Scores are personal practice, never verified rankings. */
 export interface CourseExercise extends PublicExercise {
@@ -561,6 +577,45 @@ const backupSchema = z
   })
   .strict();
 
+function storyContext(
+  story: StoryState,
+  travel: TravelState,
+  learning?: TravelLearningState,
+): StoryContext {
+  const encounter = chapterStory.encounters.find((entry) => entry.id === story.encounterId);
+  let readyEncounterId: string | undefined;
+  if (encounter) {
+    const { missionId, endBeforeStepId } = encounter;
+    const saved =
+      travel.active?.missionId === missionId ? travel.active : travel.paused?.[missionId];
+    const boundary = chapter.missions
+      .find((mission) => mission.id === missionId)
+      ?.steps.findIndex((step) => step.id === endBeforeStepId);
+    if (
+      travel.completed[missionId] ||
+      (endBeforeStepId &&
+        boundary !== undefined &&
+        boundary >= 0 &&
+        saved?.contentRevision === chapter.revision &&
+        saved.step >= boundary)
+    )
+      readyEncounterId = encounter.id;
+  }
+  return {
+    country: travel.country,
+    completedMissions: Object.keys(travel.completed),
+    clearedMissions: travel.cleared ?? [],
+    demonstratedConcepts: learning?.targets
+      .filter(
+        ({ successes }) =>
+          (successes.production?.independent ?? 0) > 0 ||
+          (successes.transfer?.independent ?? 0) > 0,
+      )
+      .map(({ conceptId }) => conceptId),
+    readyEncounterId,
+  };
+}
+
 export class OfflineEngine {
   private tail: Promise<unknown> = Promise.resolve();
   private readonly clock: () => number;
@@ -823,6 +878,16 @@ export class OfflineEngine {
     const params = new URLSearchParams(query);
     const now = this.clock();
     const done = (value: unknown) => ({ state, value });
+    const changeTravel = (travel: TravelState, operation: unknown) =>
+      updateTravel(
+        travel,
+        operation,
+        now,
+        this.id,
+        (input, aids) => this.attempt(state, content, input, aids),
+        (target, practice) =>
+          recordSpeakingPractice((state.travelLearning ??= { targets: [] }), target, practice),
+      );
     if (route.startsWith('/v1/auth/') || route.startsWith('/v1/sync/'))
       throw new LocalError(
         'Esta edición funciona sin cuenta ni sincronización en línea.',
@@ -857,17 +922,41 @@ export class OfflineEngine {
     if (route === '/v1/travel') {
       const travel = (state.travel ??= emptyTravel());
       upgradeTravelCheckpoints(travel);
-      if (method === 'POST')
-        updateTravel(
-          travel,
-          body,
-          now,
-          this.id,
-          (input, aids) => this.attempt(state, content, input, aids),
-          (target, practice) =>
-            recordSpeakingPractice((state.travelLearning ??= { targets: [] }), target, practice),
-        );
+      if (method === 'POST') changeTravel(travel, body);
       return done(travel);
+    }
+    if (route === '/v1/story' || (route === '/v1/story/encounter' && method === 'POST')) {
+      const travel = (state.travel ??= emptyTravel());
+      const story = (state.story ??= emptyStory(chapterStory));
+      upgradeTravelCheckpoints(travel);
+      upgradeStory(chapterStory, story);
+      const before = story.encounterId;
+      const turn = story.turn;
+      let launch = false;
+      if (route === '/v1/story/encounter') {
+        const request = z
+          .object({ turn: z.number().int().nonnegative().safe() })
+          .strict()
+          .parse(body);
+        launch = request.turn === turn;
+      } else if (method === 'POST') {
+        updateStory(chapterStory, story, storyContext(story, travel, state.travelLearning), body);
+        launch = story.encounterId !== before;
+        if (launch && before && travel.active?.finished) {
+          const previous = chapterStory.encounters.find((entry) => entry.id === before);
+          if (travel.active.missionId === previous?.missionId)
+            changeTravel(travel, { action: 'dismiss', token: travel.active.token });
+        }
+      }
+      const context = storyContext(story, travel, state.travelLearning);
+      const view = readStory(chapterStory, story, context);
+      if (launch && view.encounter && !view.encounter.ready) {
+        const { missionId } = view.encounter;
+        changeTravel(travel, { action: 'start', missionId });
+        if (travel.active?.missionId !== missionId)
+          throw new LocalError('Completa la misión anterior para continuar.', 409);
+      }
+      return done({ story: view, travel } satisfies StoryResponse);
     }
     if (route === '/v1/travel/learning' && method === 'GET')
       return done(state.travelLearning ?? { targets: [] });
@@ -974,6 +1063,20 @@ export class OfflineEngine {
                 aids,
               );
               previous.answer = update.answer;
+              if (
+                state.story &&
+                state.travel &&
+                travelOnly &&
+                mission &&
+                !previous.starter &&
+                previous.result.correct
+              )
+                recordStoryReview(
+                  chapterStory,
+                  state.story,
+                  mission,
+                  storyContext(state.story, state.travel, state.travelLearning),
+                );
             }
           }
         }
