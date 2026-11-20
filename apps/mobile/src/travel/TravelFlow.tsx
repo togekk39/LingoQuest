@@ -218,7 +218,11 @@ export function TravelFlow({
       busy={busy}
       onPress={() => void close(mission.id === 'bag' ? onPassport : onClose)}
     >
-      {mission.id === 'bag' ? 'Abrir pasaporte' : 'Volver al viaje'}
+      {mission.id === 'bag'
+        ? 'Abrir pasaporte'
+        : adventure
+          ? 'Volver al viaje'
+          : 'Volver a Lecciones'}
     </Action>
   ) : step.type === 'exercise' ? (
     current.result ? (

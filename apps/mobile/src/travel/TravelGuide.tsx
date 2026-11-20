@@ -25,6 +25,7 @@ import { useChapterAudio } from './useChapterAudio';
 
 export function TravelGuide({
   travel,
+  starting,
   onMission,
   onAssessment,
   onSpeech,
@@ -34,6 +35,7 @@ export function TravelGuide({
   onReview,
 }: {
   travel: TravelState;
+  starting: boolean;
   onMission: (id: string) => void;
   onAssessment: () => void;
   onSpeech: () => void;
@@ -48,7 +50,6 @@ export function TravelGuide({
   const [workshop, setWorkshop] = useState<'matching' | 'cloze'>();
   const { play, stop, speechMessage } = useChapterAudio();
   const mission = chapter.missions[index];
-  const unlocked = canStartTravelMission(travel, mission.id);
   const desktop = width >= 920;
   const configureVoice = () => {
     stop();
@@ -78,6 +79,39 @@ export function TravelGuide({
           </Button>
         </View>
       </JournalSpread>
+      <JournalLeaf testID="travel-lessons" style={{ gap: 10 }}>
+        <Text accessibilityRole="header" style={[styles.sectionTitle, { color: C.ink }]}>
+          Lecciones
+        </Text>
+        {chapter.missions.map((lesson) => {
+          const unlocked = canStartTravelMission(travel, lesson.id);
+          const status = travel.completed[lesson.id]
+            ? 'Completada'
+            : travel.active?.missionId === lesson.id
+              ? 'En curso'
+              : travel.paused?.[lesson.id]
+                ? 'En pausa'
+                : unlocked
+                  ? `${lesson.minutes.join('–')} min`
+                  : 'Completa la lección anterior';
+          return (
+            <View key={lesson.id} testID={`travel-lesson-${lesson.id}`} style={{ gap: 4 }}>
+              <Button
+                variant="secondary"
+                icon={ArrowRight}
+                disabled={!unlocked || starting}
+                onPress={() => {
+                  stop();
+                  onMission(lesson.id);
+                }}
+              >
+                {lesson.title}
+              </Button>
+              <Label>{status}</Label>
+            </View>
+          );
+        })}
+      </JournalLeaf>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
         {chapter.missions.map((item, i) => (
           <Pressable
@@ -105,16 +139,6 @@ export function TravelGuide({
         <Bookmark size={20} color={C.accent} />
         <Heading style={{ flex: 1, fontSize: 25 }}>{mission.title}</Heading>
       </View>
-      <Button
-        icon={ArrowRight}
-        disabled={!unlocked}
-        onPress={() => {
-          stop();
-          onMission(mission.id);
-        }}
-      >
-        {unlocked ? 'Abrir misión' : 'Completa la misión anterior'}
-      </Button>
       {workshop ? (
         <WordWorkshop
           key={workshop}
@@ -309,6 +333,7 @@ export function TravelPronunciation({
 }
 
 const styles = StyleSheet.create({
+  sectionTitle: { fontFamily: 'LoraBold', fontSize: 25 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   copy: { fontSize: 15, lineHeight: 23 },
   tab: {

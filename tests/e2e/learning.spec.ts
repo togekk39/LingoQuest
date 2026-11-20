@@ -7,20 +7,19 @@ import {
   readyOfflineShell,
   state,
   openPlacement,
+  openTravelLessons,
+  openTravelLesson,
   capture,
 } from './helpers';
 
-test('first launch offers two spaced travel routes and opens the first scene', async ({
-  page,
-  context,
-}) => {
+test('first launch starts the adventure from its only main button', async ({ page, context }) => {
   await page.setViewportSize({ width: 320, height: 650 });
   await page.goto('/');
-  const start = page.getByRole('button', exact('Empezar mi viaje'));
+  const start = page.getByRole('button', exact('Comenzar mi aventura'));
   const assess = page.getByRole('button', exact('Ya sé algo de inglés'));
   await expect(start).toBeVisible();
   await expect(assess).toBeVisible();
-  await expect(page.getByRole('button', exact('Empiezo desde cero'))).toHaveCount(0);
+  await expect(page.getByRole('button', exact('Empezar mi viaje'))).toHaveCount(0);
   const [first, second] = await Promise.all([start.boundingBox(), assess.boundingBox()]);
   expect(second!.y - first!.y - first!.height).toBeGreaterThanOrEqual(10);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
@@ -33,8 +32,8 @@ test('first launch offers two spaced travel routes and opens the first scene', a
   await expect(start).toBeVisible();
   await start.click();
   await click(page, 'Honduras');
-  await expect(page.getByText('Un saludo en la plaza', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
+  await expect(page.getByTestId('story-scene-plaza')).toBeVisible();
+  expect((await state(page)).travel.active).toBeUndefined();
   expect((await state(page)).travel.country).toBe('HN');
 });
 
@@ -68,7 +67,7 @@ test('placement from the welcome evaluates travel listening and jumps to the rec
   await click(page, 'Ir a mi misión');
   await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
   await page.reload();
-  await click(page, 'Continuar viaje');
+  await openTravelLesson(page, 'Una mochila y una postal');
   expect((await state(page)).travel.active?.missionId).toBe('bag');
 });
 
@@ -93,7 +92,8 @@ test('the travel guide offers vocabulary and examples for each mission', async (
   await page.getByRole('tab', exact('Objetos perdidos')).click();
   await expect(page.getByRole('button', exact('Escuchar: blue'))).toBeVisible();
   await expect(page.getByText('Mi mochila es azul.', { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole('button', exact('Completa la misión anterior'))).toBeDisabled();
+  const lessons = await openTravelLessons(page);
+  await expect(lessons.getByRole('button', exact('Una mochila y una postal'))).toBeDisabled();
 });
 
 test('the grammar handbook compares examples offline and reflows with enlarged text', async ({

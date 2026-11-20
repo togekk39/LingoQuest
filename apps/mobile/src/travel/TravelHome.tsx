@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import {
-  ArrowRight,
   Backpack,
   BookOpen,
   BusFront,
@@ -57,8 +56,6 @@ export function TravelHome({
   progress,
   starting,
   onAdventure,
-  onContinue,
-  onMission,
   onReview,
   onRoute,
   onGuide,
@@ -71,8 +68,6 @@ export function TravelHome({
   progress: Progress;
   starting: boolean;
   onAdventure: () => void;
-  onContinue: () => void;
-  onMission: (id: string) => void;
   onReview: () => void;
   onRoute: () => void;
   onGuide: () => void;
@@ -114,17 +109,15 @@ export function TravelHome({
             Cuaderno de viaje
           </Text>
         </View>
-        {!!next && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abrir pasaporte"
-            onPress={onPassport}
-            style={({ pressed }) => [s.passportButton, pressed && { opacity: 0.7 }]}
-          >
-            <Stamp size={21} color={C.accent} />
-            <Text style={s.passportLabel}>Pasaporte</Text>
-          </Pressable>
-        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Abrir pasaporte"
+          onPress={onPassport}
+          style={({ pressed }) => [s.passportButton, pressed && { opacity: 0.7 }]}
+        >
+          <Stamp size={21} color={C.accent} />
+          <Text style={s.passportLabel}>Pasaporte</Text>
+        </Pressable>
       </View>
       <View style={[s.homeColumns, wide && s.homeColumnsWide]}>
         <View testID="home-mission-postcard" style={[s.missionPostcard, wide && { flex: 1.35 }]}>
@@ -170,27 +163,11 @@ export function TravelHome({
                 : (next?.objective ??
                   (chapterDone
                     ? 'Tu primer sello y la postal de Sam están en el pasaporte.'
-                    : 'Puedes volver a cualquiera de estas misiones desde la ruta.'))}
+                    : 'Puedes practicar cada lección en Aprender.'))}
             </Text>
             <Button icon={Compass} loading={starting} onPress={onAdventure}>
-              Explorar aventura
+              Comenzar mi aventura
             </Button>
-            <View style={s.postcardAction}>
-              {!!next && (
-                <JournalLeaf compact kind="stamp" style={s.missionTime}>
-                  <Text style={s.missionTimeText}>{next.minutes.join('–')} min</Text>
-                </JournalLeaf>
-              )}
-              <Button
-                icon={next ? ArrowRight : Stamp}
-                variant="secondary"
-                style={s.missionAction}
-                loading={starting}
-                onPress={onContinue}
-              >
-                {next ? 'Continuar viaje' : 'Ver mi pasaporte'}
-              </Button>
-            </View>
           </JournalLeaf>
         </View>
 
@@ -224,7 +201,6 @@ export function TravelHome({
                 const done = !!travel.completed[mission.id];
                 const cleared = travel.cleared?.some((id) => id === mission.id);
                 const available = canStartTravelMission(travel, mission.id);
-                const disabled = !available || starting;
                 const status = done
                   ? 'Completada'
                   : current
@@ -239,16 +215,12 @@ export function TravelHome({
                           ? 'Disponible'
                           : 'Bloqueada';
                 return (
-                  <Pressable
+                  <View
                     key={mission.id}
                     testID={`home-stop-${mission.id}`}
-                    accessibilityRole="button"
-                    accessibilityLabel={mission.title}
-                    accessibilityHint={status}
-                    accessibilityState={{ disabled, selected: current }}
-                    disabled={disabled}
-                    onPress={() => onMission(mission.id)}
-                    style={({ pressed }) => [s.routeStop, pressed && { opacity: 0.72 }]}
+                    accessible
+                    accessibilityLabel={`${mission.title}. ${status}`}
+                    style={s.routeStop}
                   >
                     <View style={[s.stopBadge, current && s.stopCurrent, done && s.stopDone]}>
                       {done ? (
@@ -261,7 +233,7 @@ export function TravelHome({
                     </View>
                     <Text style={s.stopTitle}>{mission.place}</Text>
                     <Text style={[s.stopStatus, current && { color: C.accent }]}>{status}</Text>
-                  </Pressable>
+                  </View>
                 );
               })}
             </View>
@@ -360,7 +332,6 @@ export function TravelRoute({
   travel,
   selected,
   onSelect,
-  onStart,
   onAdventure,
   onCountry,
   onPassport,
@@ -368,7 +339,6 @@ export function TravelRoute({
   travel: TravelState;
   selected: Destination;
   onSelect: (id: string) => void;
-  onStart: (id: string) => void;
   onAdventure: () => void;
   onCountry: () => void;
   onPassport: () => void;
@@ -467,7 +437,7 @@ export function TravelRoute({
           {isHome ? (
             <>
               <Button icon={Compass} onPress={onAdventure}>
-                Explorar aventura
+                Comenzar mi aventura
               </Button>
               {chapter.missions.map((mission, i) => {
                 const available = canStartTravelMission(travel, mission.id);
@@ -475,14 +445,8 @@ export function TravelRoute({
                   active?.missionId === mission.id || !!travel.paused?.[mission.id];
                 const Icon = missionIcons[i];
                 return (
-                  <Pressable
+                  <View
                     key={mission.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={mission.title}
-                    accessibilityHint={mission.objective}
-                    accessibilityState={{ disabled: !available }}
-                    disabled={!available}
-                    onPress={() => onStart(mission.id)}
                     style={[
                       s.missionPreview,
                       { borderWidth: 1, borderColor: C.line, padding: 10, borderRadius: 13 },
@@ -503,12 +467,8 @@ export function TravelRoute({
                         {mission.minutes.join('–')} min
                       </Text>
                     </View>
-                    {available ? (
-                      <ArrowRight size={17} color={C.teal} />
-                    ) : (
-                      <LockKeyhole size={17} color={C.muted} />
-                    )}
-                  </Pressable>
+                    {!available && <LockKeyhole size={17} color={C.muted} />}
+                  </View>
                 );
               })}
             </>
@@ -660,11 +620,11 @@ export function CountryPicker({
 export function Passport({
   travel,
   onNote,
-  onContinue,
+  onAdventure,
 }: {
   travel: TravelState;
   onNote: (value: string) => Promise<void>;
-  onContinue: () => void;
+  onAdventure?: () => void;
 }) {
   const s = useStyles();
   const { colors: C } = useTheme();
@@ -707,9 +667,9 @@ export function Passport({
             ? `${chapter.stamp} · ${new Date(stamp).toLocaleDateString('es-419')}`
             : 'Completa La primera postal para recibir tu primer sello.'}
         </Label>
-        {!stamp && (
-          <Button icon={ArrowRight} onPress={onContinue}>
-            Continuar viaje
+        {!stamp && onAdventure && (
+          <Button icon={Compass} onPress={onAdventure}>
+            Comenzar mi aventura
           </Button>
         )}
       </Notebook>
@@ -834,10 +794,6 @@ function useStyles() {
     },
     missionTitle: { color: C.ink, fontFamily: 'LoraBold', fontSize: 26, letterSpacing: -0.45 },
     missionBrief: { color: C.muted, fontFamily: 'Manrope', fontSize: 13 },
-    postcardAction: { flexDirection: 'row', gap: 9, alignItems: 'center', marginTop: 5 },
-    missionTime: { maxWidth: '31%', padding: 8 },
-    missionAction: { flex: 1, minHeight: 48, paddingHorizontal: 10 },
-    missionTimeText: { color: C.ink, fontFamily: 'ManropeBold', fontSize: 12 },
     homeRoute: {
       backgroundColor: C.white,
       borderColor: C.line,

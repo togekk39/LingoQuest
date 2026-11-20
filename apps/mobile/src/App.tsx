@@ -15,7 +15,6 @@ import { BookOpen, House, MapPinned, Settings2, Trophy, UserRound, X } from 'luc
 import {
   OFFLINE_STATE_KEY,
   chapter,
-  nextTravelMission,
   route,
   type StoryOperation,
   type StoryResponse,
@@ -54,7 +53,7 @@ const tabs = [
 ] as const;
 type Tab = (typeof tabs)[number]['id'];
 type Flow = 'placement' | 'speech' | 'reviews' | 'skills' | 'quick' | 'grammar' | 'textbook';
-type WelcomeChoice = 'adventure' | 'start' | 'placement' | 'explore';
+type WelcomeChoice = 'adventure' | 'placement' | 'explore';
 type AfterOrigin = (journey: TravelState) => Promise<void> | void;
 
 export default function App() {
@@ -217,21 +216,17 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setOriginPicker({ afterSave });
     return true;
   }
-  async function openMission(id?: string, journey = travel) {
-    const target = id ?? nextTravelMission(journey)?.id;
-    if (!target) {
-      setPassport(true);
-      return;
-    }
-    if (askForOrigin(journey, (saved) => openMission(target, saved))) return;
-    const value = await updateTravel({ action: 'start', missionId: target });
-    if (value.active?.missionId !== target)
+  async function openMission(id: string, journey = travel) {
+    if (askForOrigin(journey, (saved) => openMission(id, saved))) return;
+    const value = await updateTravel({ action: 'start', missionId: id });
+    if (value.active?.missionId !== id)
       throw new Error('Completa la misión anterior para continuar.');
+    setTab('Aprender');
     setPassport(false);
     setFlow(null);
     setMission(value.active);
   }
-  function startMission(id?: string) {
+  function startMission(id: string) {
     if (starting) return;
     setStarting(true);
     void openMission(id)
@@ -241,7 +236,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   async function finishWelcome(choice: WelcomeChoice, journey: TravelState) {
     await localSettings.set('onboarded', true);
     if (choice === 'adventure') await openStory(journey);
-    if (choice === 'start') await openMission(undefined, journey);
     if (choice === 'placement') setFlow('placement');
     setWelcome(false);
   }
@@ -422,7 +416,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       <TravelWelcome
         busy={starting}
         onAdventure={() => void chooseWelcome('adventure')}
-        onStart={() => void chooseWelcome('start')}
         onAssessment={() => void chooseWelcome('placement')}
         onClose={() => void chooseWelcome('explore')}
       />,
@@ -551,7 +544,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 </Button>
                 <Passport
                   travel={travel}
-                  onContinue={startStory}
+                  onAdventure={story ? undefined : startStory}
                   onNote={async (text) => {
                     await updateTravel({ action: 'note', text });
                   }}
@@ -562,8 +555,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 travel={travel}
                 progress={progress}
                 starting={starting}
-                onMission={startMission}
-                onContinue={() => startMission()}
                 onAdventure={startStory}
                 onReview={() => openQuickReview()}
                 onRoute={() => go('Mapa')}
@@ -581,7 +572,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   setDestination(id);
                   scroll.current?.scrollTo({ y: 0, animated: false });
                 }}
-                onStart={startMission}
                 onAdventure={startStory}
                 onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
@@ -589,6 +579,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
             ) : tab === 'Aprender' ? (
               <TravelGuide
                 travel={travel}
+                starting={starting}
                 onMission={startMission}
                 onAssessment={startPlacement}
                 onVoiceSettings={openVoiceSettings}

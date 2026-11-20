@@ -6,6 +6,8 @@ import {
   finishVocabulary,
   finishGreetingPractice,
   openTravelWriting,
+  openTravelLessons,
+  openTravelLesson,
   click,
   exact,
   state,
@@ -31,7 +33,11 @@ test('the companion animates and responds live to the system motion preference',
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await enterApp(page);
-  const button = page.getByRole('button', { name: 'Continuar viaje', exact: true });
+  const button = (await openTravelLessons(page)).getByRole(
+    'button',
+    exact('Un saludo en la plaza'),
+  );
+  await button.scrollIntoViewIfNeeded();
   await button.hover();
   await page.mouse.down();
   await expect
@@ -61,7 +67,7 @@ test('mission progress stays mounted across vocabulary and a correct answer cele
   page,
 }) => {
   await enterApp(page);
-  await click(page, 'Continuar viaje');
+  await openTravelLesson(page);
   const progress = page.getByRole('progressbar');
   await progress.evaluate((element) => ((element as HTMLElement).dataset.retained = 'yes'));
   await click(page, 'Continuar');
@@ -69,7 +75,7 @@ test('mission progress stays mounted across vocabulary and a correct answer cele
   await click(page, 'Siguiente palabra');
   await expect(progress).toHaveAttribute('data-retained', 'yes');
   await click(page, 'Cerrar y volver');
-  await click(page, 'Continuar viaje');
+  await openTravelLesson(page);
   await expect(page.getByRole('button', exact('Escuchar: I am'))).toBeVisible();
   await click(page, 'Siguiente palabra');
   await click(page, 'Ver la explicación');

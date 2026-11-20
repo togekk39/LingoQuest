@@ -8,7 +8,7 @@ LingoQuest es una app diseñada primero para Android para aprender inglés estad
 
 ## Explora y aprende
 
-- **Explorar aventura** abre **La primera postal**. Conoce a Sam y a Luz en la plaza, usa un boleto para encontrar la parada y elige una pista para recuperar la mochila de Sam. Practica inglés con los personajes y úsalo para resolver las tres misiones. La aventura otorga un sello, una postal y una entrada de diario. **Empezar mi viaje** abre las lecciones directamente. [Recorrido del capítulo](docs/PHASE_4_RPG.es-419.md)
+- **Comenzar mi aventura** abre **La primera postal**. Conoce a Sam y a Luz en la plaza, usa un boleto para encontrar la parada y elige una pista para recuperar la mochila de Sam. Practica inglés con los personajes y úsalo para resolver las tres misiones. La aventura otorga un sello, una postal y una entrada de diario. En **Aprender → Lecciones** puedes abrir esas mismas tres lecciones y retomar lo que guardaste. [Recorrido del capítulo](docs/PHASE_4_RPG.es-419.md)
 - **Ya sé algo de inglés** ofrece seis preguntas opcionales sin reloj. Tus respuestas determinan cuál de las tres misiones publicadas se recomienda. Las misiones anteriores siguen disponibles. Puedes repetir la prueba desde **Aprender** o **Perfil**.
 - **Mapa** recorre 20 paradas en siete continentes y termina en la Antártida, vía Ushuaia. Elige un lugar de origen en Latinoamérica o el Caribe. Los capítulos previstos aparecen como **En preparación**.
 - **Aprender** abre la guía de vocabulario, el manual de gramática, la práctica de pronunciación y **Cursos A1–A2**, con ocho unidades y 32 lecciones del curso LQP 2.1.0 incluido. Abre cualquier lección o retoma el borrador más reciente. Consulta el manual y la guía sin entrar a la historia.
