@@ -80,7 +80,7 @@ async function installSpeechFixture(page: Page, noVoices = false) {
     });
   }, noVoices);
 }
-test('travel words use bundled offline audio when a system voice is unavailable', async ({
+test('travel sentences and words autoplay bundled audio when a system voice is unavailable', async ({
   page,
   context,
 }) => {
@@ -101,25 +101,31 @@ test('travel words use bundled offline audio when a system voice is unavailable'
   });
   await enterApp(page);
   await readyOfflineShell(page, context);
+  const clipPlays = (clip: string) =>
+    page.evaluate(
+      (clip) =>
+        (window as unknown as { played: string[] }).played.filter((src) =>
+          src.includes(`/${clip}.`),
+        ).length,
+      clip,
+    );
   await click(page, 'Continuar viaje');
   await click(page, 'Continuar');
+  await expect.poll(() => clipPlays('line-1')).toBe(1);
+  await click(page, 'Escuchar frase');
+  await expect.poll(() => clipPlays('line-1')).toBe(2);
   await click(page, 'Continuar');
-  const wordPlays = (n: number) =>
-    page.evaluate(
-      (n) =>
-        (window as unknown as { played: string[] }).played.filter((src) =>
-          src.includes(`/word-${n}.`),
-        ).length,
-      n,
-    );
-  await expect.poll(() => wordPlays(1)).toBe(1);
+  await expect.poll(() => clipPlays('word-1')).toBe(1);
   await click(page, 'Revelar significado');
   await expect(page.getByText('hola', { exact: true })).toBeVisible();
   await expect(page.getByText(/Estás escuchando el audio incluido/)).toBeVisible();
+  expect(await clipPlays('line-1')).toBe(2);
+  await click(page, 'Escuchar ejemplo');
+  await expect.poll(() => clipPlays('line-1')).toBe(3);
   await click(page, 'Escuchar: Hi');
-  await expect.poll(() => wordPlays(1)).toBe(2);
+  await expect.poll(() => clipPlays('word-1')).toBe(2);
   await click(page, 'Siguiente palabra');
-  await expect.poll(() => wordPlays(2)).toBe(1);
+  await expect.poll(() => clipPlays('word-2')).toBe(1);
 });
 
 async function previewVoice(page: Page) {

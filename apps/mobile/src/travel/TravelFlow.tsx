@@ -144,17 +144,15 @@ export function TravelFlow({
   const wordIndex = current.word ?? 0;
   const word =
     !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
-  const referenceAudio = current.finished
-    ? undefined
-    : (word?.term ??
-      (step.type === 'dialogue'
-        ? step.line?.en
-        : step.type === 'exercise'
-          ? step.audio
-          : undefined));
+  const line = !current.finished && step.type === 'dialogue' ? step.line : undefined;
+  const referenceAudio =
+    word?.term ??
+    line?.en ??
+    (!current.finished && step.type === 'exercise' ? step.audio : undefined);
   useEffect(() => {
-    if (word) void play(word.term);
-  }, [play, word]);
+    const text = word?.term ?? line?.en;
+    if (text) void play(text);
+  }, [line, play, word]);
 
   function draft(next: ExerciseAnswer) {
     setAnswer(next);
