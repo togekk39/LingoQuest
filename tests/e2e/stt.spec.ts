@@ -181,7 +181,9 @@ test('travel speaking on an unsupported platform skips directly without opening 
   await openTravelWriting(page);
   await answerTravelText(page, 'travel_hello_write', 'Hi! I am Luz.');
   await answerTravelText(page, 'travel_hello_transfer', "I'm Nico.");
-  await expect(page.getByText(/reconocimiento en el dispositivo no está disponible/)).toBeVisible();
+  await expect(
+    page.getByText(/reconocimiento de voz de la misión está disponible en Android/),
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Ver opción de reconocimiento que puede usar internet' }),
   ).toHaveCount(0);

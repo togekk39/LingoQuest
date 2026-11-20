@@ -45,8 +45,7 @@
         "expo-speech-recognition",
         {
           "microphonePermission": "Permite el micrófono para practicar tu inglés. Siempre puedes omitirlo.",
-          "speechRecognitionPermission": "Permite que el servicio de voz del sistema reconozca tu inglés. Puede necesitar conexión.",
-          "androidSpeechServicePackages": ["app.marmalade.stt"]
+          "speechRecognitionPermission": "Permite que el servicio de voz del sistema reconozca tu inglés. Puede necesitar conexión."
         }
       ]
     ],

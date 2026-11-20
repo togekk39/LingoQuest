@@ -14,11 +14,9 @@ Voice settings include a preview using system TTS. The Android native bridge acc
 
 ## Speech recognition (STT)
 
-The travel mission starts with **Reconocer mi voz sin conexión** when Android’s dedicated on-device recognizer is available. This option requires a rebuilt app on Android 13 or newer and an installed English (United States) model reported by that recognizer. If the check or recognition fails, the learner can listen to the example or skip the step.
+Travel missions and phrase drills on Android show that the system-selected speech service may process audio online. Recognition begins when the learner taps **Reconocer con el servicio de Android**. Android resolves the current default speech recognizer for each attempt, including Marmalade STT when selected in Android settings. The app requests `en-US` and prefers offline recognition. The selected provider determines how it processes speech. [Android speech recognizer](<https://developer.android.com/reference/android/speech/SpeechRecognizer#createSpeechRecognizer(android.content.Context)>)
 
-**Usar Marmalade STT** is a separate choice in travel missions and phrase drills when Android exposes Marmalade’s recognition service. Open Marmalade first to update it, complete its setup, and download an English model. LingoQuest binds to the named service directly, irrespective of the system default. On Android 13 and newer, it checks for installed English through that service before requesting microphone permission. On older versions, Marmalade reports language errors when the explicitly selected attempt starts. [Marmalade setup and releases](https://github.com/maxwhipw/marmalade-stt-android#setup)
-
-In the separate phrase drills, **Ver opción de reconocimiento que puede usar internet** opens the system option. Its disclosure appears before **Practicar con mi voz** can start recognition. This path uses the system-selected provider on Android and iOS and the Web Speech API in supported browsers. All three recognition paths request `en-US`.
+On iOS and Web, **Ver opción de reconocimiento que puede usar internet** reveals the system or browser recognizer in supported phrase drills. Learners can play the example or skip without microphone access.
 
 The app gives sentence and grammar feedback after recognition ends. The completed final transcript must match the reference or an accepted course variant to pass. In the introduction, the learner speaks as Luz and can use forms such as `I am`, `I’m`, and `My name is`. **Ahora no puedo hablar** advances without recording speaking practice.
 
@@ -26,7 +24,7 @@ Supported native recognizers capture a temporary local copy during the same atte
 
 ### Android assessment for future speech work
 
-The pinned Android bridge has an Android 12+ availability check for on-device recognition. Its implementation uses `createOnDeviceSpeechRecognizer` on Android 13 and later. The fallback on older systems can rely on `EXTRA_PREFER_OFFLINE`, which the provider may disregard. The current mode checks the on-device API and the installed `en-US` model. Real airplane-mode behavior still needs verification on supported phones. A packaged recognizer such as sherpa-onnx would remove the system provider dependency while adding model size, native compatibility, and performance work. Either path produces a transcript. Validating whether a learner conveyed the intended meaning needs separate evidence, and pronunciation and intelligibility need calibrated human assessment or an independently validated method. The chapter records listening, imitation, or recording as practice activity. The study uses a human listener for its oral rubric. [Chapter 1 assessment](CHAPTER_1_ASSESSMENT.md)
+The Android path uses `createSpeechRecognizer(Context)` to follow the user’s system selection. The selected provider may disregard `EXTRA_PREFER_OFFLINE`. Real airplane-mode behavior still needs verification on supported phones. A packaged recognizer such as sherpa-onnx would remove the system provider dependency while adding model size, native compatibility, and performance work. Either path produces a transcript. Validating whether a learner conveyed the intended meaning needs separate evidence, and pronunciation and intelligibility need calibrated human assessment or an independently validated method. The chapter records listening, imitation, or recording as practice activity. The study uses a human listener for its oral rubric. [Chapter 1 assessment](CHAPTER_1_ASSESSMENT.md)
 
 ## Data and backups
 

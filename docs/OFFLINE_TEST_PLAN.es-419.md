@@ -31,14 +31,14 @@ Consulta el [registro de verificación](VERIFICATION.es-419.md) para ver los res
 
 ## Reconocimiento de voz en Android con modo avión
 
-1. Instala el APK independiente recompilado en un teléfono físico con Android 13 o posterior. Con conexión, confirma que el teléfono tenga instalado un modelo de reconocimiento de inglés (Estados Unidos). Registra el modelo del teléfono, la versión de Android, la versión del reconocedor y el SHA-256 del APK.
-2. Activa el modo avión, apaga el Wi-Fi y los datos móviles, y vuelve a abrir la app. Entra en **Un saludo en la plaza** hasta el paso oral. Toca **Reconocer mi voz sin conexión**, permite el acceso al micrófono y di “Hi! I’m Luz.” frente al teléfono. Registra la transcripción final y los comentarios de contenido y gramática que aparezcan.
+1. Instala el APK independiente recompilado en un teléfono físico con Android 13 o posterior. Con conexión, selecciona en Android un reconocedor compatible con el modo sin conexión y confirma que tenga instalado su modelo de inglés. Registra el modelo del teléfono, la versión de Android, la versión del reconocedor y el SHA-256 del APK.
+2. Activa el modo avión, apaga el Wi-Fi y los datos móviles, y vuelve a abrir la app. Entra en **Un saludo en la plaza** hasta el paso oral. Revisa el aviso sobre el proveedor. Toca **Reconocer con el servicio de Android**, permite el acceso al micrófono y di “Hi! I’m Luz.” frente al teléfono. Registra la transcripción final y los comentarios de contenido y gramática que aparezcan.
 3. Repite en silencio, con “Hi, I am Marisol” y con “Hi, my name is Luz”. Comprueba que solo una transcripción final que coincida habilite el botón para aprobar. Después de capturar un intento, toca **Escuchar ejemplo y mi grabación** y confirma que el modelo termine antes de que empiece la grabación.
-4. Repite en modo avión con el permiso de micrófono denegado. En un teléfono sin el modelo local de inglés o sin el reconocedor dedicado, verifica que la app muestre una indicación y que no reintente en línea. Sin conceder el permiso, elige **Ahora no puedo hablar**. Verifica que la misión avance de inmediato y que no se registre práctica oral.
+4. Repite en modo avión con el permiso de micrófono denegado. Con un servicio desactivado o un modelo de inglés no disponible, comprueba que la app muestre una indicación y permita omitir el paso. Sin conceder el permiso, elige **Ahora no puedo hablar**. Verifica que la misión avance de inmediato y que no se registre práctica oral.
 
 Anota los resultados y cualquier limitación del proveedor en el [registro de verificación](VERIFICATION.es-419.md). Registra las simulaciones de navegador y las comprobaciones del paquete Android por separado de los resultados en un teléfono físico.
 
-Para Marmalade, instala una versión actual y su modelo de inglés antes de desconectarte. Con otro reconocedor seleccionado como predeterminado del sistema, elige **Usar Marmalade STT** y luego **Reconocer con Marmalade STT** en la misión. Repite el reconocimiento y la reproducción en modo avión. En Android 13 o posterior, comprueba también que, si falta el modelo de inglés, aparezcan las indicaciones para configurar Marmalade antes de activar el micrófono.
+Con la misión aún abierta, cambia el reconocedor del sistema en los ajustes de Android y regresa. Confirma que el siguiente intento use el proveedor nuevo sin reiniciar la app. Prueba Marmalade con su modelo de inglés y luego otro proveedor compatible.
 
 ```bash
 npm run check

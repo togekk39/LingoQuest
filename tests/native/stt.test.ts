@@ -2,12 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { chapter } from '@lingoquest/offline-engine';
-import {
-  hasMarmaladeRecognition,
-  marmaladeRecognitionOptions,
-  onDeviceRecognitionOptions,
-  selectedRecognitionService,
-} from '../../apps/mobile/src/features/recognitionService';
+import { systemRecognitionOptions } from '../../apps/mobile/src/features/recognitionService';
 import { pausePracticePlayback } from '../../apps/mobile/src/features/pausePracticePlayback';
 import { playPracticeClip } from '../../apps/mobile/src/features/playPracticeClip';
 import {
@@ -16,82 +11,13 @@ import {
   matchesSpeechTarget,
 } from '../../apps/mobile/src/travel/speakingFeedback';
 
-test('device recognition requires API 33 and uses an installed US English model without a provider override', async () => {
-  const localeChecks: object[] = [];
-  const service = {
-    supportsOnDeviceRecognition: () => true,
-    getSupportedLocales: async (options: object) => {
-      localeChecks.push(options);
-      return { installedLocales: ['en_GB', 'en_US'] };
-    },
-  };
-  await assert.rejects(onDeviceRecognitionOptions('android', 32, service), /on-device-unavailable/);
-  await assert.rejects(onDeviceRecognitionOptions('web', 33, service), /on-device-unavailable/);
-  await assert.rejects(onDeviceRecognitionOptions('ios', 33, service), /on-device-unavailable/);
-  await assert.rejects(
-    onDeviceRecognitionOptions('android', 33, {
-      ...service,
-      supportsOnDeviceRecognition: () => false,
-    }),
-    /on-device-unavailable/,
-  );
-  assert.deepEqual(localeChecks, []);
-  assert.deepEqual(await onDeviceRecognitionOptions('android', 33, service), {
+test('Android requests the system recognizer without choosing a provider and prefers offline input', () => {
+  assert.deepEqual(systemRecognitionOptions('android'), {
     lang: 'en-US',
-    requiresOnDeviceRecognition: true,
-  });
-  assert.deepEqual(localeChecks, [{}]);
-});
-
-test('online and downloadable language listings cannot qualify for on-device recognition', async () => {
-  await assert.rejects(
-    onDeviceRecognitionOptions('android', 35, {
-      supportsOnDeviceRecognition: () => true,
-      getSupportedLocales: async () => ({ locales: ['en-US'], installedLocales: ['en-GB'] }),
-    }),
-    /on-device-language-unavailable/,
-  );
-});
-
-test('Android can use Marmalade directly when its service and English model are present', async () => {
-  const queries: object[] = [];
-  const service = {
-    getSpeechRecognitionServices: () => ['system.default', 'app.marmalade.stt'],
-    getSupportedLocales: async (options: object) => {
-      queries.push(options);
-      return { installedLocales: ['en'] };
-    },
-  };
-  assert.equal(hasMarmaladeRecognition('android', 33, service), true);
-  assert.equal(hasMarmaladeRecognition('web', 33, service), false);
-  assert.equal(hasMarmaladeRecognition('android', 27, service), false);
-  const options = {
-    lang: 'en-US',
-    androidRecognitionServicePackage: 'app.marmalade.stt',
     androidIntentOptions: { EXTRA_PREFER_OFFLINE: true },
-  };
-  assert.deepEqual(await marmaladeRecognitionOptions('android', 33, service), options);
-  assert.deepEqual(await marmaladeRecognitionOptions('android', 32, service), options);
-  assert.deepEqual(queries, [{ androidRecognitionServicePackage: 'app.marmalade.stt' }]);
-});
-
-test('Marmalade never substitutes the default recognizer or a downloadable model', async () => {
-  await assert.rejects(
-    marmaladeRecognitionOptions('android', 35, {
-      getSpeechRecognitionServices: () => ['system.default'],
-      getSupportedLocales: async () => {
-        assert.fail('An absent Marmalade service must not be queried');
-      },
-    }),
-    /marmalade-service-unavailable/,
-  );
-  await assert.rejects(
-    marmaladeRecognitionOptions('android', 35, {
-      getSpeechRecognitionServices: () => ['app.marmalade.stt'],
-      getSupportedLocales: async () => ({ locales: ['en-US'], installedLocales: ['es'] }),
-    }),
-    /marmalade-language-unavailable/,
-  );
+  });
+  assert.deepEqual(systemRecognitionOptions('ios'), { lang: 'en-US' });
+  assert.deepEqual(systemRecognitionOptions('web'), { lang: 'en-US' });
 });
 
 test('travel speaking feedback accepts personal names and separates the greeting from the grammar', () => {
@@ -177,28 +103,6 @@ test('comparison playback waits for the example end and removes the listener on 
   assert.equal(emit, undefined);
 });
 
-test('third-party system default is selected without Google and changes apply on next attempt', () => {
-  let selected = 'example.marmalade';
-  const services = {
-    getDefaultRecognitionService: () => ({ packageName: selected }),
-    getSpeechRecognitionServices: () => ['example.marmalade', 'other.provider'],
-  };
-  assert.equal(selectedRecognitionService(services), 'example.marmalade');
-  selected = 'other.provider';
-  assert.equal(selectedRecognitionService(services), 'other.provider');
-});
-for (const selected of ['', 'disabled.google']) {
-  test(`missing/disabled default (${selected}) does not silently choose another provider`, () => {
-    assert.throws(
-      () =>
-        selectedRecognitionService({
-          getDefaultRecognitionService: () => ({ packageName: selected }),
-          getSpeechRecognitionServices: () => ['example.marmalade'],
-        }),
-      /service-unavailable/,
-    );
-  });
-}
 test('native playback never passes null to Android AudioPlayer.replace', () => {
   let pauses = 0;
   let replacements = 0;
@@ -217,14 +121,21 @@ test('native playback never passes null to Android AudioPlayer.replace', () => {
   assert.equal(replacements, 0);
   pausePracticePlayback({ pause() {}, replace: (source) => assert.equal(source, null) }, 'web');
 });
-test('generated Android manifest exposes RecognitionService and Marmalade', () => {
+test('generated Android manifest makes installed recognition services visible', () => {
   const config = JSON.parse(
     execFileSync('node', ['../../scripts/expo.mjs', 'config', '--type', 'introspect', '--json'], {
       cwd: 'apps/mobile',
       encoding: 'utf8',
     }),
   );
-  const manifest = JSON.stringify(config._internal.modResults.android.manifest);
-  assert.ok(manifest.includes('android.speech.RecognitionService'));
-  assert.ok(manifest.includes('app.marmalade.stt'));
+  const queries = config._internal.modResults.android.manifest.queries;
+  assert.ok(
+    queries.some((query: { intent?: { action?: { $: Record<string, string> }[] }[] }) =>
+      query.intent?.some((intent) =>
+        intent.action?.some(
+          (action) => action.$['android:name'] === 'android.speech.RecognitionService',
+        ),
+      ),
+    ),
+  );
 });

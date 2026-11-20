@@ -31,14 +31,14 @@ Follow the [verification record](VERIFICATION.md) for automated results and limi
 
 ## Android speech recognition in airplane mode
 
-1. Install the rebuilt standalone APK on a physical phone running Android 13 or newer. While connected, confirm that the device has an English (United States) speech recognition model installed. Record the phone model, Android version, recognizer version, and APK SHA-256.
-2. Enable airplane mode, turn Wi-Fi and mobile data off, and relaunch the app. Open **Un saludo en la plaza** and reach the speaking step. Tap **Reconocer mi voz sin conexión**, grant microphone access, and say “Hi! I’m Luz.” into the phone. Record the final transcript and the content and grammar feedback shown.
+1. Install the rebuilt standalone APK on a physical phone running Android 13 or newer. While connected, select an offline-capable speech recognizer in Android settings and confirm that its English model is installed. Record the phone model, Android version, recognizer version, and APK SHA-256.
+2. Enable airplane mode, turn Wi-Fi and mobile data off, and relaunch the app. Open **Un saludo en la plaza** and reach the speaking step. Check the provider disclosure. Tap **Reconocer con el servicio de Android**, grant microphone access, and say “Hi! I’m Luz.” into the phone. Record the final transcript and the content and grammar feedback shown.
 3. Repeat with silence, “Hi, I am Marisol,” and “Hi, my name is Luz.” Check that only the matching final transcript enables the pass button. After a captured attempt, tap **Escuchar ejemplo y mi grabación** and confirm that the model finishes before the recording starts.
-4. Repeat in airplane mode with microphone permission denied. On a device lacking the local English model or the dedicated recognizer, verify that recognition fails with guidance and no online retry. Choose **Ahora no puedo hablar** without granting permission. Verify that the mission advances immediately and leaves speaking practice unrecorded.
+4. Repeat in airplane mode with microphone permission denied. With a disabled service or unavailable English model, verify that the app shows guidance and leaves the skip available. Choose **Ahora no puedo hablar** without granting permission. Verify that the mission advances immediately and leaves speaking practice unrecorded.
 
 Record the results and any provider limits in the [verification record](VERIFICATION.md). Keep browser fixtures and Android bundle checks separate from physical device results.
 
-For Marmalade, install a current release and its English model before disconnecting. With another recognizer selected as the system default, use **Usar Marmalade STT** and then **Reconocer con Marmalade STT** in the mission. Repeat speaking and playback in airplane mode. On Android 13 or newer, also check that a missing English model produces Marmalade setup guidance before the microphone opens.
+With the mission still open, change the system recognizer in Android settings and return. Confirm that the next attempt uses the new provider without an app restart. Test Marmalade with its English model and a second compatible provider selected in turn.
 
 ```bash
 npm run check
