@@ -455,8 +455,8 @@ export function TravelFlow({
               }}
               onPlay={() => void play(step.phrase, true)}
               onStopReference={stop}
+              acceptedPhrases={step.acceptedPhrases}
               story={{
-                fallback: step.fallback,
                 continueLabel: lastStep ? 'Completar misión' : 'Seguir la historia',
                 saving: busy,
               }}

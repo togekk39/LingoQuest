@@ -118,7 +118,7 @@ test('teaching blocks match their examples and all chapter speech has bundled au
       if (step.type === 'dialogue' && step.line) englishLines.add(step.line.en);
       if (step.type === 'speak') {
         englishLines.add(step.phrase);
-        assert.ok(step.fallback, step.id);
+        assert.ok(step.acceptedPhrases?.length, step.id);
       }
       if (step.type === 'exercise' && step.audio) {
         englishLines.add(step.audio);

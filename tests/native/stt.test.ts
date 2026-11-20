@@ -1,12 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { chapter } from '@lingoquest/offline-engine';
 import {
   onDeviceRecognitionOptions,
   selectedRecognitionService,
 } from '../../apps/mobile/src/features/recognitionService';
 import { pausePracticePlayback } from '../../apps/mobile/src/features/pausePracticePlayback';
-import { drillFeedback, introductionFeedback } from '../../apps/mobile/src/travel/speakingFeedback';
+import { playPracticeClip } from '../../apps/mobile/src/features/playPracticeClip';
+import {
+  drillFeedback,
+  introductionFeedback,
+  matchesSpeechTarget,
+} from '../../apps/mobile/src/travel/speakingFeedback';
 
 test('device recognition requires API 33 and uses an installed US English model without a provider override', async () => {
   const localeChecks: object[] = [];
@@ -73,6 +79,59 @@ test('travel speaking feedback accepts personal names and separates the greeting
     drillFeedback('Where’s the bus stop?', 'Where is the bus stop?').grammar,
     /incluye la estructura/,
   );
+});
+
+test('travel speaking targets require complete phrases and accept the chapter variants', () => {
+  const tasks = chapter.missions.flatMap((mission) =>
+    mission.steps.filter((step) => step.type === 'speak'),
+  );
+  const intro = tasks.find((step) => step.id === 'hello_speak')!;
+  const bag = tasks.find((step) => step.id === 'bag_speak')!;
+  const matchesIntro = (text: string) =>
+    matchesSpeechTarget(text, intro.phrase, intro.acceptedPhrases);
+  const matchesBag = (text: string) => matchesSpeechTarget(text, bag.phrase, bag.acceptedPhrases);
+  assert.equal(matchesIntro(''), false);
+  assert.equal(matchesIntro('Hi!'), false);
+  assert.equal(matchesIntro('Hi, my name’s Luz!'), true);
+  assert.equal(matchesIntro('Hi, my name is Ana.'), false);
+  assert.equal(matchesIntro('Hi, I am Luz. I am happy.'), false);
+  assert.equal(matchesBag('It is red.'), true);
+  assert.equal(matchesBag('Her backpack’s red.'), true);
+  assert.equal(matchesBag('Red.'), false);
+  assert.equal(matchesBag('It is blue.'), false);
+});
+
+test('comparison playback waits for the example end and removes the listener on cancellation', async () => {
+  const played: unknown[] = [];
+  let emit: ((status: { didJustFinish: boolean }) => void) | undefined;
+  const player = {
+    addListener: (_name: string, listener: NonNullable<typeof emit>) => {
+      emit = listener;
+      return {
+        remove: () => {
+          emit = undefined;
+        },
+      };
+    },
+    replace: (source: unknown) => played.push(source),
+    setPlaybackRate: () => {},
+    play: () => {},
+  } as Parameters<typeof playPracticeClip>[0];
+  const recording = { uri: 'file:///practice.wav' };
+  const controller = new AbortController();
+  const comparison = playPracticeClip(player, 1, 1, controller.signal).then(
+    (ended) => ended && playPracticeClip(player, recording, 1, controller.signal),
+  );
+  assert.deepEqual(played, [1]);
+  emit?.({ didJustFinish: false });
+  await Promise.resolve();
+  assert.deepEqual(played, [1]);
+  emit?.({ didJustFinish: true });
+  await Promise.resolve();
+  assert.deepEqual(played, [1, recording]);
+  controller.abort();
+  assert.equal(await comparison, false);
+  assert.equal(emit, undefined);
 });
 
 test('third-party system default is selected without Google and changes apply on next attempt', () => {

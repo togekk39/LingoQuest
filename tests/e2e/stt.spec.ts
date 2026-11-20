@@ -75,9 +75,10 @@ test('system STT receives English, displays interim/final text, stops, retries a
   await expect(page.getByText('Gramática de la lección')).toHaveCount(0);
   await page.evaluate(() => (window as any).__recognizers.at(-1).result('Hello world', true));
   await expect(page.getByText('Hello world', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Terminar reconocimiento', exact: true }).click();
   await expect(page.getByText('Contenido de la frase')).toBeVisible();
   await expect(page.getByText('Gramática de la lección')).toBeVisible();
-  await page.getByRole('button', { name: 'Terminar reconocimiento', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Continuar con mi lección' })).toBeDisabled();
   await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
   await expect(page.getByText('Hello world', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Ahora no puedo hablar', exact: true }).click();
@@ -110,7 +111,7 @@ for (const [code, feedback] of [
   });
 }
 
-test('unsupported browser offers local recording and lesson exit', async ({ page }) => {
+test('unsupported browser offers an explicit skip', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'webkitSpeechRecognition', {
       configurable: true,
@@ -121,9 +122,7 @@ test('unsupported browser offers local recording and lesson exit', async ({ page
   await openPractice(page);
   await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
   await expect(page.getByText(/Activa el servicio de voz del sistema/)).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Solo grabar y escuchar (sin reconocimiento)', exact: true }),
-  ).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Continuar con mi lección' })).toBeDisabled();
   await page.getByRole('button', { name: 'Ahora no puedo hablar', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Practicar: / }).first()).toBeVisible();
 });
@@ -134,32 +133,47 @@ test('silence with automatic end permits another attempt', async ({ page }) => {
   await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
   await page.evaluate(() => (window as any).__recognizers.at(-1).stop());
   await expect(page.getByText(/No reconocimos palabras/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continuar con mi lección' })).toBeDisabled();
   await expect(
     page.getByRole('button', { name: 'Practicar con mi voz', exact: true }),
   ).toBeEnabled();
 });
 
-test('travel recording starts, allows replay and is revoked when completing the mission', async ({
+test('only a completed matching final transcript enables continuation', async ({ page }) => {
+  await installRecognition(page);
+  await openPractice(page);
+  const continueButton = page.getByRole('button', { name: 'Continuar con mi lección' });
+  await expect(continueButton).toBeDisabled();
+  await click(page, 'Practicar con mi voz');
+  await page.evaluate(() =>
+    (window as any).__recognizers.at(-1).result("Hi! My name's Sam.", false),
+  );
+  await click(page, 'Terminar reconocimiento');
+  await expect(continueButton).toBeDisabled();
+
+  await click(page, 'Practicar con mi voz');
+  await page.evaluate(() =>
+    (window as any).__recognizers.at(-1).result("Hi! My name's Sam.", true),
+  );
+  await expect(continueButton).toBeDisabled();
+  await click(page, 'Terminar reconocimiento');
+  await expect(continueButton).toBeEnabled();
+  await continueButton.click();
+  await expect(page.getByRole('button', { name: /^Practicar: / }).first()).toBeVisible();
+});
+
+test('travel speaking on an unsupported platform skips directly without opening the microphone', async ({
   page,
 }) => {
   await installRecognition(page);
   await page.addInitScript(() => {
     const fixture = window as any;
-    fixture.__revoked = [];
-    const revoke = URL.revokeObjectURL.bind(URL);
-    URL.revokeObjectURL = (uri: string) => {
-      fixture.__revoked.push(uri);
-      revoke(uri);
-    };
+    fixture.__microphoneRequests = 0;
     Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
       configurable: true,
       value: async () => {
-        const audio = new AudioContext();
-        const destination = audio.createMediaStreamDestination();
-        const oscillator = audio.createOscillator();
-        oscillator.connect(destination);
-        oscillator.start();
-        return destination.stream;
+        fixture.__microphoneRequests++;
+        throw new Error('Microphone unavailable');
       },
     });
   });
@@ -171,23 +185,12 @@ test('travel recording starts, allows replay and is revoked when completing the 
   await expect(
     page.getByRole('button', { name: 'Ver opción de reconocimiento que puede usar internet' }),
   ).toHaveCount(0);
-  await page
-    .getByRole('button', { name: 'Solo grabar y escuchar (sin reconocimiento)', exact: true })
-    .click();
-  await expect(page.getByRole('button', { name: 'Terminar grabación', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Terminar grabación', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Escuchar mi grabación', exact: true }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: 'Escuchar mi grabación', exact: true }).click();
-  await click(page, 'Completar misión');
+  await expect(page.getByRole('button', { name: 'Completar misión', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /Solo grabar|mi grabación/ })).toHaveCount(0);
+  await click(page, 'Ahora no puedo hablar');
   await expect(page.getByText('¡Misión completada!')).toBeVisible();
   expect(await page.evaluate(() => (window as any).__recognizers.length)).toBe(0);
-  expect(
-    await page.evaluate(() =>
-      (window as any).__revoked.some((uri: string) => uri.startsWith('blob:')),
-    ),
-  ).toBe(true);
+  expect(await page.evaluate(() => (window as any).__microphoneRequests)).toBe(0);
 });
 
 test('audio preparation failure is recoverable instead of escaping the speaking button', async ({

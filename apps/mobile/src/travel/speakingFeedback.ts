@@ -7,8 +7,21 @@ function speechText(value: string) {
     .replace(/\b(my name|where|(?:my|the|her|luz's) (?:bag|backpack))'s\b/g, '$1 is');
 }
 
-const greeting = /^(?:hi|hello)\b/;
-const introduction = /^(?:(?:hi|hello) )?(?:i am|my name is)\b/;
+export function matchesSpeechTarget(
+  transcript: string,
+  reference: string,
+  alternatives?: string[],
+) {
+  const text = speechText(transcript);
+  return (
+    !!text && [reference, ...(alternatives ?? [])].some((phrase) => speechText(phrase) === text)
+  );
+}
+
+const greetings = '(?:(?:hi|hello|hey)(?: there)?|good (?:morning|afternoon|evening))';
+const greeting = new RegExp(`^${greetings}\\b`);
+const introduction = new RegExp(`^(?:${greetings} )?(?:i am|my name is)\\b`);
+const informalIntroduction = new RegExp(`^(?:${greetings} )?(.+) here$`);
 
 export function introductionFeedback(transcript: string) {
   const text = speechText(transcript);
@@ -16,7 +29,7 @@ export function introductionFeedback(transcript: string) {
   const hasIntroduction = introduction.test(text);
   const name = hasIntroduction
     ? text.replace(introduction, '').trim()
-    : (text.match(/^(?:(?:hi|hello) )?(.+) here$/)?.[1] ?? '');
+    : (text.match(informalIntroduction)?.[1] ?? '');
   const hasName =
     /^\p{L}[\p{L}'-]*(?: \p{L}[\p{L}'-]*)*$/u.test(name) &&
     !/^(?:not|a|an|the)\b/.test(name) &&
