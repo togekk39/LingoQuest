@@ -242,13 +242,29 @@ test('authored variants preserve meaning and the skill targeted by story and rev
     ['travel_hello_transfer', 'Nico here.', 'communication'],
     ['travel_review_introduction', "My name's Ada.", 'target'],
     ['travel_review_introduction', 'Ada here.', 'communication'],
+    ['travel_hello_write', 'Good morning, my name’s Luz.', 'target'],
+    ['travel_hello_write', 'Good evening, Luz here.', 'communication'],
+    ['travel_hello_write', 'Goodbye, Luz here.', 'incorrect'],
     ['travel_bus_ask', "Where's the bus stop?", 'target'],
+    ['travel_bus_ask', 'Where is the bus stop, please?', 'target'],
+    ['travel_bus_ask', 'Where can I find the bus stop?', 'communication'],
+    ['travel_bus_ask', 'Excuse me, where can I find the bus stop?', 'communication'],
+    ['travel_bus_ask', 'Where can I find the bus stop, please?', 'communication'],
+    ['travel_bus_ask', 'Where’s the bus stop located?', 'communication'],
+    ['travel_bus_ask', 'Where can I find the bus station?', 'incorrect'],
+    ['travel_bus_ask', 'Where can I find the bus stop or the park?', 'incorrect'],
+    ['travel_bus_ask', 'Can I find the bus stop?', 'incorrect'],
     ['travel_bus_ask', 'Can you tell me where the bus stop is?', 'communication'],
     ['travel_bus_ask', 'Where the bus stop is?', 'incorrect'],
     ['travel_bus_ask', 'Where is the park?', 'incorrect'],
     ['travel_review_place_question', 'Where can I find the park?', 'communication'],
     ['travel_bus_transfer', 'The park’s next to the bus stop.', 'target'],
     ['travel_bus_transfer', 'The park is beside the bus stop.', 'communication'],
+    ['travel_bus_transfer', 'The park’s located next to the bus stop.', 'communication'],
+    ['travel_bus_transfer', 'The park is right beside the bus stop.', 'communication'],
+    ['travel_bus_transfer', 'The bus stop is beside the park.', 'incorrect'],
+    ['travel_bus_transfer', 'The park is near the bus stop.', 'incorrect'],
+    ['travel_bus_transfer', 'The park is not beside the bus stop.', 'incorrect'],
     ['travel_bus_transfer', 'The bus stop is across from the park.', 'incorrect'],
     ['travel_review_place_location', 'The backpack is right next to the bus stop.', 'target'],
     ['travel_review_place_location', 'Next to the bus stop.', 'communication'],
@@ -259,6 +275,8 @@ test('authored variants preserve meaning and the skill targeted by story and rev
     ['travel_review_place_location_audio', 'Near the park.', 'incorrect'],
     ['travel_review_place_location_audio', 'The park.', 'incorrect'],
     ['travel_bag_write', 'Blue.', 'communication'],
+    ['travel_bag_write', 'It is a blue backpack.', 'communication'],
+    ['travel_bag_write', 'It is a red backpack.', 'incorrect'],
     ['travel_review_item_color_read', 'Red.', 'target'],
     ['travel_review_item_owner_write', 'My backpack is red.', 'target'],
     ['travel_review_item_owner_write', 'My backpack’s red.', 'target'],
@@ -268,7 +286,8 @@ test('authored variants preserve meaning and the skill targeted by story and rev
     ['travel_review_item_owner_write', 'My bag is blue.', 'incorrect'],
   ] as const;
   for (const [exerciseId, text, outcome] of cases) {
-    const engine = device().open();
+    const phone = device();
+    const engine = phone.open();
     const result = await practice(engine, exerciseId, 'variant', { text });
     const actual = result.correct
       ? 'target'
@@ -276,6 +295,12 @@ test('authored variants preserve meaning and the skill targeted by story and rev
         ? 'communication'
         : 'incorrect';
     assert.equal(actual, outcome, `${exerciseId}: ${text}`);
+    const item = travelLesson.exercises.find((exercise) => exercise.id === exerciseId)!;
+    assert.equal(
+      phone.state().travelLearning?.targets[0]?.communicationSuccesses ?? 0,
+      item.communicationOnly && outcome !== 'incorrect' ? 1 : 0,
+      `${exerciseId}: communication count for ${text}`,
+    );
   }
   for (const exercise of travelLesson.exercises) {
     if (!exercise.communicationOnly) continue;
@@ -315,6 +340,7 @@ test('communication-only answers preserve due skill evidence and survive quick r
   const exercise = travelLesson.exercises.find(({ id }) => id === review.exerciseId)!;
   assert.deepEqual(exposed, {
     ...evidence,
+    communicationSuccesses: 2,
     seenContexts: [...evidence.seenContexts, exercise.learning!.contextId],
     seenExercises: {
       ...evidence.seenExercises,
@@ -331,6 +357,13 @@ test('communication-only answers preserve due skill evidence and survive quick r
     checked.result,
   );
   assert.deepEqual(phone.state().travelLearning, after.travelLearning);
+  const rows = await restarted.request<{ reviews: TravelReviewRow[] }>(
+    '/v1/reviews/today?source=travel&all=true',
+  );
+  assert.equal(
+    rows.reviews.find(({ key }) => key === 'writing:introduction')?.communicationSuccesses,
+    2,
+  );
   const replay = await practice(restarted, review.exerciseId, 'after-model', {
     text: 'My name is Ada.',
   });

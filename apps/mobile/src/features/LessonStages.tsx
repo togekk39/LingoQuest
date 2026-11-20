@@ -264,7 +264,7 @@ export function AnswerFeedback({
   const s = useStyles();
   const f = useFeatureStyles();
   const feedbackTitle = result.communicationOnly
-    ? 'Se entiende tu mensaje'
+    ? 'Lograste comunicarte'
     : result.correct
       ? '¡Muy bien!'
       : 'Buen intento. Veamos por qué…';
@@ -292,9 +292,10 @@ export function AnswerFeedback({
         accessibilityLiveRegion="polite"
         style={[
           s.feedback,
-          !result.correct && {
-            backgroundColor: tone('#FFF1DD', 'background'),
-          },
+          !result.correct &&
+            !result.communicationOnly && {
+              backgroundColor: tone('#FFF1DD', 'background'),
+            },
         ]}
       >
         <PaperGrain />
@@ -319,7 +320,12 @@ export function AnswerFeedback({
           </View>
         )}
         {result.acceptedAnswer && !result.correct && (
-          <Text style={s.accepted}>Una respuesta posible: {result.acceptedAnswer}</Text>
+          <Text style={s.accepted}>
+            {result.communicationOnly
+              ? 'Ejemplo de la forma practicada:'
+              : 'Una respuesta posible:'}{' '}
+            {result.acceptedAnswer}
+          </Text>
         )}
         <Text style={[f.body, { color: palette.ink }]}>{result.feedbackEs}</Text>
       </JournalLeaf>

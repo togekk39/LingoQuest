@@ -51,6 +51,7 @@ const learningRecordSchema = z
     skill: z.enum(skills),
     attempts: count,
     successes: z.record(z.enum(stages), attemptsByStage),
+    communicationSuccesses: count.optional(),
     assistance: z.record(z.enum(aids), count),
     delayedSuccesses: count,
     transferSuccesses: count,
@@ -240,13 +241,20 @@ function noteExposure(record: LearningRecord, exerciseId: string, contextId: str
   if (!record.seenContexts.includes(contextId)) record.seenContexts.push(contextId);
 }
 
-export function recordCommunicationExposure(
+export function recordCommunicationSuccess(
   state: TravelLearningState,
   target: LearningTarget,
-  exerciseId: string,
-  now: number,
+  exposure?: { exerciseId: string; now: number },
 ) {
-  noteExposure(getRecord(state, target), exerciseId, target.contextId, new Date(now).toISOString());
+  const record = getRecord(state, target);
+  record.communicationSuccesses = (record.communicationSuccesses ?? 0) + 1;
+  if (exposure)
+    noteExposure(
+      record,
+      exposure.exerciseId,
+      target.contextId,
+      new Date(exposure.now).toISOString(),
+    );
 }
 
 export function recordLearningAttempt(

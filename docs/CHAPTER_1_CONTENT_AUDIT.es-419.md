@@ -6,6 +6,12 @@ La revisión abarca los 25 pasos y las nueve fichas de vocabulario de **La prime
 
 En producción escrita, las formas completas y las contracciones pueden aportar la misma evidencia si conservan el significado y la estructura pedida. La comprobación normaliza la puntuación habitual, los espacios, las mayúsculas y los apóstrofos rectos o curvos. Las paráfrasis previstas que cumplen la intención comunicativa sin mostrar la estructura reciben una devolución específica y no aportan evidencia del objetivo. Las variantes léxicas y ortográficas fuera del banco aún requieren revisión y pruebas. En comprensión de lectura o de escucha, basta identificar el dato pedido, incluso con una palabra. Esa misma respuesta breve puede ser insuficiente en una actividad que evalúa la producción de una frase completa.
 
+## Comunicación y formas objetivo
+
+Las 11 consignas de producción con dos listas de respuestas ahora indican qué comunicar y qué forma practicar. Las preguntas directas de ubicación piden `where`, una forma de `be` delante del lugar y ningún otro verbo. Las indicaciones piden el sujeto y `be`, seguidos de la expresión de dos palabras que empieza con `next`. Las presentaciones indican `I` o `My name`, el verbo y el nombre. Las descripciones piden el color después de `be`, con `my` antes del sustantivo cuando se practica la pertenencia.
+
+`Where can I find the bus stop?` pregunta por el lugar correcto. `The park is beside the bus stop.` indica la ubicación correcta. Ambas reciben el mensaje «Lograste comunicarte» y un modelo de la forma solicitada, y permiten seguir la historia. La app registra el logro comunicativo por separado. El modelo y el reintento inmediato se tienen en cuenta al registrar la evidencia independiente.
+
 ## Ejercicios de la historia
 
 | Actividad                | Habilidad y dificultad            | Resultado de la revisión y criterio de respuesta                                                                                                                                                                                                                                                                                                                                             |

@@ -78,10 +78,16 @@ export interface TravelChapter {
 }
 
 const informalGreetings = ['Hi', 'Hello', 'Hey', 'Hi there', 'Hello there', 'Hey there'];
+const introductionGreetings = [
+  ...informalGreetings,
+  'Good morning',
+  'Good afternoon',
+  'Good evening',
+];
 
 function introductionAnswers(name: string, greetingRequired = false) {
   const forms = [`I am ${name}.`, `I'm ${name}.`, `My name is ${name}.`, `My name's ${name}.`];
-  const greeted = informalGreetings.flatMap((greeting) =>
+  const greeted = introductionGreetings.flatMap((greeting) =>
     forms.map((form) => `${greeting}! ${form}`),
   );
   return greetingRequired ? greeted : [...forms, ...greeted];
@@ -89,7 +95,7 @@ function introductionAnswers(name: string, greetingRequired = false) {
 
 function introductionParaphrases(name: string, greetingRequired = false) {
   const forms = [`${name} here.`, `You can call me ${name}.`, `I'm called ${name}.`];
-  const greeted = informalGreetings.flatMap((greeting) =>
+  const greeted = introductionGreetings.flatMap((greeting) =>
     forms.map((form) => `${greeting}! ${form}`),
   );
   return {
@@ -100,16 +106,22 @@ function introductionParaphrases(name: string, greetingRequired = false) {
 
 function locationQuestion(location: string) {
   const direct = [`Where is ${location}?`, `Where's ${location}?`];
+  const alternatives = [
+    `Where can I find ${location}?`,
+    `Where do I find ${location}?`,
+    `Where is ${location} located?`,
+    `Where's ${location} located?`,
+    `Can you tell me where ${location} is?`,
+    `Could you tell me where ${location} is?`,
+    `Do you know where ${location} is?`,
+  ];
+  const withPoliteness = (forms: string[]) =>
+    forms.flatMap((form) => [form, `Excuse me, ${form}`, `${form.slice(0, -1)}, please?`]);
   return {
-    acceptedAnswers: [...direct, ...direct.map((form) => `Excuse me, ${form}`)],
+    acceptedAnswers: withPoliteness(direct),
     communicationOnly: {
-      answers: [
-        `Where can I find ${location}?`,
-        `Can you tell me where ${location} is?`,
-        `Could you tell me where ${location} is?`,
-        `Do you know where ${location} is?`,
-      ],
-      feedbackEs: `Tu pregunta se entiende. Aquí practicamos la forma directa Where is ${location}?, con is antes del lugar.`,
+      answers: withPoliteness(alternatives),
+      feedbackEs: `Tu pregunta pide la ubicación adecuada. Para practicar la forma de la lección, usa Where is ${location}?, con is antes del lugar y sin otro verbo.`,
     },
   };
 }
@@ -129,9 +141,12 @@ function adjacentLocation(subjects: string[], reference: string) {
       answers: [
         ...position,
         ...alternatives,
-        ...alternatives.flatMap((location) => subjects.map((s) => `${s} ${location}.`)),
+        ...alternatives.flatMap((location) => subjects.map((subject) => `${subject} ${location}.`)),
+        ...[...position, ...alternatives].flatMap((location) =>
+          subjects.map((subject) => `${subject} located ${location}.`),
+        ),
       ],
-      feedbackEs: `La ubicación se entiende. Para practicar la estructura, usa una frase con sujeto y verbo, seguida de next to ${reference}.`,
+      feedbackEs: `Diste la ubicación correcta. Para practicar la forma de la lección, usa el sujeto y be seguidos de next to ${reference}.`,
     },
   };
 }
@@ -316,7 +331,8 @@ export const chapter: TravelChapter = {
           exercise: {
             id: 'travel_hello_write',
             type: 'short_text',
-            promptEs: 'Escribe «¡Hola! Soy Luz» en inglés.',
+            promptEs:
+              'Escribe «¡Hola! Soy Luz» en inglés. Después del saludo, usa una de las dos formas de presentación de la lección: I o My name, el verbo be y tu nombre.',
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_production',
             difficulty: 1,
@@ -342,7 +358,8 @@ export const chapter: TravelChapter = {
           exercise: {
             id: 'travel_hello_transfer',
             type: 'short_text',
-            promptEs: 'Escribe una frase completa en inglés para decir que te llamas Nico.',
+            promptEs:
+              'Preséntate por escrito como Nico. Para practicar, usa I o My name, el verbo be y tu nombre, en ese orden.',
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_production',
             difficulty: 2,
@@ -549,7 +566,7 @@ export const chapter: TravelChapter = {
             id: 'travel_bus_ask',
             type: 'short_text',
             promptEs:
-              'Escribe una pregunta directa en inglés para saber dónde está la parada de bus.',
+              'Pregunta en inglés dónde está la parada de bus. Para practicar la forma de la lección, empieza con where y usa una forma de be antes del lugar, sin otro verbo.',
             skillId: 'grammar.be_questions',
             dimension: 'grammar_production',
             difficulty: 2,
@@ -577,7 +594,7 @@ export const chapter: TravelChapter = {
             id: 'travel_bus_transfer',
             type: 'short_text',
             promptEs:
-              'Indícale con una frase completa en inglés que el parque está junto a la parada de bus.',
+              'Indica en inglés que el parque está junto a la parada de bus. Para practicar, escribe el sujeto y be, seguidos de la expresión de dos palabras con next que significa «junto a».',
             skillId: 'grammar.be_it_they',
             dimension: 'grammar_production',
             difficulty: 2,
@@ -765,7 +782,8 @@ export const chapter: TravelChapter = {
           exercise: {
             id: 'travel_bag_write',
             type: 'short_text',
-            promptEs: 'Escribe «Es azul» en inglés.',
+            promptEs:
+              'Escribe «Es azul» en inglés. Usa un sujeto, una forma de be y después el color.',
             skillId: 'grammar.be_it_they',
             dimension: 'grammar_production',
             difficulty: 1,
@@ -782,7 +800,14 @@ export const chapter: TravelChapter = {
               "Your backpack's blue.",
             ],
             communicationOnly: {
-              answers: ['Blue.', 'The blue one.', "It's a blue bag.", "It's a blue backpack."],
+              answers: [
+                'Blue.',
+                'The blue one.',
+                "It's a blue bag.",
+                'It is a blue bag.',
+                "It's a blue backpack.",
+                'It is a blue backpack.',
+              ],
               feedbackEs:
                 'Sam puede identificar el color. Para practicar esta estructura, di It’s blue, con blue directamente después del verbo.',
             },
@@ -806,7 +831,7 @@ export const chapter: TravelChapter = {
             id: 'travel_bag_transfer',
             type: 'short_text',
             promptEs:
-              'Contesta en inglés con una frase que diga de qué color es la mochila de Luz.',
+              'Di en inglés de qué color es la mochila de Luz. Para practicar, escribe un sujeto, una forma de be y después el color.',
             skillId: 'grammar.be_it_they',
             dimension: 'grammar_production',
             difficulty: 2,
@@ -827,7 +852,14 @@ export const chapter: TravelChapter = {
               "Her backpack's red.",
             ],
             communicationOnly: {
-              answers: ['Red.', 'The red one.', "It's a red bag.", "It's a red backpack."],
+              answers: [
+                'Red.',
+                'The red one.',
+                "It's a red bag.",
+                'It is a red bag.',
+                "It's a red backpack.",
+                'It is a red backpack.',
+              ],
               feedbackEs:
                 'La persona entiende el color. Para practicar la estructura, escribe It’s red o The bag is red.',
             },
@@ -900,7 +932,8 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     {
       id: 'travel_review_introduction',
       type: 'short_text',
-      promptEs: 'Preséntate en inglés como Ada. Usa una frase completa.',
+      promptEs:
+        'Preséntate en inglés como Ada. Para practicar, usa I o My name, el verbo be y tu nombre, en ese orden.',
       skillId: 'grammar.be_i_you',
       dimension: 'grammar_production',
       difficulty: 2,
@@ -962,7 +995,8 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
   practice('Llegas a otro barrio. Necesitas encontrar el parque para reunirte con alguien.', {
     id: 'travel_review_place_question',
     type: 'short_text',
-    promptEs: 'Escribe una pregunta directa en inglés para saber dónde está el parque.',
+    promptEs:
+      'Pregunta en inglés dónde está el parque. Para practicar la forma de la lección, empieza con where y usa una forma de be antes del lugar, sin otro verbo.',
     skillId: 'grammar.be_questions',
     dimension: 'grammar_production',
     difficulty: 2,
@@ -1030,7 +1064,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       id: 'travel_review_place_location',
       type: 'short_text',
       promptEs:
-        'Contesta con una frase completa en inglés que diga que la mochila está junto a la parada de bus.',
+        'Di en inglés que la mochila está junto a la parada de bus. Para practicar, escribe el sujeto y be, seguidos de la expresión de dos palabras con next que significa «junto a».',
       skillId: 'grammar.be_it_they',
       dimension: 'grammar_production',
       difficulty: 2,
@@ -1138,7 +1172,8 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
   practice('Encontraron dos mochilas en el parque. Explica que la tuya es roja.', {
     id: 'travel_review_item_owner_write',
     type: 'short_text',
-    promptEs: 'Escribe en inglés «Mi mochila es roja».',
+    promptEs:
+      'Escribe en inglés «Mi mochila es roja». Usa my antes del sustantivo y pon el color después del verbo be.',
     skillId: 'grammar.be_it_they',
     dimension: 'grammar_production',
     difficulty: 2,
@@ -1202,7 +1237,8 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     {
       id: 'travel_review_item_color',
       type: 'short_text',
-      promptEs: 'Escribe en inglés una frase que diga que el bus es rojo.',
+      promptEs:
+        'Di en inglés que el bus es rojo. Para practicar, escribe un sujeto, una forma de be y después el color.',
       skillId: 'grammar.be_it_they',
       dimension: 'grammar_production',
       difficulty: 2,

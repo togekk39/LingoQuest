@@ -233,11 +233,9 @@ export function TravelFlow({
           </Action>
         )}
         <Action journal busy={busy} onPress={advance}>
-          {current.result.correct
+          {current.result.correct || current.result.communicationOnly
             ? 'Seguir la historia'
-            : current.result.communicationOnly
-              ? 'Seguir con el ejemplo'
-              : 'Usar la respuesta de QuestBuddy'}
+            : 'Usar la respuesta de QuestBuddy'}
         </Action>
       </View>
     ) : (
@@ -301,7 +299,7 @@ export function TravelFlow({
               exercise={step.exercise}
               answer={current.answer}
             />
-            {review && !current.result.correct && (
+            {review && !current.result.correct && !current.result.communicationOnly && (
               <Button variant="ghost" icon={RotateCcw} disabled={busy} onPress={review}>
                 Repasar en otra escena
               </Button>

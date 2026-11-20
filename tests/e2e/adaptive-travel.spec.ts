@@ -81,7 +81,7 @@ test('two be-agreement errors lead to contextual repair and leave the story chec
   await click(page, 'Mis habilidades');
   await expect(page.getByRole('tab', exact('Todas mis habilidades'))).toBeVisible();
   await expect(page.getByText('Escritura', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Aciertos con ayuda/).first()).toBeVisible();
+  await expect(page.getByText(/Aciertos del objetivo con ayuda/).first()).toBeVisible();
 });
 
 test('a clear introduction outside the target form gets feedback without mastery credit', async ({
@@ -105,9 +105,11 @@ test('a clear introduction outside the target form gets feedback without mastery
   await input.fill('Nico here.');
   await click(page, 'Comprobar respuesta');
   const feedback = page.getByTestId('answer-feedback');
-  await expect(feedback.getByText('Se entiende tu mensaje', { exact: true })).toBeVisible();
+  await expect(feedback.getByText('Lograste comunicarte', { exact: true })).toBeVisible();
   const alternative = await state(page);
+  await expect(page.getByRole('button', exact('Seguir la historia'))).toBeVisible();
   expect(alternative.xp).toBe(before.xp);
+  expect(writing(alternative)?.communicationSuccesses).toBe(2);
   expect(writing(alternative)?.successes).toEqual(writing(before)?.successes);
   expect(writing(alternative)?.errors).toEqual(writing(before)?.errors);
   expect(writing(alternative)?.nextReviewAt).toBe(writing(before)?.nextReviewAt);
@@ -119,6 +121,7 @@ test('a clear introduction outside the target form gets feedback without mastery
   const retried = writing(await state(page));
   expect(retried?.successes.production).toEqual({ independent: 1, assisted: 1 });
   expect(retried?.transferSuccesses).toBe(0);
+  expect(retried?.communicationSuccesses).toBe(3);
 });
 
 test('an offline delayed review asks for independent use of a practiced concept in a new context', async ({

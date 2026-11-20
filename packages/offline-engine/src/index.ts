@@ -24,7 +24,7 @@ import {
   findLearningError,
   learningErrorFeedback,
   learningKey,
-  recordCommunicationExposure,
+  recordCommunicationSuccess,
   recordLearningAttempt,
   recordSpeakingPractice,
   travelLearningSchema,
@@ -681,12 +681,10 @@ export class OfflineEngine {
     if (learning && !correct && alternative && parsed.answer.text !== undefined) {
       const response = normalize(parsed.answer.text);
       if (alternative.answers.some((answer) => normalize(answer) === response)) {
-        recordCommunicationExposure(
-          (state.travelLearning ??= { targets: [] }),
-          learning,
-          exercise.id,
+        recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning, {
+          exerciseId: exercise.id,
           now,
-        );
+        });
         if (!state.learningDays.includes(date)) state.learningDays.push(date);
         const result: AttemptResult = {
           correct: false,
@@ -716,6 +714,8 @@ export class OfflineEngine {
         now,
       );
     }
+    if (learning && correct && alternative)
+      recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning);
     let visited = own(state.visitedExercises, lesson.id);
     if (!visited) {
       visited = [];

@@ -153,8 +153,8 @@ function ReviewCard({
   const s = useStyles();
   const [showDetails, setShowDetails] = useState(false);
   const counts = [
-    ['Aciertos sin ayuda', review.independentSuccesses],
-    ['Aciertos con ayuda', review.assistedSuccesses],
+    ['Aciertos del objetivo sin ayuda', review.independentSuccesses],
+    ['Aciertos del objetivo con ayuda', review.assistedSuccesses],
     ['Recuerdo después de un intervalo', review.delayedSuccesses],
     ['Uso en otra situación', review.transferSuccesses],
   ] as const;
@@ -196,6 +196,11 @@ function ReviewCard({
         </Text>
       ) : (
         <View style={{ gap: 3 }}>
+          {review.communicationSuccesses > 0 && (
+            <Text style={f.quiet}>
+              Respuestas que lograron comunicar: {review.communicationSuccesses}
+            </Text>
+          )}
           {counts.map(([label, count]) => (
             <Text key={label} style={f.quiet}>
               {label}: {count}

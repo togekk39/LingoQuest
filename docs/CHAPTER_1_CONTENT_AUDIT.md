@@ -6,6 +6,12 @@ The audit covers all 25 steps and nine vocabulary cards in **La primera postal**
 
 For written production, full and contracted forms can earn the same evidence when the meaning and the specified construction are present. The answer check normalizes common punctuation, spacing, case, and straight or curly apostrophes. Authored paraphrases that meet the communicative intent without demonstrating the particular construction get separate feedback and earn no target evidence. Unlisted synonyms and spelling variants still need authoring and testing. For reading or listening comprehension, an answer can earn credit by identifying the requested information, even if it consists of a single word. The same short answer can be insufficient in a full-sentence production task.
 
+## Communication and target forms
+
+All 11 production prompts with two answer lists now state what the learner should communicate and which form they are practicing. The direct location questions call for `where` followed by a form of `be` before the place, without a second verb. The directions tasks ask for a subject and `be` followed by the two-word location expression that starts with `next`. Introductions specify `I` or `My name`, the verb and the name. Descriptions specify the color after `be`, with `my` before the noun when ownership is the focus.
+
+`Where can I find the bus stop?` asks for the right place. `The park is beside the bus stop.` gives the right direction. Both receive “Lograste comunicarte” and a model of the requested form, and the learner can continue the story. The app counts the successful communication separately. The model and any immediate retry leave independent evidence tied to what the learner can produce without that support.
+
 ## Story exercises
 
 | Item                     | Skill and difficulty               | Audit finding and grading boundary                                                                                                                                                                                                                                                                                                                                      |

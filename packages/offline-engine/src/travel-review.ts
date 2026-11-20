@@ -25,6 +25,7 @@ export interface TravelReviewRow {
   reason: LearningReviewReason;
   canPractice: boolean;
   successes: LearningRecord['successes'];
+  communicationSuccesses: number;
   independentSuccesses: number;
   assistedSuccesses: number;
   delayedSuccesses: number;
@@ -149,6 +150,7 @@ export function travelReviewRows(
         reason,
         canPractice: candidates.length > 0,
         successes: target.successes,
+        communicationSuccesses: target.communicationSuccesses ?? 0,
         independentSuccesses: totals.reduce((sum, stage) => sum + stage.independent, 0),
         assistedSuccesses: totals.reduce((sum, stage) => sum + stage.assisted, 0),
         delayedSuccesses: target.delayedSuccesses,
