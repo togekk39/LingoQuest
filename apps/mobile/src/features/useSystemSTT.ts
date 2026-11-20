@@ -1,136 +1,246 @@
 import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import {
-  ExpoSpeechRecognitionModule as recognition,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
-import { selectedRecognitionService } from './recognitionService';
+import { File, Paths } from 'expo-file-system';
+import { systemRecognitionOptions } from './recognitionService';
+import { speechRecognition as recognition } from './speechRecognitionModule';
 import { stopOfflineSpeech } from './offlineSpeech';
 
-export function recognitionError(code: string) {
+type Attempt = {
+  started: boolean;
+  finals: string[];
+  failed: boolean;
+  audioFile?: File;
+  audioEnded?: boolean;
+  timeout?: ReturnType<typeof setTimeout>;
+};
+
+let recordingNumber = 0;
+
+function discardRecording(file?: File) {
+  try {
+    if (file?.exists) file.delete();
+  } catch {
+    // An interrupted capture may have already removed the file.
+    // Una captura interrumpida puede haber eliminado el archivo.
+  }
+}
+
+function abortAttempt(attempt: Attempt | null) {
+  clearTimeout(attempt?.timeout);
+  if (!attempt?.started) return;
+  const file = attempt.audioFile;
+  if (file && !attempt.audioEnded && recognition) {
+    // Wait for the native writer to close before deleting the file.
+    // Espera a que el módulo nativo cierre el archivo antes de eliminarlo.
+    const discard = () => {
+      clearTimeout(timeout);
+      subscription.remove();
+      discardRecording(file);
+    };
+    const subscription = recognition.addListener('audioend', ({ uri }) => {
+      if (uri === file.uri) discard();
+    });
+    const timeout = setTimeout(discard, 10000);
+  } else {
+    discardRecording(file);
+  }
+  try {
+    recognition?.abort();
+  } catch {
+    // The system session may already have ended.
+    // Es posible que la sesión del sistema ya haya terminado.
+  }
+}
+
+function recognitionError(code: string) {
   switch (code) {
     case 'audio-preparation':
       return 'No pudimos preparar el audio para la práctica. Vuelve a intentarlo o continúa sin micrófono.';
-    case 'service-unavailable':
-      return 'El servicio de voz seleccionado no está disponible. Selecciona un servicio STT compatible con Android en los ajustes del sistema. Puedes seguir con solo grabar.';
     case 'not-allowed':
     case 'service-not-allowed':
-      return 'Permite el micrófono y el reconocimiento de voz en los ajustes del navegador o del sistema. También puedes practicar solo con una grabación.';
+      return 'Permite el micrófono y el reconocimiento de voz en los ajustes del navegador o del sistema. También puedes omitir este paso.';
     case 'audio-capture':
       return 'No se pudo abrir el micrófono. Comprueba que esté conectado y que otra aplicación no lo esté usando.';
     case 'no-speech':
     case 'nomatch':
       return 'No reconocimos palabras. Habla un poco más cerca del micrófono y vuelve a intentarlo.';
     case 'network':
-      return 'El reconocimiento del sistema necesita conexión. Revisa tu red o practica solo con una grabación sin conexión.';
+      return 'El reconocimiento del sistema necesita conexión. Revisa tu red o continúa sin usar el micrófono.';
     case 'language-not-supported':
     case 'language-unavailable':
-      return 'El reconocimiento de inglés no está disponible. Instala o activa inglés en el servicio de voz del sistema, o practica solo con una grabación.';
+      return 'El reconocimiento de inglés no está disponible. Instala o activa inglés en el servicio de voz del sistema.';
     default:
-      return 'El reconocimiento de voz no está disponible. Activa el servicio de voz del sistema o usa un navegador compatible. Puedes practicar solo con una grabación.';
+      return Platform.OS === 'android'
+        ? 'No pudimos iniciar el reconocimiento de voz. Revisa el servicio de reconocimiento elegido en los ajustes de Android.'
+        : 'El reconocimiento de voz no está disponible. Activa el servicio de voz del sistema o usa un navegador compatible.';
   }
 }
 
 export function useSystemSTT() {
   const [phase, setPhase] = useState<'idle' | 'starting' | 'listening' | 'stopping'>('idle');
-  const [transcript, setTranscript] = useState('');
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [finalTranscript, setFinalTranscript] = useState('');
+  const [recordingUri, setRecordingUri] = useState<string>();
   const [message, setMessage] = useState('');
-  const mounted = useRef(true);
-  const active = useRef(false);
-  const hasResult = useRef(false);
-  const hasError = useRef(false);
+  const attempt = useRef<Attempt | null>(null);
+  const savedRecording = useRef<File | undefined>(undefined);
+
   useEffect(() => {
-    mounted.current = true;
+    if (!recognition) return;
+    const subscriptions = [
+      recognition.addListener('start', () => {
+        if (attempt.current?.started) setPhase('listening');
+      }),
+      recognition.addListener('result', (event) => {
+        const current = attempt.current;
+        if (!current?.started || current.failed) return;
+        const value = event.results[0]?.transcript.trim() ?? '';
+        if (event.isFinal && value) current.finals.push(value);
+        setLiveTranscript(
+          (!event.isFinal && value ? [...current.finals, value] : current.finals).join(' '),
+        );
+      }),
+      recognition.addListener('audioend', ({ uri }) => {
+        const current = attempt.current;
+        if (current?.audioFile && uri === current.audioFile.uri) current.audioEnded = true;
+      }),
+      recognition.addListener('error', (event) => {
+        const current = attempt.current;
+        if (!current?.started) return;
+        current.failed = true;
+        setMessage(recognitionError(event.error));
+        setPhase('stopping');
+      }),
+      recognition.addListener('nomatch', () => {
+        const current = attempt.current;
+        if (!current?.started) return;
+        current.failed = true;
+        setMessage(recognitionError('nomatch'));
+      }),
+      recognition.addListener('end', () => {
+        const current = attempt.current;
+        if (!current?.started) return;
+        clearTimeout(current.timeout);
+        attempt.current = null;
+        setPhase('idle');
+        const final = current.failed ? '' : current.finals.join(' ');
+        setLiveTranscript('');
+        setFinalTranscript(final);
+        if (!final && !current.failed) setMessage(recognitionError('no-speech'));
+        if (current.audioEnded && current.audioFile && current.audioFile.size > 44) {
+          savedRecording.current = current.audioFile;
+          setRecordingUri(current.audioFile.uri);
+        } else {
+          discardRecording(current.audioFile);
+        }
+      }),
+    ];
     return () => {
-      mounted.current = false;
-      active.current = false;
-      recognition.abort();
+      const current = attempt.current;
+      attempt.current = null;
+      subscriptions.forEach((subscription) => subscription.remove());
+      abortAttempt(current);
+      discardRecording(savedRecording.current);
     };
   }, []);
-  useSpeechRecognitionEvent('start', () => {
-    if (active.current) setPhase('listening');
-  });
-  useSpeechRecognitionEvent('result', (event) => {
-    if (!active.current) return;
-    const value = event.results[0]?.transcript.trim() ?? '';
-    hasResult.current = !!value;
-    setTranscript(value);
-  });
-  useSpeechRecognitionEvent('error', (event) => {
-    if (!active.current) return;
-    hasError.current = true;
-    setMessage(recognitionError(event.error));
-    // Wait for end before permitting another session.
-    setPhase('stopping');
-  });
-  useSpeechRecognitionEvent('nomatch', () => {
-    if (!active.current) return;
-    hasError.current = true;
-    setMessage(recognitionError('nomatch'));
-  });
-  useSpeechRecognitionEvent('end', () => {
-    if (!active.current) return;
-    active.current = false;
-    setPhase('idle');
-    if (!hasResult.current && !hasError.current) setMessage(recognitionError('no-speech'));
-  });
+
   async function start(prepareAudio?: () => void) {
-    if (active.current) return;
-    active.current = true;
-    hasResult.current = false;
-    hasError.current = false;
-    setTranscript('');
+    if (attempt.current) return;
+    if (!recognition) {
+      setMessage(recognitionError('unavailable'));
+      return;
+    }
+    const current: Attempt = { started: false, finals: [], failed: false };
+    attempt.current = current;
+    discardRecording(savedRecording.current);
+    savedRecording.current = undefined;
+    setRecordingUri(undefined);
+    setLiveTranscript('');
+    setFinalTranscript('');
     setMessage('');
     setPhase('starting');
     try {
+      if (!recognition.isRecognitionAvailable()) throw new Error('unavailable');
       try {
         prepareAudio?.();
+        await stopOfflineSpeech();
       } catch {
         throw new Error('audio-preparation');
       }
-      if (!recognition.isRecognitionAvailable()) throw new Error('unavailable');
-      await stopOfflineSpeech();
-      if (!mounted.current || !active.current) return;
-      // Web Speech requests permission in start(), preserving the browser's prompt.
+      if (attempt.current !== current) return;
       if (Platform.OS !== 'web') {
         const permission = await recognition.requestPermissionsAsync();
-        if (!mounted.current || !active.current) return;
+        if (attempt.current !== current) return;
         if (!permission.granted) throw new Error('not-allowed');
       }
-      const androidRecognitionServicePackage =
-        Platform.OS === 'android' ? selectedRecognitionService(recognition) : undefined;
+      if (recognition.supportsRecording()) {
+        const name = `lingoquest-speech-${Date.now()}-${++recordingNumber}.wav`;
+        current.audioFile = new File(Paths.cache, name);
+      }
+      current.started = true;
+      current.timeout = setTimeout(() => fail(current, 'unavailable'), 25000);
       recognition.start({
-        ...(androidRecognitionServicePackage ? { androidRecognitionServicePackage } : {}),
-        lang: 'en-US',
+        ...systemRecognitionOptions(Platform.OS),
         interimResults: true,
         continuous: false,
         maxAlternatives: 1,
-        recordingOptions: { persist: false },
+        recordingOptions: current.audioFile
+          ? {
+              persist: true,
+              outputDirectory: Paths.cache.uri,
+              outputFileName: current.audioFile.name,
+            }
+          : { persist: false },
       });
     } catch (error) {
-      if (!mounted.current || !active.current) return;
-      active.current = false;
-      setPhase('idle');
-      setMessage(recognitionError(error instanceof Error ? error.message : 'unavailable'));
+      fail(current, error instanceof Error ? error.message : 'unavailable');
     }
   }
+
+  function fail(current: Attempt, code: string) {
+    if (attempt.current !== current) return;
+    attempt.current = null;
+    abortAttempt(current);
+    setPhase('idle');
+    setLiveTranscript('');
+    if (!current.failed) setMessage(recognitionError(code));
+  }
+
   function stop() {
-    if (!active.current) return;
+    const current = attempt.current;
+    if (!recognition || !current?.started) return;
     setPhase('stopping');
+    clearTimeout(current.timeout);
+    current.timeout = setTimeout(() => fail(current, 'unavailable'), 5000);
     try {
       recognition.stop();
     } catch {
-      active.current = false;
-      setPhase('idle');
-      setMessage(recognitionError('unavailable'));
+      fail(current, 'unavailable');
     }
   }
+
   function cancel() {
-    active.current = false;
-    recognition.abort();
+    const current = attempt.current;
+    attempt.current = null;
+    abortAttempt(current);
+    discardRecording(savedRecording.current);
+    savedRecording.current = undefined;
+    setRecordingUri(undefined);
     setPhase('idle');
-    setTranscript('');
+    setLiveTranscript('');
+    setFinalTranscript('');
     setMessage('');
   }
-  return { phase, transcript, message, start, stop, cancel };
+
+  return {
+    phase,
+    liveTranscript,
+    finalTranscript,
+    recordingUri,
+    message,
+    hasRecognitionModule: recognition !== null,
+    start,
+    stop,
+    cancel,
+  };
 }

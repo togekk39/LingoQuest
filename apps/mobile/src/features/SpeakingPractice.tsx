@@ -1,22 +1,22 @@
 import { JournalArt, Notebook, JournalLeaf } from '../Journal';
 import { illustrations } from '../travel/illustrations';
+import { audioClips } from '../travel/audioClips';
+import { matchesSpeechTarget } from '../travel/speakingFeedback';
 import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
+import { playPracticeClip } from './playPracticeClip';
 import { useSystemSTT } from './useSystemSTT';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import {
-  AudioModule,
-  RecordingPresets,
-  setAudioModeAsync,
-  useAudioPlayer,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from 'expo-audio';
-import { File } from 'expo-file-system';
-import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
+  getSpeechPreferences,
+  speakOffline,
+  stopOfflineSpeech,
+  useOfflineSpeech,
+} from './offlineSpeech';
 import { ShieldCheck, Volume2 } from 'lucide-react-native';
-import { Action, useFeatureStyles, FlowFrame } from './FeatureUI';
+import { Action, useFeatureStyles, FlowFrame, InputViewportContext } from './FeatureUI';
 
 export type SpeakingPracticeMethod = 'recorded' | 'imitated';
 
@@ -25,190 +25,123 @@ export function SpeakingPanel({
   onDone,
   onPlay,
   onStopReference,
-  offlineOnly = false,
   story,
+  allowSystemRecognition = false,
+  feedback,
+  acceptedPhrases,
 }: {
   text: string;
   onDone: (method?: SpeakingPracticeMethod) => void;
   onPlay?: () => void;
   onStopReference?: () => void;
-  offlineOnly?: boolean;
-  story?: { fallback: string; continueLabel: string; saving: boolean };
+  story?: { continueLabel: string; saving: boolean };
+  acceptedPhrases?: string[];
+  allowSystemRecognition?: boolean;
+  feedback?: (transcript: string) => { content: string; grammar: string };
 }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
 
   const stt = useSystemSTT();
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recorderState = useAudioRecorderState(recorder);
+  const [systemSelected, setSystemSelected] = useState(false);
+  const android = Platform.OS === 'android';
+  const showRecognition = android || systemSelected;
   const player = useAudioPlayer(null);
-  const [uri, setUri] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const { playOffline, speechMessage } = useOfflineSpeech();
-  const [busy, setBusy] = useState(false);
-  const [quietPractice, setQuietPractice] = useState(false);
-  const [showModel, setShowModel] = useState(false);
-  const [permission, setPermission] = useState(false);
-  const recordingUri = useRef<string | null>(null);
-  const mounted = useRef(true);
-  const recorderRef = useRef(recorder);
-  recorderRef.current = recorder;
-  const removeRecording = (path: string | null) => {
-    if (!path) return;
-    try {
-      if (Platform.OS === 'web') {
-        if (path.startsWith('blob:')) URL.revokeObjectURL(path);
-      } else {
-        const file = new File(path);
-        if (file.exists) file.delete();
-      }
-    } catch {
-      /* The recording may already have been released by the recorder. */
-    }
-  };
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
+  const [comparing, setComparing] = useState(false);
+  const comparison = useRef<AbortController | null>(null);
+  const transcriptPanel = useRef<View>(null);
+  const { revealItem } = useContext(InputViewportContext);
+  const recognizing = stt.phase !== 'idle';
+  const audioBusy = comparing || recognizing;
+  const textFeedback = stt.finalTranscript && feedback?.(stt.finalTranscript);
+  const passed = matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
+  const transcript = stt.finalTranscript || stt.liveTranscript;
+  const transcriptStatus =
+    stt.phase === 'starting'
+      ? 'Preparando el micrófono…'
+      : stt.phase === 'stopping'
+        ? 'Esperando el resultado final…'
+        : 'Te escuchamos. Di tu frase en inglés.';
+
+  useEffect(
+    () => () => {
+      comparison.current?.abort();
       void stopOfflineSpeech();
-      const activeRecorder = recorderRef.current;
-      void (async () => {
-        try {
-          if (activeRecorder.isRecording) await activeRecorder.stop();
-        } catch {
-          /* The native recorder may already be released. */
-        }
-        removeRecording(recordingUri.current ?? activeRecorder.uri);
-        try {
-          await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-        } catch {
-          /* Audio resources may already be released. */
-        }
-      })();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!recognizing) return;
+    let active = true;
+    const frame = requestAnimationFrame(() => {
+      const panel = transcriptPanel.current;
+      if (panel) revealItem(panel, () => active && transcriptPanel.current === panel);
+    });
+    return () => {
+      active = false;
+      cancelAnimationFrame(frame);
     };
-  }, []);
-  async function startRecording() {
-    setBusy(true);
-    setMessage('');
+  }, [recognizing, revealItem]);
+
+  function stopComparison() {
+    comparison.current?.abort();
+    comparison.current = null;
+    setComparing(false);
+    pausePracticePlayback(player, Platform.OS);
+    void stopOfflineSpeech();
+  }
+
+  function finish(method?: SpeakingPracticeMethod) {
     try {
-      stt.cancel();
+      stopComparison();
       onStopReference?.();
-      await stopOfflineSpeech();
-      if (!mounted.current) return;
-      const result = await AudioModule.requestRecordingPermissionsAsync();
-      if (!mounted.current) return;
-      if (!result.granted) {
-        setMessage(
-          'El micrófono está desactivado. Puedes seguir aprendiendo y volver cuando quieras.',
-        );
-        setPermission(false);
-        return;
-      }
-      setPermission(true);
-      pausePracticePlayback(player, Platform.OS);
-      removeRecording(recordingUri.current);
-      recordingUri.current = null;
-      setUri(null);
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      if (!mounted.current) return;
-      await recorder.prepareToRecordAsync();
-      if (!mounted.current) {
-        await recorder.stop();
-        removeRecording(recorder.uri);
-        return;
-      }
-      recorder.record();
-    } catch {
-      if (!mounted.current) return;
-      setMessage(
-        Platform.OS === 'web'
-          ? 'No pudimos iniciar la grabación. Comprueba que el navegador admita grabación de audio, usa HTTPS y revisa si otra aplicación está usando el micrófono.'
-          : 'No pudimos iniciar la grabación. Revisa si otra aplicación está usando el micrófono y vuelve a intentarlo.',
-      );
     } finally {
-      if (mounted.current) setBusy(false);
+      stt.cancel();
+      onDone(method);
     }
   }
-  async function stopRecording() {
-    setBusy(true);
-    try {
-      await recorder.stop();
-      const path = recorder.uri;
-      if (!mounted.current) {
-        removeRecording(path);
-        return;
-      }
-      recordingUri.current = path;
-      setUri(path);
-      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-      setMessage(
-        'Escucha tu grabación y compara con la frase escrita. Esta práctica es local y no genera una calificación automática de pronunciación.',
-      );
-    } catch {
-      setMessage(
-        'No pudimos guardar la grabación. Puedes intentarlo otra vez o continuar sin grabar.',
-      );
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  }
-  async function finish(method?: SpeakingPracticeMethod) {
-    stt.cancel();
-    onStopReference?.();
-    try {
-      if (recorder.isRecording) await recorder.stop();
-      pausePracticePlayback(player, Platform.OS);
-      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
-    } catch {
-      /* Closing practice should always work. */
-    }
-    removeRecording(recordingUri.current ?? recorder.uri);
-    recordingUri.current = null;
-    setUri(null);
-    onDone(method);
-  }
-  const playReference = () => {
-    player.pause();
+
+  function playReference() {
     if (onPlay) onPlay();
     else void playOffline(text);
-  };
-  if (quietPractice && story) {
-    return (
-      <Notebook title="Practica sin micrófono">
-        <Text style={f.body}>{story.fallback}</Text>
-        {showModel && (
-          <>
-            <Text
-              accessibilityLanguage="en-US"
-              accessibilityLiveRegion="polite"
-              style={s.reference}
-            >
-              {text}
-            </Text>
-            <Action journal secondary onPress={playReference}>
-              Escuchar ejemplo
-            </Action>
-          </>
-        )}
-        <Action journal secondary onPress={() => setShowModel(!showModel)}>
-          {showModel ? 'Ocultar el ejemplo' : 'Comparar con el ejemplo'}
-        </Action>
-        <Action journal busy={story.saving} onPress={() => void finish()}>
-          {story.continueLabel}
-        </Action>
-      </Notebook>
-    );
+  }
+
+  async function compareRecording(uri: string) {
+    const run = new AbortController();
+    comparison.current = run;
+    setComparing(true);
+    setMessage('');
+    try {
+      onStopReference?.();
+      await stopOfflineSpeech();
+      if (run.signal.aborted) return;
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+      if (run.signal.aborted) return;
+      const clip = audioClips[text];
+      const played = clip
+        ? await playPracticeClip(player, clip, (await getSpeechPreferences()).rate ?? 1, run.signal)
+        : await speakOffline(text);
+      if (!played && !run.signal.aborted) throw new Error('Reference audio unavailable');
+      if (played && !run.signal.aborted) {
+        await playPracticeClip(player, { uri }, 1, run.signal);
+      }
+    } catch {
+      if (!run.signal.aborted) {
+        setMessage('No pudimos reproducir la comparación. Vuelve a intentarlo.');
+      }
+    } finally {
+      if (comparison.current === run && !run.signal.aborted) stopComparison();
+    }
   }
   return (
     <View testID="speaking-studio" style={{ gap: 12 }}>
       <JournalArt source={illustrations.review} aspectRatio={3.1} taped />
       <Notebook title="Dale voz a lo que aprendiste.">
-        <Text style={f.quiet}>
-          {story
-            ? 'Escucha el ejemplo. Luego di tu propia respuesta y, si quieres, grábala.'
-            : 'Escucha la frase y vuelve a decirla a tu ritmo. Grabar es opcional.'}
-        </Text>
+        <Text style={f.quiet}>Escucha el ejemplo y di la frase para comprobar tu respuesta.</Text>
         <Text style={f.eyebrow}>Tu frase para practicar</Text>
         <Text accessibilityLanguage="en-US" style={s.reference}>
           {text}
@@ -216,12 +149,10 @@ export function SpeakingPanel({
         <Pressable
           accessibilityRole="button"
           style={s.listen}
-          disabled={busy || stt.phase !== 'idle' || recorderState.isRecording}
-          accessibilityState={{
-            disabled: busy || stt.phase !== 'idle' || recorderState.isRecording,
-          }}
+          disabled={audioBusy}
+          accessibilityState={{ disabled: audioBusy }}
           onPress={() => {
-            if (stt.phase !== 'idle' || recorderState.isRecording || busy) return;
+            if (audioBusy) return;
             playReference();
           }}
         >
@@ -234,84 +165,91 @@ export function SpeakingPanel({
           {speechMessage}
         </Text>
       )}
-      {!offlineOnly && (
+      {showRecognition && stt.hasRecognitionModule ? (
         <>
           <Text style={f.quiet}>
-            Al practicar con reconocimiento, el servicio de voz del sistema o del navegador puede
-            procesar tu audio en línea. El texto es orientativo y no es una nota de pronunciación.
-            Si prefieres practicar sin conexión, elige solo grabar.
+            {android
+              ? 'Se usará el servicio de voz elegido en Android. Ese servicio puede procesar tu audio en línea.'
+              : 'El servicio de voz del sistema o del navegador puede procesar tu audio en línea.'}
           </Text>
           <Action
-            disabled={busy || recorderState.isRecording || stt.phase === 'stopping'}
+            disabled={comparing || story?.saving || stt.phase === 'stopping'}
             busy={stt.phase === 'starting'}
             onPress={() => {
               if (stt.phase === 'listening') stt.stop();
               else {
                 setMessage('');
-                void stt.start(() => pausePracticePlayback(player, Platform.OS));
+                void stt.start(() => {
+                  onStopReference?.();
+                  pausePracticePlayback(player, Platform.OS);
+                });
               }
             }}
           >
-            {stt.phase === 'listening' ? 'Terminar reconocimiento' : 'Practicar con mi voz'}
+            {stt.phase === 'listening'
+              ? 'Terminar reconocimiento'
+              : android
+                ? 'Practicar hablando'
+                : 'Practicar con mi voz'}
           </Action>
-          {stt.phase === 'listening' && (
-            <Text accessibilityLiveRegion="polite" style={f.quiet}>
-              Te escuchamos. Lee la frase en inglés.
-            </Text>
-          )}
-          {!!stt.transcript && (
-            <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite" style={f.card}>
-              <Text style={f.eyebrow}>Esto entendió el sistema</Text>
-              <Text style={f.body}>{stt.transcript}</Text>
-              <Text style={f.quiet}>
-                Compara el texto con la frase y vuelve a practicar cuando quieras.
-              </Text>
-            </JournalLeaf>
-          )}
-          {!!stt.message && (
-            <Text accessibilityRole="alert" style={f.body}>
-              {stt.message}
-            </Text>
-          )}
         </>
+      ) : showRecognition ? (
+        <Text style={f.quiet}>
+          Esta versión de LingoQuest no incluye el módulo de voz. Instala una versión actualizada.
+        </Text>
+      ) : story ? (
+        <Text style={f.quiet}>
+          El reconocimiento de voz de la misión está disponible en Android.
+        </Text>
+      ) : null}
+      {(recognizing || !!stt.finalTranscript) && (
+        <View ref={transcriptPanel} collapsable={false} testID="speech-transcript">
+          <JournalLeaf compact kind="notebook" style={f.card}>
+            <Text style={f.eyebrow}>
+              {stt.finalTranscript ? 'Esto entendió el sistema' : 'Transcripción en vivo'}
+            </Text>
+            <View accessibilityLiveRegion="polite" style={recognizing && s.liveTranscript}>
+              {transcript ? (
+                <Text accessibilityLanguage="en-US" style={f.body}>
+                  {transcript}
+                </Text>
+              ) : (
+                <Text style={f.quiet}>{transcriptStatus}</Text>
+              )}
+            </View>
+            {textFeedback && (
+              <>
+                <Text style={f.eyebrow}>Contenido de la frase</Text>
+                <Text style={f.body}>{textFeedback.content}</Text>
+                <Text style={f.eyebrow}>Gramática de la lección</Text>
+                <Text style={f.body}>{textFeedback.grammar}</Text>
+              </>
+            )}
+            {!!stt.finalTranscript && (
+              <Text style={f.quiet}>
+                {passed
+                  ? 'La frase reconocida cumple el objetivo.'
+                  : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
+              </Text>
+            )}
+          </JournalLeaf>
+        </View>
       )}
-      {recorderState.isRecording ? (
-        <Action
-          secondary
-          busy={busy}
-          disabled={stt.phase !== 'idle'}
-          onPress={() => {
-            void stopRecording();
-          }}
-        >
-          Terminar grabación
-        </Action>
-      ) : (
-        <Action
-          secondary
-          busy={busy}
-          disabled={stt.phase !== 'idle'}
-          onPress={() => {
-            void startRecording();
-          }}
-        >
-          {uri
-            ? 'Grabar otra vez sin reconocimiento'
-            : 'Solo grabar y escuchar (sin reconocimiento)'}
-        </Action>
+      {!!stt.message && (
+        <Text accessibilityRole="alert" style={f.body}>
+          {stt.message}
+        </Text>
       )}
-      {uri && (
+      {stt.recordingUri && stt.phase === 'idle' && (
         <Action
           secondary
-          disabled={busy || stt.phase !== 'idle' || recorderState.isRecording}
+          disabled={story?.saving}
           onPress={() => {
-            onStopReference?.();
-            void stopOfflineSpeech();
-            player.replace({ uri });
-            player.play();
+            if (comparison.current) stopComparison();
+            else if (stt.recordingUri) void compareRecording(stt.recordingUri);
           }}
         >
-          Escuchar mi grabación
+          {comparing ? 'Detener comparación' : 'Escuchar ejemplo y mi grabación'}
         </Action>
       )}
       {message ? (
@@ -322,38 +260,38 @@ export function SpeakingPanel({
       <View style={s.privacy}>
         <ShieldCheck size={19} color={palette.muted} />
         <Text style={[f.quiet, { flex: 1 }]}>
-          En el modo solo grabar, tu audio permanece en este dispositivo y se elimina al salir. No
-          guardamos el audio ni el texto del reconocimiento.{' '}
-          {permission ? '' : 'Tú decides si activas el micrófono.'}
+          Si el dispositivo permite grabar durante el reconocimiento, la copia local se elimina al
+          volver a intentarlo o salir.
         </Text>
       </View>
-      {story ? (
-        <>
-          <Action
-            journal
-            busy={story.saving}
-            disabled={busy || recorderState.isRecording}
-            onPress={() => void finish(uri ? 'recorded' : 'imitated')}
-          >
-            {uri ? story.continueLabel : 'Practiqué en voz alta'}
-          </Action>
-          {!uri && (
-            <Action
-              journal
-              secondary
-              disabled={story.saving || busy || recorderState.isRecording}
-              onPress={() => {
-                onStopReference?.();
-                setQuietPractice(true);
-              }}
-            >
-              Ahora no puedo hablar
-            </Action>
-          )}
-        </>
-      ) : (
-        <Action secondary onPress={() => void finish()}>
-          {uri || stt.transcript ? 'Continuar con mi lección' : 'Ahora no puedo hablar'}
+      <Action
+        journal={!!story}
+        busy={story?.saving}
+        disabled={!passed || stt.phase !== 'idle'}
+        onPress={() => {
+          if (passed && stt.phase === 'idle') {
+            finish(story ? (stt.recordingUri ? 'recorded' : 'imitated') : undefined);
+          }
+        }}
+      >
+        {story?.continueLabel ?? 'Continuar con mi lección'}
+      </Action>
+      <Action secondary disabled={story?.saving} onPress={() => finish()}>
+        Ahora no puedo hablar
+      </Action>
+      {allowSystemRecognition && !android && (
+        <Action
+          secondary
+          disabled={audioBusy}
+          onPress={() => {
+            stt.cancel();
+            setSystemSelected(!systemSelected);
+            setMessage('');
+          }}
+        >
+          {systemSelected
+            ? 'Ocultar la opción de reconocimiento'
+            : 'Ver opción de reconocimiento que puede usar internet'}
         </Action>
       )}
     </View>
@@ -375,7 +313,7 @@ export default function SpeakingPractice({
       eyebrow="Práctica de pronunciación"
       onClose={onClose ?? onDone}
     >
-      <SpeakingPanel text={text} onDone={onDone} />
+      <SpeakingPanel text={text} onDone={onDone} allowSystemRecognition />
     </FlowFrame>
   );
 }
@@ -391,6 +329,7 @@ export function useStyles() {
       backgroundColor: palette.mint,
     },
     reference: { fontFamily: 'Outfit', fontSize: 28, lineHeight: 38, color: palette.ink },
+    liveTranscript: { minHeight: 48 },
     listen: { flexDirection: 'row', gap: 9, alignItems: 'center', minHeight: 44 },
     listenText: { fontFamily: 'Manrope', fontSize: 14, color: palette.teal, fontWeight: '700' },
     privacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },

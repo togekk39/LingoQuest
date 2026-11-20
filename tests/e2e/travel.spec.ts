@@ -110,13 +110,12 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await answerTravelText(page, 'travel_hello_transfer', "I'm Nico.");
   await expect(page.getByRole('button', exact('Practicar con mi voz'))).toHaveCount(0);
   await expect(
-    page.getByRole('button', exact('Solo grabar y escuchar (sin reconocimiento)')),
+    page.getByText(/reconocimiento de voz de la misión está disponible en Android/),
   ).toBeVisible();
+  await expect(page.getByRole('button', exact('Completar misión'))).toBeDisabled();
   await capture(page, '02-speaking');
   await click('Ahora no puedo hablar');
-  await expect(page.getByText('Practica sin micrófono', { exact: true })).toBeVisible();
-  await click('Comparar con el ejemplo');
-  await click('Completar misión');
+  await expect(page.getByText('¡Misión completada!')).toBeVisible();
   await click('Volver al viaje');
   await click('Continuar viaje');
   await click('Continuar');
@@ -163,7 +162,6 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await capture(page, '04-transfer');
   await answerTravelText(page, 'travel_bag_transfer', "It's red.");
   await click('Ahora no puedo hablar');
-  await click('Seguir la historia');
   await click('Completar misión');
   await expect(page.getByText('Sello obtenido · Primer encuentro')).toBeVisible();
   await page.reload();

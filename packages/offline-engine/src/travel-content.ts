@@ -51,7 +51,7 @@ export type TravelStep =
       type: 'speak';
       text: string;
       phrase: string;
-      fallback: string;
+      acceptedPhrases?: string[];
       learning: LearningTarget;
     };
 
@@ -92,6 +92,23 @@ function introductionAnswers(name: string, greetingRequired = false) {
   );
   return greetingRequired ? greeted : [...forms, ...greeted];
 }
+
+const redBagAnswers = [
+  "It's red.",
+  'It is red.',
+  'The bag is red.',
+  'The backpack is red.',
+  "Luz's bag is red.",
+  "Luz's backpack is red.",
+  'Her bag is red.',
+  'Her backpack is red.',
+  "The bag's red.",
+  "The backpack's red.",
+  "Luz's bag's red.",
+  "Luz's backpack's red.",
+  "Her bag's red.",
+  "Her backpack's red.",
+];
 
 function introductionParaphrases(name: string, greetingRequired = false) {
   const forms = [`${name} here.`, `You can call me ${name}.`, `I'm called ${name}.`];
@@ -379,10 +396,13 @@ export const chapter: TravelChapter = {
         {
           id: 'hello_speak',
           type: 'speak',
-          text: 'Ahora saluda a Sam con tu propio nombre. Escucha a Luz, di tu saludo y vuelve a escucharte. Fíjate si puedes oír el nombre al final.',
+          text: 'Saluda a Sam como si fueras Luz. Di el saludo y preséntate con el nombre de Luz.',
           phrase: 'Hi! I am Luz.',
-          fallback:
-            'Piensa cómo saludarías a Sam con tu nombre. Escucha el modelo y compara dónde va el nombre.',
+          // Accept likely speech transcriptions of Luz in this exercise.
+          // Acepta transcripciones probables de Luz en este ejercicio.
+          acceptedPhrases: ['Luz', 'Los', 'Lus', 'Luce', 'Loose', 'Lose', "Lou's"].flatMap((name) =>
+            introductionAnswers(name, true),
+          ),
           learning: {
             conceptId: 'introduction',
             skill: 'speaking',
@@ -835,22 +855,7 @@ export const chapter: TravelChapter = {
             skillId: 'grammar.be_it_they',
             dimension: 'grammar_production',
             difficulty: 2,
-            acceptedAnswers: [
-              "It's red.",
-              'It is red.',
-              'The bag is red.',
-              'The backpack is red.',
-              "Luz's bag is red.",
-              "Luz's backpack is red.",
-              'Her bag is red.',
-              'Her backpack is red.',
-              "The bag's red.",
-              "The backpack's red.",
-              "Luz's bag's red.",
-              "Luz's backpack's red.",
-              "Her bag's red.",
-              "Her backpack's red.",
-            ],
+            acceptedAnswers: redBagAnswers,
             communicationOnly: {
               answers: [
                 'Red.',
@@ -877,10 +882,9 @@ export const chapter: TravelChapter = {
         {
           id: 'bag_speak',
           type: 'speak',
-          text: 'Practica cómo le dirías a la otra persona que la mochila es roja. Escucha el modelo, grábate si quieres y compara si se oye el color.',
+          text: 'Dile a la otra persona que la mochila de Luz es roja. Usa un sujeto, una forma de be y el color.',
           phrase: 'It’s red.',
-          fallback:
-            'Sin usar el micrófono, forma en silencio tu respuesta sobre el color y compárala con el modelo.',
+          acceptedPhrases: redBagAnswers,
           learning: {
             conceptId: 'item-color',
             skill: 'speaking',

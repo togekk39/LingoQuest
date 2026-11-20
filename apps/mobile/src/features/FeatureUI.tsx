@@ -20,8 +20,9 @@ import { JournalLeaf, PaperEdge, PaperGrain } from '../Journal';
 
 export const InputViewportContext = createContext<{
   revealInput: (input: TextInput | null) => void;
+  revealItem: (item: View, isCurrent: () => boolean) => void;
   maxHeight: number;
-}>({ revealInput: () => {}, maxHeight: 200 });
+}>({ revealInput: () => {}, revealItem: () => {}, maxHeight: 200 });
 
 export const newEventId = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -116,6 +117,21 @@ export function FlowFrame({
   const pendingFrame = useRef<number | null>(null);
   const [inputMaxHeight, setInputMaxHeight] = useState(200);
   const hasFeedback = !!feedback;
+  const revealItem = useCallback((item: View | TextInput, isCurrent: () => boolean) => {
+    scroll.current?.getNativeScrollRef()?.measureInWindow((_x, top, _width, height) => {
+      item.measureInWindow((_x, itemTop, _width, itemHeight) => {
+        if (!isCurrent() || height <= 0) return;
+        const bottom = top + height - 16;
+        const delta =
+          itemTop < top + 16 ? itemTop - top - 16 : Math.max(0, itemTop + itemHeight - bottom);
+        if (Math.abs(delta) > 1)
+          scroll.current?.scrollTo({
+            y: Math.max(0, scrollOffset.current + delta),
+            animated: false,
+          });
+      });
+    });
+  }, []);
   const revealFocusedInput = useCallback(() => {
     if (hasFeedback) return;
     if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
@@ -123,24 +139,9 @@ export function FlowFrame({
       pendingFrame.current = null;
       const input = focusedInput.current;
       if (!input) return;
-      // Measure the actual scroll viewport: it excludes the header, footer and keyboard.
-      scroll.current?.getNativeScrollRef()?.measureInWindow((_x, top, _width, height) => {
-        input.measureInWindow((_inputX, inputTop, _inputWidth, inputHeight) => {
-          if (focusedInput.current !== input || height <= 0) return;
-          const bottom = top + height - 16;
-          const delta =
-            inputTop < top + 16
-              ? inputTop - top - 16
-              : Math.max(0, inputTop + inputHeight - bottom);
-          if (Math.abs(delta) > 1)
-            scroll.current?.scrollTo({
-              y: Math.max(0, scrollOffset.current + delta),
-              animated: false,
-            });
-        });
-      });
+      revealItem(input, () => focusedInput.current === input);
     });
-  }, [hasFeedback]);
+  }, [hasFeedback, revealItem]);
   const revealInput = useCallback(
     (input: TextInput | null) => {
       focusedInput.current = input;
@@ -277,7 +278,9 @@ export function FlowFrame({
         }}
         scrollEventThrottle={16}
       >
-        <InputViewportContext.Provider value={{ revealInput, maxHeight: inputMaxHeight }}>
+        <InputViewportContext.Provider
+          value={{ revealInput, revealItem, maxHeight: inputMaxHeight }}
+        >
           <View
             style={[f.content, journal && f.journalWidth]}
             onLayout={(event) => {

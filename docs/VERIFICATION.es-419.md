@@ -2,6 +2,10 @@
 
 [English](VERIFICATION.md)
 
+## Reconocimiento de voz en el viaje · 2026-11-20
+
+Está pendiente la prueba en un Android físico con modo avión. Hace falta un teléfono conectado para confirmar que el reconocedor dedicado devuelve una transcripción final a partir del micrófono con el Wi-Fi y los datos móviles apagados. [Procedimiento de prueba en Android físico](OFFLINE_TEST_PLAN.es-419.md#reconocimiento-de-voz-en-android-con-modo-avión)
+
 ## Revisión de aceptación del capítulo 1
 
 - Se movieron las comprobaciones de pregunta y respuesta al escenario del manual sin conexión. La prueba del primer inicio cubre las opciones de bienvenida, el selector de origen y la primera escena.
