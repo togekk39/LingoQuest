@@ -128,7 +128,7 @@ test('generated Android manifest makes installed recognition services visible', 
       encoding: 'utf8',
     }),
   );
-  const queries = config._internal.modResults.android.manifest.queries;
+  const queries = config._internal.modResults.android.manifest.manifest.queries;
   assert.ok(
     queries.some((query: { intent?: { action?: { $: Record<string, string> }[] }[] }) =>
       query.intent?.some((intent) =>
