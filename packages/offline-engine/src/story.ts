@@ -213,7 +213,7 @@ function reviewEvent(missionId: string) {
   return `review:${missionId}`;
 }
 
-function matches(condition: StoryCondition, state: StoryState, context: StoryContext) {
+function matches(condition: StoryCondition, state: StoryState, context: StoryContext): boolean {
   const test = () => {
     switch (condition.type) {
       case 'flag': {
