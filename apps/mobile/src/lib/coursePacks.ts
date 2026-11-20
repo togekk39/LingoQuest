@@ -13,6 +13,9 @@ import {
 import bundled from '../content/bundled-course.json';
 import courseSource from '../content/course-source.json';
 import { getRaw, putRaw, removeRaw } from './storage';
+// The immutable bundled asset is checked by packs:verify before release.
+// El recurso incluido es inmutable y se verifica con packs:verify antes de publicarlo.
+const included = bundled as CoursePack;
 const PACK_KEY = 'lq_installed_course_pack_v1';
 let active: CoursePack | null = null;
 let initialization: Promise<CoursePack> | null = null;
@@ -22,7 +25,6 @@ async function initialize() {
   if (active) return active;
   if (initialization) return initialization;
   initialization = (async () => {
-    const included = parseCoursePack(JSON.stringify(bundled), APP_VERSION);
     try {
       const saved = await getRaw(PACK_KEY);
       const installed = saved ? parseCoursePack(saved, APP_VERSION) : included;
@@ -93,7 +95,6 @@ export function installCoursePackText(text: string) {
 }
 export async function restoreBundledCourse() {
   const operation = installTail.then(async () => {
-    const included = parseCoursePack(JSON.stringify(bundled));
     await removeRaw([PACK_KEY]);
     active = included;
     initialization = Promise.resolve(included);

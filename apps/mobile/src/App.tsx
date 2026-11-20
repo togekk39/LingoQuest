@@ -26,6 +26,7 @@ import { useTheme } from './theme';
 import { api, bootstrap, localSettings, type Progress } from './lib/api';
 import { Button, Card, Heading, Label } from './ui';
 import { ReviewsFlow } from './features/ReviewsFlow';
+import { TextbookFlow } from './features/TextbookFlow';
 import { ChallengesScreen } from './challenges/ChallengesScreen';
 import { OfflineProfile as Profile } from './content-manager/OfflineProfile';
 import { getRaw } from './lib/storage';
@@ -35,7 +36,7 @@ import { TravelFlow } from './travel/TravelFlow';
 import { QuickReview } from './travel/QuickReview';
 import { TravelWelcome } from './travel/TravelWelcome';
 import { TravelPlacementFlow } from './travel/TravelPlacementFlow';
-import { TravelGuide, TravelPronunciation } from './travel/TravelGuide';
+import { TravelGrammar, TravelGuide, TravelPronunciation } from './travel/TravelGuide';
 import { JournalBrand, JournalLeaf, PaperEdge, PaperGrain } from './Journal';
 import { SpeechSettings } from './features/SpeechSettings';
 import { MotionProvider, useReducedMotion } from './motion';
@@ -48,7 +49,7 @@ const tabs = [
   { id: 'Perfil', icon: UserRound },
 ] as const;
 type Tab = (typeof tabs)[number]['id'];
-type Flow = 'placement' | 'speech' | 'reviews' | 'quick';
+type Flow = 'placement' | 'speech' | 'reviews' | 'skills' | 'quick' | 'grammar' | 'textbook';
 type WelcomeChoice = 'start' | 'placement' | 'explore';
 type AfterOrigin = (journey: TravelState) => Promise<void> | void;
 
@@ -80,6 +81,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [flow, setFlow] = useState<Flow | null>(null);
+  const [reviewMission, setReviewMission] = useState<string>();
   const [settings, setSettings] = useState<'general' | 'voice' | null>(null);
   const [recoveryReset, setRecoveryReset] = useState(false);
   const [welcome, setWelcome] = useState(false);
@@ -194,11 +196,16 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   }
   const finishFlow = () => {
     setFlow(null);
+    setReviewMission(undefined);
     void refresh().catch((e) => setNotice(e.message));
   };
   const closeMission = () => {
     setMission(null);
     void refresh().catch((e) => setNotice(e.message));
+  };
+  const openQuickReview = (missionId?: string) => {
+    setReviewMission(missionId);
+    setFlow('quick');
   };
   const openVoiceSettings = () => setSettings('voice');
   const closeSettings = () => setSettings(null);
@@ -272,6 +279,10 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         onUpdate={setTravel}
         onClose={closeMission}
         onVoiceSettings={openVoiceSettings}
+        onReview={(missionId) => {
+          closeMission();
+          openQuickReview(missionId);
+        }}
         onPassport={() => {
           closeMission();
           setPassport(true);
@@ -290,8 +301,33 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     return withSheets(
       <TravelPronunciation onClose={finishFlow} onVoiceSettings={openVoiceSettings} />,
     );
-  if (flow === 'reviews') return <ReviewsFlow onClose={finishFlow} />;
-  if (flow === 'quick') return <QuickReview onClose={finishFlow} />;
+  if (flow === 'reviews' || flow === 'skills')
+    return withSheets(
+      <ReviewsFlow
+        showAll={flow === 'skills'}
+        onClose={finishFlow}
+        onVoiceSettings={openVoiceSettings}
+      />,
+    );
+  if (flow === 'quick')
+    return withSheets(
+      <QuickReview
+        missionId={reviewMission}
+        onClose={finishFlow}
+        onVoiceSettings={openVoiceSettings}
+      />,
+    );
+  if (flow === 'grammar')
+    return withSheets(<TravelGrammar onClose={finishFlow} onVoiceSettings={openVoiceSettings} />);
+  if (flow === 'textbook')
+    return withSheets(
+      <TextbookFlow
+        completed={progress?.completedLessons ?? []}
+        onClose={finishFlow}
+        onRefresh={() => void refresh().catch((e) => setNotice(e.message))}
+        onVoiceSettings={openVoiceSettings}
+      />,
+    );
   if (welcome && !loading && !error)
     return withSheets(
       <TravelWelcome
@@ -436,7 +472,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 starting={starting}
                 onMission={startMission}
                 onContinue={() => startMission()}
-                onReview={() => setFlow('quick')}
+                onReview={() => openQuickReview()}
                 onRoute={() => go('Mapa')}
                 onGuide={() => go('Aprender')}
                 onCountry={openOriginPicker}
@@ -463,6 +499,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onAssessment={startPlacement}
                 onVoiceSettings={openVoiceSettings}
                 onSpeech={() => setFlow('speech')}
+                onGrammar={() => setFlow('grammar')}
+                onReview={() => setFlow('skills')}
+                onLegacy={() => setFlow('textbook')}
               />
             ) : tab === 'Desafíos' ? (
               <ChallengesScreen
@@ -481,6 +520,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onRefresh={refresh}
                 onNotice={setNotice}
                 onPlacement={startPlacement}
+                onLearningEvidence={() => setFlow('skills')}
               />
             ) : null}
           </ScrollView>

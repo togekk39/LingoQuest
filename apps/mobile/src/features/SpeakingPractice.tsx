@@ -17,18 +17,23 @@ import { File } from 'expo-file-system';
 import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { ShieldCheck, Volume2 } from 'lucide-react-native';
 import { Action, useFeatureStyles, FlowFrame } from './FeatureUI';
+
+export type SpeakingPracticeMethod = 'recorded' | 'imitated';
+
 export function SpeakingPanel({
   text,
   onDone,
   onPlay,
   onStopReference,
   offlineOnly = false,
+  story,
 }: {
   text: string;
-  onDone: () => void;
+  onDone: (method?: SpeakingPracticeMethod) => void;
   onPlay?: () => void;
   onStopReference?: () => void;
   offlineOnly?: boolean;
+  story?: { fallback: string; continueLabel: string; saving: boolean };
 }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
@@ -42,6 +47,8 @@ export function SpeakingPanel({
   const [message, setMessage] = useState('');
   const { playOffline, speechMessage } = useOfflineSpeech();
   const [busy, setBusy] = useState(false);
+  const [quietPractice, setQuietPractice] = useState(false);
+  const [showModel, setShowModel] = useState(false);
   const [permission, setPermission] = useState(false);
   const recordingUri = useRef<string | null>(null);
   const mounted = useRef(true);
@@ -146,7 +153,7 @@ export function SpeakingPanel({
       if (mounted.current) setBusy(false);
     }
   }
-  async function finish() {
+  async function finish(method?: SpeakingPracticeMethod) {
     stt.cancel();
     onStopReference?.();
     try {
@@ -159,17 +166,53 @@ export function SpeakingPanel({
     removeRecording(recordingUri.current ?? recorder.uri);
     recordingUri.current = null;
     setUri(null);
-    onDone();
+    onDone(method);
+  }
+  const playReference = () => {
+    player.pause();
+    if (onPlay) onPlay();
+    else void playOffline(text);
+  };
+  if (quietPractice && story) {
+    return (
+      <Notebook title="Practica sin micrófono">
+        <Text style={f.body}>{story.fallback}</Text>
+        {showModel && (
+          <>
+            <Text
+              accessibilityLanguage="en-US"
+              accessibilityLiveRegion="polite"
+              style={s.reference}
+            >
+              {text}
+            </Text>
+            <Action journal secondary onPress={playReference}>
+              Escuchar ejemplo
+            </Action>
+          </>
+        )}
+        <Action journal secondary onPress={() => setShowModel(!showModel)}>
+          {showModel ? 'Ocultar el ejemplo' : 'Comparar con el ejemplo'}
+        </Action>
+        <Action journal busy={story.saving} onPress={() => void finish()}>
+          {story.continueLabel}
+        </Action>
+      </Notebook>
+    );
   }
   return (
     <View testID="speaking-studio" style={{ gap: 12 }}>
       <JournalArt source={illustrations.review} aspectRatio={3.1} taped />
       <Notebook title="Dale voz a lo que aprendiste.">
         <Text style={f.quiet}>
-          Escucha la frase y vuelve a decirla a tu ritmo. Grabar es opcional.
+          {story
+            ? 'Escucha el ejemplo. Luego di tu propia respuesta y, si quieres, grábala.'
+            : 'Escucha la frase y vuelve a decirla a tu ritmo. Grabar es opcional.'}
         </Text>
         <Text style={f.eyebrow}>Tu frase para practicar</Text>
-        <Text style={s.reference}>{text}</Text>
+        <Text accessibilityLanguage="en-US" style={s.reference}>
+          {text}
+        </Text>
         <Pressable
           accessibilityRole="button"
           style={s.listen}
@@ -179,8 +222,7 @@ export function SpeakingPanel({
           }}
           onPress={() => {
             if (stt.phase !== 'idle' || recorderState.isRecording || busy) return;
-            if (onPlay) onPlay();
-            else void playOffline(text);
+            playReference();
           }}
         >
           <Volume2 color={palette.teal} size={19} />
@@ -263,6 +305,8 @@ export function SpeakingPanel({
           secondary
           disabled={busy || stt.phase !== 'idle' || recorderState.isRecording}
           onPress={() => {
+            onStopReference?.();
+            void stopOfflineSpeech();
             player.replace({ uri });
             player.play();
           }}
@@ -283,14 +327,35 @@ export function SpeakingPanel({
           {permission ? '' : 'Tú decides si activas el micrófono.'}
         </Text>
       </View>
-      <Action
-        secondary
-        onPress={() => {
-          void finish();
-        }}
-      >
-        {uri || stt.transcript ? 'Continuar con mi lección' : 'Ahora no puedo hablar'}
-      </Action>
+      {story ? (
+        <>
+          <Action
+            journal
+            busy={story.saving}
+            disabled={busy || recorderState.isRecording}
+            onPress={() => void finish(uri ? 'recorded' : 'imitated')}
+          >
+            {uri ? story.continueLabel : 'Practiqué en voz alta'}
+          </Action>
+          {!uri && (
+            <Action
+              journal
+              secondary
+              disabled={story.saving || busy || recorderState.isRecording}
+              onPress={() => {
+                onStopReference?.();
+                setQuietPractice(true);
+              }}
+            >
+              Ahora no puedo hablar
+            </Action>
+          )}
+        </>
+      ) : (
+        <Action secondary onPress={() => void finish()}>
+          {uri || stt.transcript ? 'Continuar con mi lección' : 'Ahora no puedo hablar'}
+        </Action>
+      )}
     </View>
   );
 }

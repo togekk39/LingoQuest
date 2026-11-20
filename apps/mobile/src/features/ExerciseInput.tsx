@@ -2,12 +2,13 @@ import { JournalLeaf, PaperInput } from '../Journal';
 import { useTheme } from '../theme';
 import React, { useContext, useRef, useState } from 'react';
 import type { PublicExercise, Answer } from '@lingoquest/contracts';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MotionPressable as Pressable } from '../motion';
 import { Check, CornerDownLeft, RotateCcw } from 'lucide-react-native';
 import { InputViewportContext, useFeatureStyles } from './FeatureUI';
 export type Exercise = PublicExercise;
 export type ExerciseAnswer = Partial<Answer>;
+const english = Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' };
 export const kindLabels: Record<Exercise['type'], string> = {
   single_choice: 'Elige una respuesta',
   meaning: 'Reconoce el significado',
@@ -33,12 +34,14 @@ export function ExerciseInput({
   setAnswer,
   disabled,
   journal = false,
+  kindLabel = kindLabels[exercise.type],
 }: {
   exercise: Exercise;
   answer: ExerciseAnswer;
   setAnswer: (a: ExerciseAnswer) => void;
   disabled?: boolean;
   journal?: boolean;
+  kindLabel?: string;
 }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
@@ -67,20 +70,29 @@ export function ExerciseInput({
       {exercise.passage && (
         <JournalLeaf compact kind="notebook" style={[s.passage, journal && s.journalPassage]}>
           <Text style={f.eyebrow}>Lee con calma</Text>
-          <Text style={s.passageText}>{exercise.passage}</Text>
+          <Text {...english} style={s.passageText}>
+            {exercise.passage}
+          </Text>
         </JournalLeaf>
       )}
       <View style={{ gap: journal ? 6 : 12 }}>
-        <Text style={f.eyebrow}>{kindLabels[exercise.type]}</Text>
+        <Text style={f.eyebrow}>{kindLabel}</Text>
         <Text style={journal ? s.journalPrompt : s.prompt}>{exercise.promptEs}</Text>
-        {exercise.sentence && <Text style={s.sentence}>{exercise.sentence}</Text>}
+        {exercise.sentence && (
+          <Text {...english} style={s.sentence}>
+            {exercise.sentence}
+          </Text>
+        )}
       </View>
       {!!exercise.contextualGlosses?.length && (
         <JournalLeaf compact kind="notebook" style={s.glosses}>
           <Text style={f.eyebrow}>Ayuda para esta situación</Text>
           {exercise.contextualGlosses.map((gloss) => (
             <Text key={gloss.en} style={f.body}>
-              <Text style={{ color: palette.ink }}>{gloss.en}</Text> · {gloss.es}
+              <Text {...english} style={{ color: palette.ink }}>
+                {gloss.en}
+              </Text>{' '}
+              · {gloss.es}
             </Text>
           ))}
         </JournalLeaf>
@@ -111,7 +123,9 @@ export function ExerciseInput({
                       active && s.selected,
                     ]}
                   >
-                    <Text style={s.optionText}>{pair.left}</Text>
+                    <Text {...english} style={s.optionText}>
+                      {pair.left}
+                    </Text>
                     {meaning && <Text style={f.quiet}>↔ {meaning.right}</Text>}
                   </Pressable>
                 );
@@ -174,8 +188,10 @@ export function ExerciseInput({
             const selected = answer.optionId === option.id;
             return (
               <Pressable
+                {...(exercise.optionsLanguage === 'en' ? english : {})}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selected, disabled }}
+                aria-checked={selected}
                 accessibilityLabel={option.text}
                 disabled={disabled}
                 key={option.id}
@@ -221,7 +237,9 @@ export function ExerciseInput({
                   }
                   style={[s.token, s.selectedToken]}
                 >
-                  <Text style={s.tokenText}>{token}</Text>
+                  <Text {...english} style={s.tokenText}>
+                    {token}
+                  </Text>
                 </Pressable>
               ))
             ) : (
@@ -238,7 +256,9 @@ export function ExerciseInput({
                 onPress={() => setAnswer({ tokens: [...selectedTokens, text] })}
                 style={[s.token, used.includes(index) && { opacity: 0.25 }]}
               >
-                <Text style={s.tokenText}>{text}</Text>
+                <Text {...english} style={s.tokenText}>
+                  {text}
+                </Text>
               </Pressable>
             ))}
           </View>

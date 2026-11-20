@@ -73,7 +73,7 @@ export function VocabularyCard({
         <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
           {word.example.en}
         </Text>
-        <Label style={[styles.copy, { color: C.muted }]}>{word.example.es}</Label>
+        {revealed && <Label style={[styles.copy, { color: C.muted }]}>{word.example.es}</Label>}
         <Button
           variant="secondary"
           icon={Volume2}
@@ -97,64 +97,122 @@ export function GrammarWorkbench({
   const { colors: C } = useTheme();
   const [selected, select] = useState(0);
   const [showTranslation, reveal] = useState(false);
-  const example = step.examples[selected];
+  const [compare, setCompare] = useState(false);
+  const [dialogueTranslations, setDialogueTranslations] = useState<Record<number, boolean>>({});
+  const dialogue = step.presentation === 'question-answer';
+  const alternative = dialogue ? undefined : step.examples.find((_, index) => index !== selected);
   return (
     <View testID="grammar-workbench" style={{ gap: 12 }}>
       <JournalArt source={illustrations.writing} aspectRatio={3.1} taped />
       <Notebook title={step.title}>
         <Label style={styles.copy}>{step.text}</Label>
-        <View style={styles.samples}>
-          {step.examples.map((item, index) => (
-            <Pressable
-              key={item.en}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: index === selected }}
-              onPress={() => {
-                select(index);
-                reveal(false);
-              }}
-              style={[styles.sample, { backgroundColor: index === selected ? C.primary : C.white }]}
-            >
-              <Text style={[styles.meaning, { color: index === selected ? C.onPrimary : C.ink }]}>
-                Ejemplo {index + 1}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        {!!example && (
-          <View style={{ gap: 10 }}>
-            <View
-              accessible
-              accessibilityLabel={example.en}
-              accessibilityLanguage="en-US"
-              style={styles.samples}
-            >
-              {example.en.split(/\s+/).map((token, i) => (
-                <JournalLeaf
-                  compact
-                  kind="notebook"
-                  key={i}
-                  style={[styles.token, { backgroundColor: i < 2 ? C.mint : C.white }]}
-                >
-                  <Text style={[styles.quotation, { color: C.ink }]}>{token}</Text>
-                </JournalLeaf>
-              ))}
-            </View>
-            <View style={styles.samples}>
-              <Button variant="secondary" icon={Volume2} onPress={() => play(example.en)}>
-                Escuchar frase
-              </Button>
-              <Button variant="ghost" icon={Eye} onPress={() => reveal(!showTranslation)}>
-                {showTranslation ? 'Ocultar traducción' : 'Ver traducción'}
-              </Button>
-            </View>
-            {showTranslation && (
-              <Text accessibilityLiveRegion="polite" style={[styles.copy, { color: C.ink }]}>
-                {example.es}
-              </Text>
-            )}
+        {!dialogue && (
+          <View style={styles.samples}>
+            {step.examples.map((item, index) => (
+              <Pressable
+                key={item.en}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: index === selected }}
+                aria-selected={index === selected}
+                onPress={() => {
+                  select(index);
+                  reveal(false);
+                  setCompare(false);
+                }}
+                style={[
+                  styles.sample,
+                  { backgroundColor: index === selected ? C.primary : C.white },
+                ]}
+              >
+                <Text style={[styles.meaning, { color: index === selected ? C.onPrimary : C.ink }]}>
+                  Ejemplo {index + 1}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         )}
+        {step.examples.map((example, index) => {
+          if (!dialogue && index !== selected) return null;
+          const pattern = step.patterns?.[index];
+          const translationVisible = dialogue ? dialogueTranslations[index] : showTranslation;
+          const label = index === 0 ? 'pregunta' : 'respuesta';
+          return (
+            <View key={example.en} style={{ gap: 10 }}>
+              {dialogue && (
+                <Text accessibilityRole="header" style={[styles.meaning, { color: C.ink }]}>
+                  {index === 0 ? 'Pregunta' : 'Respuesta'}
+                </Text>
+              )}
+              {pattern ? (
+                <View style={styles.samples}>
+                  {pattern.parts.map(({ text, role }, index) => (
+                    <JournalLeaf
+                      compact
+                      kind="notebook"
+                      key={index}
+                      style={[
+                        styles.token,
+                        {
+                          backgroundColor: C.white,
+                          borderTopWidth: 3,
+                          borderTopColor: [C.teal, C.accent, C.gold][index % 3],
+                        },
+                      ]}
+                    >
+                      <Text
+                        accessibilityLanguage="en-US"
+                        style={[styles.quotation, { color: C.ink }]}
+                      >
+                        {text}
+                      </Text>
+                      <Text style={[styles.part, { color: C.muted }]}>{role}</Text>
+                    </JournalLeaf>
+                  ))}
+                </View>
+              ) : (
+                <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
+                  {example.en}
+                </Text>
+              )}
+              <View style={styles.samples}>
+                <Button variant="secondary" icon={Volume2} onPress={() => play(example.en)}>
+                  {dialogue
+                    ? `Escuchar ${label === 'pregunta' ? 'la pregunta' : 'la respuesta'}`
+                    : 'Escuchar frase'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  icon={Eye}
+                  onPress={() => {
+                    if (dialogue)
+                      setDialogueTranslations((shown) => ({ ...shown, [index]: !shown[index] }));
+                    else reveal(!showTranslation);
+                  }}
+                >
+                  {`${translationVisible ? 'Ocultar traducción' : 'Ver traducción'}${dialogue ? ` de la ${label}` : ''}`}
+                </Button>
+                {!!alternative && (
+                  <Button variant="ghost" onPress={() => setCompare(!compare)}>
+                    {compare ? 'Cerrar comparación' : 'Comparar ejemplos'}
+                  </Button>
+                )}
+              </View>
+              {translationVisible && (
+                <Text accessibilityLiveRegion="polite" style={[styles.copy, { color: C.ink }]}>
+                  {example.es}
+                </Text>
+              )}
+              {compare && alternative && (
+                <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite">
+                  <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
+                    {alternative.en}
+                  </Text>
+                  <Label style={styles.copy}>{alternative.es}</Label>
+                </JournalLeaf>
+              )}
+            </View>
+          );
+        })}
       </Notebook>
     </View>
   );
@@ -196,4 +254,5 @@ const styles = StyleSheet.create({
   samples: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   sample: { justifyContent: 'center', minHeight: 44, borderRadius: 11, paddingHorizontal: 12 },
   token: { paddingVertical: 7, paddingHorizontal: 9, borderRadius: 6 },
+  part: { fontFamily: 'ManropeBold', fontSize: 12 },
 });

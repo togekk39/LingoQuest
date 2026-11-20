@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { answerSchema, type AttemptInput, type AttemptResult } from '@lingoquest/contracts';
 import { travelPlacementSchema } from './travel-placement';
 import { chapter, travelLesson } from './travel-content';
+import {
+  learningErrorSchema,
+  speechPracticeSchema,
+  type LearningAid,
+  type LearningTarget,
+  type SpeechPractice,
+} from './travel-learning';
 import { homeCountries, type HomeCountry } from './travel-route';
 
 export const draftAnswerSchema = z
@@ -15,8 +22,10 @@ export const draftAnswerSchema = z
 export const savedResultSchema = z
   .object({
     correct: z.boolean(),
+    communicationOnly: z.literal(true).optional(),
     feedbackEs: z.string().max(5000),
     acceptedAnswer: z.string().max(5000).optional(),
+    errorType: learningErrorSchema.optional(),
     xpAwarded: z.number().int().min(0).max(1000000),
     pending: z.literal(false),
   })
@@ -31,10 +40,12 @@ const checkpointSchema = z
     contentRevision: z.number().int().positive(),
     token: z.string().min(8).max(100),
     step: z.number().int().min(0).max(100),
+    stepId: z.string().max(100).optional(),
     word: z.number().int().min(0).max(100).optional(),
     answer: draftAnswerSchema,
     hint: z.boolean(),
     transcript: z.boolean(),
+    retry: z.boolean().optional(),
     result: savedResultSchema.optional(),
     finished: z.boolean(),
   })
@@ -98,13 +109,41 @@ const operationSchema = z.discriminatedUnion('action', [
     })
     .strict(),
   z.object({ action: z.literal('answer'), token: z.string(), answer: answerSchema }).strict(),
+  z
+    .object({ action: z.literal('speak'), token: z.string(), practice: speechPracticeSchema })
+    .strict(),
 ]);
 export type TravelOperation = z.input<typeof operationSchema>;
+
+const revisionOneSteps: Record<string, string[]> = {
+  hello: ['hello_welcome', 'hello_sam', 'hello_teach', 'travel_hello_write', 'hello_speak'],
+  bus: ['bus_sam', 'bus_teach', 'travel_bus_listen', 'travel_bus_direction', 'bus_lost'],
+  bag: ['bag_luz', 'bag_teach', 'travel_bag_read', 'travel_bag_write', 'bag_postcard'],
+};
+
+export function upgradeTravelCheckpoints(travel: TravelState) {
+  function upgrade(saved: TravelCheckpoint) {
+    if (saved.contentRevision === chapter.revision) return saved;
+    const stableId =
+      saved.stepId ??
+      (saved.contentRevision === 1 && Object.hasOwn(revisionOneSteps, saved.missionId)
+        ? revisionOneSteps[saved.missionId][saved.step]
+        : undefined);
+    const mission = chapter.missions.find((item) => item.id === saved.missionId);
+    const step = mission?.steps.findIndex((item) => item.id === stableId) ?? -1;
+    if (step < 0) return saved;
+    return { ...saved, step, stepId: stableId, contentRevision: chapter.revision };
+  }
+  if (travel.active) travel.active = upgrade(travel.active);
+  for (const [key, saved] of Object.entries(travel.paused ?? {}))
+    travel.paused![key] = upgrade(saved);
+}
 
 function checkpoint(missionId: string, step: number, token: string): TravelCheckpoint {
   return {
     missionId,
     step,
+    stepId: chapter.missions.find((mission) => mission.id === missionId)?.steps[step]?.id,
     token,
     contentRevision: chapter.revision,
     answer: {},
@@ -119,7 +158,8 @@ export function updateTravel(
   body: unknown,
   now: number,
   id: () => string,
-  attempt: (input: AttemptInput) => AttemptResult,
+  attempt: (input: AttemptInput, aids: LearningAid[]) => AttemptResult,
+  speaking: (target: LearningTarget, practice: SpeechPractice) => void,
 ) {
   const input = operationSchema.parse(body);
   if (input.action === 'country') {
@@ -160,29 +200,41 @@ export function updateTravel(
   }
   if (step.type === 'exercise') {
     if (input.action === 'draft' && !current.result) current.answer = input.answer;
-    if (input.action === 'hint' && !current.result) current.hint = true;
-    if (input.action === 'transcript' && !current.result) current.transcript = true;
+    if (input.action === 'hint' && step.hint && !current.result) current.hint = true;
+    if (input.action === 'transcript' && step.transcript && !current.result)
+      current.transcript = true;
     if (input.action === 'answer' && !current.result) {
-      current.result = attempt({
-        lessonId: travelLesson.id,
-        exerciseId: step.exercise.id,
-        clientAttemptId: current.token,
-        answer: input.answer,
-        hintUsed: current.hint || current.transcript,
-      });
+      const aids: LearningAid[] = [];
+      if (current.hint) aids.push('hint');
+      if (current.transcript) aids.push('transcript');
+      if (current.retry) aids.push('retry');
+      current.result = attempt(
+        {
+          lessonId: travelLesson.id,
+          exerciseId: step.exercise.id,
+          clientAttemptId: current.token,
+          answer: input.answer,
+          hintUsed: aids.length > 0,
+        },
+        aids,
+      );
       current.answer = input.answer;
     }
     if (input.action === 'retry' && current.result && !current.result.correct) {
       travel.active = {
         ...checkpoint(mission.id, current.step, id()),
         hint: true,
+        retry: true,
         transcript: current.transcript,
       };
       return;
     }
     if (!current.result) return;
   }
-  if (input.action !== 'advance') return;
+  if (input.action === 'speak') {
+    if (step.type !== 'speak') return;
+    if (step.learning) speaking(step.learning, input.practice);
+  } else if (input.action !== 'advance') return;
   if (current.step + 1 < mission.steps.length) {
     travel.active = checkpoint(mission.id, current.step + 1, id());
     return;

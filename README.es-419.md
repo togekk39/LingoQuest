@@ -1,4 +1,4 @@
-# LingoQuest 2.0
+# LingoQuest 2.1 · Primero el aprendizaje
 
 [English](README.md) · [Reglas de desarrollo](AGENTS.md#español-latinoamérica)
 
@@ -8,11 +8,16 @@ LingoQuest es una app diseñada primero para Android para aprender inglés estad
 
 ## Explora y aprende
 
-- **Empezar mi viaje** abre **La primera postal**, el primer capítulo del viaje. Saluda a Sam, encuentra la parada y devuelve su mochila con diálogos, escucha, orden de palabras y escritura. Cada misión enseña vocabulario con audio en inglés estadounidense, notas de uso y ejemplos bilingües. Al completar el capítulo recibes un sello, una postal y una entrada de diario.
+- **Empezar mi viaje** abre **La primera postal**. Saluda a Sam, encuentra su parada y devuelve su mochila. Lee y escucha la escena, estudia un modelo, practica con apoyo y luego recupera palabras, escribe lo que oyes y responde a otra persona en una situación distinta. Puedes ensayar, grabar y escuchar tu voz. El capítulo otorga un sello, una postal y una entrada de diario.
 - **Ya sé algo de inglés** ofrece seis preguntas opcionales sin reloj. Tus respuestas determinan cuál de las tres misiones publicadas se recomienda. Las misiones anteriores siguen disponibles. Puedes repetir la prueba desde **Aprender** o **Perfil**.
 - **Mapa** recorre 20 paradas en siete continentes y termina en la Antártida, vía Ushuaia. Elige un lugar de origen en Latinoamérica o el Caribe. Los capítulos previstos aparecen como **En preparación**.
-- **Aprender** abre las misiones publicadas y sus materiales de vocabulario y pronunciación. **Repaso rápido** ofrece una pregunta y **Repasar** abre la lista de repasos del capítulo.
-- **Desafíos** muestra 13 niveles opcionales. Los primeros tres usan gramática, texto incompleto y lectura del capítulo publicado y se desbloquean con su sello. Los niveles restantes llegarán con nuevos capítulos. Los desafíos guardan sus propios registros y se pueden practicar sin reloj. Los XP, el avance del viaje y la evidencia de aprendizaje se registran por separado. La ruta de A1 a B2 describe objetivos de aprendizaje.
+- **Aprender** abre la guía de vocabulario, el manual de gramática, la práctica de pronunciación y **Cursos A1–A2**, con ocho unidades y 32 lecciones del curso LQP 2.1.0 incluido. Abre cualquier lección o retoma el borrador más reciente. Consulta el manual y la guía sin entrar a la historia.
+- **Repaso rápido** ofrece un ejercicio. **Repasar** muestra prácticas pendientes y **Mis habilidades** muestra la evidencia del capítulo y lo que puedes reforzar. Los intervalos de repaso toman en cuenta la ayuda, los errores, la recuperación autónoma, el tiempo transcurrido y la aplicación en una situación nueva.
+- **Desafíos** ofrece los 13 niveles del curso A1–A2 y las pruebas opcionales del viaje. Los niveles 1 a 3 del viaje se abren con el sello del capítulo. Los niveles del curso se abren al completar sus lecciones. Puedes practicar sin reloj. Las etapas, los resultados de los desafíos y los XP registran actividad. Las bandas del currículo describen objetivos de enseñanza.
+
+[Currículo de 20 etapas y prerrequisitos](docs/PHASE_3_CURRICULUM.es-419.md) · [Diseño de aprendizaje adaptativo](docs/PHASE_3_ADAPTIVE_LEARNING.es-419.md) · [Evaluación inicial, final y diferida del capítulo 1](docs/CHAPTER_1_ASSESSMENT.es-419.md)
+
+[Revisión de actividades del capítulo 1](docs/CHAPTER_1_CONTENT_AUDIT.es-419.md) · [Diseño de evidencia oral y entre cursos](docs/LEARNING_EVIDENCE_INTEGRATION.es-419.md)
 
 ## Desarrollo y compilación
 
@@ -33,6 +38,6 @@ La compilación del APK usa Java 17, Android SDK 36, Build Tools 36.0.0, NDK 27.
 
 ## Datos locales, paquetes del curso y voz
 
-Android usa SQLite y la web usa el almacenamiento del navegador. Las misiones y los repasos rápidos guardan borradores y devoluciones en el dispositivo. Exporta o restaura un respaldo de formato 2 en **Perfil**. Los respaldos conservan el avance del curso anterior. La versión LQP 2.1.0 y sus fuentes siguen disponibles para consulta y desarrollo. La app actual incluye y enseña el capítulo del viaje. [Paquetes archivados](content/releases/README.es-419.md) · [Arquitectura del viaje](docs/TRAVEL_ARCHITECTURE.es-419.md)
+Android usa SQLite y la web usa el almacenamiento del navegador. Las misiones, las lecciones y los repasos rápidos guardan borradores y devoluciones en el dispositivo. Exporta o restaura un respaldo de formato 2 en **Perfil**. El progreso anterior del curso conserva los mismos identificadores de lección. [Paquetes del curso](content/releases/README.es-419.md) · [Arquitectura del viaje y diagnóstico de la fase 3](docs/TRAVEL_ARCHITECTURE.es-419.md)
 
-La pronunciación del viaje usa la voz instalada de inglés y la velocidad seleccionada. Abre **Configuración de voz** desde una misión, la guía del viaje o la práctica de pronunciación. Si elegiste la voz predeterminada y la síntesis de voz no está disponible, el capítulo ofrece 18 audios incluidos en inglés estadounidense. Puedes grabar tu voz y escucharla en el dispositivo. La opción separada de reconocimiento avisa que el proveedor del sistema puede procesar el audio en línea. La app no asigna una nota automática de pronunciación. [Voz y privacidad](docs/OFFLINE_EDITION.es-419.md) · [Créditos de recursos](docs/TRAVEL_ASSETS.es-419.md)
+Abre **Configuración de voz** para elegir una voz de inglés instalada y una velocidad. Las actividades de escucha y los modelos de voz del capítulo pueden usar audios incluidos en inglés estadounidense si la voz guardada no está disponible. El audio de consulta del curso usa una voz de inglés instalada que funcione sin conexión. En el capítulo puedes grabar y escuchar tu voz en el dispositivo o seguir por una vía sin micrófono. La opción separada de reconocimiento puede procesar el audio en línea a través del proveedor del sistema. La evaluación de pronunciación del estudio la hace una persona según la rúbrica. [Voz y privacidad](docs/OFFLINE_EDITION.es-419.md) · [Créditos de recursos](docs/TRAVEL_ASSETS.es-419.md)

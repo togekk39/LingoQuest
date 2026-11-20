@@ -4,6 +4,7 @@ import {
   expect,
   enterApp,
   finishVocabulary,
+  finishGreetingPractice,
   openTravelWriting,
   click,
   exact,
@@ -44,6 +45,7 @@ test('the companion animates and responds live to the system motion preference',
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await finishVocabulary(page);
+  await finishGreetingPractice(page);
   await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hello.');
   await click(page, 'Comprobar respuesta');
   const buddy = page.getByTestId('buddy-body').first();
@@ -72,6 +74,7 @@ test('mission progress stays mounted across vocabulary and a correct answer cele
   await click(page, 'Siguiente palabra');
   await click(page, 'Ver la explicación');
   await click(page, 'Probar en la historia');
+  await finishGreetingPractice(page);
   await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hi! I am Luz.');
   await click(page, 'Comprobar respuesta');
   await expect(page.getByTestId('celebration-particles')).toBeAttached();

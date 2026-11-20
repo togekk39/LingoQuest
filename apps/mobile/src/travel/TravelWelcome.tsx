@@ -74,7 +74,7 @@ export function TravelWelcome({
               <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                 <Text style={[styles.option, { color: C.ink }]}>{firstMission.title}</Text>
                 <Text style={[styles.detail, { color: C.muted }]}>
-                  Escucha a Sam y ensaya cómo presentarte · {firstMission.minutes} min
+                  Escucha a Sam y ensaya cómo presentarte · {firstMission.minutes.join('–')} min
                 </Text>
               </View>
             </JournalLeaf>

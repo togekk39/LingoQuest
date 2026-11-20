@@ -2,13 +2,61 @@
 
 [English](VERIFICATION.md)
 
-## Currículo del viaje y nueva bienvenida
+## Revisión de aceptación del capítulo 1
 
-La versión actual abre directamente el capítulo o permite hacer una prueba breve para elegir entre sus tres misiones. Las comprobaciones del navegador abarcan la separación de los botones en 320 px, el punto de partida recomendado, la enseñanza y el audio de vocabulario sin conexión, los guardados y la conservación del historial archivado. Las capturas se tomaron de la exportación web local.
+- Se movieron las comprobaciones de pregunta y respuesta al escenario del manual sin conexión. La prueba del primer inicio cubre las opciones de bienvenida, el selector de origen y la primera escena.
+- Se revisaron todas las claves de la historia y del repaso. Las pruebas distinguen el acierto de la forma objetivo, la comunicación con otra forma y el cambio de significado. Comprueban la restauración del respaldo, el reintento de la misma consigna y que la devolución exclusivamente comunicativa conserve el intervalo de repaso.
+- El cálculo fijo de nueve minutos se sustituyó por intervalos por misión basados en 25 pasos y nueve tarjetas. El registro oral muestra explícitamente la actividad de práctica.
+- Aprobaron la suma del paquete, las comprobaciones de los espacios de trabajo y 77 pruebas unitarias y de integración locales. La suite de Chromium también cubre una paráfrasis comunicativa seguida de un reintento correcto con ayuda.
+
+La aceptación en dispositivos y el estudio con estudiantes se llevan por separado de las pruebas del programa. [Revisión de cada actividad](CHAPTER_1_CONTENT_AUDIT.es-419.md) · [Ritmo estimado](PHASE_3_CURRICULUM.es-419.md#ritmo-estimado) · [Diseño y validación de la evidencia](LEARNING_EVIDENCE_INTEGRATION.es-419.md#aceptación-en-dispositivos-y-con-estudiantes)
+
+## Fase 3 Aprender primero
+
+| Comando                | Resultado observado                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `npm run check`        | Aprobaron las comprobaciones de TypeScript y ESLint de los espacios de trabajo.                                         |
+| `npm test`             | Aprobaron 75 pruebas de integración de voz nativa, el prototipo de API, los paquetes del curso y el motor sin conexión. |
+| `npm run packs:verify` | El paquete LQP 2.1.0 de 433,869 bytes coincidió con el catálogo y el archivo SHA-256.                                   |
+| `npm run build:web`    | Se exportó la app estática y se generó la versión sin conexión con 76 recursos.                                         |
+| `npm run test:e2e`     | Aprobaron los 41 escenarios de Chromium en una sola ejecución sobre la exportación web final.                           |
+| `npm run build:apk`    | Se compiló y verificó el APK independiente de vista previa 2.1.0 (código 100084) para ARM64 y ARMv7.                    |
+
+La tarea `:offline-tts:testReleaseUnitTest` del módulo Android aprobó las cinco pruebas de JVM de selección de voces en inglés.
+
+Ejecuta `npm run build:web`, inicia `npm run preview` y luego ejecuta `npm run test:e2e`. Configura `SCREENSHOTS_DIR` como una carpeta con permisos de escritura para capturar las mismas pantallas. Las pruebas del navegador bloquean las solicitudes a la API y a servicios externos. Los escenarios sin conexión esperan a que el service worker tome el control antes de desconectar Chromium.
+
+La primera ejecución completa aprobó 39 de 41 escenarios. Las pruebas del manual de gramática y de la lección A1–A2 detectaron que faltaban estados de accesibilidad en las pestañas y los botones de opción en la web. La ejecución final incorpora ambas correcciones y verifica que la respuesta seleccionada se restablezca al recargar.
+
+Los escenarios nuevos del navegador recorren todo el primer capítulo, las respuestas independientes en otras situaciones, la evidencia después de reintentar, el refuerzo específico de `be` y un repaso después de dos días simulados. Abren el manual de gramática desde **Aprender**, comparan patrones con el teclado en una pantalla angosta y completan sin conexión la lección original **Me presento** desde **Cursos A1–A2**. Las pruebas de desafíos visitan la prueba del viaje y el reto independiente del curso de 13 niveles. La lección del curso, el capítulo del viaje y los desafíos tienen su propio progreso guardado.
+
+Las pruebas de intervalo y texto ampliado usan un reloj controlado del navegador y escalado de fuentes por CSS. Los escenarios de grabación y reconocimiento del sistema en el navegador usan entradas controladas. Quedan las comprobaciones en un equipo físico, como la instalación, el primer inicio en modo avión, la recuperación y reproducción del micrófono, TalkBack, el tamaño del texto del sistema y el rendimiento en equipos de gama baja. [Plan de aceptación sin conexión](OFFLINE_TEST_PLAN.es-419.md)
+
+El archivo de Android incluye el motor Hermes para ambas arquitecturas, el contenido integrado del viaje y del curso, 19 fuentes, 18 audios MP3 y las ilustraciones del cuaderno. Los 18 MP3 y los 11 JPEG del cuaderno coinciden byte por byte con los archivos de origen. Se verificaron la firma del APK, la integridad del ZIP, la suma SHA-256 y el manifiesto. El manifiesto declara `com.lingoquest.app`, API mínima 24, API de destino 36 y respaldo automático deshabilitado. El APK de 49,138,078 bytes usa el certificado de vista previa existente. Su SHA-256 es `ef8b58e65fc04d5aa5b97147cbfbc51d6f32c3a15166feb565bec62c49d17f48`. La instalación sigue pendiente, ya que el entorno carece de un dispositivo Android conectado y de aceleración para el emulador. [Compilación y firma del APK](APK_BUILDS.es-419.md)
+
+Las comprobaciones del navegador verifican el funcionamiento de la app. El protocolo previo, posterior y diferido permite recopilar resultados de aprendizaje con principiantes reales. [Diseño de evaluación del capítulo 1](CHAPTER_1_ASSESSMENT.es-419.md)
+
+### Capturas de la fase 3
+
+Se tomaron en Chromium con un área visible de 390 × 844 píxeles CSS desde la app web local.
+
+- [Saludo a Sam en la plaza](screenshots/phase-3/01-plaza-dialogue.jpg)
+- [Ensayo oral con grabación local](screenshots/phase-3/02-speaking.jpg)
+- [Dictado sin conexión en la misión de indicaciones](screenshots/phase-3/03-offline-dictation.jpg)
+- [Respuesta escrita en otra situación de objetos perdidos](screenshots/phase-3/04-transfer.jpg)
+- [Devolución sobre la concordancia de be](screenshots/phase-3/05-be-agreement-feedback.jpg)
+- [Consulta de vocabulario en el curso original A1–A2](screenshots/phase-3/06-legacy-reference.jpg)
+- [Pasaporte y recuerdo guardado en el diario](screenshots/phase-3/07-passport.jpg)
+- [Repaso adaptativo después de errores recurrentes](screenshots/phase-3/08-adaptive-review.jpg)
+- [Patrones de frases en el manual de gramática](screenshots/phase-3/09-grammar-handbook.jpg)
+
+## Historial del currículo del viaje y la nueva bienvenida
+
+Esa versión abría directamente el capítulo o permitía hacer una prueba breve para elegir entre sus tres misiones. Las comprobaciones del navegador abarcaron la separación de los botones en 320 px, el punto de partida recomendado, la enseñanza y el audio de vocabulario sin conexión, los guardados y la conservación del historial archivado. Las capturas se tomaron de la exportación web local.
 
 Pasaron TypeScript, ESLint, 67 pruebas unitarias y de integración, la suma del LQP archivado, las exportaciones web y Hermes para Android y la generación del proyecto nativo de Android. El service worker de la web incluye 58 archivos sin conexión. Ambas exportaciones incluyen los ejercicios del viaje y excluyen el paquete del curso anterior. Falta la aceptación en un equipo Android físico.
 
-### Capturas de la versión actual
+### Capturas de esa revisión
 
 - [Bienvenida en una pantalla de 390 px](screenshots/08-bienvenida.jpg)
 - [Recomendación de misión inicial](screenshots/09-prueba-ruta.jpg)

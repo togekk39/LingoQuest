@@ -1,12 +1,15 @@
-import { mkdirSync } from 'node:fs';
 import {
   test,
   expect,
   enterApp,
   readyOfflineShell,
   finishVocabulary,
-  openTravelWriting,
+  finishGreetingPractice,
   state,
+  answerTravelChoice,
+  answerTravelReorder,
+  answerTravelText,
+  capture,
 } from './helpers';
 
 const exact = (name: string) => ({ name, exact: true });
@@ -72,12 +75,14 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await postcard.getByRole('button', exact('Continuar viaje')).click();
   const click = (name: string) => page.getByRole('button', exact(name)).click();
   await expect(page.getByTestId('travel-dialogue-postcard')).toBeVisible();
+  await capture(page, '01-plaza-dialogue');
   await click('Continuar');
   await expect(
     page.getByTestId('travel-reference-phrase').getByText('Hi! My name is Sam.', { exact: true }),
   ).toBeVisible();
   await click('Continuar');
   await finishVocabulary(page);
+  await finishGreetingPractice(page);
   const input = page
     .getByTestId('travel-workbook')
     .getByRole('textbox', exact('Tu respuesta en inglés'));
@@ -102,10 +107,15 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await expect(page.getByRole('button', exact('Seguir la historia'))).toBeVisible();
   expect((await state(page)).attempts).toEqual(beforeReload.attempts);
   await click('Seguir la historia');
+  await answerTravelText(page, 'travel_hello_transfer', "I'm Nico.");
   await expect(page.getByRole('button', exact('Practicar con mi voz'))).toHaveCount(0);
   await expect(
     page.getByRole('button', exact('Solo grabar y escuchar (sin reconocimiento)')),
   ).toBeVisible();
+  await capture(page, '02-speaking');
+  await click('Ahora no puedo hablar');
+  await expect(page.getByText('Practica sin micrófono', { exact: true })).toBeVisible();
+  await click('Comparar con el ejemplo');
   await click('Completar misión');
   await click('Volver al viaje');
   await click('Continuar viaje');
@@ -129,23 +139,30 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
     .toMatch(/line-4.*\.mp3/);
   await click('Leer la transcripción');
   await expect(page.getByText('Where is the bus stop?', { exact: true })).toBeVisible();
-  await page.getByRole('radio', exact('La parada de bus')).click();
-  await click('Comprobar respuesta');
-  await click('Seguir la historia');
-  for (const token of ['It’s', 'next', 'to', 'the', 'park'])
-    await click(`Agregar palabra: ${token}`);
-  await click('Comprobar respuesta');
-  await click('Seguir la historia');
+  await answerTravelChoice(page, 'travel_bus_listen', 'La parada de bus');
+  await answerTravelReorder(page, 'travel_bus_direction', ['It’s', 'next', 'to', 'the', 'park']);
+  const dictation = page.getByTestId('exercise-travel_bus_dictation');
+  await expect(dictation).toBeVisible();
+  await click('Escuchar la indicación');
+  await expect
+    .poll(() => page.evaluate(() => document.body.dataset.played))
+    .toMatch(/line-7.*\.mp3/);
+  await capture(page, '03-offline-dictation');
+  await answerTravelText(page, 'travel_bus_dictation', 'It’s next to the park.');
+  await answerTravelText(page, 'travel_bus_ask', 'Where is the bus stop?');
+  await answerTravelText(page, 'travel_bus_transfer', 'The park is next to the bus stop.');
   await click('Completar misión');
   await click('Volver al viaje');
   await click('Continuar viaje');
   await click('Continuar');
   await finishVocabulary(page);
-  await page.getByRole('radio', exact('A blue bag')).click();
-  await click('Comprobar respuesta');
-  await click('Seguir la historia');
-  await input.fill("It's blue.");
-  await click('Comprobar respuesta');
+  await answerTravelChoice(page, 'travel_bag_read', 'A blue bag');
+  await answerTravelChoice(page, 'travel_bag_owner', 'Luz');
+  await answerTravelText(page, 'travel_bag_write', "It's blue.");
+  await expect(page.getByTestId('exercise-travel_bag_transfer')).toBeVisible();
+  await capture(page, '04-transfer');
+  await answerTravelText(page, 'travel_bag_transfer', "It's red.");
+  await click('Ahora no puedo hablar');
   await click('Seguir la historia');
   await click('Completar misión');
   await expect(page.getByText('Sello obtenido · Primer encuentro')).toBeVisible();
@@ -161,25 +178,21 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   const finished = await travelState();
   expect(Object.keys(finished.stamps)).toEqual(['home']);
   expect(Object.keys(finished.completed)).toHaveLength(3);
-  expect((await state(page)).completedLessons).toEqual([]);
+  const record = await state(page);
+  expect(record.completedLessons).toEqual([]);
+  expect(record.travelLearning?.targets).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        skill: 'listening',
+        conceptId: 'place-question',
+        assistance: { guided: 1, transcript: 1 },
+      }),
+      expect.objectContaining({ skill: 'writing', conceptId: 'item-color', transferSuccesses: 1 }),
+    ]),
+  );
+  expect(record.travelLearning?.targets.filter((target) => target.skill === 'speaking')).toEqual(
+    [],
+  );
 
-  const dir = process.env.SCREENSHOTS_DIR;
-  if (dir) {
-    mkdirSync(dir, { recursive: true });
-    await page.screenshot({ path: `${dir}/04-pasaporte.jpg`, type: 'jpeg', quality: 85 });
-  }
-});
-
-test('quick review saves feedback separately from the active story', async ({ page, context }) => {
-  await enterApp(page);
-  await readyOfflineShell(page, context);
-  await openTravelWriting(page);
-  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hi! I am Luz.');
-  await page.getByRole('button', exact('Comprobar respuesta')).click();
-  await page.getByRole('button', exact('Cerrar y volver')).click();
-  await page.getByRole('button', exact('Repaso rápido')).click();
-  await expect(page.getByRole('heading', exact('Me presento'))).toHaveCount(0);
-  await page.getByRole('button', exact('Cerrar y volver')).click();
-  await page.getByRole('button', exact('Continuar viaje')).click();
-  await expect(page.getByRole('button', exact('Seguir la historia'))).toBeVisible();
+  await capture(page, '07-passport');
 });

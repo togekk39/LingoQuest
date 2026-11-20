@@ -19,18 +19,49 @@ import {
   type User,
 } from '@lingoquest/contracts';
 import { chapter, travelLesson } from './travel-content';
+import { travelPracticeStep, travelReviewPlans, travelReviewRows } from './travel-review';
+import {
+  findLearningError,
+  learningErrorFeedback,
+  learningKey,
+  recordCommunicationSuccess,
+  recordLearningAttempt,
+  recordSpeakingPractice,
+  travelLearningSchema,
+  type LearningAid,
+  type LearningReviewReason,
+  type LearningTarget,
+  type TravelLearningState,
+} from './travel-learning';
 import { assessTravelPlacement, placementQuestions } from './travel-placement';
-import { availableTravelRanks, HOME_TRAVEL_TRACK, travelChallengeItems } from './travel-challenges';
+import {
+  activeTravelCourse,
+  availableTravelRanks,
+  HOME_TRAVEL_TRACK,
+  travelChallengeItems,
+} from './travel-challenges';
 import {
   emptyTravel,
   travelStateSchema,
   updateTravel,
+  upgradeTravelCheckpoints,
   draftAnswerSchema,
   savedResultSchema,
   type TravelState,
 } from './travel';
 export { activeTravelCourse } from './travel-challenges';
 export { chapter } from './travel-content';
+export { learningSkills, travelConcepts, travelCurriculum } from './travel-curriculum';
+export type { TravelReviewRow } from './travel-review';
+export type {
+  LearningError,
+  LearningRecord,
+  LearningSkill,
+  LearningStage,
+  LearningTarget,
+  SpeechPractice,
+  TravelLearningState,
+} from './travel-learning';
 export { homeCountries, route, type Destination, type HomeCountry } from './travel-route';
 export type { TravelMission, TravelStep, TravelVocabulary } from './travel-content';
 export { canStartTravelMission, nextTravelMission } from './travel';
@@ -45,7 +76,9 @@ export type { TravelCheckpoint, TravelState, TravelOperation } from './travel';
 export interface CourseExercise extends PublicExercise {
   feedbackEs: string;
   acceptedAnswers: string[];
+  communicationOnly?: { answers: string[]; feedbackEs: string };
   correctOptionId?: string;
+  learning?: LearningTarget;
 }
 export interface CourseLesson extends PublicLesson {
   exercises: CourseExercise[];
@@ -135,9 +168,11 @@ export interface OfflineState {
   reviewRewards: string[];
   skillDayBaseline: Record<string, { day: string; lastPracticedAt: string | null }>;
   travel?: TravelState;
+  travelLearning?: TravelLearningState;
   lessonCheckpoints?: Record<string, LessonCheckpoint>;
   quickReview?: QuickCheckpoint;
   travelQuickReview?: QuickCheckpoint;
+  travelReviewCheckpoints?: Record<string, QuickCheckpoint>;
 }
 export const OFFLINE_STATE_KEY = 'lq_offline_state_v1';
 export class LocalError extends Error {
@@ -168,7 +203,7 @@ export const normalize = (value: string) =>
     .normalize('NFKC')
     .toLowerCase()
     .replace(/[’‘]/g, "'")
-    .replace(/[.,!?;:]/g, '')
+    .replace(/[.,!?;:]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 export function grade(exercise: CourseExercise, answer: Answer) {
@@ -404,6 +439,7 @@ const lessonCheckpointSchema = z
   })
   .strict();
 export type LessonCheckpoint = z.infer<typeof lessonCheckpointSchema>;
+const reviewReasonSchema = z.enum(['remediation', 'due', 'practice']);
 const quickCheckpointSchema = z
   .object({
     token: z.string().min(8).max(100),
@@ -412,10 +448,19 @@ const quickCheckpointSchema = z
     answer: draftAnswerSchema,
     result: resultSchema.optional(),
     starter: z.boolean(),
+    hint: z.boolean().optional(),
+    transcript: z.boolean().optional(),
+    reason: reviewReasonSchema.optional(),
   })
   .strict();
 type QuickCheckpoint = z.infer<typeof quickCheckpointSchema>;
-export type QuickReviewState = QuickCheckpoint & { exercise: PublicExercise };
+export type QuickReviewState = QuickCheckpoint & {
+  exercise: PublicExercise;
+  situation?: string;
+  hintText?: string;
+  audio?: string;
+  transcriptText?: string;
+};
 const userSchema = z
   .object({
     id: z.string().min(1).max(100),
@@ -490,9 +535,11 @@ const backupStateSchema = z
       .max(1000),
     reviewRewards: z.array(z.string().max(500)).max(200000),
     travel: travelStateSchema.optional(),
+    travelLearning: travelLearningSchema.optional(),
     lessonCheckpoints: z.record(lessonCheckpointSchema).optional(),
     quickReview: quickCheckpointSchema.optional(),
     travelQuickReview: quickCheckpointSchema.optional(),
+    travelReviewCheckpoints: z.record(quickCheckpointSchema).optional(),
     skillDayBaseline: z.record(
       z.object({ day: z.string().max(10), lastPracticedAt: iso.nullable() }).strict(),
     ),
@@ -603,7 +650,12 @@ export class OfflineEngine {
     );
     return result;
   }
-  private attempt(state: OfflineState, content: CourseData, input: AttemptInput) {
+  private attempt(
+    state: OfflineState,
+    content: CourseData,
+    input: AttemptInput,
+    aids: LearningAid[] = [],
+  ) {
     const parsed = attemptSchema.parse(input);
     const fingerprint = JSON.stringify(parsed);
     const previous = own(state.attempts, parsed.clientAttemptId);
@@ -623,7 +675,47 @@ export class OfflineEngine {
       throw new LocalError('Ejercicio no disponible en el curso instalado.', 404);
     const correct = grade(exercise, parsed.answer);
     const now = this.clock();
+    const learning = lesson.id === travelLesson.id ? exercise.learning : undefined;
     const date = today(now);
+    const alternative = exercise.communicationOnly;
+    if (learning && !correct && alternative && parsed.answer.text !== undefined) {
+      const response = normalize(parsed.answer.text);
+      if (alternative.answers.some((answer) => normalize(answer) === response)) {
+        recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning, {
+          exerciseId: exercise.id,
+          now,
+        });
+        if (!state.learningDays.includes(date)) state.learningDays.push(date);
+        const result: AttemptResult = {
+          correct: false,
+          communicationOnly: true,
+          feedbackEs: alternative.feedbackEs,
+          acceptedAnswer: displayedAnswer(exercise),
+          xpAwarded: 0,
+          pending: false,
+        };
+        set(state.attempts, parsed.clientAttemptId, { fingerprint, result });
+        return result;
+      }
+    }
+    const errorType =
+      learning && !correct
+        ? findLearningError(learning, parsed.answer, exercise.acceptedAnswers)
+        : undefined;
+    let unassisted = !parsed.hintUsed;
+    if (learning && learning.skill !== 'speaking') {
+      const support = parsed.hintUsed && !aids.length ? (['hint'] as const) : aids;
+      unassisted = recordLearningAttempt(
+        (state.travelLearning ??= { targets: [] }),
+        { ...exercise, learning },
+        correct,
+        [...support],
+        errorType,
+        now,
+      );
+    }
+    if (learning && correct && alternative)
+      recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning);
     let visited = own(state.visitedExercises, lesson.id);
     if (!visited) {
       visited = [];
@@ -665,9 +757,10 @@ export class OfflineEngine {
       const independent =
         (dimension === 'vocabulary_recall' || dimension === 'grammar_production') &&
         exercise.type === 'short_text' &&
-        !parsed.hintUsed;
+        unassisted;
       const baseline = own(state.skillDayBaseline, key)!.lastPracticedAt;
-      const delayed = correct && baseline !== null && Date.parse(baseline) <= now - dayMs;
+      const delayed =
+        correct && unassisted && baseline !== null && Date.parse(baseline) <= now - dayMs;
       mastery.evidenceCount++;
       if (correct && independent) mastery.unpromptedSuccessCount++;
       if (correct && !mastery.practicedFormats.includes(exercise.type))
@@ -706,8 +799,9 @@ export class OfflineEngine {
     }
     const result: AttemptResult = {
       correct,
-      feedbackEs: `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'} ${exercise.feedbackEs}`,
+      feedbackEs: `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${exercise.feedbackEs}`,
       acceptedAnswer: displayedAnswer(exercise),
+      errorType,
       xpAwarded,
       pending: false,
     };
@@ -758,15 +852,26 @@ export class OfflineEngine {
     }
     if (route === '/v1/travel') {
       const travel = (state.travel ??= emptyTravel());
+      upgradeTravelCheckpoints(travel);
       if (method === 'POST')
-        updateTravel(travel, body, now, this.id, (input) => this.attempt(state, content, input));
+        updateTravel(
+          travel,
+          body,
+          now,
+          this.id,
+          (input, aids) => this.attempt(state, content, input, aids),
+          (target, practice) =>
+            recordSpeakingPractice((state.travelLearning ??= { targets: [] }), target, practice),
+        );
       return done(travel);
     }
+    if (route === '/v1/travel/learning' && method === 'GET')
+      return done(state.travelLearning ?? { targets: [] });
     if (route === '/v1/lessons/resume') {
       const recent = Object.keys(state.lessonCheckpoints ?? {})
         .reverse()
-        .find((id) => own(content.lessons, id));
-      return done(recent ?? null);
+        .filter((id) => own(content.lessons, id));
+      return done(params.get('all') === 'true' ? recent : (recent[0] ?? null));
     }
     const checkpointMatch = route.match(/^\/v1\/lessons\/([^/]+)\/checkpoint$/);
     if (checkpointMatch) {
@@ -793,20 +898,34 @@ export class OfflineEngine {
     }
     if (route === '/v1/reviews/quick') {
       const travelOnly = params.get('source') === 'travel';
+      const courseOnly = params.get('source') === 'course';
+      const target = travelOnly ? params.get('target') : null;
+      const mission = travelOnly ? params.get('mission') : null;
+      const scopedKey = target ? `target:${target}` : mission ? `mission:${mission}` : undefined;
       const checkpointKey = travelOnly ? 'travelQuickReview' : 'quickReview';
+      const travelStarter = travelLesson.exercises[0];
       const lessons = travelOnly
         ? [travelLesson]
-        : [...Object.values(content.lessons), travelLesson];
-      const forReview = (exercise: CourseExercise) => ({
-        ...publicExercise(exercise),
-        ...(exercise.id === 'travel_bus_listen' ? { promptEs: '¿Qué significa «bus stop»?' } : {}),
-      });
-      const previous = state[checkpointKey];
+        : [...Object.values(content.lessons), ...(courseOnly ? [] : [travelLesson])];
+      const checkpoints = state.travelReviewCheckpoints ?? {};
+      const previous = scopedKey ? own(checkpoints, scopedKey) : state[checkpointKey];
       const existing =
         previous &&
         lessons
           .find((l) => l.id === previous.lessonId)
           ?.exercises.find((e) => e.id === previous.exerciseId);
+      const forReview = (saved: QuickCheckpoint, exercise: CourseExercise): QuickReviewState => {
+        const step =
+          saved.lessonId === travelLesson.id ? travelPracticeStep(exercise.id) : undefined;
+        return {
+          ...saved,
+          exercise: publicExercise(exercise),
+          situation: step?.situation,
+          hintText: step?.hint,
+          audio: step?.audio,
+          transcriptText: step?.transcript,
+        };
+      };
       if (method === 'POST') {
         const update = z
           .discriminatedUnion('action', [
@@ -816,38 +935,75 @@ export class OfflineEngine {
             z
               .object({ action: z.literal('answer'), token: z.string(), answer: answerSchema })
               .strict(),
-            z.object({ action: z.literal('dismiss'), token: z.string() }).strict(),
+            z
+              .object({ action: z.enum(['dismiss', 'hint', 'transcript']), token: z.string() })
+              .strict(),
           ])
           .parse(body);
         if (previous && existing && update.token === previous.token) {
           if (update.action === 'dismiss' && previous.result) {
-            delete state[checkpointKey];
+            if (scopedKey) delete checkpoints[scopedKey];
+            else delete state[checkpointKey];
             return done(null);
           }
-          if (update.action === 'draft' && !previous.result) previous.answer = update.answer;
-          if (update.action === 'answer' && !previous.result) {
-            previous.result = this.attempt(state, content, {
-              lessonId: previous.lessonId,
-              exerciseId: previous.exerciseId,
-              clientAttemptId: previous.token,
-              answer: update.answer,
-              hintUsed: previous.starter,
-            });
-            previous.answer = update.answer;
+          if (!previous.result) {
+            const step =
+              previous.lessonId === travelLesson.id ? travelPracticeStep(existing.id) : undefined;
+            if (update.action === 'draft') previous.answer = update.answer;
+            if (update.action === 'hint' && step?.hint) previous.hint = true;
+            if (update.action === 'transcript' && step?.transcript) previous.transcript = true;
+            if (update.action === 'answer') {
+              const aids: LearningAid[] = [];
+              if (previous.starter) aids.push('starter');
+              if (previous.hint) aids.push('hint');
+              if (previous.transcript) aids.push('transcript');
+              previous.result = this.attempt(
+                state,
+                content,
+                {
+                  lessonId: previous.lessonId,
+                  exerciseId: previous.exerciseId,
+                  clientAttemptId: previous.token,
+                  answer: update.answer,
+                  hintUsed: aids.length > 0,
+                },
+                aids,
+              );
+              previous.answer = update.answer;
+            }
           }
         }
       }
-      if (previous && existing) return done({ ...previous, exercise: forReview(existing) });
-      const create = (lesson: CourseLesson, exercise: CourseExercise, starter = false) => {
-        state[checkpointKey] = {
+      if (previous && existing) return done(forReview(previous, existing));
+      const create = (
+        lesson: CourseLesson,
+        exercise: CourseExercise,
+        starter = false,
+        reason?: LearningReviewReason,
+      ) => {
+        const saved = {
           token: this.id(),
           lessonId: lesson.id,
           exerciseId: exercise.id,
           answer: {},
           starter,
+          reason,
         };
-        return done({ ...state[checkpointKey], exercise: forReview(exercise) });
+        if (scopedKey) set((state.travelReviewCheckpoints ??= {}), scopedKey, saved);
+        else state[checkpointKey] = saved;
+        return done(forReview(saved, exercise));
       };
+      if (travelOnly) {
+        if (mission && !chapter.missions.some((item) => item.id === mission))
+          throw new LocalError('Esta misión no está disponible.', 404);
+        const plan = travelReviewPlans(state, now, mission).find(
+          (entry) => entry.candidates.length && (!target || learningKey(entry.target) === target),
+        );
+        if (plan) return create(travelLesson, plan.candidates[0].exercise, false, plan.reason);
+        if (target)
+          throw new LocalError('Esta habilidad todavía no tiene un repaso disponible.', 404);
+        return create(travelLesson, travelStarter, true);
+      }
       const ranked = [...state.mastery].sort(
         (a, b) =>
           Number(Date.parse(b.nextReviewAt) <= now) - Number(Date.parse(a.nextReviewAt) <= now) ||
@@ -860,7 +1016,7 @@ export class OfflineEngine {
           if (!visited?.length) continue;
           const exercise = lesson.exercises.find(
             (e) =>
-              (!travelOnly || visited.includes(e.id)) &&
+              e !== travelStarter &&
               e.dimension === target.dimension &&
               (target.dimension.startsWith('vocabulary_')
                 ? e.vocabularyIds?.includes(target.targetId)
@@ -869,7 +1025,12 @@ export class OfflineEngine {
           if (exercise) return create(lesson, exercise);
         }
       }
-      return create(travelLesson, travelLesson.exercises[0], true);
+      if (courseOnly) {
+        const lesson = lessons.find((entry) => entry.exercises.length > 0);
+        if (!lesson) throw new LocalError('No hay ejercicios instalados.', 404);
+        return create(lesson, lesson.exercises[0]);
+      }
+      return create(travelLesson, travelStarter, true);
     }
     if (route === '/v1/me/export')
       return done({
@@ -980,10 +1141,14 @@ export class OfflineEngine {
       return done(result);
     }
     if (route === '/v1/reviews/today') {
-      const travelOnly = params.get('source') === 'travel';
-      const lessons = travelOnly
-        ? [travelLesson]
-        : [...Object.values(content.lessons), travelLesson];
+      if (params.get('source') === 'travel') {
+        const reviews = travelReviewRows(state, now, params.get('all') === 'true', publicExercise);
+        return done({ reviews, total: reviews.length });
+      }
+      const lessons =
+        params.get('source') === 'course'
+          ? Object.values(content.lessons)
+          : [...Object.values(content.lessons), travelLesson];
       const reviews = state.mastery
         .filter((m) => params.get('all') === 'true' || Date.parse(m.nextReviewAt) <= now)
         .sort((a, b) => a.value - b.value)
@@ -993,7 +1158,6 @@ export class OfflineEngine {
               own(state.visitedExercises, lesson.id)?.length &&
               lesson.exercises.some(
                 (e) =>
-                  (!travelOnly || !!own(state.visitedExercises, lesson.id)?.includes(e.id)) &&
                   e.dimension === m.dimension &&
                   (m.dimension.startsWith('vocabulary_')
                     ? e.vocabularyIds?.includes(m.targetId)
@@ -1010,13 +1174,9 @@ export class OfflineEngine {
             skillId: m.skillId,
             targetId: m.targetId,
             dimension: m.dimension,
-            targetLabelEs: travelOnly
-              ? (related[0]?.exercises.find(
-                  (e) => e.skillId === m.skillId && e.dimension === m.dimension,
-                )?.promptEs ?? chapter.title)
-              : vocabulary
-                ? `${vocabulary.en} · ${vocabulary.es}`
-                : (lesson?.title ?? m.skillId),
+            targetLabelEs: vocabulary
+              ? `${vocabulary.en} · ${vocabulary.es}`
+              : (lesson?.title ?? m.skillId),
             mastery: m.value,
             dueAt: m.nextReviewAt,
             due: Date.parse(m.nextReviewAt) <= now,
@@ -1036,7 +1196,7 @@ export class OfflineEngine {
               .map(publicExercise),
           };
         })
-        .filter((review) => !travelOnly || review.travel);
+        .filter((review) => params.get('source') !== 'course' || review.lessonId);
       return done({ reviews, total: reviews.length });
     }
     if (route === '/v1/pronunciation/drills')
@@ -1143,6 +1303,7 @@ export class OfflineEngine {
       const track = tracks.find((t) => t.id === levelMatch[1]);
       const isHomeTrack = levelMatch[1] === HOME_TRAVEL_TRACK;
       if (!track && !isHomeTrack) throw new LocalError('Tema no disponible.', 404);
+      const challengeContent = isHomeTrack ? activeTravelCourse : content;
       const type = z
         .enum(['grammar_rush', 'cloze_battle', 'reading_quest'])
         .parse(params.get('type') ?? 'grammar_rush');
@@ -1150,12 +1311,12 @@ export class OfflineEngine {
         (p) => p.trackId === levelMatch[1] && p.type === type,
       );
       return done({
-        levels: content.challengeLevels.map((level) => ({
+        levels: challengeContent.challengeLevels.map((level) => ({
           level: level.level,
           nameEs: level.name_es,
           hearts: level.hearts,
           seconds: timeBudget(
-            content,
+            challengeContent,
             type,
             level.level,
             isHomeTrack
@@ -1165,7 +1326,7 @@ export class OfflineEngine {
           unlocked: isHomeTrack
             ? homeChallengeOpen && level.level <= availableTravelRanks
             : trackUnlocked(state, content, challengeUnit(content, level.level)),
-          unlockUnit: challengeUnit(content, level.level),
+          unlockUnit: challengeUnit(challengeContent, level.level),
           planned: isHomeTrack && level.level > availableTravelRanks,
           bestScore: record?.bestScores[String(level.level)] ?? 0,
         })),
@@ -1177,6 +1338,7 @@ export class OfflineEngine {
         .extend({ trackId: runSchema.shape.trackId.or(z.literal(HOME_TRAVEL_TRACK)) })
         .parse(body);
       const isHomeTrack = input.trackId === HOME_TRAVEL_TRACK;
+      const challengeContent = isHomeTrack ? activeTravelCourse : content;
       if (input.mode !== 'practice')
         throw new LocalError(
           'Solo hay práctica local, sin clasificación en línea.',
@@ -1221,7 +1383,7 @@ export class OfflineEngine {
       const needed = input.type === 'grammar_rush' ? 10 : input.type === 'cloze_battle' ? 5 : 4;
       if (!isHomeTrack && items.length < needed)
         throw new LocalError('Faltan preguntas para esta práctica.', 404);
-      const config = content.challengeLevels.find((l) => l.level === input.level)!;
+      const config = challengeContent.challengeLevels.find((l) => l.level === input.level)!;
       const id = this.id();
       const run: StoredRun = {
         id,
@@ -1234,7 +1396,7 @@ export class OfflineEngine {
         startedAt: now,
         deadline: input.relaxed
           ? null
-          : now + timeBudget(content, input.type, input.level, items) * 1000,
+          : now + timeBudget(challengeContent, input.type, input.level, items) * 1000,
         heartsInitial: config.hearts,
         hearts: config.hearts,
         position: 0,

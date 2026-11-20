@@ -1,4 +1,4 @@
-# LingoQuest 2.0
+# LingoQuest 2.1 · Learning First
 
 [Español (Latinoamérica)](README.es-419.md) · [Development rules](AGENTS.md)
 
@@ -8,11 +8,16 @@ LingoQuest is an Android-first app for learning American English (`en-US`) with 
 
 ## Explore and learn
 
-- **Empezar mi viaje** opens **La primera postal**, the first travel chapter. Welcome Sam, find her bus stop, and return her backpack through dialogue, listening, word order, and writing. Each mission teaches vocabulary with American English audio, usage notes, and bilingual examples. Finish the chapter to earn a passport stamp, postcard, and journal entry.
+- **Empezar mi viaje** opens **La primera postal**. Welcome Sam, find her bus stop, and return her backpack. Read and listen to the scene, study a model, try with support, then retrieve words, take dictation, and write to someone in a different situation. Optional speaking lets you rehearse, record, and listen back. The chapter earns a stamp, postcard, and journal entry.
 - **Ya sé algo de inglés** offers six optional, un-timed questions. Your answers suggest one of the three published missions. Earlier missions stay playable. You can retake the assessment from **Aprender** or **Perfil**.
 - **Mapa** covers 20 stops across seven continents and ends in Antarctica via Ushuaia. Choose an origin in Latin America or the Caribbean. Planned chapters say **En preparación**.
-- **Aprender** opens the published missions and their vocabulary and pronunciation reference. **Repaso rápido** offers one question, and **Repasar** opens the chapter review list.
-- **Desafíos** lists 13 optional ranks. The first three use grammar, cloze, and reading from the published chapter and unlock after earning its stamp. Later ranks will open with later chapters. Challenges have separate records and timer-free practice. XP, story progress, and learning evidence are tracked separately. The A1–B2 route describes curriculum goals.
+- **Aprender** opens the vocabulary guide, grammar handbook, pronunciation practice, and **Cursos A1–A2**, with eight units and 32 lessons from the bundled LQP 2.1.0 course. Start any lesson or pick up the most recent draft. The handbook and vocabulary guide can be used independently of the story.
+- **Repaso rápido** offers one practice item. **Repasar** shows queued reviews and **Mis habilidades** shows chapter evidence and skills to revisit. Review timing accounts for assistance, errors, independent retrieval, delay, and use in a fresh context.
+- **Desafíos** offers the original 13-level A1–A2 course track and the optional journey track. Travel ranks 1–3 open with the chapter stamp. The course levels open with the relevant lessons. Timers can be turned off in practice. Travel stages, challenge results, and XP describe activity. Curriculum bands are teaching targets.
+
+[20-stage curriculum and prerequisites](docs/PHASE_3_CURRICULUM.md) · [Adaptive learning design](docs/PHASE_3_ADAPTIVE_LEARNING.md) · [Chapter 1 pre-, post-, and delayed assessment](docs/CHAPTER_1_ASSESSMENT.md)
+
+[Chapter 1 item audit](docs/CHAPTER_1_CONTENT_AUDIT.md) · [Speaking and cross-course evidence design](docs/LEARNING_EVIDENCE_INTEGRATION.md)
 
 ## Development and builds
 
@@ -33,6 +38,6 @@ The APK build uses Java 17, Android SDK 36, Build Tools 36.0.0, NDK 27.1.1229700
 
 ## Local data, course packs, and speech
 
-Android uses SQLite and Web uses browser storage. Missions and quick reviews save drafts and feedback locally. Export or restore a format 2 backup from **Perfil**. Previous textbook progress stays in backups. The LQP 2.1.0 release and its sources remain available for reference and development. The current app ships and teaches the travel chapter. [Archived course packs](content/releases/README.md) · [Travel architecture](docs/TRAVEL_ARCHITECTURE.md)
+Android uses SQLite and Web uses browser storage. Missions, textbook lessons, and quick reviews save drafts and feedback locally. Export or restore a format 2 backup from **Perfil**. Earlier textbook progress uses the same lesson IDs. [Course packs](content/releases/README.md) · [Travel architecture and Phase 3 audit](docs/TRAVEL_ARCHITECTURE.md)
 
-Travel pronunciation uses the installed English TTS voice and rate. Open **Configuración de voz** from a mission, the travel guide, or pronunciation practice. With the default voice selected, 18 bundled American English clips provide offline audio when system speech is unavailable. Learners can record and replay their voice locally. The separate system recognition option explains that the selected provider may process audio online. The app offers no automated pronunciation grade. [Speech and privacy](docs/OFFLINE_EDITION.md) · [Asset credits](docs/TRAVEL_ASSETS.md)
+Open **Configuración de voz** to choose an installed English voice and rate. Chapter listening and speaking models can play bundled American English clips when the saved voice is unavailable. Textbook reference audio uses an installed offline English voice. Chapter speaking works with local recording and replay, or with a practice path that requires no microphone. The separate system recognition option may process audio online through the operating system provider. Pronunciation assessment remains a human observation in the study rubric. [Speech and privacy](docs/OFFLINE_EDITION.md) · [Asset credits](docs/TRAVEL_ASSETS.md)

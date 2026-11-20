@@ -18,24 +18,20 @@ import {
 import { api, type Progress } from '../lib/api';
 import { Button, Card, Heading, Label, Pill } from '../ui';
 import { pickTextFile, saveTextFile } from '../lib/localFiles';
-const dimensionLabels = {
-  vocabulary_recognition: 'Reconocer palabras',
-  vocabulary_recall: 'Recordar palabras',
-  grammar_understanding: 'Entender la estructura',
-  grammar_production: 'Usar la estructura',
-};
 export function OfflineProfile({
   progress,
   missionsCompleted,
   onRefresh,
   onNotice,
   onPlacement,
+  onLearningEvidence,
 }: {
   progress: Progress;
   missionsCompleted: number;
   onRefresh: () => Promise<void>;
   onNotice: (message: string) => void;
   onPlacement: () => void;
+  onLearningEvidence: () => void;
 }) {
   const { colors: C } = useTheme();
   const reducedMotion = useReducedMotion();
@@ -49,24 +45,6 @@ export function OfflineProfile({
   const [pendingBackup, setPendingBackup] = useState<any>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [targetLabels, setTargetLabels] = useState<Record<string, string>>({});
-  useEffect(() => {
-    let active = true;
-    void api<{ reviews: { key: string; targetLabelEs: string }[] }>(
-      '/v1/reviews/today?source=travel&all=true',
-    )
-      .then(({ reviews }) => {
-        if (active)
-          setTargetLabels(Object.fromEntries(reviews.map((r) => [r.key, r.targetLabelEs])));
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [progress.mastery]);
-  const travelEvidence = progress.mastery.filter(
-    (item) => targetLabels[`${item.dimension}:${item.targetId}`],
-  );
   useEffect(() => {
     setName(progress.user.name);
     setGoal(progress.user.goalMinutes || 10);
@@ -172,25 +150,9 @@ export function OfflineProfile({
         </Button>
       </Notebook>
       <Notebook title="Lo que estás construyendo">
-        {travelEvidence.length ? (
-          travelEvidence.map((m) => (
-            <View key={`${m.dimension}:${m.targetId}`} style={{ marginTop: 18 }}>
-              <View style={[s.row, { justifyContent: 'space-between' }]}>
-                <Text style={s.title}>
-                  {targetLabels[`${m.dimension}:${m.targetId}`] ?? 'Práctica en contexto'}
-                </Text>
-                <Label style={{ fontSize: 10 }}>{m.evidenceCount ?? 0} prácticas registradas</Label>
-              </View>
-              <Label style={{ fontSize: 11 }}>
-                {m.dimension ? dimensionLabels[m.dimension] : 'Práctica en contexto'}
-              </Label>
-            </View>
-          ))
-        ) : (
-          <Label style={{ marginVertical: 16 }}>
-            Tu mapa de habilidades aparecerá después de las primeras prácticas.
-          </Label>
-        )}
+        <Button variant="secondary" icon={BookOpen} onPress={onLearningEvidence}>
+          Mis habilidades
+        </Button>
         <Button variant="ghost" icon={Compass} onPress={onPlacement}>
           Explorar mi nivel sin presión
         </Button>

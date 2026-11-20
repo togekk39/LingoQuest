@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Image, Keyboard, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight, Check, Compass, Stamp, Volume2 } from 'lucide-react-native';
+import { Check, Compass, RotateCcw, Stamp, Volume2 } from 'lucide-react-native';
 import {
   chapter,
   type TravelCheckpoint,
@@ -117,12 +117,14 @@ export function TravelFlow({
   onClose,
   onPassport,
   onVoiceSettings,
+  onReview,
 }: {
   initial: TravelCheckpoint;
   onUpdate: (travel: TravelState) => void;
   onClose: () => void;
   onPassport: () => void;
   onVoiceSettings: () => void;
+  onReview?: (missionId: string) => void;
 }) {
   const [current, setCurrent] = useState(initial);
   const [answer, setAnswer] = useState<ExerciseAnswer>(initial.answer);
@@ -141,17 +143,13 @@ export function TravelFlow({
   const wordIndex = current.word ?? 0;
   const word =
     !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
-  const greetingExample =
-    !current.finished && step.type === 'exercise' && mission.id === 'hello'
-      ? mission.vocabulary[0]?.example
-      : undefined;
   const referenceAudio = current.finished
     ? undefined
     : (word?.term ??
       (step.type === 'dialogue'
         ? step.line?.en
         : step.type === 'exercise'
-          ? (step.audio ?? greetingExample?.en)
+          ? step.audio
           : undefined));
   useEffect(() => {
     if (word) void play(word.term);
@@ -198,7 +196,7 @@ export function TravelFlow({
       setBusy(false);
     }
   }
-  async function close(passport = false) {
+  async function close(exit = onClose) {
     if (actionInFlight.current) return;
     await writes.current;
     if (!current.finished && JSON.stringify(answer) !== JSON.stringify(savedDraft.current)) {
@@ -208,12 +206,17 @@ export function TravelFlow({
     }
     if (current.finished && !(await act({ action: 'dismiss', token: current.token }))) return;
     stop();
-    if (passport) onPassport();
-    else onClose();
+    exit();
   }
   const advance = () => void act({ action: 'advance', token: current.token });
+  const review = onReview ? () => void close(() => onReview(mission.id)) : undefined;
+  const lastStep = current.step === mission.steps.length - 1;
   const footer = current.finished ? (
-    <Action journal busy={busy} onPress={() => void close(mission.id === 'bag')}>
+    <Action
+      journal
+      busy={busy}
+      onPress={() => void close(mission.id === 'bag' ? onPassport : onClose)}
+    >
       {mission.id === 'bag' ? 'Abrir pasaporte' : 'Volver al viaje'}
     </Action>
   ) : step.type === 'exercise' ? (
@@ -230,7 +233,9 @@ export function TravelFlow({
           </Action>
         )}
         <Action journal busy={busy} onPress={advance}>
-          {current.result.correct ? 'Seguir la historia' : 'Usar la respuesta de QuestBuddy'}
+          {current.result.correct || current.result.communicationOnly
+            ? 'Seguir la historia'
+            : 'Usar la respuesta de QuestBuddy'}
         </Action>
       </View>
     ) : (
@@ -256,7 +261,7 @@ export function TravelFlow({
     </Action>
   ) : step.type !== 'speak' ? (
     <Action journal busy={busy} onPress={advance}>
-      {current.step === mission.steps.length - 1
+      {lastStep
         ? 'Completar misión'
         : step.type === 'teach'
           ? 'Probar en la historia'
@@ -268,10 +273,14 @@ export function TravelFlow({
   return (
     <FlowFrame
       title={mission.title}
-      eyebrow={`${mission.place} · ${mission.minutes} min`}
+      eyebrow={`${mission.place} · ${mission.minutes.join('–')} min`}
       stepKey={`${current.token}-${wordIndex}`}
       onClose={() => void close()}
-      journal={{ onListen: referenceAudio ? () => void play(referenceAudio) : undefined }}
+      journal={{
+        onListen: referenceAudio
+          ? () => void play(referenceAudio, step.type === 'exercise')
+          : undefined,
+      }}
       onVoiceSettings={
         step.type !== 'speak'
           ? () => {
@@ -284,11 +293,18 @@ export function TravelFlow({
       footer={inlineAdvance ? undefined : footer}
       feedback={
         step.type === 'exercise' && current.result ? (
-          <AnswerFeedback
-            result={current.result}
-            exercise={step.exercise}
-            answer={current.answer}
-          />
+          <View style={{ gap: 8 }}>
+            <AnswerFeedback
+              result={current.result}
+              exercise={step.exercise}
+              answer={current.answer}
+            />
+            {review && !current.result.correct && !current.result.communicationOnly && (
+              <Button variant="ghost" icon={RotateCcw} disabled={busy} onPress={review}>
+                Repasar en otra escena
+              </Button>
+            )}
+          </View>
         ) : null
       }
     >
@@ -299,7 +315,12 @@ export function TravelFlow({
           <Label style={{ flex: 1 }}>Retomamos donde lo dejaste. {mission.objective}</Label>
         </JournalLeaf>
       )}
-      <View key={current.token} testID={`travel-step-${step.type}`} style={{ gap: 14 }}>
+      <View
+        key={current.token}
+        nativeID={`travel-step-id-${step.id}`}
+        testID={`travel-step-${step.type}`}
+        style={{ gap: 14 }}
+      >
         {current.finished ? (
           <JournalSpread
             source={
@@ -321,6 +342,11 @@ export function TravelFlow({
               <Label style={[s.storyText, s.completionText]}>
                 Sello obtenido · {chapter.stamp}
               </Label>
+            )}
+            {review && (
+              <Button variant="secondary" icon={RotateCcw} disabled={busy} onPress={review}>
+                Hacer un repaso
+              </Button>
             )}
           </JournalSpread>
         ) : step.type === 'dialogue' ? (
@@ -344,7 +370,6 @@ export function TravelFlow({
           <GrammarWorkbench step={step} play={play} />
         ) : step.type === 'exercise' ? (
           <>
-            {greetingExample && <Phrase {...greetingExample} play={play} />}
             {!!step.visual && (
               <JournalArt source={placeIllustration(mission.place)} aspectRatio={2.8} />
             )}
@@ -353,7 +378,7 @@ export function TravelFlow({
               <Notebook
                 title={
                   step.audio
-                    ? 'Escucha y decide'
+                    ? 'Escucha el mensaje'
                     : step.exercise.passage
                       ? 'Lee el mensaje'
                       : 'Ahora te toca a ti'
@@ -362,9 +387,10 @@ export function TravelFlow({
                 <Label style={s.storyText}>{step.situation}</Label>
                 {!!step.visual && (
                   <Label style={f.quiet}>
-                    {step.visual === 'directions'
-                      ? 'La parada está junto al parque.'
-                      : 'En el mostrador hay una mochila azul y una mochila roja.'}
+                    {step.visualDescription ??
+                      (step.visual === 'directions'
+                        ? 'La parada está junto al parque.'
+                        : 'En el mostrador hay una mochila azul y una mochila roja.')}
                   </Label>
                 )}
 
@@ -373,9 +399,9 @@ export function TravelFlow({
                     <Button
                       variant="secondary"
                       icon={Volume2}
-                      onPress={() => void play(step.audio!)}
+                      onPress={() => void play(step.audio!, true)}
                     >
-                      Escuchar a Sam
+                      {step.listeningButton ?? 'Escuchar a Sam'}
                     </Button>
                     {current.transcript || current.result ? (
                       <Text accessibilityLanguage="en-US" style={f.body}>
@@ -395,6 +421,7 @@ export function TravelFlow({
                 <ExerciseInput
                   journal
                   exercise={step.exercise}
+                  kindLabel={step.audio ? 'Comprensión auditiva' : undefined}
                   answer={answer}
                   setAnswer={draft}
                   disabled={busy || !!current.result}
@@ -421,14 +448,19 @@ export function TravelFlow({
             <Label style={s.storyText}>{step.text}</Label>
             <SpeakingPanel
               text={step.phrase}
-              onDone={advance}
-              onPlay={() => void play(step.phrase)}
+              onDone={(practice) => {
+                if (practice) void act({ action: 'speak', token: current.token, practice });
+                else advance();
+              }}
+              onPlay={() => void play(step.phrase, true)}
               onStopReference={stop}
+              story={{
+                fallback: step.fallback,
+                continueLabel: lastStep ? 'Completar misión' : 'Seguir la historia',
+                saving: busy,
+              }}
               offlineOnly
             />
-            <Button variant="ghost" icon={ArrowRight} loading={busy} onPress={advance}>
-              Completar misión
-            </Button>
           </>
         )}
       </View>

@@ -19,7 +19,7 @@ export function useChapterAudio() {
     [],
   );
   const play = useCallback(
-    async (phrase: string) => {
+    async (phrase: string, useBundledIfUnavailable = false) => {
       const id = ++ticket.current;
       setSpeechMessage('');
       try {
@@ -30,7 +30,7 @@ export function useChapterAudio() {
         const result = await playOfflineVoice(phrase, preferences);
         if (ticket.current !== id || !result.message) return;
         const clip = audioClips[phrase];
-        if (preferences.voice !== null || !clip) {
+        if (!clip || (preferences.voice !== null && !useBundledIfUnavailable)) {
           setSpeechMessage(result.message);
           return;
         }

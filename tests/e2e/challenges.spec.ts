@@ -42,3 +42,14 @@ test('travel trials expose chapter questions and keep unreleased ranks unavailab
   await expect(page.getByText('My name ___ Sam.', { exact: true })).toBeVisible();
   expect(learningProgress(await state(page))).toEqual(before);
 });
+
+test('the separate A1–A2 challenge track lists all 13 ranks offline', async ({ page, context }) => {
+  await enterApp(page);
+  await readyOfflineShell(page, context);
+  const before = await state(page);
+  await page.getByRole('tab', exact('Desafíos')).click();
+  await click(page, 'Ver los 13 niveles del curso');
+  await expect(page.getByRole('button', { name: /^Nivel \d+:/ })).toHaveCount(13);
+  await expect(page.getByRole('button', { name: /^Nivel 13:/ })).toBeVisible();
+  expect(await state(page)).toEqual(before);
+});

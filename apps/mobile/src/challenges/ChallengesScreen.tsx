@@ -209,8 +209,11 @@ export function ChallengesScreen({
     setLoading(true);
     setError('');
     try {
-      const data = await api<{ tracks: Track[] }>('/v1/challenges/tracks?source=travel');
-      if (mounted.current) setTracks(data.tracks);
+      const [travel, textbook] = await Promise.all([
+        api<{ tracks: Track[] }>('/v1/challenges/tracks?source=travel'),
+        api<{ tracks: Track[] }>('/v1/challenges/tracks'),
+      ]);
+      if (mounted.current) setTracks([...travel.tracks, ...textbook.tracks]);
     } catch (e) {
       if (mounted.current) setError(errorText(e));
     } finally {
@@ -235,7 +238,11 @@ export function ChallengesScreen({
     }
   }, []);
   function openTrack(selectedTrack: Track) {
-    if (!selectedTrack.unlocked || selectedTrack.available === false) return;
+    if (
+      (!selectedTrack.unlocked && selectedTrack.id !== 'present_simple') ||
+      selectedTrack.available === false
+    )
+      return;
     setTrack(selectedTrack);
     setView('track');
     setType('grammar_rush');
@@ -388,8 +395,8 @@ export function ChallengesScreen({
         <JournalLeaf compact kind="notebook" style={s.notice}>
           <BookOpen color={C.teal} size={19} />
           <Text style={s.noticeText}>
-            Los niveles 1 a 3 corresponden a La primera postal. Las siguientes pruebas llegarán con
-            nuevas lecciones del viaje.
+            La primera postal tiene tres niveles de viaje. Los retos del curso A1–A2 se abren al
+            completar las lecciones relacionadas.
           </Text>
         </JournalLeaf>
         {error ? <ErrorBox message={error} retry={() => void loadTracks()} /> : null}
@@ -448,26 +455,30 @@ export function ChallengesScreen({
                   )}
                   <Text style={s.requirementText}>
                     {item.unlocked
-                      ? 'Material relacionado aprendido'
-                      : `${item.completedLessons} de ${item.requiredLessons} misiones necesarias`}
+                      ? 'Requisitos de práctica completos'
+                      : `${item.completedLessons} de ${item.requiredLessons} ${item.id === 'present_simple' ? 'lecciones' : 'misiones'} necesarias`}
                   </Text>
                 </JournalLeaf>
                 <Text style={s.previewCopy}>
                   {!(item.available ?? item.id === 'present_simple')
                     ? 'Este paquete todavía no incluye preguntas para este tema.'
                     : item.unlocked
-                      ? 'Ya aprendiste las bases. Practica a tu ritmo, sin conexión.'
-                      : 'Completa La primera postal para abrir estas pruebas.'}
+                      ? 'Practica a tu ritmo, sin conexión.'
+                      : item.id === 'present_simple'
+                        ? 'Completa las primeras dos unidades del curso A1–A2 para practicar.'
+                        : 'Completa La primera postal para abrir estas pruebas.'}
                 </Text>
                 <Action
                   label={
-                    (item.available ?? item.id === 'present_simple')
-                      ? item.unlocked
-                        ? 'Explorar práctica'
-                        : 'Completa el capítulo primero'
-                      : 'En preparación'
+                    item.id === 'present_simple'
+                      ? 'Ver los 13 niveles del curso'
+                      : item.available
+                        ? item.unlocked
+                          ? 'Explorar práctica'
+                          : 'Completa el capítulo primero'
+                        : 'En preparación'
                   }
-                  disabled={!(item.available ?? item.id === 'present_simple') || !item.unlocked}
+                  disabled={item.id !== 'present_simple' && (!item.available || !item.unlocked)}
                   secondary
                   onPress={() => openTrack(item)}
                 />
@@ -591,7 +602,9 @@ export function ChallengesScreen({
                       {!item.unlocked
                         ? item.planned
                           ? 'En preparación'
-                          : 'Completa el capítulo'
+                          : track?.id === 'present_simple'
+                            ? 'Completa las lecciones'
+                            : 'Completa el capítulo'
                         : item.level > 10
                           ? 'Reto avanzado'
                           : 'Listo para explorar'}
