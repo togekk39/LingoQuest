@@ -49,6 +49,7 @@ const questStatuses = {
 };
 const questKinds = { main: 'Historia principal', side: 'Opcional', review: 'Repaso' };
 const translationKey = 'storyTranslations';
+type JournalPanel = { type: 'quests'; questId?: string } | { type: 'inventory' } | null;
 
 function SectionHeading({
   children,
@@ -120,6 +121,7 @@ function StoryButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled, expanded }}
+      aria-expanded={expanded}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -171,7 +173,7 @@ export function StoryAdventure({
   const { play, stop, speechMessage } = useChapterAudio();
   const { scene, dialogue, encounter, hotspots, inventory, quests, turn, origin } = story;
   const lesson = useRef<TravelFlowHandle>(null);
-  const [journal, setJournal] = useState<'quests' | 'inventory' | null>(null);
+  const [journal, setJournal] = useState<JournalPanel>(null);
   const [translationsVisible, setTranslationsVisible] = useState(true);
   const translationTouched = useRef(false);
   const translationWrites = useRef(Promise.resolve());
@@ -187,7 +189,11 @@ export function StoryAdventure({
   const currentQuest =
     mainQuests.find((quest) => quest.status === 'active') ??
     mainQuests.find((quest) => quest.status === 'available');
-  const currentGoal = currentQuest?.goals.find((goal) => !goal.completed)?.label;
+  const missionTitle = currentQuest?.title ?? 'Misiones principales';
+  const missionProgress = `${completed} de ${mainQuests.length} misiones principales completadas`;
+  const questsOpen = journal?.type === 'quests';
+  const inventoryOpen = journal?.type === 'inventory';
+  const dialogueAudio = dialogue?.line?.en;
   const activeCheckpoint =
     encounter &&
     !encounter.suspended &&
@@ -199,6 +205,10 @@ export function StoryAdventure({
   const hasPanel = !!(dialogue || activeCheckpoint || finishing || encounter?.ready);
   const wide = hasPanel && width >= 1024 && fontScale < 1.35;
   const locked = busy || finishing;
+
+  useEffect(() => {
+    if (dialogueAudio) void play(dialogueAudio, true);
+  }, [dialogueAudio, play]);
 
   useEffect(() => {
     let mounted = true;
@@ -253,8 +263,16 @@ export function StoryAdventure({
     }
   }
 
-  const act = (operation: StoryOperation) => void perform(() => onAction(operation));
-  const resume = () => void perform(onResumeEncounter);
+  const act = (operation: StoryOperation) =>
+    void perform(async () => {
+      await onAction(operation);
+      setJournal(null);
+    });
+  const resume = () =>
+    void perform(async () => {
+      await onResumeEncounter();
+      setJournal(null);
+    });
   const closePanel = () => act({ action: dialogue ? 'closeDialogue' : 'suspendEncounter', turn });
 
   function interact(hotspotId: string) {
@@ -457,58 +475,83 @@ export function StoryAdventure({
             <Pressable
               testID="story-quests-toggle"
               accessibilityRole="button"
-              accessibilityLabel="Misiones"
-              accessibilityState={{ expanded: journal === 'quests' }}
-              onPress={() => setJournal(journal === 'quests' ? null : 'quests')}
+              accessibilityLabel={`Misiones. ${missionTitle}. ${missionProgress}`}
+              accessibilityState={{ expanded: questsOpen }}
+              aria-expanded={questsOpen}
+              onPress={() => setJournal(questsOpen ? null : { type: 'quests' })}
               style={({ pressed }) => [s.questSummary, pressed && { opacity: 0.82 }]}
             >
-              <BookOpen color={colors.teal} size={25} />
+              <BookOpen color={colors.teal} size={18} />
               <View style={s.questCopy}>
-                <Text style={s.entryTitle}>{currentGoal ?? 'Misiones principales'}</Text>
-                <Text style={s.small}>
-                  {completed} de {mainQuests.length} misiones principales completadas
-                </Text>
+                <Text style={s.questTitle}>{missionTitle}</Text>
+                <Text style={s.small}>{missionProgress}</Text>
               </View>
-              {journal === 'quests' ? (
-                <ChevronDown size={19} color={colors.teal} />
+              {questsOpen ? (
+                <ChevronDown size={16} color={colors.teal} />
               ) : (
-                <ChevronRight size={19} color={colors.teal} />
+                <ChevronRight size={16} color={colors.teal} />
               )}
             </Pressable>
-            {journal === 'quests' && (
-              <JournalLeaf kind="notebook" style={s.group}>
-                {quests.map((quest) => (
-                  <View key={quest.id} testID={`story-quest-${quest.id}`} style={s.journalEntry}>
-                    <Text style={s.entryTitle}>{quest.title}</Text>
-                    <Text style={s.small}>
-                      {questKinds[quest.kind]} · {questStatuses[quest.status]}
-                    </Text>
-                    {quest.status !== 'locked' && (
-                      <>
-                        <Text style={s.body}>{quest.description}</Text>
-                        {quest.goals.map((goal) => (
-                          <Text key={goal.id} style={s.goal}>
-                            {goal.completed ? '✓ ' : '○ '}
-                            {goal.label}
-                          </Text>
-                        ))}
-                        {quest.kind === 'review' && (
-                          <StoryButton
-                            id={`story-review-${quest.id}`}
-                            label={
-                              quest.status === 'completed'
-                                ? 'Practicar de nuevo'
-                                : 'Practicar ahora'
-                            }
-                            onPress={() => void perform(() => onReview(quest.reviewMissionId))}
-                            disabled={locked}
-                          />
-                        )}
-                      </>
-                    )}
-                  </View>
-                ))}
-              </JournalLeaf>
+            {questsOpen && (
+              <View style={s.questList}>
+                {quests.map((quest) => {
+                  const canExpand = quest.status !== 'locked';
+                  const expanded = canExpand && journal.questId === quest.id;
+                  const Chevron = expanded ? ChevronDown : ChevronRight;
+                  const status = questStatuses[quest.status];
+                  const summary = (
+                    <View style={s.questCopy}>
+                      <Text style={s.questTitle}>{quest.title}</Text>
+                      <Text style={s.small}>{status}</Text>
+                    </View>
+                  );
+                  return (
+                    <View key={quest.id} testID={`story-quest-${quest.id}`} style={s.questEntry}>
+                      {canExpand ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${quest.title}. ${status}`}
+                          accessibilityState={{ expanded }}
+                          aria-expanded={expanded}
+                          onPress={() =>
+                            setJournal({ type: 'quests', questId: expanded ? undefined : quest.id })
+                          }
+                          style={({ pressed }) => [s.questRow, pressed && { opacity: 0.72 }]}
+                        >
+                          {summary}
+                          <Chevron size={16} color={colors.teal} />
+                        </Pressable>
+                      ) : (
+                        <View style={s.questRow}>{summary}</View>
+                      )}
+                      {expanded && (
+                        <View testID={`story-quest-detail-${quest.id}`} style={s.questDetails}>
+                          <Text style={s.small}>{questKinds[quest.kind]}</Text>
+                          <Text style={s.body}>{quest.description}</Text>
+                          {quest.goals.map((goal) => (
+                            <Text key={goal.id} style={s.goal}>
+                              {goal.completed ? '✓ ' : '○ '}
+                              {goal.label}
+                            </Text>
+                          ))}
+                          {quest.kind === 'review' && (
+                            <StoryButton
+                              id={`story-review-${quest.id}`}
+                              label={
+                                quest.status === 'completed'
+                                  ? 'Practicar de nuevo'
+                                  : 'Practicar ahora'
+                              }
+                              onPress={() => void perform(() => onReview(quest.reviewMissionId))}
+                              disabled={locked}
+                            />
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
             )}
           </View>
           <View testID="story-inventory" style={s.group}>
@@ -517,9 +560,9 @@ export function StoryAdventure({
                 id="story-inventory-toggle"
                 label="Mochila"
                 icon={Backpack}
-                expanded={journal === 'inventory'}
+                expanded={inventoryOpen}
                 style={s.toolButton}
-                onPress={() => setJournal(journal === 'inventory' ? null : 'inventory')}
+                onPress={() => setJournal(inventoryOpen ? null : { type: 'inventory' })}
               />
               <StoryButton
                 id="story-passport"
@@ -530,7 +573,7 @@ export function StoryAdventure({
                 onPress={() => void perform(onPassport)}
               />
             </View>
-            {journal === 'inventory' && (
+            {inventoryOpen && (
               <JournalLeaf kind="notebook" style={s.group}>
                 {inventory.length ? (
                   inventory.map((item) => (
@@ -585,7 +628,7 @@ function useStyles() {
     wideSpread: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
     scenePage: { gap: 6, minWidth: 0 },
     wideScenePage: { flex: 1.25 },
-    notesPage: { gap: 12, minWidth: 0 },
+    notesPage: { gap: 8, minWidth: 0 },
     wideNotesPage: { flex: 1 },
     group: { gap: 9 },
     caption: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
@@ -626,18 +669,28 @@ function useStyles() {
     error: { color: C.red, fontFamily: 'ManropeBold', fontSize: 14 },
     itemNotice: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 3 },
     questSummary: {
-      minHeight: 62,
+      minHeight: 46,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      borderWidth: 1,
+      gap: 8,
+      borderTopWidth: 1,
       borderColor: C.line,
-      backgroundColor: C.white,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 12,
+      paddingHorizontal: 4,
+      paddingVertical: 4,
     },
-    questCopy: { flex: 1, minWidth: 0, gap: 2 },
+    questCopy: { flex: 1, minWidth: 0 },
+    questTitle: { color: C.ink, fontFamily: 'ManropeBold', fontSize: 13 },
+    questList: { paddingHorizontal: 8, backgroundColor: C.white, borderRadius: 8 },
+    questEntry: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line },
+    questRow: {
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 4,
+      paddingVertical: 4,
+    },
+    questDetails: { gap: 5, paddingHorizontal: 4, paddingBottom: 10 },
     journalEntry: { gap: 5, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 9 },
     entryTitle: { color: C.ink, fontFamily: 'LoraBold', fontSize: 16 },
     goal: { color: C.teal, fontFamily: 'Manrope', fontSize: 14, lineHeight: 21 },

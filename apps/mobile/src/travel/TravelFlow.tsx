@@ -183,9 +183,8 @@ export function TravelFlow({
   const { revealItem } = useContext(InputViewportContext);
   const hasFeedback = !!current.result;
   useEffect(() => {
-    if (inline) return;
     const text = word?.term ?? line?.en;
-    if (text) void play(text);
+    if (text) void play(text, inline);
   }, [inline, line, play, word]);
   useEffect(() => {
     if (!inline) return;

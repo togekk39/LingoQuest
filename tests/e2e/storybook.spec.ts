@@ -61,6 +61,25 @@ test.describe('small touch screen', () => {
     await enterApp(page);
     await openAdventure(page);
     await capture(page, 'storybook-small-plaza');
+    const quests = page.getByTestId('story-quests-toggle');
+    const firstQuest = page.getByTestId('story-quest-meet-sam');
+    const firstDetail = page.getByTestId('story-quest-detail-meet-sam');
+    const inventory = page.getByTestId('story-inventory-toggle');
+    await expect(quests).toHaveAttribute('aria-expanded', 'false');
+    await expect(quests).toContainText('Un saludo en la plaza');
+    await expect(quests).toContainText('0 de 3 misiones principales completadas');
+    await expect(firstQuest).toBeHidden();
+    await quests.tap();
+    await expect(firstQuest).toBeVisible();
+    await expect(firstDetail).toBeHidden();
+    await firstQuest.getByRole('button').tap();
+    await expect(firstDetail).toContainText('Preséntate a Sam en inglés.');
+    await inventory.tap();
+    await expect(firstQuest).toBeHidden();
+    await expect(inventory).toHaveAttribute('aria-expanded', 'true');
+    await quests.tap();
+    await expect(inventory).toHaveAttribute('aria-expanded', 'false');
+    await expect(firstDetail).toBeHidden();
     await scene(page).evaluate((root) => {
       for (const element of root.querySelectorAll<HTMLElement>('div, span')) {
         if (element.children.length || !element.textContent?.trim()) continue;
@@ -112,12 +131,15 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     if (window.speechSynthesis) window.speechSynthesis.getVoices = () => [];
+    const playback: string[] = [];
+    Object.assign(window, { storyPlayback: playback });
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () {
       const result = play.call(this);
       void result
         .then(() => {
           document.body.dataset.played = this.currentSrc;
+          playback.push(this.currentSrc);
         })
         .catch(() => {});
       return result;
@@ -127,14 +149,21 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await readyOfflineShell(page, context);
   await openAdventure(page);
   const initialXp = (await state(page)).xp;
-  await expect(
-    page.getByText('Preséntate a Sam en inglés.', { exact: true }).first(),
-  ).toBeVisible();
+  const quests = page.getByTestId('story-quests-toggle');
+  const playback = () =>
+    page.evaluate(() =>
+      (window as Window & { storyPlayback?: string[] }).storyPlayback!.map(
+        (src) => src.match(/\/(line-\d+|word-\d+)\./)?.[1],
+      ),
+    );
+  const clipPlays = async (clip: string) => (await playback()).filter((id) => id === clip).length;
+  await expect(quests).toContainText('Un saludo en la plaza');
   await capture(page, 'storybook-mobile-plaza');
 
   await spot(page, 'plaza-luz').click();
   const luzPanel = dialogue(page, 'luz-welcome');
   await expect(luzPanel.getByText('Hi! I am Luz.', { exact: true })).toBeVisible();
+  await expect.poll(() => clipPlays('line-2')).toBe(1);
   const translation = luzPanel.getByText('¡Hola! Soy Luz.', { exact: true });
   const translationToggle = luzPanel.getByRole('switch', exact('Mostrar traducción'));
   await expect(translation).toBeVisible();
@@ -143,22 +172,29 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await translationToggle.click();
   await expect(translation).toBeVisible();
   await luzPanel.getByRole('button', exact('Escuchar frase')).click();
-  await expect
-    .poll(() => page.evaluate(() => document.body.dataset.played))
-    .toMatch(/line-2.*\.mp3/);
+  await expect.poll(() => clipPlays('line-2')).toBe(2);
   await capture(page, 'storybook-mobile-luz');
 
   await spot(page, 'plaza-sam').click();
   const samPanel = dialogue(page, 'sam-introduction');
   await expect(samPanel.getByText('Hi! My name is Sam.', { exact: true })).toBeVisible();
+  await expect.poll(() => clipPlays('line-1')).toBe(1);
   await capture(page, 'storybook-mobile-sam');
   await choice(page, 'introduce-yourself');
   const learning = page.getByTestId('story-learning');
   await expect(learning).toBeVisible();
   await expect(scene(page)).toBeVisible();
   await click(page, 'Continuar');
+  await expect.poll(() => clipPlays('line-1')).toBe(2);
   await click(page, 'Continuar');
-  await finishVocabulary(page);
+  await expect.poll(() => clipPlays('word-1')).toBe(1);
+  await click(page, 'Siguiente palabra');
+  await expect.poll(() => clipPlays('word-2')).toBe(1);
+  await click(page, 'Siguiente palabra');
+  await expect.poll(() => clipPlays('word-3')).toBe(1);
+  await click(page, 'Ver la explicación');
+  await expect.poll(async () => (await playback()).slice(-2)).toEqual(['line-2', 'line-3']);
+  await click(page, 'Probar en la historia');
   await finishGreetingPractice(page);
 
   const input = learning
@@ -277,6 +313,22 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   ).toBeVisible();
   await page.getByTestId('story-quests').scrollIntoViewIfNeeded();
   await capture(page, 'storybook-mobile-completed');
+  await expect(quests).toHaveAttribute('aria-expanded', 'false');
+  await quests.click();
+  const greeting = page.getByTestId('story-quest-meet-sam');
+  const directions = page.getByTestId('story-quest-catch-the-bus');
+  const greetingDetail = page.getByTestId('story-quest-detail-meet-sam');
+  const directionsDetail = page.getByTestId('story-quest-detail-catch-the-bus');
+  await expect(greeting).toContainText('Completada');
+  await expect(directions).toContainText('Completada');
+  await expect(greetingDetail).toBeHidden();
+  await expect(directionsDetail).toBeHidden();
+  await greeting.getByRole('button').click();
+  await expect(greetingDetail).toBeVisible();
+  await directions.getByRole('button').click();
+  await expect(directionsDetail).toBeVisible();
+  await expect(greetingDetail).toBeHidden();
+  await quests.click();
   await page.getByTestId('story-passport').click();
   await expect(page.getByText('La postal de Sam', { exact: true })).toBeVisible();
   await capture(page, 'storybook-mobile-pasaporte');

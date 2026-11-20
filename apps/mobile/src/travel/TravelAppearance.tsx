@@ -103,7 +103,11 @@ export function GrammarWorkbench({
 }: {
   step: Extract<TravelMission['steps'][number], { type: 'teach' }>;
   play: (value: string) => void;
-  playSequence: (phrases: readonly string[], onSelect?: (index: number) => void) => Promise<void>;
+  playSequence: (
+    phrases: readonly string[],
+    onSelect?: (index: number) => void,
+    useBundledIfUnavailable?: boolean,
+  ) => Promise<void>;
   stop: () => void;
   embedded?: StoryTranslation;
 }) {
@@ -122,10 +126,10 @@ export function GrammarWorkbench({
     setCompare(false);
   }, []);
   useEffect(() => {
-    if (inline) return;
     void playSequence(
       step.examples.map(({ en }) => en),
       dialogue ? undefined : showExample,
+      inline,
     );
   }, [dialogue, inline, playSequence, showExample, step.examples]);
   return (
