@@ -1,4 +1,4 @@
-import { test, expect, click, exact, enterApp } from './helpers';
+import { test, expect, click, exact, enterApp, openTravelLessons } from './helpers';
 
 for (const width of [390, 1280]) {
   test(`home leads with the next mission and offers a usable route at ${width}px`, async ({
@@ -9,17 +9,24 @@ for (const width of [390, 1280]) {
 
     const postcard = page.getByTestId('home-mission-postcard');
     await expect(postcard.getByText('Un saludo en la plaza', { exact: true })).toBeVisible();
-    await expect(postcard.getByRole('button', exact('Continuar viaje'))).toBeInViewport();
+    await expect(postcard.getByRole('button', exact('Comenzar mi aventura'))).toBeInViewport();
 
     const route = page.getByTestId('home-route');
     await expect(route.getByRole('heading', exact('Ruta del capítulo'))).toBeVisible();
-    const firstStop = route.getByRole('button', exact('Un saludo en la plaza'));
-    await expect(firstStop).toBeEnabled();
-    await expect(route.getByTestId('home-stop-bus')).toBeDisabled();
-    await firstStop.click();
+    await expect(route.getByTestId('home-stop-hello')).toHaveText(/Siguiente/);
+    await expect(route.getByRole('button', exact('Un saludo en la plaza'))).toHaveCount(0);
+    await page.getByRole('tab', exact('Mapa')).click();
+    await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toHaveCount(1);
+    await expect(page.getByRole('button', exact('Un saludo en la plaza'))).toHaveCount(0);
+    const lessons = await openTravelLessons(page);
+    await expect(lessons.getByRole('heading', exact('Lecciones'))).toBeVisible();
+    await expect(lessons.getByRole('button', exact('El bus de las ocho'))).toBeDisabled();
+    await lessons.getByRole('button', exact('Un saludo en la plaza')).click();
     await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
     await click(page, 'Cerrar y volver');
-    await expect(postcard.getByRole('button', exact('Continuar viaje'))).toBeVisible();
+    await expect(lessons.getByText('En curso', { exact: true })).toBeVisible();
+    await page.getByRole('tab', exact('Inicio')).click();
+    await expect(postcard.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
 
     const practice = page.getByTestId('home-practice');
     await expect(practice.getByRole('heading', exact('Practicar a tu ritmo'))).toBeVisible();

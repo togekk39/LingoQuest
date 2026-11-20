@@ -7,6 +7,7 @@ import {
   expect,
   finishVocabulary,
   openTravelWriting,
+  openTravelLesson,
   readyOfflineShell,
   state,
   test,
@@ -49,7 +50,7 @@ test('two be-agreement errors lead to contextual repair and leave the story chec
   await capture(page, '08-adaptive-review');
   await input.fill('am');
   await click(page, 'Cerrar y volver');
-  await click(page, 'Continuar viaje');
+  await openTravelLesson(page);
   await expect(page.getByTestId('submitted-answer')).toHaveText(/I is Nico\./);
   await click(page, 'Repasar en otra escena');
   await expect(input).toHaveValue('am');
@@ -63,7 +64,7 @@ test('two be-agreement errors lead to contextual repair and leave the story chec
     trained.travelLearning?.targets.find((target) => target.skill === 'writing')?.errors
       .be_agreement?.pending,
   ).toBe(2);
-  await click(page, 'Continuar viaje');
+  await openTravelLesson(page);
   await click(page, 'Repasar en otra escena');
   await expect(page.getByTestId('exercise-travel_review_introduction')).toBeVisible();
   await input.fill('My name is Ada.');
@@ -133,7 +134,7 @@ test('an offline delayed review asks for independent use of a practiced concept 
   await page.clock.setFixedTime(start);
   await enterApp(page);
   await readyOfflineShell(page, context);
-  await click(page, 'Continuar viaje');
+  await openTravelLesson(page);
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await finishVocabulary(page);

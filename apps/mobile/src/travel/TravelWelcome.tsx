@@ -11,13 +11,11 @@ import { illustrations } from './illustrations';
 export function TravelWelcome({
   busy,
   onAdventure,
-  onStart,
   onAssessment,
   onClose,
 }: {
   busy: boolean;
   onAdventure: () => void;
-  onStart: () => void;
   onAssessment: () => void;
   onClose: () => void;
 }) {
@@ -81,10 +79,7 @@ export function TravelWelcome({
               </View>
             </JournalLeaf>
             <Button loading={busy} icon={ArrowRight} onPress={onAdventure} style={styles.start}>
-              Explorar aventura
-            </Button>
-            <Button variant="secondary" disabled={busy} onPress={onStart} style={styles.start}>
-              Empezar mi viaje
+              Comenzar mi aventura
             </Button>
             <Pressable
               accessibilityRole="button"

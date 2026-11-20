@@ -64,7 +64,7 @@ export { expect };
 export async function enterApp(page: Page, { chooseOrigin = true } = {}) {
   await page.addInitScript(() => localStorage.setItem('lq_setting:onboarded', 'true'));
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Continuar viaje', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
   if (chooseOrigin) {
     await click(page, 'Elegir lugar de origen');
     await click(page, 'Honduras');
@@ -79,6 +79,16 @@ export function learningProgress(s: LocalState) {
 }
 export const exact = (name: string) => ({ name, exact: true });
 export const click = (page: Page, name: string) => page.getByRole('button', exact(name)).click();
+
+export async function openTravelLessons(page: Page) {
+  const lessons = page.getByTestId('travel-lessons');
+  if (!(await lessons.isVisible())) await page.getByRole('tab', exact('Aprender')).click();
+  return lessons;
+}
+
+export async function openTravelLesson(page: Page, title = 'Un saludo en la plaza') {
+  await (await openTravelLessons(page)).getByRole('button', exact(title)).click();
+}
 
 export async function finishVocabulary(page: Page) {
   await click(page, 'Siguiente palabra');
@@ -119,7 +129,7 @@ export async function finishGreetingPractice(page: Page) {
 }
 
 export async function openTravelWriting(page: Page) {
-  await click(page, 'Continuar viaje');
+  await openTravelLesson(page);
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await finishVocabulary(page);

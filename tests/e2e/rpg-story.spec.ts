@@ -131,7 +131,7 @@ test('Chapter 1 plays offline through the bench branch, resumes learning, and aw
   });
   await enterApp(page);
   await readyOfflineShell(page, context);
-  await click(page, 'Explorar aventura');
+  await click(page, 'Comenzar mi aventura');
   await expect(scene(page, 'plaza')).toBeVisible();
   await expect(hotspot(page, 'plaza-origin')).toHaveAccessibleName('Postales de Honduras');
   await captureStory(page, 'phase4-01-plaza', scene(page, 'plaza'));
@@ -159,7 +159,7 @@ test('Chapter 1 plays offline through the bench branch, resumes learning, and aw
   await click(page, 'Cerrar y volver');
   await expect(scene(page, 'plaza')).toBeVisible();
   await page.reload();
-  await click(page, 'Explorar aventura');
+  await click(page, 'Comenzar mi aventura');
   await page.getByTestId('story-encounter-resume').click();
   await expect(introduction).toHaveValue('Hi! I am');
   await answerTravelText(page, 'travel_hello_write', "Hi! I'm Luz.");
@@ -186,7 +186,7 @@ test('Chapter 1 plays offline through the bench branch, resumes learning, and aw
   await talk(page, 'stop-bench', 'read-bench-note');
   await expect(dialogue(page, 'bench-clue')).toBeVisible();
   await page.reload();
-  await click(page, 'Explorar aventura');
+  await click(page, 'Comenzar mi aventura');
   await expect(dialogue(page, 'bench-clue')).toBeVisible();
   await closeDialogue(page);
   await hotspot(page, 'stop-to-lost-property').click();
@@ -230,7 +230,7 @@ test('Chapter 1 plays offline through the bench branch, resumes learning, and aw
 
   await page.clock.setFixedTime(start + 2 * 24 * 60 * 60 * 1000);
   await page.reload();
-  await click(page, 'Explorar aventura');
+  await click(page, 'Comenzar mi aventura');
   await hotspot(page, 'lost-sam-finale').click();
   await expect(dialogue(page, 'sam-finale-bench')).toBeVisible();
   await closeDialogue(page);
@@ -276,7 +276,7 @@ test('the Luz branch sends the player back to the plaza and records a different 
   await page.setViewportSize({ width: 320, height: 568 });
   await enterApp(page);
   await readyOfflineShell(page, context);
-  await click(page, 'Explorar aventura');
+  await click(page, 'Comenzar mi aventura');
   const luz = hotspot(page, 'plaza-luz');
   await luz.focus();
   await page.keyboard.press('Enter');
@@ -318,7 +318,7 @@ test('closing the adventure during a save stays on home and preserves the NPC in
 }) => {
   await enterApp(page);
   await readyOfflineShell(page, context);
-  await click(page, 'Explorar aventura');
+  await click(page, 'Comenzar mi aventura');
   await expect(scene(page, 'plaza')).toBeVisible();
   await page.evaluate(
     () =>
@@ -334,7 +334,7 @@ test('closing the adventure during a save stays on home and preserves the NPC in
   try {
     await hotspot(page, 'plaza-luz').click();
     await click(page, 'Cerrar y volver');
-    await expect(page.getByRole('button', exact('Explorar aventura'))).toBeVisible();
+    await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
   } finally {
     await page.evaluate(() => document.dispatchEvent(new Event('release-story-test-lock')));
   }
@@ -346,6 +346,6 @@ test('closing the adventure during a save stays on home and preserves the NPC in
     )
     .toBe('luz-welcome');
   await expect(scene(page, 'plaza')).toHaveCount(0);
-  await click(page, 'Explorar aventura');
+  await click(page, 'Comenzar mi aventura');
   await expect(dialogue(page, 'luz-welcome')).toBeVisible();
 });
