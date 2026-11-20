@@ -115,7 +115,9 @@ export function FlowFrame({
   const scrollOffset = useRef(0);
   const pendingFrame = useRef<number | null>(null);
   const [inputMaxHeight, setInputMaxHeight] = useState(200);
+  const hasFeedback = !!feedback;
   const revealFocusedInput = useCallback(() => {
+    if (hasFeedback) return;
     if (pendingFrame.current !== null) cancelAnimationFrame(pendingFrame.current);
     pendingFrame.current = requestAnimationFrame(() => {
       pendingFrame.current = null;
@@ -138,7 +140,7 @@ export function FlowFrame({
         });
       });
     });
-  }, []);
+  }, [hasFeedback]);
   const revealInput = useCallback(
     (input: TextInput | null) => {
       focusedInput.current = input;
@@ -153,11 +155,29 @@ export function FlowFrame({
     };
   }, [revealFocusedInput]);
   const contentTop = useRef(0);
-  const hasFeedback = !!feedback;
+  const feedbackTop = useRef<number | null>(null);
+  const feedbackFrame = useRef<number | null>(null);
+  const revealFeedback = useCallback(() => {
+    if (!hasFeedback || feedbackTop.current === null) return;
+    if (feedbackFrame.current !== null) cancelAnimationFrame(feedbackFrame.current);
+    feedbackFrame.current = requestAnimationFrame(() => {
+      feedbackFrame.current = null;
+      if (feedbackTop.current === null) return;
+      scroll.current?.scrollTo({
+        y: Math.max(0, contentTop.current + feedbackTop.current - 12),
+        animated: false,
+      });
+    });
+  }, [hasFeedback]);
 
   useEffect(() => {
-    // Retrying returns to the question instead of leaving it above the viewport.
-    if (!hasFeedback) scroll.current?.scrollTo({ y: 0, animated: false });
+    if (!hasFeedback) {
+      feedbackTop.current = null;
+      scroll.current?.scrollTo({ y: 0, animated: false });
+    }
+    return () => {
+      if (feedbackFrame.current !== null) cancelAnimationFrame(feedbackFrame.current);
+    };
   }, [hasFeedback, stepKey]);
 
   return (
@@ -245,7 +265,9 @@ export function FlowFrame({
         style={{ flex: 1 }}
         contentContainerStyle={[f.scroll, journal && f.journalScroll]}
         keyboardShouldPersistTaps="handled"
+        onContentSizeChange={revealFeedback}
         onLayout={(event) => {
+          revealFeedback();
           // Leave space around the field; long answers scroll inside the input.
           setInputMaxHeight(Math.max(1, event.nativeEvent.layout.height - 32));
           revealFocusedInput();
@@ -260,6 +282,7 @@ export function FlowFrame({
             style={[f.content, journal && f.journalWidth]}
             onLayout={(event) => {
               contentTop.current = event.nativeEvent.layout.y;
+              revealFeedback();
             }}
           >
             <MotionEntrance key={stepKey} style={{ gap: journal ? 16 : 22 }}>
@@ -267,12 +290,8 @@ export function FlowFrame({
               {hasFeedback && (
                 <View
                   onLayout={(event) => {
-                    // Layout coordinates include all teaching content and expanded help.
-                    // Align the start, so even a tall explanation begins on screen.
-                    scroll.current?.scrollTo({
-                      y: Math.max(0, contentTop.current + event.nativeEvent.layout.y - 12),
-                      animated: false,
-                    });
+                    feedbackTop.current = event.nativeEvent.layout.y;
+                    revealFeedback();
                   }}
                 >
                   {feedback}
