@@ -18,7 +18,7 @@ Travel missions and phrase drills on Android show that the system-selected speec
 
 On iOS and Web, **Ver opción de reconocimiento que puede usar internet** reveals the system or browser recognizer in supported phrase drills. Learners can play the example or skip without microphone access.
 
-The app gives sentence and grammar feedback after recognition ends. The completed final transcript must match the reference or an accepted course variant to pass. In the introduction, the learner speaks as Luz and can use forms such as `I am`, `I’m`, and `My name is`. **Ahora no puedo hablar** advances without recording speaking practice.
+The live transcript appears as the selected recognizer returns interim results. Some providers return only the final text. The app gives sentence and grammar feedback after recognition ends. The completed final transcript must match the reference or an accepted course variant to pass. In the introduction, the learner speaks as Luz and can use forms such as `I am`, `I’m`, and `My name is`. **Ahora no puedo hablar** advances without recording speaking practice.
 
 Supported native recognizers capture a temporary local copy during the same attempt. **Escuchar ejemplo y mi grabación** plays the model first and the recording second. The app deletes the recording on retry or exit and leaves transcripts out of learning history. This feature uses the `expo-speech-recognition` module. Browsers can use the explicit system option in phrase drills where supported. The Android APK workflow builds the installer. Unit and browser checks cover recognition routing and the fallback flow. Use the [physical Android procedure](OFFLINE_TEST_PLAN.md#android-speech-recognition-in-airplane-mode) to verify real speech recognition.
 

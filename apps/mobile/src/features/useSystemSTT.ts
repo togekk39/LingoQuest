@@ -78,7 +78,7 @@ function recognitionError(code: string) {
 
 export function useSystemSTT() {
   const [phase, setPhase] = useState<'idle' | 'starting' | 'listening' | 'stopping'>('idle');
-  const [transcript, setTranscript] = useState('');
+  const [liveTranscript, setLiveTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
   const [recordingUri, setRecordingUri] = useState<string>();
   const [message, setMessage] = useState('');
@@ -95,9 +95,10 @@ export function useSystemSTT() {
         const current = attempt.current;
         if (!current?.started || current.failed) return;
         const value = event.results[0]?.transcript.trim() ?? '';
-        if (!value) return;
-        if (event.isFinal) current.finals.push(value);
-        setTranscript((event.isFinal ? current.finals : [...current.finals, value]).join(' '));
+        if (event.isFinal && value) current.finals.push(value);
+        setLiveTranscript(
+          (!event.isFinal && value ? [...current.finals, value] : current.finals).join(' '),
+        );
       }),
       recognition.addListener('audioend', ({ uri }) => {
         const current = attempt.current;
@@ -123,7 +124,7 @@ export function useSystemSTT() {
         attempt.current = null;
         setPhase('idle');
         const final = current.failed ? '' : current.finals.join(' ');
-        setTranscript(final);
+        setLiveTranscript('');
         setFinalTranscript(final);
         if (!final && !current.failed) setMessage(recognitionError('no-speech'));
         if (current.audioEnded && current.audioFile && current.audioFile.size > 44) {
@@ -154,7 +155,7 @@ export function useSystemSTT() {
     discardRecording(savedRecording.current);
     savedRecording.current = undefined;
     setRecordingUri(undefined);
-    setTranscript('');
+    setLiveTranscript('');
     setFinalTranscript('');
     setMessage('');
     setPhase('starting');
@@ -201,7 +202,7 @@ export function useSystemSTT() {
     attempt.current = null;
     abortAttempt(current);
     setPhase('idle');
-    setTranscript('');
+    setLiveTranscript('');
     if (!current.failed) setMessage(recognitionError(code));
   }
 
@@ -226,14 +227,14 @@ export function useSystemSTT() {
     savedRecording.current = undefined;
     setRecordingUri(undefined);
     setPhase('idle');
-    setTranscript('');
+    setLiveTranscript('');
     setFinalTranscript('');
     setMessage('');
   }
 
   return {
     phase,
-    transcript,
+    liveTranscript,
     finalTranscript,
     recordingUri,
     message,

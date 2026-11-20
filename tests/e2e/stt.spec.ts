@@ -57,6 +57,7 @@ async function installRecognition(page: Page) {
 test('system STT receives English, displays interim/final text, stops, retries and aborts on leaving', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 360, height: 580 });
   await installRecognition(page);
   await openPractice(page);
   await expect(page.getByText(/puede procesar tu audio en línea/)).toBeVisible();
@@ -64,6 +65,10 @@ test('system STT receives English, displays interim/final text, stops, retries a
   await expect(
     page.getByRole('button', { name: 'Terminar reconocimiento', exact: true }),
   ).toBeVisible();
+  const liveTranscript = page.getByTestId('speech-transcript');
+  await expect(liveTranscript.getByText('Transcripción en vivo')).toBeVisible();
+  await expect(liveTranscript.getByText(/Te escuchamos/)).toBeVisible();
+  await expect(liveTranscript).toBeInViewport({ ratio: 0.95 });
   expect(
     await page.evaluate(() => {
       const r = (window as any).__recognizers.at(-1);
@@ -71,11 +76,16 @@ test('system STT receives English, displays interim/final text, stops, retries a
     }),
   ).toEqual({ lang: 'en-US', interim: true, continuous: false });
   await page.evaluate(() => (window as any).__recognizers.at(-1).result('Hello', false));
-  await expect(page.getByText('Hello', { exact: true })).toBeVisible();
+  await expect(liveTranscript.getByText('Hello', { exact: true })).toBeVisible();
+  await page.evaluate(() => (window as any).__recognizers.at(-1).result('Hello there', false));
+  await expect(liveTranscript.getByText('Hello there', { exact: true })).toBeVisible();
+  await expect(liveTranscript.getByText('Hello', { exact: true })).toHaveCount(0);
+  await expect(liveTranscript).toBeInViewport({ ratio: 0.95 });
   await expect(page.getByText('Gramática de la lección')).toHaveCount(0);
   await page.evaluate(() => (window as any).__recognizers.at(-1).result('Hello world', true));
   await expect(page.getByText('Hello world', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Terminar reconocimiento', exact: true }).click();
+  await expect(liveTranscript.getByText('Esto entendió el sistema')).toBeVisible();
   await expect(page.getByText('Contenido de la frase')).toBeVisible();
   await expect(page.getByText('Gramática de la lección')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continuar con mi lección' })).toBeDisabled();

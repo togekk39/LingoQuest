@@ -6,7 +6,7 @@ import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
 import { playPracticeClip } from './playPracticeClip';
 import { useSystemSTT } from './useSystemSTT';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import {
@@ -16,7 +16,7 @@ import {
   useOfflineSpeech,
 } from './offlineSpeech';
 import { ShieldCheck, Volume2 } from 'lucide-react-native';
-import { Action, useFeatureStyles, FlowFrame } from './FeatureUI';
+import { Action, useFeatureStyles, FlowFrame, InputViewportContext } from './FeatureUI';
 
 export type SpeakingPracticeMethod = 'recorded' | 'imitated';
 
@@ -52,9 +52,19 @@ export function SpeakingPanel({
   const { playOffline, speechMessage } = useOfflineSpeech();
   const [comparing, setComparing] = useState(false);
   const comparison = useRef<AbortController | null>(null);
-  const audioBusy = comparing || stt.phase !== 'idle';
+  const transcriptPanel = useRef<View>(null);
+  const { revealItem } = useContext(InputViewportContext);
+  const recognizing = stt.phase !== 'idle';
+  const audioBusy = comparing || recognizing;
   const textFeedback = stt.finalTranscript && feedback?.(stt.finalTranscript);
   const passed = matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
+  const transcript = stt.finalTranscript || stt.liveTranscript;
+  const transcriptStatus =
+    stt.phase === 'starting'
+      ? 'Preparando el micrófono…'
+      : stt.phase === 'stopping'
+        ? 'Esperando el resultado final…'
+        : 'Te escuchamos. Di tu frase en inglés.';
 
   useEffect(
     () => () => {
@@ -63,6 +73,19 @@ export function SpeakingPanel({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!recognizing) return;
+    let active = true;
+    const frame = requestAnimationFrame(() => {
+      const panel = transcriptPanel.current;
+      if (panel) revealItem(panel, () => active && transcriptPanel.current === panel);
+    });
+    return () => {
+      active = false;
+      cancelAnimationFrame(frame);
+    };
+  }, [recognizing, revealItem]);
 
   function stopComparison() {
     comparison.current?.abort();
@@ -169,11 +192,6 @@ export function SpeakingPanel({
                 ? 'Reconocer con el servicio de Android'
                 : 'Practicar con mi voz'}
           </Action>
-          {stt.phase === 'listening' && (
-            <Text accessibilityLiveRegion="polite" style={f.quiet}>
-              Te escuchamos. Di tu frase en inglés.
-            </Text>
-          )}
         </>
       ) : showRecognition ? (
         <Text style={f.quiet}>
@@ -184,30 +202,38 @@ export function SpeakingPanel({
           El reconocimiento de voz de la misión está disponible en Android.
         </Text>
       ) : null}
-      {!!stt.transcript && (
-        <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite" style={f.card}>
-          <Text style={f.eyebrow}>
-            {stt.finalTranscript ? 'Esto entendió el sistema' : 'Texto provisional'}
-          </Text>
-          <Text accessibilityLanguage="en-US" style={f.body}>
-            {stt.transcript}
-          </Text>
-          {textFeedback && (
-            <>
-              <Text style={f.eyebrow}>Contenido de la frase</Text>
-              <Text style={f.body}>{textFeedback.content}</Text>
-              <Text style={f.eyebrow}>Gramática de la lección</Text>
-              <Text style={f.body}>{textFeedback.grammar}</Text>
-            </>
-          )}
-          {!!stt.finalTranscript && (
-            <Text style={f.quiet}>
-              {passed
-                ? 'La frase reconocida coincide con el objetivo.'
-                : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
+      {(recognizing || !!stt.finalTranscript) && (
+        <View ref={transcriptPanel} collapsable={false} testID="speech-transcript">
+          <JournalLeaf compact kind="notebook" style={f.card}>
+            <Text style={f.eyebrow}>
+              {stt.finalTranscript ? 'Esto entendió el sistema' : 'Transcripción en vivo'}
             </Text>
-          )}
-        </JournalLeaf>
+            <View accessibilityLiveRegion="polite" style={recognizing && s.liveTranscript}>
+              {transcript ? (
+                <Text accessibilityLanguage="en-US" style={f.body}>
+                  {transcript}
+                </Text>
+              ) : (
+                <Text style={f.quiet}>{transcriptStatus}</Text>
+              )}
+            </View>
+            {textFeedback && (
+              <>
+                <Text style={f.eyebrow}>Contenido de la frase</Text>
+                <Text style={f.body}>{textFeedback.content}</Text>
+                <Text style={f.eyebrow}>Gramática de la lección</Text>
+                <Text style={f.body}>{textFeedback.grammar}</Text>
+              </>
+            )}
+            {!!stt.finalTranscript && (
+              <Text style={f.quiet}>
+                {passed
+                  ? 'La frase reconocida coincide con el objetivo.'
+                  : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
+              </Text>
+            )}
+          </JournalLeaf>
+        </View>
       )}
       {!!stt.message && (
         <Text accessibilityRole="alert" style={f.body}>
@@ -303,6 +329,7 @@ export function useStyles() {
       backgroundColor: palette.mint,
     },
     reference: { fontFamily: 'Outfit', fontSize: 28, lineHeight: 38, color: palette.ink },
+    liveTranscript: { minHeight: 48 },
     listen: { flexDirection: 'row', gap: 9, alignItems: 'center', minHeight: 44 },
     listenText: { fontFamily: 'Manrope', fontSize: 14, color: palette.teal, fontWeight: '700' },
     privacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
