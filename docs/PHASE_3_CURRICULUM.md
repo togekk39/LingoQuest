@@ -41,19 +41,29 @@ Prerequisites guide authors when planning placement and progression. The first c
 
 ## First chapter learning sequence
 
-| Mission                      | Scene and instruction                                                                               | Guided practice and recall                                                                                | Independent use and transfer                                                                                                                |
-| ---------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Un saludo en la plaza**    | Sam introduces herself. Word cards and sentence blocks compare `I am` and `My name is`.             | Identify a greeting, order a sentence, and retrieve the greeting from memory.                             | Write a welcome card and introduce Nico at a photo booth. Imitate a greeting with your own name and optionally record and replay it.        |
-| **El bus de las ocho**       | Sam needs a specific stop. Read and listen to a question and compare its word order with the reply. | Identify the place from audio, order a response, transcribe a short direction, and retrieve the question. | Use the stop as the landmark and give directions to the park.                                                                               |
-| **Una mochila y una postal** | Sam and Luz leave messages about two bags. Examples contrast a color after `is` and before a noun.  | Read for a color and identify the owner from `My bag`.                                                    | Confirm the color of Sam's bag, then answer at a different stall about Luz's bag. Optionally listen, imitate, record, and replay the reply. |
+| Mission                      | Scene and instruction                                                                              | Guided practice and recall                                                                                | Independent use and transfer                                                                                                                |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Un saludo en la plaza**    | Sam introduces herself. Word cards and sentence blocks compare `I am` and `My name is`.            | Identify a greeting, order a sentence, and retrieve the greeting from memory.                             | Write a welcome card and introduce Nico at a photo booth. Imitate a greeting with your own name and optionally record and replay it.        |
+| **El bus de las ocho**       | Sam needs a specific stop. Read and listen to the question and answer as a dialogue.               | Identify the place from audio, order a response, transcribe a short direction, and retrieve the question. | Use the stop as the landmark and give directions to the park.                                                                               |
+| **Una mochila y una postal** | Sam and Luz leave messages about two bags. Examples contrast a color after `is` and before a noun. | Read for a color and identify the owner from `My bag`.                                                    | Confirm the color of Sam's bag, then answer at a different stall about Luz's bag. Optionally listen, imitate, record, and replay the reply. |
 
 Short follow-up tasks reuse the same concepts in a lodging counter, photo or drawing signup, a neighborhood meeting, a market, or another lost-property setting. Specific remediation cues address recurrent omitted subjects or verbs, forms of `be`, articles, prepositions, and word order. The taxonomy also supports third person, tense, and false friends for future chapters. Use authored contrasts such as `she works` / `she work` or `actually` / `currently` once those meanings are taught. Error labels are hypotheses about a response and should use a precisely authored contrast.
 
 Each speaking exercise offers a microphone-free way to rehearse and compare with a model. Recording and replay are local practice. The learner study uses the separate [Chapter 1 assessment plan](CHAPTER_1_ASSESSMENT.md).
 
+### Estimated pace
+
+| Mission        | Story and teaching steps, plus word cards | Scored steps     | Optional voice step | Estimated first pass |
+| -------------- | ----------------------------------------- | ---------------- | ------------------- | -------------------- |
+| Plaza          | 3 steps and 3 cards, 3–4 min              | 5 steps, 3–5 min | 1 step, 1–2 min     | 7–11 min             |
+| Bus stop       | 3 steps and 3 cards, 3–4 min              | 5 steps, 4–6 min | —                   | 7–10 min             |
+| Lost and found | 3 steps and 3 cards, 3–4 min              | 4 steps, 3–5 min | 1 step, 1–2 min     | 7–11 min             |
+
+The chapter contains 25 steps and nine word cards nested inside the teaching steps. The 21–32 minute estimate budgets time for reading, audio replay, guided and typed answers, feedback, and brief voice practice. The estimate comes from task analysis and still needs timing with beginners. Extra retries and reviews can extend a session. Each scene, card, and response has an existing checkpoint. Learners can pause between activities or while writing and continue at their own pace. The mission ranges describe the entire mission.
+
 ## Authoring format
 
-[`travel-content.ts`](../packages/offline-engine/src/travel-content.ts) contains the chapter and related practice. A `TravelChapter` identifies the stop, a content revision, rewards, and missions. Each mission has a stable ID, scene, concrete objective and success consequence, estimated minutes, vocabulary, and ordered steps. A word includes a Spanish meaning and usage note, part of speech, and a bilingual contextual example.
+[`travel-content.ts`](../packages/offline-engine/src/travel-content.ts) contains the chapter and related practice. A `TravelChapter` identifies the stop, a content revision, rewards, and missions. Each mission has a stable ID, scene, concrete objective and success consequence, an estimated duration range in minutes, vocabulary, and ordered steps. A word includes a Spanish meaning and usage note, part of speech, and a bilingual contextual example.
 
 | Step       | Authored data                                                                                                                                                                                      |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -63,6 +73,8 @@ Each speaking exercise offers a microphone-free way to rehearse and compare with
 | `speak`    | A model phrase, a scenario, a microphone-free fallback, and a speaking target.                                                                                                                     |
 
 For a scored exercise, keep the answer key and error patterns on the offline engine's private exercise object. The learner-facing screen sees the public prompt and shows feedback after submission. Accept contracted and uncontracted forms and reasonable contextual alternatives when they deliver the same outcome. An open prompt uses curated answers, so avoid asking a question whose range of correct replies is too broad for the answer list.
+
+List answers that meet both the communicative purpose and the stated language target in `acceptedAnswers`. If a natural response serves the situation using a different form, add it to `communicationOnly.answers` with feedback that acknowledges the message and explains the target form. For example, a learner can identify a bag by color in a reply that omits the requested complete sentence. For dictation, variants should represent the words the learner actually heard, with ordinary spelling and punctuation conventions. [Chapter 1 item audit](CHAPTER_1_CONTENT_AUDIT.md)
 
 ```ts
 learning: {

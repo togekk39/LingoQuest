@@ -17,6 +17,8 @@ LingoQuest es una app diseñada primero para Android para aprender inglés estad
 
 [Currículo de 20 etapas y prerrequisitos](docs/PHASE_3_CURRICULUM.es-419.md) · [Diseño de aprendizaje adaptativo](docs/PHASE_3_ADAPTIVE_LEARNING.es-419.md) · [Evaluación inicial, final y diferida del capítulo 1](docs/CHAPTER_1_ASSESSMENT.es-419.md)
 
+[Revisión de actividades del capítulo 1](docs/CHAPTER_1_CONTENT_AUDIT.es-419.md) · [Diseño de evidencia oral y entre cursos](docs/LEARNING_EVIDENCE_INTEGRATION.es-419.md)
+
 ## Desarrollo y compilación
 
 Usa Node.js 24 o posterior y npm. Inicia el desarrollo web con `npm ci` y `npm run dev`, y abre `http://localhost:8081`. Para una vista previa sin conexión, ejecuta `npm run build:web` y `npm run preview`, y abre `http://localhost:3000`. Espera a que el service worker llene la caché antes de desconectarte. El instalador de Android incluye lecciones, fuentes, mapa, ilustraciones y audio del primer capítulo.

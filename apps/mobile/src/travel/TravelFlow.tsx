@@ -233,7 +233,11 @@ export function TravelFlow({
           </Action>
         )}
         <Action journal busy={busy} onPress={advance}>
-          {current.result.correct ? 'Seguir la historia' : 'Usar la respuesta de QuestBuddy'}
+          {current.result.correct
+            ? 'Seguir la historia'
+            : current.result.communicationOnly
+              ? 'Seguir con el ejemplo'
+              : 'Usar la respuesta de QuestBuddy'}
         </Action>
       </View>
     ) : (
@@ -271,7 +275,7 @@ export function TravelFlow({
   return (
     <FlowFrame
       title={mission.title}
-      eyebrow={`${mission.place} · ${mission.minutes} min`}
+      eyebrow={`${mission.place} · ${mission.minutes.join('–')} min`}
       stepKey={`${current.token}-${wordIndex}`}
       onClose={() => void close()}
       journal={{
@@ -385,9 +389,10 @@ export function TravelFlow({
                 <Label style={s.storyText}>{step.situation}</Label>
                 {!!step.visual && (
                   <Label style={f.quiet}>
-                    {step.visual === 'directions'
-                      ? 'La parada está junto al parque.'
-                      : 'En el mostrador hay una mochila azul y una mochila roja.'}
+                    {step.visualDescription ??
+                      (step.visual === 'directions'
+                        ? 'La parada está junto al parque.'
+                        : 'En el mostrador hay una mochila azul y una mochila roja.')}
                   </Label>
                 )}
 

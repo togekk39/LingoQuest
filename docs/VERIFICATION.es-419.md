@@ -2,6 +2,15 @@
 
 [English](VERIFICATION.md)
 
+## Revisión de aceptación del capítulo 1
+
+- Se movieron las comprobaciones de pregunta y respuesta al escenario del manual sin conexión. La prueba del primer inicio cubre las opciones de bienvenida, el selector de origen y la primera escena.
+- Se revisaron todas las claves de la historia y del repaso. Las pruebas distinguen el acierto de la forma objetivo, la comunicación con otra forma y el cambio de significado. Comprueban la restauración del respaldo, el reintento de la misma consigna y que la devolución exclusivamente comunicativa conserve el intervalo de repaso.
+- El cálculo fijo de nueve minutos se sustituyó por intervalos por misión basados en 25 pasos y nueve tarjetas. El registro oral muestra explícitamente la actividad de práctica.
+- Aprobaron la suma del paquete, las comprobaciones de los espacios de trabajo y 77 pruebas unitarias y de integración locales. La suite de Chromium también cubre una paráfrasis comunicativa seguida de un reintento correcto con ayuda.
+
+La aceptación en dispositivos y el estudio con estudiantes se llevan por separado de las pruebas del programa. [Revisión de cada actividad](CHAPTER_1_CONTENT_AUDIT.es-419.md) · [Ritmo estimado](PHASE_3_CURRICULUM.es-419.md#ritmo-estimado) · [Diseño y validación de la evidencia](LEARNING_EVIDENCE_INTEGRATION.es-419.md#aceptación-en-dispositivos-y-con-estudiantes)
+
 ## Fase 3 Aprender primero
 
 | Comando                | Resultado observado                                                                                                     |

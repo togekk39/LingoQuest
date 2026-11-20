@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import type { Answer, AttemptResult } from '@lingoquest/contracts';
 import {
   chapter,
+  normalize,
   OfflineEngine,
   OFFLINE_STATE_KEY,
   route,
@@ -232,6 +233,114 @@ const practice = (engine: OfflineEngine, exerciseId: string, id: string, answer:
     clientAttemptId: `attempt-${id}`,
     answer,
   });
+
+test('authored variants preserve meaning and the skill targeted by story and review', async () => {
+  const cases = [
+    ['travel_hello_transfer', "My name's Nico.", 'target'],
+    ['travel_hello_transfer', 'MY NAME’S NICO!', 'target'],
+    ['travel_hello_transfer', 'My name is Ada.', 'incorrect'],
+    ['travel_hello_transfer', 'Nico here.', 'communication'],
+    ['travel_review_introduction', "My name's Ada.", 'target'],
+    ['travel_review_introduction', 'Ada here.', 'communication'],
+    ['travel_bus_ask', "Where's the bus stop?", 'target'],
+    ['travel_bus_ask', 'Can you tell me where the bus stop is?', 'communication'],
+    ['travel_bus_ask', 'Where the bus stop is?', 'incorrect'],
+    ['travel_bus_ask', 'Where is the park?', 'incorrect'],
+    ['travel_review_place_question', 'Where can I find the park?', 'communication'],
+    ['travel_bus_transfer', 'The park’s next to the bus stop.', 'target'],
+    ['travel_bus_transfer', 'The park is beside the bus stop.', 'communication'],
+    ['travel_bus_transfer', 'The bus stop is across from the park.', 'incorrect'],
+    ['travel_review_place_location', 'The backpack is right next to the bus stop.', 'target'],
+    ['travel_review_place_location', 'Next to the bus stop.', 'communication'],
+    ['travel_bus_dictation', 'It’s next to the park.', 'target'],
+    ['travel_bus_dictation', 'It is next to the park.', 'target'],
+    ['travel_bus_dictation', 'It’s beside the park.', 'incorrect'],
+    ['travel_review_place_location_audio', 'Beside the park.', 'target'],
+    ['travel_review_place_location_audio', 'Near the park.', 'incorrect'],
+    ['travel_review_place_location_audio', 'The park.', 'incorrect'],
+    ['travel_bag_write', 'Blue.', 'communication'],
+    ['travel_review_item_color_read', 'Red.', 'target'],
+    ['travel_review_item_owner_write', 'My backpack is red.', 'target'],
+    ['travel_review_item_owner_write', 'My backpack’s red.', 'target'],
+    ['travel_review_item_owner_write', 'Mine is red.', 'communication'],
+    ['travel_review_item_owner_write', 'I have a red bag.', 'incorrect'],
+    ['travel_review_item_owner_write', 'I have a red backpack.', 'incorrect'],
+    ['travel_review_item_owner_write', 'My bag is blue.', 'incorrect'],
+  ] as const;
+  for (const [exerciseId, text, outcome] of cases) {
+    const engine = device().open();
+    const result = await practice(engine, exerciseId, 'variant', { text });
+    const actual = result.correct
+      ? 'target'
+      : result.communicationOnly
+        ? 'communication'
+        : 'incorrect';
+    assert.equal(actual, outcome, `${exerciseId}: ${text}`);
+  }
+  for (const exercise of travelLesson.exercises) {
+    if (!exercise.communicationOnly) continue;
+    assert.equal(exercise.type, 'short_text', exercise.id);
+    assert.ok(
+      exercise.communicationOnly.feedbackEs.trim() && exercise.communicationOnly.answers.length,
+    );
+    const targets = new Set(exercise.acceptedAnswers.map(normalize));
+    for (const variant of exercise.communicationOnly.answers)
+      assert.ok(!targets.has(normalize(variant)), `${exercise.id}: ${variant}`);
+  }
+});
+
+test('communication-only answers preserve due skill evidence and survive quick review restore', async () => {
+  const phone = device();
+  const engine = phone.open();
+  await practice(engine, 'travel_hello_write', 'prior-production', { text: "Hi! I'm Luz." });
+  phone.later(day);
+  const writing = `${quickPath}&target=writing%3Aintroduction`;
+  const review = await engine.request<QuickReviewState>(writing);
+  assert.equal(review.exerciseId, 'travel_review_introduction');
+  const before = phone.state();
+
+  const submit = { action: 'answer', token: review.token, answer: { text: 'Ada here.' } };
+  const checked = await engine.request<QuickReviewState>(writing, submit);
+  assert.equal(checked.result?.communicationOnly, true);
+  assert.equal(checked.result.correct, false);
+  assert.equal(checked.result.xpAwarded, 0);
+  assert.equal(checked.result.errorType, undefined);
+  assert.ok(checked.result.acceptedAnswer);
+  const after = phone.state();
+  assert.equal(after.xp, before.xp);
+  assert.deepEqual(after.mastery, before.mastery);
+  assert.deepEqual(after.reviewRewards, before.reviewRewards);
+  const evidence = before.travelLearning!.targets[0];
+  const exposed = after.travelLearning!.targets[0];
+  const exercise = travelLesson.exercises.find(({ id }) => id === review.exerciseId)!;
+  assert.deepEqual(exposed, {
+    ...evidence,
+    seenContexts: [...evidence.seenContexts, exercise.learning!.contextId],
+    seenExercises: {
+      ...evidence.seenExercises,
+      [review.exerciseId]: exposed.seenExercises[review.exerciseId],
+    },
+  });
+
+  const backup = await engine.request('/v1/me/export');
+  await engine.request('/v1/me', undefined, 'DELETE');
+  await engine.request('/v1/me/import', { backup });
+  const restarted = phone.open();
+  assert.deepEqual(
+    (await restarted.request<QuickReviewState>(writing, submit)).result,
+    checked.result,
+  );
+  assert.deepEqual(phone.state().travelLearning, after.travelLearning);
+  const replay = await practice(restarted, review.exerciseId, 'after-model', {
+    text: 'My name is Ada.',
+  });
+  assert.equal(replay.correct, true);
+  assert.equal(replay.xpAwarded, 0);
+  const afterModel = phone.state().travelLearning!.targets[0];
+  assert.equal(afterModel.assistance.answer_shown, 1);
+  assert.equal(afterModel.delayedSuccesses, 0);
+  assert.equal(afterModel.transferSuccesses, 0);
+});
 
 test('recurrent independent errors lead to guided support and a different independent confirmation', async () => {
   const phone = device();

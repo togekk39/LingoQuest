@@ -84,6 +84,43 @@ test('two be-agreement errors lead to contextual repair and leave the story chec
   await expect(page.getByText(/Aciertos con ayuda/).first()).toBeVisible();
 });
 
+test('a clear introduction outside the target form gets feedback without mastery credit', async ({
+  page,
+  context,
+}) => {
+  await enterApp(page);
+  await readyOfflineShell(page, context);
+  await openTravelWriting(page);
+  const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
+  await input.fill("Hi! I'm Luz.");
+  await click(page, 'Comprobar respuesta');
+  await click(page, 'Seguir la historia');
+  await expect(page.getByTestId('exercise-travel_hello_transfer')).toBeVisible();
+
+  const before = await state(page);
+  const writing = (snapshot: typeof before) =>
+    snapshot.travelLearning?.targets.find(
+      (target) => target.skill === 'writing' && target.conceptId === 'introduction',
+    );
+  await input.fill('Nico here.');
+  await click(page, 'Comprobar respuesta');
+  const feedback = page.getByTestId('answer-feedback');
+  await expect(feedback.getByText('Se entiende tu mensaje', { exact: true })).toBeVisible();
+  const alternative = await state(page);
+  expect(alternative.xp).toBe(before.xp);
+  expect(writing(alternative)?.successes).toEqual(writing(before)?.successes);
+  expect(writing(alternative)?.errors).toEqual(writing(before)?.errors);
+  expect(writing(alternative)?.nextReviewAt).toBe(writing(before)?.nextReviewAt);
+
+  await click(page, 'Intentar otra vez');
+  await input.fill('My name’s Nico.');
+  await click(page, 'Comprobar respuesta');
+  await expect(feedback.getByText('¡Muy bien!', { exact: true })).toBeVisible();
+  const retried = writing(await state(page));
+  expect(retried?.successes.production).toEqual({ independent: 1, assisted: 1 });
+  expect(retried?.transferSuccesses).toBe(0);
+});
+
 test('an offline delayed review asks for independent use of a practiced concept in a new context', async ({
   page,
   context,

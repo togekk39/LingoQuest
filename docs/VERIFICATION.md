@@ -2,6 +2,15 @@
 
 [Español (Latinoamérica)](VERIFICATION.es-419.md)
 
+## Chapter 1 acceptance revision
+
+- Moved the question-and-answer handbook assertions into the offline handbook test. The first-launch test covers the welcome choices, origin picker, and opening scene.
+- Reviewed all story and review answer keys. Automated coverage distinguishes target-form success, communication with another form, and a change of meaning. It checks backup restore, same-prompt retries, and an unchanged review interval for communication-only feedback.
+- Replaced the chapter's fixed nine-minute estimate with mission ranges based on its 25 steps and nine vocabulary cards. The speaking record explicitly shows practice activity.
+- The course-pack checksum, workspace checks, and 77 unit and integration tests passed locally. The Chromium suite also exercises a meaningful paraphrase followed by a correct but assisted retry.
+
+Device acceptance and the learner study remain separate from the software checks. [Item-by-item audit](CHAPTER_1_CONTENT_AUDIT.md) · [Timing estimates](PHASE_3_CURRICULUM.md#estimated-pace) · [Evidence design and validation](LEARNING_EVIDENCE_INTEGRATION.md#device-and-learner-acceptance)
+
 ## Phase 3 Learning First
 
 | Command                | Observed result                                                                                      |

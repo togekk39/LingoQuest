@@ -185,7 +185,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
       expect.objectContaining({
         skill: 'listening',
         conceptId: 'place-question',
-        assistance: { transcript: 1 },
+        assistance: { guided: 1, transcript: 1 },
       }),
       expect.objectContaining({ skill: 'writing', conceptId: 'item-color', transferSuccesses: 1 }),
     ]),

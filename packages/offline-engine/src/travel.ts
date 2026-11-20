@@ -22,6 +22,7 @@ export const draftAnswerSchema = z
 export const savedResultSchema = z
   .object({
     correct: z.boolean(),
+    communicationOnly: z.literal(true).optional(),
     feedbackEs: z.string().max(5000),
     acceptedAnswer: z.string().max(5000).optional(),
     errorType: learningErrorSchema.optional(),

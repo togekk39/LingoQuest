@@ -25,17 +25,6 @@ test('first launch offers two spaced travel routes and opens the first scene', a
   expect(second!.y - first!.y - first!.height).toBeGreaterThanOrEqual(10);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 
-  await page.getByRole('tab', exact('Ubicar un lugar')).click();
-  await expect(workbench.getByRole('heading', exact('Pregunta'))).toBeVisible();
-  await expect(workbench.getByRole('heading', exact('Respuesta'))).toBeVisible();
-  await expect(workbench.getByRole('button', exact('Comparar ejemplos'))).toHaveCount(0);
-  await expect(workbench.getByRole('button', exact('Escuchar la pregunta'))).toBeVisible();
-  await expect(workbench.getByRole('button', exact('Escuchar la respuesta'))).toBeVisible();
-  await click(page, 'Ver traducción de la pregunta');
-  await expect(workbench.getByText('¿Dónde está la parada de bus?', { exact: true })).toBeVisible();
-  await expect(workbench.getByText('Está junto al parque.', { exact: true })).toHaveCount(0);
-  await click(page, 'Ver traducción de la respuesta');
-  await expect(workbench.getByText('Está junto al parque.', { exact: true })).toBeVisible();
   await readyOfflineShell(page, context);
   await start.click();
   await expect(page.getByRole('heading', exact('¿Desde dónde viajas?'))).toBeVisible();
@@ -139,5 +128,16 @@ test('the grammar handbook compares examples offline and reflows with enlarged t
   await expect(second).toHaveAttribute('aria-selected', 'true');
   await expect(workbench.getByText('My name', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  await page.getByRole('tab', exact('Ubicar un lugar')).click();
+  await expect(workbench.getByRole('heading', exact('Pregunta'))).toBeVisible();
+  await expect(workbench.getByRole('heading', exact('Respuesta'))).toBeVisible();
+  await expect(workbench.getByRole('button', exact('Comparar ejemplos'))).toHaveCount(0);
+  await expect(workbench.getByRole('button', exact('Escuchar la pregunta'))).toBeVisible();
+  await expect(workbench.getByRole('button', exact('Escuchar la respuesta'))).toBeVisible();
+  await click(page, 'Ver traducción de la pregunta');
+  await expect(workbench.getByText('¿Dónde está la parada de bus?', { exact: true })).toBeVisible();
+  await expect(workbench.getByText('Está junto al parque.', { exact: true })).toHaveCount(0);
+  await click(page, 'Ver traducción de la respuesta');
+  await expect(workbench.getByText('Está junto al parque.', { exact: true })).toBeVisible();
   expect((await state(page)).attempts).toEqual(before.attempts);
 });

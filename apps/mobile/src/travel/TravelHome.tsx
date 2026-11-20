@@ -173,7 +173,7 @@ export function TravelHome({
             <View style={s.postcardAction}>
               {!!next && (
                 <JournalLeaf compact kind="stamp" style={s.missionTime}>
-                  <Text style={s.missionTimeText}>{next.minutes} min</Text>
+                  <Text style={s.missionTimeText}>{next.minutes.join('–')} min</Text>
                 </JournalLeaf>
               )}
               <Button
@@ -489,7 +489,7 @@ export function TravelRoute({
                           : travel.completed[mission.id]
                             ? 'Completada · '
                             : ''}
-                        {mission.minutes} min
+                        {mission.minutes.join('–')} min
                       </Text>
                     </View>
                     {available ? (

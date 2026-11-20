@@ -230,6 +230,25 @@ export function recordSpeakingPractice(
   record.speakingPractice[practice] = (record.speakingPractice[practice] ?? 0) + 1;
 }
 
+function noteExposure(record: LearningRecord, exerciseId: string, contextId: string, date: string) {
+  Object.defineProperty(record.seenExercises, exerciseId, {
+    value: date,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+  if (!record.seenContexts.includes(contextId)) record.seenContexts.push(contextId);
+}
+
+export function recordCommunicationExposure(
+  state: TravelLearningState,
+  target: LearningTarget,
+  exerciseId: string,
+  now: number,
+) {
+  noteExposure(getRecord(state, target), exerciseId, target.contextId, new Date(now).toISOString());
+}
+
 export function recordLearningAttempt(
   state: TravelLearningState,
   exercise: { id: string; type: ExerciseType; difficulty: number; learning: LearningTarget },
@@ -319,13 +338,8 @@ export function recordLearningAttempt(
   record.lastEvidenceStage = stage;
   record.lastDifficulty = exercise.difficulty;
   record.nextReviewAt = new Date(now + intervalDays[record.intervalIndex] * day).toISOString();
-  Object.defineProperty(record.seenExercises, exercise.id, {
-    value: date,
-    enumerable: true,
-    writable: true,
-    configurable: true,
-  });
-  if (!record.seenContexts.includes(target.contextId)) record.seenContexts.push(target.contextId);
+  noteExposure(record, exercise.id, target.contextId, date);
+  return independent;
 }
 
 type Candidate = {

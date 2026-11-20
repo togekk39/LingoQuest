@@ -25,6 +25,7 @@ export interface TravelExerciseStep {
   transcript?: string;
   listeningButton?: string;
   visual?: 'directions' | 'bag';
+  visualDescription?: string;
 }
 
 export type TravelStep =
@@ -59,7 +60,7 @@ export interface TravelMission {
   title: string;
   place: string;
   objective: string;
-  minutes: number;
+  minutes: readonly [minimum: number, maximum: number];
   success: string;
   vocabulary: TravelVocabulary[];
   steps: TravelStep[];
@@ -74,6 +75,65 @@ export interface TravelChapter {
   message: string;
   collectible: string;
   missions: TravelMission[];
+}
+
+const informalGreetings = ['Hi', 'Hello', 'Hey', 'Hi there', 'Hello there', 'Hey there'];
+
+function introductionAnswers(name: string, greetingRequired = false) {
+  const forms = [`I am ${name}.`, `I'm ${name}.`, `My name is ${name}.`, `My name's ${name}.`];
+  const greeted = informalGreetings.flatMap((greeting) =>
+    forms.map((form) => `${greeting}! ${form}`),
+  );
+  return greetingRequired ? greeted : [...forms, ...greeted];
+}
+
+function introductionParaphrases(name: string, greetingRequired = false) {
+  const forms = [`${name} here.`, `You can call me ${name}.`, `I'm called ${name}.`];
+  const greeted = informalGreetings.flatMap((greeting) =>
+    forms.map((form) => `${greeting}! ${form}`),
+  );
+  return {
+    answers: greetingRequired ? greeted : [...forms, ...greeted],
+    feedbackEs: `Se entiende tu nombre. Para practicar esta estructura, usa I am ${name} o My name is ${name}.`,
+  };
+}
+
+function locationQuestion(location: string) {
+  const direct = [`Where is ${location}?`, `Where's ${location}?`];
+  return {
+    acceptedAnswers: [...direct, ...direct.map((form) => `Excuse me, ${form}`)],
+    communicationOnly: {
+      answers: [
+        `Where can I find ${location}?`,
+        `Can you tell me where ${location} is?`,
+        `Could you tell me where ${location} is?`,
+        `Do you know where ${location} is?`,
+      ],
+      feedbackEs: `Tu pregunta se entiende. Aquí practicamos la forma directa Where is ${location}?, con is antes del lugar.`,
+    },
+  };
+}
+
+function adjacentLocation(subjects: string[], reference: string) {
+  const position = [`next to ${reference}`, `right next to ${reference}`];
+  const alternatives = [
+    `beside ${reference}`,
+    `right beside ${reference}`,
+    `right by ${reference}`,
+    `adjacent to ${reference}`,
+    `alongside ${reference}`,
+  ];
+  return {
+    acceptedAnswers: position.flatMap((location) => subjects.map((s) => `${s} ${location}.`)),
+    communicationOnly: {
+      answers: [
+        ...position,
+        ...alternatives,
+        ...alternatives.flatMap((location) => subjects.map((s) => `${s} ${location}.`)),
+      ],
+      feedbackEs: `La ubicación se entiende. Para practicar la estructura, usa una frase con sujeto y verbo, seguida de next to ${reference}.`,
+    },
+  };
 }
 
 export const chapter: TravelChapter = {
@@ -91,7 +151,7 @@ export const chapter: TravelChapter = {
       title: 'Un saludo en la plaza',
       place: 'La plaza',
       objective: 'Preséntate con la tarjeta de bienvenida de Luz.',
-      minutes: 3,
+      minutes: [7, 11],
       success: 'Sam te agradece el saludo y te muestra el boleto del bus que busca.',
       vocabulary: [
         {
@@ -118,7 +178,8 @@ export const chapter: TravelChapter = {
           term: 'My name is',
           meaning: 'me llamo',
           kind: 'expresión',
-          explanation: 'En esta expresión, my indica que hablas de tu propio nombre.',
+          explanation:
+            'My indica que hablas de tu propio nombre. My name’s es la forma breve de My name is.',
           example: {
             en: 'My name is Luz.',
             es: 'Me llamo Luz.',
@@ -143,7 +204,7 @@ export const chapter: TravelChapter = {
           id: 'hello_teach',
           type: 'teach',
           title: 'Decir tu nombre',
-          text: 'Hi y hello significan «hola». En español puedes decir «Soy Luz». En inglés escribe quién habla: I am Luz. Con I va am, y puedes unirlos en I’m. My name is Luz es otra forma de presentarte.',
+          text: 'Hi y hello significan «hola». En español puedes decir «Soy Luz». En inglés, incluye el sujeto: I am Luz. Con I va am. Al hablar o escribir, puedes usar I’m Luz. My name is Luz también funciona y se puede acortar a My name’s Luz.',
           examples: [
             { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
             { en: 'My name is Luz.', es: 'Me llamo Luz.' },
@@ -235,7 +296,7 @@ export const chapter: TravelChapter = {
             dimension: 'vocabulary_recall',
             vocabularyIds: ['u01_l01_v02'],
             difficulty: 1,
-            acceptedAnswers: ['Hi!', 'Hello!', 'Hey!', 'Hi there!', 'Hello there!'],
+            acceptedAnswers: informalGreetings,
             feedbackEs:
               'Hi y hello son dos saludos que puedes usar aquí. Hey también funciona en un saludo informal.',
             learning: {
@@ -259,23 +320,8 @@ export const chapter: TravelChapter = {
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_production',
             difficulty: 1,
-            acceptedAnswers: [
-              'Hi! I am Luz.',
-              "Hi! I'm Luz.",
-              'Hello! I am Luz.',
-              "Hello! I'm Luz.",
-              'Hi! My name is Luz.',
-              'Hello! My name is Luz.',
-              'Hey! I am Luz.',
-              "Hey! I'm Luz.",
-              'Hey! My name is Luz.',
-              'Hi there! I am Luz.',
-              "Hi there! I'm Luz.",
-              'Hi there! My name is Luz.',
-              'Hello there! I am Luz.',
-              "Hello there! I'm Luz.",
-              'Hello there! My name is Luz.',
-            ],
+            acceptedAnswers: introductionAnswers('Luz', true),
+            communicationOnly: introductionParaphrases('Luz', true),
             feedbackEs:
               'Para presentarte, incluye I y usa am: Hi! I am Luz. Hi! My name is Luz también funciona.',
             learning: {
@@ -300,19 +346,10 @@ export const chapter: TravelChapter = {
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_production',
             difficulty: 2,
-            acceptedAnswers: [
-              'I am Nico.',
-              "I'm Nico.",
-              'My name is Nico.',
-              'Hi! I am Nico.',
-              "Hi! I'm Nico.",
-              'Hi! My name is Nico.',
-              'Hello! I am Nico.',
-              "Hello! I'm Nico.",
-              'Hello! My name is Nico.',
-            ],
+            acceptedAnswers: introductionAnswers('Nico'),
+            communicationOnly: introductionParaphrases('Nico'),
             feedbackEs:
-              'I am Nico, I’m Nico y My name is Nico dicen tu nombre con una frase completa. Con I, usa am.',
+              'I am Nico y My name is Nico dicen tu nombre con una frase completa. También funcionan I’m Nico y My name’s Nico.',
             learning: {
               conceptId: 'introduction',
               skill: 'writing',
@@ -344,7 +381,7 @@ export const chapter: TravelChapter = {
       title: 'El bus de las ocho',
       place: 'La parada',
       objective: 'Escucha a Sam y explícale dónde tomar el bus.',
-      minutes: 3,
+      minutes: [7, 10],
       success:
         'Sam encuentra la parada junto al parque. Al llegar, se da cuenta de que dejó su mochila en la mesa.',
       vocabulary: [
@@ -384,7 +421,7 @@ export const chapter: TravelChapter = {
           id: 'bus_sam',
           type: 'dialogue',
           speaker: 'Sam',
-          text: 'Sam va a tomar el bus de las ocho. Te pregunta por la parada porque el horario está en español.',
+          text: 'Sam va a tomar el bus de las ocho. Como no conoce el barrio, te pregunta dónde está la parada.',
           line: { en: 'Where is the bus stop?', es: '¿Dónde está la parada del bus?' },
         },
         {
@@ -392,7 +429,7 @@ export const chapter: TravelChapter = {
           type: 'teach',
           presentation: 'question-answer',
           title: 'Ubicar un lugar',
-          text: 'En Where is the bus stop?, is va antes del lugar que buscas. En la respuesta, It’s (it is) se refiere a la parada del bus. Next to va en ese orden y significa «junto a». Usa the cuando los dos saben de qué lugar hablan.',
+          text: 'En «Where is the bus stop?», is va antes del lugar que buscas. En la respuesta, it se refiere a la parada. It’s es la forma corta de It is. Next to significa «junto a». Usa the cuando las dos personas saben de qué lugar hablan.',
           examples: [
             { en: 'Where is the bus stop?', es: '¿Dónde está la parada de bus?' },
             { en: 'It’s next to the park.', es: 'Está junto al parque.' },
@@ -400,7 +437,7 @@ export const chapter: TravelChapter = {
           patterns: [
             {
               parts: [
-                { text: 'Where', role: 'Pregunta' },
+                { text: 'Where', role: 'Palabra interrogativa' },
                 { text: 'is', role: 'Verbo' },
                 { text: 'the bus stop?', role: 'Sujeto' },
               ],
@@ -418,7 +455,7 @@ export const chapter: TravelChapter = {
         {
           id: 'travel_bus_listen',
           type: 'exercise',
-          situation: 'Señala qué lugar te pidió Sam.',
+          situation: 'Vuelve a escuchar la pregunta de Sam y señala el lugar que busca.',
           audio: 'Where is the bus stop?',
           transcript: 'Where is the bus stop?',
           exercise: {
@@ -443,6 +480,7 @@ export const chapter: TravelChapter = {
               skill: 'listening',
               evidence: 'understanding',
               contextId: 'bus-map',
+              guided: true,
             },
           },
         },
@@ -458,7 +496,7 @@ export const chapter: TravelChapter = {
             type: 'reorder',
             promptEs: 'Dile «Está junto al parque».',
             skillId: 'grammar.be_it_they',
-            dimension: 'grammar_production',
+            dimension: 'grammar_understanding',
             difficulty: 1,
             tokens: ['park', 'It’s', 'to', 'the', 'next'],
             acceptedAnswers: ["It's next to the park."],
@@ -497,6 +535,7 @@ export const chapter: TravelChapter = {
               skill: 'listening',
               evidence: 'understanding',
               contextId: 'bus-map',
+              guided: true,
               errors: ['subject_omission', 'be_omission', 'preposition', 'article'],
             },
           },
@@ -509,19 +548,12 @@ export const chapter: TravelChapter = {
           exercise: {
             id: 'travel_bus_ask',
             type: 'short_text',
-            promptEs: 'Pregunta en inglés dónde está la parada de bus.',
+            promptEs:
+              'Escribe una pregunta directa en inglés para saber dónde está la parada de bus.',
             skillId: 'grammar.be_questions',
             dimension: 'grammar_production',
             difficulty: 2,
-            acceptedAnswers: [
-              'Where is the bus stop?',
-              "Where's the bus stop?",
-              'Where can I find the bus stop?',
-              'Can you tell me where the bus stop is?',
-              'Could you tell me where the bus stop is?',
-              'Excuse me, where is the bus stop?',
-              "Excuse me, where's the bus stop?",
-            ],
+            ...locationQuestion('the bus stop'),
             feedbackEs:
               'Una forma directa es Where is the bus stop? En esa pregunta, is va delante de the bus stop.',
             learning: {
@@ -540,25 +572,16 @@ export const chapter: TravelChapter = {
           situation:
             'Alguien que ya está en la parada quiere encontrar el parque. Esta vez la parada es el punto de referencia.',
           visual: 'directions',
+          visualDescription: 'El parque está junto a la parada de bus.',
           exercise: {
             id: 'travel_bus_transfer',
             type: 'short_text',
-            promptEs: 'Indícale en inglés que el parque está junto a la parada de bus.',
+            promptEs:
+              'Indícale con una frase completa en inglés que el parque está junto a la parada de bus.',
             skillId: 'grammar.be_it_they',
             dimension: 'grammar_production',
             difficulty: 2,
-            acceptedAnswers: [
-              'The park is next to the bus stop.',
-              'The park is right next to the bus stop.',
-              'The park is beside the bus stop.',
-              'The park is right by the bus stop.',
-              "It's next to the bus stop.",
-              'It is next to the bus stop.',
-              "It's beside the bus stop.",
-              'It is beside the bus stop.',
-              "It's right next to the bus stop.",
-              'It is right next to the bus stop.',
-            ],
+            ...adjacentLocation(['The park is', "The park's", 'It is', "It's"], 'the bus stop'),
             feedbackEs:
               'Ahora el lugar que buscas es the park. The park is next to the bus stop usa la parada para ubicarlo.',
             learning: {
@@ -594,7 +617,7 @@ export const chapter: TravelChapter = {
       title: 'Una mochila y una postal',
       place: 'Objetos perdidos',
       objective: 'Describe la mochila correcta para devolvérsela a Sam.',
-      minutes: 3,
+      minutes: [7, 11],
       success:
         'La mochila vuelve con Sam. Dentro llevaba una postal en blanco. Te la regala para que escribas el primer recuerdo de tu propio viaje.',
       vocabulary: [
@@ -636,8 +659,8 @@ export const chapter: TravelChapter = {
         {
           id: 'bag_luz',
           type: 'dialogue',
-          speaker: 'Luz',
-          text: 'Luz tiene dos mochilas en objetos perdidos. Sam te manda un mensaje en inglés para decirte cuál es la suya.',
+          speaker: 'Sam',
+          text: 'En objetos perdidos hay dos mochilas. Sam te manda un mensaje en inglés para decirte cuál es la suya.',
           line: { en: 'My bag is blue.', es: 'Mi mochila es azul.' },
         },
         {
@@ -751,7 +774,18 @@ export const chapter: TravelChapter = {
               'It is blue.',
               'The bag is blue.',
               'The backpack is blue.',
+              'Your bag is blue.',
+              'Your backpack is blue.',
+              "The bag's blue.",
+              "The backpack's blue.",
+              "Your bag's blue.",
+              "Your backpack's blue.",
             ],
+            communicationOnly: {
+              answers: ['Blue.', 'The blue one.', "It's a blue bag.", "It's a blue backpack."],
+              feedbackEs:
+                'Sam puede identificar el color. Para practicar esta estructura, di It’s blue, con blue directamente después del verbo.',
+            },
             feedbackEs:
               'It’s blue sirve cuando ya sabemos de qué objeto hablamos. También puedes decir The bag is blue.',
             learning: {
@@ -785,7 +819,18 @@ export const chapter: TravelChapter = {
               "Luz's backpack is red.",
               'Her bag is red.',
               'Her backpack is red.',
+              "The bag's red.",
+              "The backpack's red.",
+              "Luz's bag's red.",
+              "Luz's backpack's red.",
+              "Her bag's red.",
+              "Her backpack's red.",
             ],
+            communicationOnly: {
+              answers: ['Red.', 'The red one.', "It's a red bag.", "It's a red backpack."],
+              feedbackEs:
+                'La persona entiende el color. Para practicar la estructura, escribe It’s red o The bag is red.',
+            },
             feedbackEs:
               'Luz dice que la suya es roja. Puedes hablar del objeto con It’s red o nombrarlo con The bag is red.',
             learning: {
@@ -840,16 +885,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     dimension: 'vocabulary_recall',
     vocabularyIds: ['u01_l01_v02'],
     difficulty: 2,
-    acceptedAnswers: [
-      'Hi!',
-      'Hello!',
-      'Hey!',
-      'Hi there!',
-      'Hello there!',
-      'Good morning!',
-      'Good afternoon!',
-      'Good evening!',
-    ],
+    acceptedAnswers: [...informalGreetings, 'Good morning!', 'Good afternoon!', 'Good evening!'],
     feedbackEs:
       'Hi y hello funcionan a cualquier hora. También puedes usar good morning por la mañana.',
     learning: {
@@ -868,18 +904,10 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       skillId: 'grammar.be_i_you',
       dimension: 'grammar_production',
       difficulty: 2,
-      acceptedAnswers: [
-        'I am Ada.',
-        "I'm Ada.",
-        'My name is Ada.',
-        'Hi! I am Ada.',
-        "Hi! I'm Ada.",
-        'Hi! My name is Ada.',
-        'Hello! I am Ada.',
-        "Hello! I'm Ada.",
-        'Hello! My name is Ada.',
-      ],
-      feedbackEs: 'I am Ada, I’m Ada y My name is Ada funcionan en una presentación.',
+      acceptedAnswers: introductionAnswers('Ada'),
+      communicationOnly: introductionParaphrases('Ada'),
+      feedbackEs:
+        'Puedes presentarte con I am Ada o My name is Ada. Sus formas cortas son I’m Ada y My name’s Ada.',
       learning: {
         conceptId: 'introduction',
         skill: 'writing',
@@ -919,7 +947,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       skillId: 'grammar.be_i_you',
       difficulty: 1,
       acceptedAnswers: ['I am Ada.'],
-      feedbackEs: 'Al presentarte, en inglés primero escribes I. Luego vienen am y el nombre.',
+      feedbackEs: 'Para decir que eres Ada, escribe I primero, después am y al final el nombre.',
       learning: {
         conceptId: 'introduction',
         skill: 'writing',
@@ -934,19 +962,11 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
   practice('Llegas a otro barrio. Necesitas encontrar el parque para reunirte con alguien.', {
     id: 'travel_review_place_question',
     type: 'short_text',
-    promptEs: 'Pregunta en inglés dónde está el parque.',
+    promptEs: 'Escribe una pregunta directa en inglés para saber dónde está el parque.',
     skillId: 'grammar.be_questions',
     dimension: 'grammar_production',
     difficulty: 2,
-    acceptedAnswers: [
-      'Where is the park?',
-      "Where's the park?",
-      'Where can I find the park?',
-      'Can you tell me where the park is?',
-      'Could you tell me where the park is?',
-      'Excuse me, where is the park?',
-      "Excuse me, where's the park?",
-    ],
+    ...locationQuestion('the park'),
     feedbackEs:
       'En la pregunta directa Where is the park?, is va después de where y antes de the park.',
     learning: {
@@ -963,7 +983,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     {
       id: 'travel_review_place_question_audio',
       type: 'short_text',
-      promptEs: 'Escribe en inglés el lugar que busca la persona.',
+      promptEs: 'Escribe en inglés solo el nombre del lugar que busca la persona.',
       skillId: 'grammar.be_questions',
       dimension: 'vocabulary_recall',
       difficulty: 2,
@@ -972,7 +992,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       learning: {
         conceptId: 'place-question',
         skill: 'listening',
-        evidence: 'transfer',
+        evidence: 'understanding',
         contextId: 'park-voice-note',
       },
     },
@@ -992,7 +1012,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       skillId: 'grammar.be_questions',
       difficulty: 1,
       acceptedAnswers: ['Where is the park?'],
-      feedbackEs: 'Primero va Where; después, is y el lugar completo: the park.',
+      feedbackEs: 'Primero va Where, luego is y después el nombre completo del lugar, the park.',
       learning: {
         conceptId: 'place-question',
         skill: 'grammar',
@@ -1009,24 +1029,15 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     {
       id: 'travel_review_place_location',
       type: 'short_text',
-      promptEs: 'Contesta en inglés que la mochila está junto a la parada de bus.',
+      promptEs:
+        'Contesta con una frase completa en inglés que diga que la mochila está junto a la parada de bus.',
       skillId: 'grammar.be_it_they',
       dimension: 'grammar_production',
       difficulty: 2,
-      acceptedAnswers: [
-        'The bag is next to the bus stop.',
-        'The backpack is next to the bus stop.',
-        "It's next to the bus stop.",
-        'It is next to the bus stop.',
-        'The bag is beside the bus stop.',
-        'The backpack is beside the bus stop.',
-        "It's beside the bus stop.",
-        'It is beside the bus stop.',
-        'The bag is right next to the bus stop.',
-        'The backpack is right next to the bus stop.',
-        "It's right next to the bus stop.",
-        'It is right next to the bus stop.',
-      ],
+      ...adjacentLocation(
+        ['The bag is', 'The backpack is', "The bag's", "The backpack's", 'It is', "It's"],
+        'the bus stop',
+      ),
       feedbackEs:
         'The bag is next to the bus stop ubica el objeto usando la parada como referencia.',
       learning: {
@@ -1056,7 +1067,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       difficulty: 1,
       acceptedAnswers: ['to'],
       feedbackEs:
-        'Next to siempre va junto para indicar «al lado de»: The bag is next to the park.',
+        'Para decir «al lado de», escribe next seguido de to. The bag is next to the park.',
       learning: {
         conceptId: 'place-location',
         skill: 'grammar',
@@ -1091,7 +1102,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     },
   ),
   practice(
-    'Llega un mensaje de un mercado donde encontraron dos mochilas. Anota cuál busca quien escribió el mensaje.',
+    'En un mercado encontraron dos mochilas. Lee el mensaje de Emma y anota de qué color es la suya.',
     {
       id: 'travel_review_item_owner_read',
       type: 'short_text',
@@ -1102,11 +1113,17 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       difficulty: 2,
       acceptedAnswers: [
         'Red',
+        'The red one.',
+        'A red bag.',
+        'A red backpack.',
         'It is red.',
         "It's red.",
         'The bag is red.',
+        'The backpack is red.',
         "Emma's bag is red.",
+        "Emma's backpack is red.",
         'Her bag is red.',
+        'Her backpack is red.',
       ],
       feedbackEs:
         'My bag se refiere a quien escribe, Emma. La mochila azul solo sirve para ubicar la roja.',
@@ -1118,7 +1135,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       },
     },
   ),
-  practice('La oficina del parque encontró tu mochila. Describe la tuya como si fuera roja.', {
+  practice('Encontraron dos mochilas en el parque. Explica que la tuya es roja.', {
     id: 'travel_review_item_owner_write',
     type: 'short_text',
     promptEs: 'Escribe en inglés «Mi mochila es roja».',
@@ -1128,11 +1145,21 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     acceptedAnswers: [
       'My bag is red.',
       'My backpack is red.',
-      'I have a red bag.',
-      'I have a red backpack.',
+      "My bag's red.",
+      "My backpack's red.",
     ],
+    communicationOnly: {
+      answers: [
+        'Mine is red.',
+        "Mine's red.",
+        'My bag is the red one.',
+        'My backpack is the red one.',
+      ],
+      feedbackEs:
+        'La persona puede identificar tu mochila. Para practicar la estructura, escribe My bag is red o My backpack is red.',
+    },
     feedbackEs:
-      'My bag identifica tu propia mochila. En My bag is red, is conecta el objeto con el color.',
+      'My bag is red describe el color de tu mochila. I have a red bag significa «Tengo una mochila roja».',
     learning: {
       conceptId: 'item-ownership',
       skill: 'writing',
@@ -1143,22 +1170,30 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     },
   }),
   practice(
-    'Recibes un mensaje del mercado. Hay dos mochilas, pero solo una es de quien escribió.',
+    'En el mercado te mandan una nota que describe un bus y una mochila. Anota el color del bus.',
     {
       id: 'travel_review_item_color_read',
       type: 'short_text',
-      promptEs: 'Escribe en inglés el color que indica el mensaje.',
-      passage: 'My bag is red.',
+      promptEs: '¿De qué color es el bus? Escribe el color en inglés.',
+      passage: 'The bus is red. The bag is blue.',
       skillId: 'grammar.be_it_they',
       dimension: 'grammar_understanding',
       difficulty: 2,
-      acceptedAnswers: ['Red', 'It is red.', "It's red.", 'The bag is red.'],
-      feedbackEs: 'Red es «roja» o «rojo». Va después de is en My bag is red.',
+      acceptedAnswers: [
+        'Red',
+        'It is red.',
+        "It's red.",
+        'The bus is red.',
+        "The bus's red.",
+        'The red one.',
+        'A red bus.',
+      ],
+      feedbackEs: 'The bus is red dice que el bus es rojo. Blue describe la mochila.',
       learning: {
         conceptId: 'item-color',
         skill: 'reading',
         evidence: 'transfer',
-        contextId: 'market-lost-property',
+        contextId: 'market-transport-message',
       },
     },
   ),
@@ -1171,9 +1206,14 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
       skillId: 'grammar.be_it_they',
       dimension: 'grammar_production',
       difficulty: 2,
-      acceptedAnswers: ['The bus is red.', "It's red.", 'It is red.'],
+      acceptedAnswers: ['The bus is red.', "The bus's red.", "It's red.", 'It is red.'],
+      communicationOnly: {
+        answers: ['Red.', 'The red one.', "It's a red bus.", 'It is a red bus.'],
+        feedbackEs:
+          'El color se entiende. Para practicar la estructura, escribe The bus is red o It’s red.',
+      },
       feedbackEs:
-        'El orden es The bus + is + red. Puedes decir It’s red si ya sabes de qué bus se habla.',
+        'El orden es The bus + is + red. Puedes decir It’s red si la otra persona ya sabe de qué bus hablas.',
       learning: {
         conceptId: 'item-color',
         skill: 'writing',
@@ -1191,7 +1231,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     skillId: 'grammar.be_it_they',
     difficulty: 1,
     acceptedAnswers: ['is'],
-    feedbackEs: 'Con un solo objeto, usa is: The bag is red.',
+    feedbackEs: 'Con the bag como sujeto, usa is. La frase completa es The bag is red.',
     learning: {
       conceptId: 'item-color',
       skill: 'writing',
@@ -1203,21 +1243,35 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     },
   }),
   practice(
-    'Una viajera te envía por audio el lugar donde dejó su mochila. Anota el punto de referencia, no la frase completa.',
+    'Una viajera te deja un mensaje de voz sobre su mochila. Anota dónde está con respecto al lugar que menciona.',
     {
       id: 'travel_review_place_location_audio',
       type: 'short_text',
-      promptEs: 'Escribe en inglés el lugar que menciona.',
+      promptEs:
+        'Escribe en inglés la ubicación y el lugar de referencia. Puedes dar una respuesta breve.',
       skillId: 'grammar.be_it_they',
       dimension: 'vocabulary_recall',
       difficulty: 2,
-      acceptedAnswers: ['Park', 'The park'],
+      acceptedAnswers: [
+        'Next to the park.',
+        "It's next to the park.",
+        'It is next to the park.',
+        'The bag is next to the park.',
+        'The backpack is next to the park.',
+        'Right next to the park.',
+        'Beside the park.',
+        "It's beside the park.",
+        'It is beside the park.',
+        'The bag is beside the park.',
+        'The backpack is beside the park.',
+        'Right by the park.',
+      ],
       feedbackEs:
-        'El punto de referencia es the park. Next to the park quiere decir «junto al parque».',
+        'La mochila está junto al parque. Next to dice cómo se relaciona la ubicación de la mochila con the park.',
       learning: {
         conceptId: 'place-location',
         skill: 'listening',
-        evidence: 'transfer',
+        evidence: 'understanding',
         contextId: 'lost-bag-audio',
       },
     },
@@ -1236,7 +1290,7 @@ export const travelLesson: CourseLesson = {
   introEs: 'Inglés para ayudar a alguien en tu barrio.',
   examples: [],
   speakingText: 'Hi! I am Luz.',
-  estimatedMinutes: 9,
+  estimatedMinutes: chapter.missions.reduce((total, mission) => total + mission.minutes[1], 0),
   exercises: [
     {
       id: 'travel_quick_hello',

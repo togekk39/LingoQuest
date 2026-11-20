@@ -263,6 +263,11 @@ export function AnswerFeedback({
   const { colors: palette, tone } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
+  const feedbackTitle = result.communicationOnly
+    ? 'Se entiende tu mensaje'
+    : result.correct
+      ? '¡Muy bien!'
+      : 'Buen intento. Veamos por qué…';
   const submittedAnswer = exercise.matchingPairs?.length
     ? exercise.matchingPairs
         .map((pair) => {
@@ -301,9 +306,7 @@ export function AnswerFeedback({
           ) : (
             <QuestBuddy size={64} mood="encouraging" />
           )}
-          <Text style={[f.cardTitle, { flex: 1 }]}>
-            {result.correct ? '¡Muy bien!' : 'Buen intento. Veamos por qué…'}
-          </Text>
+          <Text style={[f.cardTitle, { flex: 1 }]}>{feedbackTitle}</Text>
         </View>
         {!result.correct && (
           <View style={{ gap: 8 }}>

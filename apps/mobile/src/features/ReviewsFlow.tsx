@@ -15,7 +15,7 @@ const skillLabels: Record<TravelReviewRow['skill'], string> = {
   listening: 'Comprensión auditiva',
   reading: 'Lectura',
   writing: 'Escritura',
-  speaking: 'Expresión oral',
+  speaking: 'Práctica oral',
 };
 const evidenceStages = [
   ['recognition', 'Reconocer'],
@@ -83,7 +83,7 @@ export default function ReviewsFlow({
             key={String(showEverything)}
             accessibilityRole="tab"
             accessibilityState={{ selected: all === showEverything }}
-              aria-selected={all === showEverything}
+            aria-selected={all === showEverything}
             onPress={() => setAll(showEverything)}
             style={[s.tab, all === showEverything && s.activeTab]}
           >
@@ -190,7 +190,10 @@ function ReviewCard({
         {review.due && <View style={s.dueDot} />}
       </View>
       {review.skill === 'speaking' ? (
-        <Text style={f.quiet}>Prácticas de voz: {speechPracticeCount} · Sin calificación</Text>
+        <Text style={f.quiet}>
+          Prácticas de voz: {speechPracticeCount}. La habilidad oral y la pronunciación aún no se
+          evalúan.
+        </Text>
       ) : (
         <View style={{ gap: 3 }}>
           {counts.map(([label, count]) => (

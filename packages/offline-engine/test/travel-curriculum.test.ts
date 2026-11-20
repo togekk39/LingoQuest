@@ -48,7 +48,8 @@ test('chapter exercises and review tasks use stable IDs and cover every first-st
   const chapterConcepts = new Set<string>(travelCurriculum[0].introduces);
   const journalSkills = new Set<string>();
   for (const mission of chapter.missions) {
-    assert.ok(mission.minutes >= 1 && mission.minutes <= 3, mission.id);
+    const [minimum, maximum] = mission.minutes;
+    assert.ok(minimum > 0 && maximum >= minimum, mission.id);
     assert.equal(mission.steps[0].type, 'dialogue');
     assert.ok(mission.steps.some((step) => step.type === 'teach'));
     assert.ok(
@@ -94,7 +95,10 @@ test('chapter exercises and review tasks use stable IDs and cover every first-st
   const exercise = (id: string) => travelLesson.exercises.find((item) => item.id === id)!;
   assert.ok(grade(exercise('travel_hello_transfer'), { text: 'I’m Nico.' }));
   assert.ok(grade(exercise('travel_hello_transfer'), { text: 'My name is Nico.' }));
-  assert.ok(grade(exercise('travel_bus_transfer'), { text: 'The park is beside the bus stop.' }));
+  assert.ok(
+    grade(exercise('travel_bus_transfer'), { text: 'The park is right next to the bus stop.' }),
+  );
+  assert.ok(!grade(exercise('travel_bus_transfer'), { text: 'The park is beside the bus stop.' }));
   assert.ok(grade(exercise('travel_bag_write'), { text: 'The backpack is blue.' }));
   assert.ok(!grade(exercise('travel_bag_transfer'), { text: 'The backpack is blue.' }));
 });

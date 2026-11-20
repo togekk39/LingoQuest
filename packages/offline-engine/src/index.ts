@@ -24,6 +24,7 @@ import {
   findLearningError,
   learningErrorFeedback,
   learningKey,
+  recordCommunicationExposure,
   recordLearningAttempt,
   recordSpeakingPractice,
   travelLearningSchema,
@@ -75,6 +76,7 @@ export type { TravelCheckpoint, TravelState, TravelOperation } from './travel';
 export interface CourseExercise extends PublicExercise {
   feedbackEs: string;
   acceptedAnswers: string[];
+  communicationOnly?: { answers: string[]; feedbackEs: string };
   correctOptionId?: string;
   learning?: LearningTarget;
 }
@@ -674,13 +676,38 @@ export class OfflineEngine {
     const correct = grade(exercise, parsed.answer);
     const now = this.clock();
     const learning = lesson.id === travelLesson.id ? exercise.learning : undefined;
+    const date = today(now);
+    const alternative = exercise.communicationOnly;
+    if (learning && !correct && alternative && parsed.answer.text !== undefined) {
+      const response = normalize(parsed.answer.text);
+      if (alternative.answers.some((answer) => normalize(answer) === response)) {
+        recordCommunicationExposure(
+          (state.travelLearning ??= { targets: [] }),
+          learning,
+          exercise.id,
+          now,
+        );
+        if (!state.learningDays.includes(date)) state.learningDays.push(date);
+        const result: AttemptResult = {
+          correct: false,
+          communicationOnly: true,
+          feedbackEs: alternative.feedbackEs,
+          acceptedAnswer: displayedAnswer(exercise),
+          xpAwarded: 0,
+          pending: false,
+        };
+        set(state.attempts, parsed.clientAttemptId, { fingerprint, result });
+        return result;
+      }
+    }
     const errorType =
       learning && !correct
         ? findLearningError(learning, parsed.answer, exercise.acceptedAnswers)
         : undefined;
+    let unassisted = !parsed.hintUsed;
     if (learning && learning.skill !== 'speaking') {
       const support = parsed.hintUsed && !aids.length ? (['hint'] as const) : aids;
-      recordLearningAttempt(
+      unassisted = recordLearningAttempt(
         (state.travelLearning ??= { targets: [] }),
         { ...exercise, learning },
         correct,
@@ -689,7 +716,6 @@ export class OfflineEngine {
         now,
       );
     }
-    const date = today(now);
     let visited = own(state.visitedExercises, lesson.id);
     if (!visited) {
       visited = [];
@@ -731,10 +757,10 @@ export class OfflineEngine {
       const independent =
         (dimension === 'vocabulary_recall' || dimension === 'grammar_production') &&
         exercise.type === 'short_text' &&
-        !parsed.hintUsed;
+        unassisted;
       const baseline = own(state.skillDayBaseline, key)!.lastPracticedAt;
       const delayed =
-        correct && !parsed.hintUsed && baseline !== null && Date.parse(baseline) <= now - dayMs;
+        correct && unassisted && baseline !== null && Date.parse(baseline) <= now - dayMs;
       mastery.evidenceCount++;
       if (correct && independent) mastery.unpromptedSuccessCount++;
       if (correct && !mastery.practicedFormats.includes(exercise.type))
