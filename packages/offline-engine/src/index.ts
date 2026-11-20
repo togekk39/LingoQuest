@@ -19,6 +19,7 @@ import {
   type User,
 } from '@lingoquest/contracts';
 import { chapter, travelLesson } from './travel-content';
+import { storyStateSchema, type StoryState } from './story';
 import { travelPracticeStep, travelReviewPlans, travelReviewRows } from './travel-review';
 import {
   findLearningError,
@@ -71,6 +72,7 @@ export type {
   TravelPlacementResponse,
 } from './travel-placement';
 export type { TravelCheckpoint, TravelState, TravelOperation } from './travel';
+export type { StoryOperation, StoryState, StoryView } from './story';
 
 /** Device-local learning only. Scores are personal practice, never verified rankings. */
 export interface CourseExercise extends PublicExercise {
@@ -168,6 +170,7 @@ export interface OfflineState {
   reviewRewards: string[];
   skillDayBaseline: Record<string, { day: string; lastPracticedAt: string | null }>;
   travel?: TravelState;
+  story?: StoryState;
   travelLearning?: TravelLearningState;
   lessonCheckpoints?: Record<string, LessonCheckpoint>;
   quickReview?: QuickCheckpoint;
@@ -535,6 +538,7 @@ const backupStateSchema = z
       .max(1000),
     reviewRewards: z.array(z.string().max(500)).max(200000),
     travel: travelStateSchema.optional(),
+    story: storyStateSchema.optional(),
     travelLearning: travelLearningSchema.optional(),
     lessonCheckpoints: z.record(lessonCheckpointSchema).optional(),
     quickReview: quickCheckpointSchema.optional(),
