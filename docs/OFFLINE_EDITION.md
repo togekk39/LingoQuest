@@ -14,9 +14,11 @@ Voice settings include a preview using system TTS. The Android native bridge acc
 
 ## Speech recognition (STT)
 
-The travel mission uses **Reconocer mi voz sin conexión**. This option requires a rebuilt Android app on Android 13 or newer, Android’s dedicated on-device recognizer, and an installed English (United States) model reported by that recognizer. The app checks the installed model before requesting microphone permission. If the check or recognition fails, the learner can listen to the example or skip the step. The travel mission has no network recognition path.
+The travel mission starts with **Reconocer mi voz sin conexión** when Android’s dedicated on-device recognizer is available. This option requires a rebuilt app on Android 13 or newer and an installed English (United States) model reported by that recognizer. If the check or recognition fails, the learner can listen to the example or skip the step.
 
-The travel phrase drills start in the same on-device mode. **Ver opción de reconocimiento que puede usar internet** opens the separate system option. Its disclosure appears before **Practicar con mi voz** can start recognition. On Android this option uses the system-selected provider, including Marmalade STT if configured as the system recognizer. It uses the system recognizer on iOS and the Web Speech API on supported browsers. Both recognition modes use `en-US`.
+**Usar Marmalade STT** is a separate choice in travel missions and phrase drills when Android exposes Marmalade’s recognition service. Open Marmalade first to update it, complete its setup, and download an English model. LingoQuest binds to the named service directly, irrespective of the system default. On Android 13 and newer, it checks for installed English through that service before requesting microphone permission. On older versions, Marmalade reports language errors when the explicitly selected attempt starts. [Marmalade setup and releases](https://github.com/maxwhipw/marmalade-stt-android#setup)
+
+In the separate phrase drills, **Ver opción de reconocimiento que puede usar internet** opens the system option. Its disclosure appears before **Practicar con mi voz** can start recognition. This path uses the system-selected provider on Android and iOS and the Web Speech API in supported browsers. All three recognition paths request `en-US`.
 
 The app gives sentence and grammar feedback after recognition ends. The completed final transcript must match the reference or an accepted course variant to pass. In the introduction, the learner speaks as Luz and can use forms such as `I am`, `I’m`, and `My name is`. **Ahora no puedo hablar** advances without recording speaking practice.
 

@@ -38,6 +38,8 @@ Follow the [verification record](VERIFICATION.md) for automated results and limi
 
 Record the results and any provider limits in the [verification record](VERIFICATION.md). Keep browser fixtures and Android bundle checks separate from physical device results.
 
+For Marmalade, install a current release and its English model before disconnecting. With another recognizer selected as the system default, use **Usar Marmalade STT** and then **Reconocer con Marmalade STT** in the mission. Repeat speaking and playback in airplane mode. On Android 13 or newer, also check that a missing English model produces Marmalade setup guidance before the microphone opens.
+
 ```bash
 npm run check
 npm test

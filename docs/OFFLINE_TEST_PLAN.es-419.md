@@ -38,6 +38,8 @@ Consulta el [registro de verificación](VERIFICATION.es-419.md) para ver los res
 
 Anota los resultados y cualquier limitación del proveedor en el [registro de verificación](VERIFICATION.es-419.md). Registra las simulaciones de navegador y las comprobaciones del paquete Android por separado de los resultados en un teléfono físico.
 
+Para Marmalade, instala una versión actual y su modelo de inglés antes de desconectarte. Con otro reconocedor seleccionado como predeterminado del sistema, elige **Usar Marmalade STT** y luego **Reconocer con Marmalade STT** en la misión. Repite el reconocimiento y la reproducción en modo avión. En Android 13 o posterior, comprueba también que, si falta el modelo de inglés, aparezcan las indicaciones para configurar Marmalade antes de activar el micrófono.
+
 ```bash
 npm run check
 npm test

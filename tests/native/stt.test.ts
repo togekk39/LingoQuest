@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { chapter } from '@lingoquest/offline-engine';
 import {
+  hasMarmaladeRecognition,
+  marmaladeRecognitionOptions,
   onDeviceRecognitionOptions,
   selectedRecognitionService,
 } from '../../apps/mobile/src/features/recognitionService';
@@ -48,6 +50,47 @@ test('online and downloadable language listings cannot qualify for on-device rec
       getSupportedLocales: async () => ({ locales: ['en-US'], installedLocales: ['en-GB'] }),
     }),
     /on-device-language-unavailable/,
+  );
+});
+
+test('Android can use Marmalade directly when its service and English model are present', async () => {
+  const queries: object[] = [];
+  const service = {
+    getSpeechRecognitionServices: () => ['system.default', 'app.marmalade.stt'],
+    getSupportedLocales: async (options: object) => {
+      queries.push(options);
+      return { installedLocales: ['en'] };
+    },
+  };
+  assert.equal(hasMarmaladeRecognition('android', 33, service), true);
+  assert.equal(hasMarmaladeRecognition('web', 33, service), false);
+  assert.equal(hasMarmaladeRecognition('android', 27, service), false);
+  const options = {
+    lang: 'en-US',
+    androidRecognitionServicePackage: 'app.marmalade.stt',
+    androidIntentOptions: { EXTRA_PREFER_OFFLINE: true },
+  };
+  assert.deepEqual(await marmaladeRecognitionOptions('android', 33, service), options);
+  assert.deepEqual(await marmaladeRecognitionOptions('android', 32, service), options);
+  assert.deepEqual(queries, [{ androidRecognitionServicePackage: 'app.marmalade.stt' }]);
+});
+
+test('Marmalade never substitutes the default recognizer or a downloadable model', async () => {
+  await assert.rejects(
+    marmaladeRecognitionOptions('android', 35, {
+      getSpeechRecognitionServices: () => ['system.default'],
+      getSupportedLocales: async () => {
+        assert.fail('An absent Marmalade service must not be queried');
+      },
+    }),
+    /marmalade-service-unavailable/,
+  );
+  await assert.rejects(
+    marmaladeRecognitionOptions('android', 35, {
+      getSpeechRecognitionServices: () => ['app.marmalade.stt'],
+      getSupportedLocales: async () => ({ locales: ['en-US'], installedLocales: ['es'] }),
+    }),
+    /marmalade-language-unavailable/,
   );
 });
 

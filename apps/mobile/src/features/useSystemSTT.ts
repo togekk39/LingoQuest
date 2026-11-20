@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import {
   canCheckOnDeviceRecognition,
+  hasMarmaladeRecognition,
+  marmaladeRecognitionOptions,
   onDeviceRecognitionOptions,
   recognitionLocale,
   selectedRecognitionService,
@@ -10,7 +12,7 @@ import {
 import { speechRecognition as recognition } from './speechRecognitionModule';
 import { stopOfflineSpeech } from './offlineSpeech';
 
-export type RecognitionMode = 'on-device' | 'system';
+export type RecognitionMode = 'on-device' | 'marmalade' | 'system';
 
 type Attempt = {
   mode: RecognitionMode;
@@ -24,8 +26,14 @@ type Attempt = {
 
 export const onDeviceUnavailable =
   'El reconocimiento en el dispositivo no está disponible aquí. Puedes escuchar el ejemplo u omitir este paso.';
+export const androidOnDeviceUnavailable =
+  'El reconocedor integrado de Android no está disponible. Si instalaste Marmalade STT, completa su guía de configuración y vuelve aquí.';
 const onDeviceLanguageUnavailable =
   'Instala el modelo de inglés (Estados Unidos) para reconocimiento sin conexión en los ajustes de voz de Android. También puedes omitir este paso.';
+const marmaladeUnavailable =
+  'No pudimos iniciar Marmalade STT. Actualiza la app y prueba el dictado desde Marmalade con un modelo de inglés instalado.';
+const marmaladeLanguageUnavailable =
+  'Marmalade STT está disponible. Descarga un modelo compatible con inglés desde su guía de configuración y vuelve a intentarlo.';
 
 let recordingNumber = 0;
 
@@ -66,37 +74,48 @@ function abortAttempt(attempt: Attempt | null) {
 }
 
 function recognitionError(code: string, mode: RecognitionMode) {
+  const deviceUnavailable =
+    Platform.OS === 'android' ? androidOnDeviceUnavailable : onDeviceUnavailable;
   switch (code) {
     case 'audio-preparation':
       return 'No pudimos preparar el audio para la práctica. Vuelve a intentarlo o continúa sin micrófono.';
     case 'on-device-unavailable':
-      return onDeviceUnavailable;
+      return deviceUnavailable;
     case 'on-device-language-unavailable':
       return onDeviceLanguageUnavailable;
+    case 'marmalade-service-unavailable':
+      return 'Android no encuentra el servicio de reconocimiento de Marmalade STT. Abre Marmalade y completa su guía de configuración.';
+    case 'marmalade-language-unavailable':
+      return marmaladeLanguageUnavailable;
     case 'service-unavailable':
       return 'El servicio de voz seleccionado no está disponible. Selecciona un servicio STT compatible con Android en los ajustes del sistema.';
     case 'not-allowed':
     case 'service-not-allowed':
-      return mode === 'on-device'
-        ? 'Permite el micrófono en los ajustes de Android para reconocer tu voz, o continúa sin micrófono.'
-        : 'Permite el micrófono y el reconocimiento de voz en los ajustes del navegador o del sistema. También puedes omitir este paso.';
+      return mode === 'system'
+        ? 'Permite el micrófono y el reconocimiento de voz en los ajustes del navegador o del sistema. También puedes omitir este paso.'
+        : mode === 'marmalade'
+          ? 'Permite el micrófono para LingoQuest y Marmalade STT en los ajustes de Android.'
+          : 'Permite el micrófono en los ajustes de Android para reconocer tu voz, o continúa sin micrófono.';
     case 'audio-capture':
       return 'No se pudo abrir el micrófono. Comprueba que esté conectado y que otra aplicación no lo esté usando.';
     case 'no-speech':
     case 'nomatch':
       return 'No reconocimos palabras. Habla un poco más cerca del micrófono y vuelve a intentarlo.';
     case 'network':
+      if (mode === 'marmalade') return marmaladeUnavailable;
       return mode === 'on-device'
-        ? onDeviceUnavailable
+        ? deviceUnavailable
         : 'El reconocimiento del sistema necesita conexión. Revisa tu red o continúa sin usar el micrófono.';
     case 'language-not-supported':
     case 'language-unavailable':
+      if (mode === 'marmalade') return marmaladeLanguageUnavailable;
       return mode === 'on-device'
         ? onDeviceLanguageUnavailable
         : 'El reconocimiento de inglés no está disponible. Instala o activa inglés en el servicio de voz del sistema.';
     default:
+      if (mode === 'marmalade') return marmaladeUnavailable;
       return mode === 'on-device'
-        ? onDeviceUnavailable
+        ? deviceUnavailable
         : 'El reconocimiento de voz no está disponible. Activa el servicio de voz del sistema o usa un navegador compatible.';
   }
 }
@@ -109,11 +128,26 @@ export function useSystemSTT() {
   const [message, setMessage] = useState('');
   const attempt = useRef<Attempt | null>(null);
   const savedRecording = useRef<File | undefined>(undefined);
-  const canTryOnDevice =
-    recognition !== null && canCheckOnDeviceRecognition(Platform.OS, Platform.Version);
+  const [canTryOnDevice, setCanTryOnDevice] = useState(false);
+  const [canTryMarmalade, setCanTryMarmalade] = useState(false);
 
   useEffect(() => {
     if (!recognition) return;
+    const module = recognition;
+    function refreshAndroidServices() {
+      setCanTryOnDevice(
+        canCheckOnDeviceRecognition(Platform.OS, Platform.Version) &&
+          module.supportsOnDeviceRecognition(),
+      );
+      setCanTryMarmalade(hasMarmaladeRecognition(Platform.OS, Platform.Version, module));
+    }
+    if (Platform.OS === 'android') refreshAndroidServices();
+    const appState =
+      Platform.OS === 'android'
+        ? AppState.addEventListener('change', (state) => {
+            if (state === 'active') refreshAndroidServices();
+          })
+        : undefined;
     const subscriptions = [
       recognition.addListener('start', () => {
         if (attempt.current?.started) setPhase('listening');
@@ -164,6 +198,7 @@ export function useSystemSTT() {
     return () => {
       const current = attempt.current;
       attempt.current = null;
+      appState?.remove();
       subscriptions.forEach((subscription) => subscription.remove());
       abortAttempt(current);
       discardRecording(savedRecording.current);
@@ -187,9 +222,11 @@ export function useSystemSTT() {
     setPhase('starting');
     try {
       let options;
-      if (mode === 'on-device') {
-        current.timeout = setTimeout(() => fail(current, 'on-device-unavailable'), 5000);
-        options = await onDeviceRecognitionOptions(Platform.OS, Platform.Version, recognition);
+      if (mode !== 'system') {
+        current.timeout = setTimeout(() => fail(current, 'unavailable'), 5000);
+        const localOptions =
+          mode === 'marmalade' ? marmaladeRecognitionOptions : onDeviceRecognitionOptions;
+        options = await localOptions(Platform.OS, Platform.Version, recognition);
         clearTimeout(current.timeout);
         if (attempt.current !== current) return;
       } else {
@@ -279,6 +316,8 @@ export function useSystemSTT() {
     recordingUri,
     message,
     canTryOnDevice,
+    canTryMarmalade,
+    hasRecognitionModule: recognition !== null,
     start,
     stop,
     cancel,

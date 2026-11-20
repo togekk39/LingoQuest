@@ -5,7 +5,12 @@ import { matchesSpeechTarget } from '../travel/speakingFeedback';
 import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
 import { playPracticeClip } from './playPracticeClip';
-import { onDeviceUnavailable, useSystemSTT } from './useSystemSTT';
+import {
+  androidOnDeviceUnavailable,
+  onDeviceUnavailable,
+  useSystemSTT,
+  type RecognitionMode,
+} from './useSystemSTT';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
@@ -44,7 +49,7 @@ export function SpeakingPanel({
   const f = useFeatureStyles();
 
   const stt = useSystemSTT();
-  const [systemSelected, setSystemSelected] = useState(false);
+  const [mode, setMode] = useState<RecognitionMode>('on-device');
   const player = useAudioPlayer(null);
   const [message, setMessage] = useState('');
   const { playOffline, speechMessage } = useOfflineSpeech();
@@ -53,6 +58,16 @@ export function SpeakingPanel({
   const audioBusy = comparing || stt.phase !== 'idle';
   const textFeedback = stt.finalTranscript && feedback?.(stt.finalTranscript);
   const passed = matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
+  const recognitionLabel = {
+    'on-device': 'Reconocer mi voz sin conexión',
+    marmalade: 'Reconocer con Marmalade STT',
+    system: 'Practicar con mi voz',
+  }[mode];
+  const unavailableMessage = !stt.hasRecognitionModule
+    ? 'Esta versión de LingoQuest no incluye el módulo de voz. Instala una versión actualizada.'
+    : Platform.OS === 'android'
+      ? androidOnDeviceUnavailable
+      : onDeviceUnavailable;
 
   useEffect(
     () => () => {
@@ -83,6 +98,12 @@ export function SpeakingPanel({
   function playReference() {
     if (onPlay) onPlay();
     else void playOffline(text);
+  }
+
+  function selectRecognitionMode(next: RecognitionMode) {
+    stt.cancel();
+    setMode(next);
+    setMessage('');
   }
 
   async function compareRecording(uri: string) {
@@ -140,12 +161,17 @@ export function SpeakingPanel({
           {speechMessage}
         </Text>
       )}
-      {systemSelected && (
+      {mode === 'system' && (
         <Text style={f.quiet}>
           El servicio de voz del sistema o del navegador puede procesar tu audio en línea.
         </Text>
       )}
-      {systemSelected || stt.canTryOnDevice ? (
+      {mode === 'marmalade' && (
+        <Text style={f.quiet}>
+          Marmalade STT usa el modelo instalado en esa app. La práctica pide inglés.
+        </Text>
+      )}
+      {mode !== 'on-device' || stt.canTryOnDevice ? (
         <>
           <Action
             disabled={comparing || story?.saving || stt.phase === 'stopping'}
@@ -154,18 +180,14 @@ export function SpeakingPanel({
               if (stt.phase === 'listening') stt.stop();
               else {
                 setMessage('');
-                void stt.start(systemSelected ? 'system' : 'on-device', () => {
+                void stt.start(mode, () => {
                   onStopReference?.();
                   pausePracticePlayback(player, Platform.OS);
                 });
               }
             }}
           >
-            {stt.phase === 'listening'
-              ? 'Terminar reconocimiento'
-              : systemSelected
-                ? 'Practicar con mi voz'
-                : 'Reconocer mi voz sin conexión'}
+            {stt.phase === 'listening' ? 'Terminar reconocimiento' : recognitionLabel}
           </Action>
           {stt.phase === 'listening' && (
             <Text accessibilityLiveRegion="polite" style={f.quiet}>
@@ -174,7 +196,20 @@ export function SpeakingPanel({
           )}
         </>
       ) : (
-        <Text style={f.quiet}>{onDeviceUnavailable}</Text>
+        <Text style={f.quiet}>
+          {stt.canTryMarmalade
+            ? 'Marmalade STT está disponible en este dispositivo.'
+            : unavailableMessage}
+        </Text>
+      )}
+      {(mode === 'marmalade' || (mode === 'on-device' && stt.canTryMarmalade)) && (
+        <Action
+          secondary
+          disabled={audioBusy || story?.saving}
+          onPress={() => selectRecognitionMode(mode === 'marmalade' ? 'on-device' : 'marmalade')}
+        >
+          {mode === 'marmalade' ? 'Volver al reconocedor integrado' : 'Usar Marmalade STT'}
+        </Action>
       )}
       {!!stt.transcript && (
         <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite" style={f.card}>
@@ -245,16 +280,13 @@ export function SpeakingPanel({
       <Action secondary disabled={story?.saving} onPress={() => finish()}>
         Ahora no puedo hablar
       </Action>
-      {allowSystemRecognition && (
+      {allowSystemRecognition && mode !== 'marmalade' && (
         <Action
           secondary
           disabled={audioBusy}
-          onPress={() => {
-            stt.cancel();
-            setSystemSelected(!systemSelected);
-          }}
+          onPress={() => selectRecognitionMode(mode === 'system' ? 'on-device' : 'system')}
         >
-          {systemSelected
+          {mode === 'system'
             ? 'Volver al modo sin conexión'
             : 'Ver opción de reconocimiento que puede usar internet'}
         </Action>
