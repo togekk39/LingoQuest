@@ -255,10 +255,12 @@ export function AnswerFeedback({
   result,
   exercise,
   answer,
+  speaker,
 }: {
   result: AttemptResult;
   exercise: PublicExercise;
   answer: Partial<Answer>;
+  speaker?: React.ReactNode;
 }) {
   const { colors: palette, tone } = useTheme();
   const s = useStyles();
@@ -300,13 +302,14 @@ export function AnswerFeedback({
       >
         <PaperGrain />
         <View style={f.row}>
-          {result.correct ? (
-            <Celebration size={72}>
-              <QuestBuddy size={68} mood="happy" />
-            </Celebration>
-          ) : (
-            <QuestBuddy size={64} mood="encouraging" />
-          )}
+          {speaker ??
+            (result.correct ? (
+              <Celebration size={72}>
+                <QuestBuddy size={68} mood="happy" />
+              </Celebration>
+            ) : (
+              <QuestBuddy size={64} mood="encouraging" />
+            ))}
           <Text style={[f.cardTitle, { flex: 1 }]}>{feedbackTitle}</Text>
         </View>
         {!result.correct && (

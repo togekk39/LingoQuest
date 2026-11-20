@@ -26,6 +26,7 @@ export const storyStateSchema = z
     sceneId: idSchema,
     dialogueId: idSchema.optional(),
     encounterId: idSchema.optional(),
+    encounterSuspended: z.literal(true).optional(),
     flags: z.record(z.string().max(100)),
     events: z.record(z.literal(true)),
     quests: z.record(questStateSchema),
@@ -44,6 +45,7 @@ const operationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('interact'), turn: turnSchema, hotspotId: idSchema }).strict(),
   z.object({ action: z.literal('choose'), turn: turnSchema, choiceId: idSchema }).strict(),
   z.object({ action: z.literal('closeDialogue'), turn: turnSchema }).strict(),
+  z.object({ action: z.literal('suspendEncounter'), turn: turnSchema }).strict(),
   z.object({ action: z.literal('finishEncounter'), turn: turnSchema }).strict(),
 ]);
 export type StoryOperation = z.input<typeof operationSchema>;
@@ -82,6 +84,7 @@ interface Interaction {
 
 export interface StoryHotspot extends Interaction {
   kind: 'npc' | 'object' | 'exit';
+  npcId?: string;
   position?: { x: number; y: number };
 }
 
@@ -104,6 +107,7 @@ export interface StoryDialogue {
   npcId?: string;
   text: string;
   line?: { en: string; es: string };
+  tip?: string;
   choices: readonly Interaction[];
 }
 
@@ -127,6 +131,7 @@ export interface StoryItem {
 
 export interface StoryEncounter {
   id: string;
+  npcId?: string;
   missionId: string;
   endBeforeStepId?: string;
   onFinish?: readonly StoryEffect[];
@@ -157,7 +162,7 @@ export interface StoryView {
   origin: string;
   scene: Omit<StoryScene, 'hotspots'>;
   hotspots: Omit<StoryHotspot, 'requires' | 'effects'>[];
-  dialogue?: Pick<StoryDialogue, 'id' | 'text' | 'line'> & {
+  dialogue?: Pick<StoryDialogue, 'id' | 'text' | 'line' | 'tip'> & {
     npc?: StoryNpc;
     choices: Pick<Interaction, 'id' | 'label'>[];
   };
@@ -166,7 +171,11 @@ export interface StoryView {
     goals: { id: string; label: string; completed: boolean }[];
   })[];
   inventory: (StoryItem & InventoryState)[];
-  encounter?: Omit<StoryEncounter, 'onFinish'> & { ready: boolean };
+  encounter?: Omit<StoryEncounter, 'onFinish' | 'npcId'> & {
+    ready: boolean;
+    suspended: boolean;
+    npc?: StoryNpc;
+  };
 }
 
 export function emptyStory(definition: StoryDefinition): StoryState {
@@ -206,7 +215,10 @@ export function upgradeStory(definition: StoryDefinition, state: StoryState) {
     delete state.dialogueId;
   }
   if (!byId(definition.dialogues, state.dialogueId)) delete state.dialogueId;
-  if (!byId(definition.encounters, state.encounterId)) delete state.encounterId;
+  if (!byId(definition.encounters, state.encounterId)) {
+    delete state.encounterId;
+    delete state.encounterSuspended;
+  }
   state.revision = definition.revision;
   state.turn++;
 }
@@ -334,11 +346,20 @@ function applyEffects(
       case 'encounter':
         if (byId(definition.encounters, effect.id)) {
           state.encounterId = effect.id;
+          delete state.encounterSuspended;
           delete state.dialogueId;
         }
         break;
     }
   }
+}
+
+function canInteract(interaction: Interaction, state: StoryState, context: StoryContext) {
+  return (
+    allowed(interaction.requires, state, context) &&
+    (!state.encounterId ||
+      !interaction.effects.some(({ type }) => type === 'scene' || type === 'encounter'))
+  );
 }
 
 export function updateStory(
@@ -355,21 +376,21 @@ export function updateStory(
     state.turn !== input.turn
   )
     return;
-  if (state.encounterId && input.action !== 'finishEncounter') return;
   let effects: readonly StoryEffect[] = [];
   switch (input.action) {
     case 'interact': {
-      if (state.dialogueId) return;
       const scene = byId(definition.scenes, state.sceneId);
       const hotspot = byId(scene?.hotspots ?? [], input.hotspotId);
-      if (!hotspot || !allowed(hotspot.requires, state, context)) return;
+      if (!hotspot || !canInteract(hotspot, state, context)) return;
+      if (state.encounterId) state.encounterSuspended = true;
+      if (!hotspot.effects.some(({ type }) => type === 'dialogue')) delete state.dialogueId;
       effects = hotspot.effects;
       break;
     }
     case 'choose': {
       const node = byId(definition.dialogues, state.dialogueId);
       const choice = byId(node?.choices ?? [], input.choiceId);
-      if (!node || !choice || !allowed(choice.requires, state, context)) return;
+      if (!node || !choice || !canInteract(choice, state, context)) return;
       if (
         !state.choices.some((saved) => saved.dialogueId === node.id && saved.choiceId === choice.id)
       )
@@ -381,10 +402,16 @@ export function updateStory(
       if (!state.dialogueId) return;
       delete state.dialogueId;
       break;
+    case 'suspendEncounter':
+      if (!state.encounterId || state.encounterSuspended) return;
+      state.encounterSuspended = true;
+      break;
     case 'finishEncounter': {
       const encounter = byId(definition.encounters, state.encounterId);
       if (!encounter || encounter.id !== context.readyEncounterId) return;
       delete state.encounterId;
+      delete state.encounterSuspended;
+      delete state.dialogueId;
       effects = encounter.onFinish ?? [];
       break;
     }
@@ -392,6 +419,16 @@ export function updateStory(
   applyEffects(definition, state, context, effects);
   settleQuests(definition, state, context);
   state.turn++;
+}
+
+export function resumeStoryEncounter(state: StoryState, turn: number) {
+  if (state.turn !== turn || !state.encounterId) return false;
+  if (state.encounterSuspended || state.dialogueId) {
+    delete state.encounterSuspended;
+    delete state.dialogueId;
+    state.turn++;
+  }
+  return true;
 }
 
 export function recordStoryReview(
@@ -434,16 +471,23 @@ export function readStory(
       title: personalize(scene.title),
       description: personalize(scene.description),
     },
-    hotspots: (node || encounter ? [] : scene.hotspots)
-      .filter((hotspot) => allowed(hotspot.requires, current, context))
-      .map(({ id, label, kind, position }) => ({ id, label: personalize(label), kind, position })),
+    hotspots: scene.hotspots
+      .filter((hotspot) => canInteract(hotspot, current, context))
+      .map(({ id, label, kind, npcId, position }) => ({
+        id,
+        label: personalize(label),
+        kind,
+        npcId,
+        position,
+      })),
     dialogue: node && {
       id: node.id,
       text: personalize(node.text),
       line: node.line && { en: personalize(node.line.en), es: personalize(node.line.es) },
+      tip: node.tip && personalize(node.tip),
       npc: byId(definition.npcs, node.npcId),
       choices: node.choices
-        .filter((choice) => allowed(choice.requires, current, context))
+        .filter((choice) => canInteract(choice, current, context))
         .map(({ id, label }) => ({ id, label: personalize(label) })),
     },
     inventory: definition.items.flatMap((item) => {
@@ -473,6 +517,8 @@ export function readStory(
       missionId: encounter.missionId,
       endBeforeStepId: encounter.endBeforeStepId,
       ready: encounter.id === context.readyEncounterId,
+      suspended: !!current.encounterSuspended,
+      npc: byId(definition.npcs, encounter.npcId),
     },
   };
 }

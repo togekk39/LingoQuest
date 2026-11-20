@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -103,12 +104,18 @@ export function FlowFrame({
   feedback?: React.ReactNode;
   progress?: number;
   stepKey?: string;
-  journal?: { onListen?: () => void; onSettings?: () => void };
+  journal?: {
+    onListen?: () => void;
+    onSettings?: () => void;
+    storybook?: boolean;
+    wide?: boolean;
+  };
   onVoiceSettings?: () => void;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const frame = useRef<View>(null);
   const scroll = useRef<ScrollView>(null);
   const { overlap, measureOverlap } = useKeyboardOverlap(frame);
@@ -191,7 +198,13 @@ export function FlowFrame({
       onLayout={measureOverlap}
     >
       {journal && <PaperGrain />}
-      <View style={journal ? f.journalTopbar : f.topbar}>
+      <View
+        style={[
+          journal ? f.journalTopbar : f.topbar,
+          journal?.storybook && f.storybookTopbar,
+          journal?.wide && f.storybookWide,
+        ]}
+      >
         {!journal && <PaperEdge edge="bottom" tint={palette.white} />}
         <Pressable
           accessibilityLabel="Cerrar y volver"
@@ -206,8 +219,15 @@ export function FlowFrame({
           )}
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={f.eyebrow}>{eyebrow}</Text>
-          <Text accessibilityRole="header" style={journal ? f.journalTitle : f.topTitle}>
+          <Text style={[f.eyebrow, journal?.storybook && f.storybookEyebrow]}>{eyebrow}</Text>
+          <Text
+            accessibilityRole="header"
+            style={[
+              journal ? f.journalTitle : f.topTitle,
+              journal?.storybook && f.storybookTitle,
+              journal?.storybook && width < 520 && f.storybookTitleCompact,
+            ]}
+          >
             {title}
           </Text>
         </View>
@@ -282,7 +302,12 @@ export function FlowFrame({
           value={{ revealInput, revealItem, maxHeight: inputMaxHeight }}
         >
           <View
-            style={[f.content, journal && f.journalWidth]}
+            style={[
+              f.content,
+              journal && f.journalWidth,
+              journal?.storybook && f.storybookWidth,
+              journal?.wide && f.storybookWide,
+            ]}
             onLayout={(event) => {
               contentTop.current = event.nativeEvent.layout.y;
               revealFeedback();
@@ -388,6 +413,12 @@ export function useFeatureStyles() {
       marginTop: 2,
       color: palette.ink,
     },
+    storybookTopbar: { maxWidth: 768, paddingTop: 17, paddingBottom: 8, gap: 12 },
+    storybookEyebrow: { fontFamily: 'ManropeBold', fontSize: 11, letterSpacing: 2.4 },
+    storybookTitle: { fontSize: 31, lineHeight: 39, marginTop: 1 },
+    storybookTitleCompact: { fontSize: 27, lineHeight: 34 },
+    storybookWidth: { maxWidth: 736 },
+    storybookWide: { maxWidth: 1120 },
     journalProgress: { width: '100%', maxWidth: 686, alignSelf: 'center', paddingHorizontal: 16 },
     journalScroll: { paddingHorizontal: 15, paddingVertical: 12 },
     journalWidth: { maxWidth: 650 },

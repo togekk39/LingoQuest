@@ -2,11 +2,12 @@ import { JournalArt, Notebook, JournalLeaf } from '../Journal';
 import { illustrations } from '../travel/illustrations';
 import { audioClips } from '../travel/audioClips';
 import { matchesSpeechTarget } from '../travel/speakingFeedback';
+import { StoryActivity } from '../travel/StoryDialogueAppearance';
 import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
 import { playPracticeClip } from './playPracticeClip';
 import { useSystemSTT } from './useSystemSTT';
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import {
@@ -19,6 +20,7 @@ import { ShieldCheck, Volume2 } from 'lucide-react-native';
 import { Action, useFeatureStyles, FlowFrame, InputViewportContext } from './FeatureUI';
 
 export type SpeakingPracticeMethod = 'recorded' | 'imitated';
+export type SpeakingPanelHandle = { stop: () => void };
 
 export function SpeakingPanel({
   text,
@@ -29,6 +31,8 @@ export function SpeakingPanel({
   allowSystemRecognition = false,
   feedback,
   acceptedPhrases,
+  inline = false,
+  ref,
 }: {
   text: string;
   onDone: (method?: SpeakingPracticeMethod) => void;
@@ -38,10 +42,13 @@ export function SpeakingPanel({
   acceptedPhrases?: string[];
   allowSystemRecognition?: boolean;
   feedback?: (transcript: string) => { content: string; grammar: string };
+  inline?: boolean;
+  ref?: React.Ref<SpeakingPanelHandle>;
 }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
+  const Section = inline ? StoryActivity : Notebook;
 
   const stt = useSystemSTT();
   const [systemSelected, setSystemSelected] = useState(false);
@@ -95,12 +102,21 @@ export function SpeakingPanel({
     void stopOfflineSpeech();
   }
 
-  function finish(method?: SpeakingPracticeMethod) {
+  function stopPractice() {
     try {
       stopComparison();
       onStopReference?.();
     } finally {
       stt.cancel();
+    }
+  }
+
+  useImperativeHandle(ref, () => ({ stop: stopPractice }));
+
+  function finish(method?: SpeakingPracticeMethod) {
+    try {
+      stopPractice();
+    } finally {
       onDone(method);
     }
   }
@@ -139,11 +155,14 @@ export function SpeakingPanel({
   }
   return (
     <View testID="speaking-studio" style={{ gap: 12 }}>
-      <JournalArt source={illustrations.review} aspectRatio={3.1} taped />
-      <Notebook title="Dale voz a lo que aprendiste.">
+      {!inline && <JournalArt source={illustrations.review} aspectRatio={3.1} taped />}
+      <Section title="Dale voz a lo que aprendiste.">
         <Text style={f.quiet}>Escucha el ejemplo y di la frase para comprobar tu respuesta.</Text>
         <Text style={f.eyebrow}>Tu frase para practicar</Text>
-        <Text accessibilityLanguage="en-US" style={s.reference}>
+        <Text
+          {...(Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' })}
+          style={s.reference}
+        >
           {text}
         </Text>
         <Pressable
@@ -159,7 +178,7 @@ export function SpeakingPanel({
           <Volume2 color={palette.teal} size={19} />
           <Text style={s.listenText}>Escuchar ejemplo</Text>
         </Pressable>
-      </Notebook>
+      </Section>
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={f.quiet}>
           {speechMessage}

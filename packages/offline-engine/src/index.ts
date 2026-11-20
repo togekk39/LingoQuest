@@ -24,6 +24,7 @@ import {
   emptyStory,
   readStory,
   recordStoryReview,
+  resumeStoryEncounter,
   storyStateSchema,
   updateStory,
   upgradeStory,
@@ -931,14 +932,13 @@ export class OfflineEngine {
       upgradeTravelCheckpoints(travel);
       upgradeStory(chapterStory, story);
       const before = story.encounterId;
-      const turn = story.turn;
       let launch = false;
       if (route === '/v1/story/encounter') {
         const request = z
           .object({ turn: z.number().int().nonnegative().safe() })
           .strict()
           .parse(body);
-        launch = request.turn === turn;
+        launch = resumeStoryEncounter(story, request.turn);
       } else if (method === 'POST') {
         updateStory(chapterStory, story, storyContext(story, travel, state.travelLearning), body);
         launch = story.encounterId !== before;

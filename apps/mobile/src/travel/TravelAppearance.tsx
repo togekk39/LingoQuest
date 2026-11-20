@@ -1,14 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Eye, MapPin, Volume2 } from 'lucide-react-native';
 import type { TravelMission, TravelVocabulary } from '@lingoquest/offline-engine';
 import { Button, Label } from '../ui';
 import { useTheme } from '../theme';
 import { JournalArt, JournalLeaf, Notebook } from '../Journal';
 import { illustrations, placeIllustration, wordIllustration } from './illustrations';
+import { StoryActivity, type StoryTranslation } from './StoryDialogueAppearance';
 import stop from '../../assets/travel/plaza.jpg';
 
 export { stop };
+
+const english = Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' };
 
 export function TravelScene({ place, compact = false }: { place: string; compact?: boolean }) {
   const { colors: C } = useTheme();
@@ -27,21 +30,25 @@ export function VocabularyCard({
   word,
   play,
   recall = false,
+  inline = false,
 }: {
   word: TravelVocabulary;
   play: (value: string) => void;
   recall?: boolean;
+  inline?: boolean;
 }) {
   const { colors: C } = useTheme();
   const [revealed, reveal] = useState(!recall);
+  const Section = inline ? StoryActivity : Notebook;
+  const WordSlip = inline ? View : JournalLeaf;
   return (
     <View testID="illustrated-vocabulary" style={styles.entry}>
-      <JournalArt source={wordIllustration(word.term)} aspectRatio={2.25} taped />
-      <JournalLeaf style={styles.wordSlip}>
+      {!inline && <JournalArt source={wordIllustration(word.term)} aspectRatio={2.25} taped />}
+      <WordSlip style={inline ? styles.entry : styles.wordSlip}>
         <View style={styles.wordRow}>
           <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <Text style={[styles.wordKind, { color: C.accent }]}>{word.kind}</Text>
-            <Text accessibilityLanguage="en-US" style={[styles.term, { color: C.ink }]}>
+            <Text {...english} style={[styles.term, { color: C.ink }]}>
               {word.term}
             </Text>
             {revealed && (
@@ -68,9 +75,9 @@ export function VocabularyCard({
           </Button>
         )}
         {revealed && <Label style={[styles.copy, { color: C.muted }]}>{word.explanation}</Label>}
-      </JournalLeaf>
-      <Notebook title="En una conversación">
-        <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
+      </WordSlip>
+      <Section title="En una conversación">
+        <Text {...english} style={[styles.quotation, { color: C.ink }]}>
           {word.example.en}
         </Text>
         {revealed && <Label style={[styles.copy, { color: C.muted }]}>{word.example.es}</Label>}
@@ -82,7 +89,7 @@ export function VocabularyCard({
         >
           Escuchar ejemplo
         </Button>
-      </Notebook>
+      </Section>
     </View>
   );
 }
@@ -92,11 +99,13 @@ export function GrammarWorkbench({
   play,
   playSequence,
   stop,
+  embedded,
 }: {
   step: Extract<TravelMission['steps'][number], { type: 'teach' }>;
   play: (value: string) => void;
   playSequence: (phrases: readonly string[], onSelect?: (index: number) => void) => Promise<void>;
   stop: () => void;
+  embedded?: StoryTranslation;
 }) {
   const { colors: C } = useTheme();
   const [selected, select] = useState(0);
@@ -104,6 +113,8 @@ export function GrammarWorkbench({
   const [compare, setCompare] = useState(false);
   const [dialogueTranslations, setDialogueTranslations] = useState<Record<number, boolean>>({});
   const dialogue = step.presentation === 'question-answer';
+  const inline = !!embedded;
+  const Section = inline ? StoryActivity : Notebook;
   const alternative = dialogue ? undefined : step.examples.find((_, index) => index !== selected);
   const showExample = useCallback((index: number) => {
     select(index);
@@ -111,15 +122,16 @@ export function GrammarWorkbench({
     setCompare(false);
   }, []);
   useEffect(() => {
+    if (inline) return;
     void playSequence(
       step.examples.map(({ en }) => en),
       dialogue ? undefined : showExample,
     );
-  }, [dialogue, playSequence, showExample, step.examples]);
+  }, [dialogue, inline, playSequence, showExample, step.examples]);
   return (
     <View testID="grammar-workbench" style={{ gap: 12 }}>
-      <JournalArt source={illustrations.writing} aspectRatio={3.1} taped />
-      <Notebook title={step.title}>
+      {!inline && <JournalArt source={illustrations.writing} aspectRatio={3.1} taped />}
+      <Section title={step.title}>
         <Label style={styles.copy}>{step.text}</Label>
         {!dialogue && (
           <View style={styles.samples}>
@@ -148,7 +160,9 @@ export function GrammarWorkbench({
         {step.examples.map((example, index) => {
           if (!dialogue && index !== selected) return null;
           const pattern = step.patterns?.[index];
-          const translationVisible = dialogue ? dialogueTranslations[index] : showTranslation;
+          const translationVisible =
+            embedded?.translationsVisible ??
+            (dialogue ? dialogueTranslations[index] : showTranslation);
           const label = index === 0 ? 'pregunta' : 'respuesta';
           return (
             <View key={example.en} style={{ gap: 10 }}>
@@ -173,10 +187,7 @@ export function GrammarWorkbench({
                         },
                       ]}
                     >
-                      <Text
-                        accessibilityLanguage="en-US"
-                        style={[styles.quotation, { color: C.ink }]}
-                      >
+                      <Text {...english} style={[styles.quotation, { color: C.ink }]}>
                         {text}
                       </Text>
                       <Text style={[styles.part, { color: C.muted }]}>{role}</Text>
@@ -184,7 +195,7 @@ export function GrammarWorkbench({
                   ))}
                 </View>
               ) : (
-                <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
+                <Text {...english} style={[styles.quotation, { color: C.ink }]}>
                   {example.en}
                 </Text>
               )}
@@ -198,7 +209,9 @@ export function GrammarWorkbench({
                   variant="ghost"
                   icon={Eye}
                   onPress={() => {
-                    if (dialogue) {
+                    if (embedded) {
+                      embedded.onToggleTranslation();
+                    } else if (dialogue) {
                       setDialogueTranslations((shown) => ({ ...shown, [index]: !shown[index] }));
                     } else {
                       stop();
@@ -206,7 +219,7 @@ export function GrammarWorkbench({
                     }
                   }}
                 >
-                  {`${translationVisible ? 'Ocultar traducción' : 'Ver traducción'}${dialogue ? ` de la ${label}` : ''}`}
+                  {`${translationVisible ? 'Ocultar traducción' : inline ? 'Mostrar traducción' : 'Ver traducción'}${dialogue ? ` de la ${label}` : ''}`}
                 </Button>
                 {!!alternative && (
                   <Button
@@ -227,16 +240,18 @@ export function GrammarWorkbench({
               )}
               {compare && alternative && (
                 <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite">
-                  <Text accessibilityLanguage="en-US" style={[styles.quotation, { color: C.ink }]}>
+                  <Text {...english} style={[styles.quotation, { color: C.ink }]}>
                     {alternative.en}
                   </Text>
-                  <Label style={styles.copy}>{alternative.es}</Label>
+                  {(!embedded || embedded.translationsVisible) && (
+                    <Label style={styles.copy}>{alternative.es}</Label>
+                  )}
                 </JournalLeaf>
               )}
             </View>
           );
         })}
-      </Notebook>
+      </Section>
     </View>
   );
 }

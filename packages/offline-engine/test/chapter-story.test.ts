@@ -136,6 +136,72 @@ test('story launch restores a pre-RPG format-2 checkpoint and is atomic on write
   assert.deepEqual(await storage.open().request(storyPath), opened);
 });
 
+test('another conversation can pause and restore a story lesson without losing a draft', async () => {
+  const storage = device();
+  let engine = storage.open();
+  let snapshot = await engine.request<StoryResponse>(storyPath);
+  async function act(operation: StoryAction) {
+    snapshot = await engine.request<StoryResponse>(storyPath, {
+      ...operation,
+      turn: snapshot.story.turn,
+    });
+  }
+
+  await act({ action: 'interact', hotspotId: 'plaza-sam' });
+  await act({ action: 'interact', hotspotId: 'plaza-luz' });
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
+  assert.equal(snapshot.story.dialogue?.line?.en, 'Hi! I am Luz.');
+  assert.ok(snapshot.story.dialogue?.tip);
+  await act({ action: 'interact', hotspotId: 'plaza-sam' });
+  await act({ action: 'choose', choiceId: 'introduce-yourself' });
+  assert.equal(snapshot.story.encounter?.npc?.id, 'sam');
+  assert.equal(snapshot.story.encounter?.suspended, false);
+
+  const atWriting = await finishLesson(engine, 'travel_hello_write');
+  const draft = await journey(engine, {
+    action: 'draft',
+    token: atWriting.active!.token,
+    answer: { text: 'Hi! I am' },
+  });
+  const introductionTurn = snapshot.story.turn;
+  await act({ action: 'suspendEncounter' });
+  assert.equal(snapshot.story.encounter?.suspended, true);
+  await act({ action: 'interact', hotspotId: 'plaza-sam' });
+  assert.equal(snapshot.story.dialogue?.id, 'sam-introduction');
+  assert.deepEqual(snapshot.story.dialogue?.choices, []);
+  const unchanged = snapshot;
+  await act({ action: 'choose', choiceId: 'introduce-yourself' });
+  assert.deepEqual(snapshot, unchanged);
+  await act({ action: 'interact', hotspotId: 'plaza-luz' });
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
+  assert.equal(snapshot.story.encounter?.suspended, true);
+  assert.deepEqual(snapshot.travel, draft);
+
+  engine = storage.open();
+  assert.deepEqual(await engine.request(storyPath), snapshot);
+  const resumePath = '/v1/story/encounter';
+  assert.deepEqual(await engine.request(resumePath, { turn: introductionTurn }), snapshot);
+  storage.setFailure(true);
+  await assert.rejects(engine.request(resumePath, { turn: snapshot.story.turn }), /write failed/);
+  storage.setFailure(false);
+  assert.deepEqual(await engine.request(storyPath), snapshot);
+  const resumed = await engine.request<StoryResponse>(resumePath, { turn: snapshot.story.turn });
+  assert.equal(resumed.story.encounter?.suspended, false);
+  assert.equal(resumed.story.dialogue, undefined);
+  assert.deepEqual(resumed.travel, draft);
+  snapshot = resumed;
+  await act({ action: 'interact', hotspotId: 'plaza-luz' });
+  assert.equal(snapshot.story.encounter?.suspended, true);
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
+  snapshot = await engine.request<StoryResponse>(resumePath, { turn: snapshot.story.turn });
+
+  await finishLesson(engine);
+  await act({ action: 'finishEncounter' });
+  assert.equal(snapshot.story.dialogue?.id, 'sam-after-introduction');
+  assert.equal(snapshot.story.quests.find(({ id }) => id === 'meet-sam')?.status, 'completed');
+  assert.equal(snapshot.story.inventory.filter(({ id }) => id === 'bus-ticket').length, 1);
+});
+
 test('bag story requires canonical learning and item use before one passport reward', async () => {
   const storage = device();
   let engine = storage.open();
@@ -177,6 +243,10 @@ test('bag story requires canonical learning and item use before one passport rew
   assert.equal(snapshot.story.dialogue, undefined);
   await interact('lost-luz');
   await choose('read-sam-message');
+  assert.ok(!snapshot.story.hotspots.some(({ id }) => id === 'lost-to-stop'));
+  const readingMessage = snapshot;
+  await interact('lost-to-stop');
+  assert.deepEqual(snapshot, readingMessage);
   const boundary = await finishLesson(engine, 'bag_postcard');
   assert.equal(boundary.active?.stepId, 'bag_postcard');
   assert.equal(boundary.stamps.home, undefined);

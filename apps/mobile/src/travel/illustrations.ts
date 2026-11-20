@@ -8,6 +8,11 @@ import luz from '../../assets/journal/luz.jpg';
 import expedition from '../../assets/journal/expedition.jpg';
 import review from '../../assets/journal/review.jpg';
 import plaza from '../../assets/journal/plaza.jpg';
+import storyPlaza from '../../assets/journal/story-plaza.jpg';
+import storySam from '../../assets/journal/story-sam.png';
+import storyLuz from '../../assets/journal/story-luz.png';
+import storySamPortrait from '../../assets/journal/story-sam-portrait.png';
+import storyLuzPortrait from '../../assets/journal/story-luz-portrait.png';
 
 export const illustrations = {
   welcome,
@@ -21,6 +26,10 @@ export const illustrations = {
   review,
   plaza,
 };
+
+export const storyArt = { plaza: storyPlaza, bus, bag };
+export const storyFigures = { sam: storySam, luz: storyLuz };
+export const storyPortraits = { sam: storySamPortrait, luz: storyLuzPortrait };
 
 export function placeIllustration(place: string) {
   if (place === 'La parada') return illustrations.bus;

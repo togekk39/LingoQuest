@@ -79,6 +79,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [mission, setMission] = useState<TravelCheckpoint | null>(null);
   const [story, setStory] = useState<StoryView | null>(null);
   const [storyError, setStoryError] = useState('');
+  const [finishingEncounter, setFinishingEncounter] = useState(false);
   const [destination, setDestination] = useState('home');
   const [originPicker, setOriginPicker] = useState<{ afterSave?: AfterOrigin } | null>(null);
   const [passport, setPassport] = useState(false);
@@ -168,18 +169,11 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       .catch((e) => setNotice(e.message))
       .finally(() => setStarting(false));
   }
-  function openStoryLesson({ story: snapshot, travel: journey }: StoryResponse) {
-    if (!snapshot.encounter || snapshot.encounter.ready) return;
-    if (journey.active?.missionId !== snapshot.encounter.missionId)
-      throw new Error('No pudimos abrir la conversación. Vuelve a intentar.');
-    setMission(journey.active);
-  }
   async function actStory(operation: StoryOperation) {
     const session = storySession.current;
     const response = await api<StoryResponse>('/v1/story', operation);
     if (session !== storySession.current) return;
     showStory(response);
-    if (response.story.encounter?.id !== story?.encounter?.id) openStoryLesson(response);
   }
   async function resumeStoryLesson() {
     if (!story) return;
@@ -187,9 +181,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     const response = await api<StoryResponse>('/v1/story/encounter', { turn: story.turn });
     if (session !== storySession.current) return;
     showStory(response);
-    openStoryLesson(response);
   }
-  function updateMission(journey: TravelState) {
+  function updateStoryLesson(journey: TravelState) {
     setTravel(journey);
     if (!story?.encounter) return;
     const { encounter, turn } = story;
@@ -199,11 +192,13 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         (!encounter.endBeforeStepId || journey.active.stepId !== encounter.endBeforeStepId))
     )
       return;
-    setMission(null);
-    void actStory({ action: 'finishEncounter', turn }).catch(async (e) => {
-      await refreshStory().catch(() => {});
-      setStoryError(e.message);
-    });
+    setFinishingEncounter(true);
+    void actStory({ action: 'finishEncounter', turn })
+      .catch(async (e) => {
+        await refreshStory().catch(() => {});
+        setStoryError(e.message);
+      })
+      .finally(() => setFinishingEncounter(false));
   }
   function askForOrigin(journey: TravelState, afterSave: AfterOrigin) {
     if (
@@ -347,9 +342,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       <TravelFlow
         key={mission.missionId}
         initial={mission}
-        onUpdate={updateMission}
+        onUpdate={setTravel}
         onClose={closeMission}
-        adventure={!!story}
         onVoiceSettings={openVoiceSettings}
         onReview={(missionId) => {
           closeMission();
@@ -404,13 +398,16 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     return withSheets(
       <StoryAdventure
         story={story}
+        checkpoint={travel.active}
         error={storyError}
+        finishing={finishingEncounter}
         onAction={actStory}
         onClose={() => {
           storySession.current++;
           setStory(null);
           void refresh().catch((e) => setNotice(e.message));
         }}
+        onLessonUpdate={updateStoryLesson}
         onResumeEncounter={resumeStoryLesson}
         onReview={openQuickReview}
         onPassport={() => setPassport(true)}
@@ -545,7 +542,13 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 <Button
                   variant="ghost"
                   style={{ alignSelf: 'flex-start' }}
-                  onPress={() => setPassport(false)}
+                  onPress={() => {
+                    if (story)
+                      void refreshStory()
+                        .then(() => setPassport(false))
+                        .catch((e) => setNotice(e.message));
+                    else setPassport(false);
+                  }}
                 >
                   Volver al viaje
                 </Button>
