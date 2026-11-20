@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Eye, MapPin, Volume2 } from 'lucide-react-native';
 import type { TravelMission, TravelVocabulary } from '@lingoquest/offline-engine';
@@ -90,9 +90,13 @@ export function VocabularyCard({
 export function GrammarWorkbench({
   step,
   play,
+  playSequence,
+  stop,
 }: {
   step: Extract<TravelMission['steps'][number], { type: 'teach' }>;
   play: (value: string) => void;
+  playSequence: (phrases: readonly string[], onSelect?: (index: number) => void) => Promise<void>;
+  stop: () => void;
 }) {
   const { colors: C } = useTheme();
   const [selected, select] = useState(0);
@@ -101,6 +105,17 @@ export function GrammarWorkbench({
   const [dialogueTranslations, setDialogueTranslations] = useState<Record<number, boolean>>({});
   const dialogue = step.presentation === 'question-answer';
   const alternative = dialogue ? undefined : step.examples.find((_, index) => index !== selected);
+  const showExample = useCallback((index: number) => {
+    select(index);
+    reveal(false);
+    setCompare(false);
+  }, []);
+  useEffect(() => {
+    void playSequence(
+      step.examples.map(({ en }) => en),
+      dialogue ? undefined : showExample,
+    );
+  }, [dialogue, playSequence, showExample, step.examples]);
   return (
     <View testID="grammar-workbench" style={{ gap: 12 }}>
       <JournalArt source={illustrations.writing} aspectRatio={3.1} taped />
@@ -115,9 +130,8 @@ export function GrammarWorkbench({
                 accessibilityState={{ selected: index === selected }}
                 aria-selected={index === selected}
                 onPress={() => {
-                  select(index);
-                  reveal(false);
-                  setCompare(false);
+                  stop();
+                  showExample(index);
                 }}
                 style={[
                   styles.sample,
@@ -184,15 +198,24 @@ export function GrammarWorkbench({
                   variant="ghost"
                   icon={Eye}
                   onPress={() => {
-                    if (dialogue)
+                    if (dialogue) {
                       setDialogueTranslations((shown) => ({ ...shown, [index]: !shown[index] }));
-                    else reveal(!showTranslation);
+                    } else {
+                      stop();
+                      reveal(!showTranslation);
+                    }
                   }}
                 >
                   {`${translationVisible ? 'Ocultar traducción' : 'Ver traducción'}${dialogue ? ` de la ${label}` : ''}`}
                 </Button>
                 {!!alternative && (
-                  <Button variant="ghost" onPress={() => setCompare(!compare)}>
+                  <Button
+                    variant="ghost"
+                    onPress={() => {
+                      stop();
+                      setCompare(!compare);
+                    }}
+                  >
                     {compare ? 'Cerrar comparación' : 'Comparar ejemplos'}
                   </Button>
                 )}

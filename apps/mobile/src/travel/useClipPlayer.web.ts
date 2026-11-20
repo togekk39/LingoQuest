@@ -14,13 +14,36 @@ export function useClipPlayer() {
     };
     return {
       stop,
-      play: async (clip: number, rate: number) => {
+      play: (clip: number, rate: number, signal: AbortSignal) => {
+        if (signal.aborted) return Promise.resolve(false);
         stop();
         const audio = new Audio(Asset.fromModule(clip).uri);
         current.current = audio;
         audio.playbackRate = rate;
         audio.preservesPitch = true;
-        await audio.play();
+        return new Promise<boolean>((resolve, reject) => {
+          const cleanup = () => {
+            audio.removeEventListener('ended', ended);
+            audio.removeEventListener('error', failed);
+            signal.removeEventListener('abort', cancelled);
+          };
+          const ended = () => {
+            cleanup();
+            resolve(true);
+          };
+          const failed = () => {
+            cleanup();
+            reject(audio.error ?? new Error('Audio playback failed'));
+          };
+          const cancelled = () => {
+            cleanup();
+            resolve(false);
+          };
+          audio.addEventListener('ended', ended);
+          audio.addEventListener('error', failed);
+          signal.addEventListener('abort', cancelled, { once: true });
+          void audio.play().catch(failed);
+        });
       },
     };
   }, []);

@@ -65,13 +65,12 @@ async function installSpeechFixture(page: Page, noVoices = false) {
             language: utterance.lang,
             rate: utterance.rate,
           });
-          setTimeout(
-            () =>
-              fixture.__speechFailure
-                ? utterance.onerror?.({} as SpeechSynthesisErrorEvent)
-                : utterance.onend?.({} as SpeechSynthesisEvent),
-            30,
-          );
+          const finish = () =>
+            fixture.__speechFailure
+              ? utterance.onerror?.({} as SpeechSynthesisErrorEvent)
+              : utterance.onend?.({} as SpeechSynthesisEvent);
+          if (fixture.__holdSpeech) fixture.__finishSpeech = finish;
+          else setTimeout(finish, 30);
         },
         cancel: () => fixture.__speechCancels++,
         addEventListener: () => {},
@@ -80,20 +79,23 @@ async function installSpeechFixture(page: Page, noVoices = false) {
     });
   }, noVoices);
 }
-test('travel words use bundled offline audio when a system voice is unavailable', async ({
+test('travel sentences and words autoplay bundled audio when a system voice is unavailable', async ({
   page,
   context,
 }) => {
   await installSpeechFixture(page, true);
   await page.addInitScript(() => {
-    const played: string[] = [];
-    Object.assign(window, { played });
+    const playback: { event: 'start' | 'end'; src: string }[] = [];
+    Object.assign(window, { playback });
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () {
+      this.addEventListener('ended', () => playback.push({ event: 'end', src: this.currentSrc }), {
+        once: true,
+      });
       const result = play.call(this);
       void result
         .then(() => {
-          played.push(this.currentSrc);
+          playback.push({ event: 'start', src: this.currentSrc });
         })
         .catch(() => {});
       return result;
@@ -101,25 +103,70 @@ test('travel words use bundled offline audio when a system voice is unavailable'
   });
   await enterApp(page);
   await readyOfflineShell(page, context);
+  const playback = () =>
+    page.evaluate(() => (window as any).playback as { event: string; src: string }[]);
+  const clipPlays = (clip: string) =>
+    playback().then(
+      (events) =>
+        events.filter(({ event, src }) => event === 'start' && src.includes(`/${clip}.`)).length,
+    );
   await click(page, 'Continuar viaje');
   await click(page, 'Continuar');
+  await expect.poll(() => clipPlays('line-1')).toBe(1);
+  await click(page, 'Escuchar frase');
+  await expect.poll(() => clipPlays('line-1')).toBe(2);
   await click(page, 'Continuar');
-  const wordPlays = (n: number) =>
-    page.evaluate(
-      (n) =>
-        (window as unknown as { played: string[] }).played.filter((src) =>
-          src.includes(`/word-${n}.`),
-        ).length,
-      n,
-    );
-  await expect.poll(() => wordPlays(1)).toBe(1);
+  await expect.poll(() => clipPlays('word-1')).toBe(1);
   await click(page, 'Revelar significado');
   await expect(page.getByText('hola', { exact: true })).toBeVisible();
   await expect(page.getByText(/Estás escuchando el audio incluido/)).toBeVisible();
+  expect(await clipPlays('line-1')).toBe(2);
+  await click(page, 'Escuchar ejemplo');
+  await expect.poll(() => clipPlays('line-1')).toBe(3);
   await click(page, 'Escuchar: Hi');
-  await expect.poll(() => wordPlays(1)).toBe(2);
+  await expect.poll(() => clipPlays('word-1')).toBe(2);
   await click(page, 'Siguiente palabra');
-  await expect.poll(() => wordPlays(2)).toBe(1);
+  await expect.poll(() => clipPlays('word-2')).toBe(1);
+  await click(page, 'Siguiente palabra');
+  await click(page, 'Ver la explicación');
+  await expect
+    .poll(async () =>
+      (await playback()).flatMap(({ event, src }) => {
+        const clip = src.match(/\/(line-[23])\./)?.[1];
+        return clip ? [`${clip} ${event}`] : [];
+      }),
+    )
+    .toEqual(['line-2 start', 'line-2 end', 'line-3 start', 'line-3 end']);
+  await expect(page.getByRole('tab', exact('Ejemplo 2'))).toHaveAttribute('aria-selected', 'true');
+});
+
+test('manually selecting a grammar example cancels the remaining autoplay', async ({ page }) => {
+  await installSpeechFixture(page);
+  await enterApp(page);
+  await page.evaluate(() => ((window as any).__holdSpeech = true));
+  const spoken = () =>
+    page.evaluate(() => (window as any).__speechCalls.map((call: { text: string }) => call.text));
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Manual de gramática');
+  await expect.poll(spoken).toEqual(['Hi! I am Luz.']);
+  await page.getByRole('tab', exact('Ejemplo 2')).click();
+  await page.evaluate(() => {
+    const fixture = window as any;
+    fixture.__finishSpeech();
+    fixture.__holdSpeech = false;
+  });
+  expect(await spoken()).toEqual(['Hi! I am Luz.']);
+  await click(page, 'Escuchar frase');
+  await expect.poll(spoken).toEqual(['Hi! I am Luz.', 'My name is Luz.']);
+  await page.getByRole('tab', exact('Ubicar un lugar')).click();
+  await expect
+    .poll(spoken)
+    .toEqual([
+      'Hi! I am Luz.',
+      'My name is Luz.',
+      'Where is the bus stop?',
+      'It’s next to the park.',
+    ]);
 });
 
 async function previewVoice(page: Page) {

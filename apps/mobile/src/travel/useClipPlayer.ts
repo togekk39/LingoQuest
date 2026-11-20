@@ -1,16 +1,14 @@
 import { useMemo } from 'react';
 import { useAudioPlayer } from 'expo-audio';
+import { playPracticeClip } from '../features/playPracticeClip';
 
 export function useClipPlayer() {
   const player = useAudioPlayer(null);
   return useMemo(
     () => ({
       stop: () => player.pause(),
-      play: async (clip: number, rate: number) => {
-        player.replace(clip);
-        player.setPlaybackRate(rate, 'high');
-        player.play();
-      },
+      play: (clip: number, rate: number, signal: AbortSignal) =>
+        playPracticeClip(player, clip, rate, signal),
     }),
     [player],
   );
