@@ -41,6 +41,7 @@ export type TravelStep =
       title: string;
       text: string;
       examples: Translation[];
+      presentation?: 'question-answer';
       patterns?: TravelPattern[];
     }
   | TravelExerciseStep
@@ -389,8 +390,9 @@ export const chapter: TravelChapter = {
         {
           id: 'bus_teach',
           type: 'teach',
+          presentation: 'question-answer',
           title: 'Ubicar un lugar',
-          text: 'En Where is the bus stop?, is va antes del lugar que buscas. Para responder, puedes empezar con It’s (it is). Next to va en ese orden y significa «junto a». Usa the cuando los dos saben de qué lugar hablan.',
+          text: 'En Where is the bus stop?, is va antes del lugar que buscas. En la respuesta, It’s (it is) se refiere a la parada del bus. Next to va en ese orden y significa «junto a». Usa the cuando los dos saben de qué lugar hablan.',
           examples: [
             { en: 'Where is the bus stop?', es: '¿Dónde está la parada de bus?' },
             { en: 'It’s next to the park.', es: 'Está junto al parque.' },
