@@ -29,6 +29,15 @@ Follow the [verification record](VERIFICATION.md) for automated results and limi
 - With Android offline, set an English TTS engine or voice in system settings. In a mission, play a word with **Predeterminada del sistema**. Open **Configuración de voz** from the mission header, select another installed English voice and speed, save, and replay the word and example. Check dialogue and assessment listening, and confirm that the selection persists after reopening. Repeat with an unavailable default voice and check the notice for bundled audio.
 - Try local recording with networking off. If you choose optional system recognition, check that you see its provider disclosure before permissions. Check that system TTS settings offer an installed offline English voice or explain why none is available.
 
+## Android speech recognition in airplane mode
+
+1. Install the rebuilt standalone APK on a physical phone running Android 13 or newer. While connected, confirm that the device has an English (United States) speech recognition model installed. Record the phone model, Android version, recognizer version, and APK SHA-256.
+2. Enable airplane mode, turn Wi-Fi and mobile data off, and relaunch the app. Open **Un saludo en la plaza** and reach the speaking step. Tap **Reconocer mi voz sin conexión**, grant microphone access, and say “Hi! I’m Marisol.” into the phone. Record the final transcript and the content and grammar feedback shown.
+3. Repeat with “My name is Marisol.” and “Hi, Marisol.” Verify that the first attempt prompts for a greeting and the second gives the target grammar, according to the text actually recognized. Verify that feedback is advisory and mission completion is always available.
+4. Repeat in airplane mode with microphone permission denied. On a device lacking the local English model or the dedicated recognizer, verify that recognition fails with guidance and no online retry. Check **Solo grabar y escuchar (sin reconocimiento)** with permission granted. Without granting permission, choose **Ahora no puedo hablar**, compare with the model, and finish the mission.
+
+Record the results and any provider limits in the [verification record](VERIFICATION.md). Keep browser fixtures and Android bundle checks separate from physical device results.
+
 ```bash
 npm run check
 npm test

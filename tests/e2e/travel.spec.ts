@@ -109,6 +109,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await click('Seguir la historia');
   await answerTravelText(page, 'travel_hello_transfer', "I'm Nico.");
   await expect(page.getByRole('button', exact('Practicar con mi voz'))).toHaveCount(0);
+  await expect(page.getByText(/reconocimiento en el dispositivo no está disponible/)).toBeVisible();
   await expect(
     page.getByRole('button', exact('Solo grabar y escuchar (sin reconocimiento)')),
   ).toBeVisible();

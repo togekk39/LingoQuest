@@ -433,6 +433,7 @@ export default function LearningFlow({
             <>
               <SpeakingPanel
                 text={lesson.speakingText}
+                allowSystemRecognition
                 onDone={() => {
                   if (!busy) void complete();
                 }}

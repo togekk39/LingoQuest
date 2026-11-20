@@ -1,4 +1,4 @@
-import { test, expect, enterApp } from './helpers';
+import { test, expect, enterApp, openTravelWriting, answerTravelText, click } from './helpers';
 import type { Page } from '@playwright/test';
 
 async function openPractice(page: Page) {
@@ -8,6 +8,10 @@ async function openPractice(page: Page) {
     .getByRole('button', { name: /^Practicar: / })
     .first()
     .click();
+  await expect(page.getByRole('button', { name: 'Practicar con mi voz', exact: true })).toHaveCount(
+    0,
+  );
+  await click(page, 'Ver opción de reconocimiento que puede usar internet');
 }
 
 async function installRecognition(page: Page) {
@@ -68,8 +72,11 @@ test('system STT receives English, displays interim/final text, stops, retries a
   ).toEqual({ lang: 'en-US', interim: true, continuous: false });
   await page.evaluate(() => (window as any).__recognizers.at(-1).result('Hello', false));
   await expect(page.getByText('Hello', { exact: true })).toBeVisible();
+  await expect(page.getByText('Gramática de la lección')).toHaveCount(0);
   await page.evaluate(() => (window as any).__recognizers.at(-1).result('Hello world', true));
   await expect(page.getByText('Hello world', { exact: true })).toBeVisible();
+  await expect(page.getByText('Contenido de la frase')).toBeVisible();
+  await expect(page.getByText('Gramática de la lección')).toBeVisible();
   await page.getByRole('button', { name: 'Terminar reconocimiento', exact: true }).click();
   await page.getByRole('button', { name: 'Practicar con mi voz', exact: true }).click();
   await expect(page.getByText('Hello world', { exact: true })).toHaveCount(0);
@@ -132,9 +139,10 @@ test('silence with automatic end permits another attempt', async ({ page }) => {
   ).toBeEnabled();
 });
 
-test('local recording starts, saves, allows replay and revokes the recording on exit', async ({
+test('travel recording starts, allows replay and is revoked when completing the mission', async ({
   page,
 }) => {
+  await installRecognition(page);
   await page.addInitScript(() => {
     const fixture = window as any;
     fixture.__revoked = [];
@@ -155,20 +163,26 @@ test('local recording starts, saves, allows replay and revokes the recording on 
       },
     });
   });
-  await openPractice(page);
+  await enterApp(page);
+  await openTravelWriting(page);
+  await answerTravelText(page, 'travel_hello_write', 'Hi! I am Luz.');
+  await answerTravelText(page, 'travel_hello_transfer', "I'm Nico.");
+  await expect(page.getByText(/reconocimiento en el dispositivo no está disponible/)).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Ver opción de reconocimiento que puede usar internet' }),
+  ).toHaveCount(0);
   await page
     .getByRole('button', { name: 'Solo grabar y escuchar (sin reconocimiento)', exact: true })
     .click();
   await expect(page.getByRole('button', { name: 'Terminar grabación', exact: true })).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Practicar con mi voz', exact: true }),
-  ).toBeDisabled();
   await page.getByRole('button', { name: 'Terminar grabación', exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Escuchar mi grabación', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Escuchar mi grabación', exact: true }).click();
-  await page.getByRole('button', { name: 'Continuar con mi lección', exact: true }).click();
+  await click(page, 'Completar misión');
+  await expect(page.getByText('¡Misión completada!')).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__recognizers.length)).toBe(0);
   expect(
     await page.evaluate(() =>
       (window as any).__revoked.some((uri: string) => uri.startsWith('blob:')),

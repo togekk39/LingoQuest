@@ -14,6 +14,7 @@ import {
 import { canStartTravelMission, chapter, type TravelState } from '@lingoquest/offline-engine';
 import { FlowFrame } from '../features/FeatureUI';
 import { SpeakingPanel } from '../features/SpeakingPractice';
+import { drillFeedback } from './speakingFeedback';
 import { Button, Heading, Label } from '../ui';
 import { useTheme } from '../theme';
 import { JournalLeaf, JournalSpread } from '../Journal';
@@ -244,6 +245,8 @@ export function TravelPronunciation({
           onDone={leave}
           onStopReference={stop}
           onPlay={() => void play(selected)}
+          feedback={(transcript) => drillFeedback(transcript, selected)}
+          allowSystemRecognition
         />
         {!!speechMessage && <Label>{speechMessage}</Label>}
       </FlowFrame>

@@ -2,6 +2,10 @@
 
 [Español (Latinoamérica)](VERIFICATION.es-419.md)
 
+## Travel speech recognition · 2026-11-20
+
+The physical Android airplane-mode test is pending. A connected phone is required to confirm that the dedicated recognizer returns a final transcript from the microphone with Wi-Fi and mobile data off. [Physical Android test procedure](OFFLINE_TEST_PLAN.md#android-speech-recognition-in-airplane-mode)
+
 ## Chapter 1 acceptance revision
 
 - Moved the question-and-answer handbook assertions into the offline handbook test. The first-launch test covers the welcome choices, origin picker, and opening scene.

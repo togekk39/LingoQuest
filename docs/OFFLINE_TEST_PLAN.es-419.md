@@ -29,6 +29,15 @@ Consulta el [registro de verificación](VERIFICATION.es-419.md) para ver los res
 - Con Android sin conexión, elige un motor o una voz de inglés en los ajustes TTS del sistema. En una misión, escucha una palabra con **Predeterminada del sistema**. Abre **Configuración de voz** en la cabecera de la misión, elige otra voz de inglés instalada y otra velocidad, guarda y vuelve a escuchar la palabra y el ejemplo. Comprueba los diálogos y la escucha de la prueba, y confirma que la opción siga guardada al volver a abrir la app. Repite con la voz predeterminada no disponible y comprueba el aviso del audio incluido.
 - Prueba la grabación local sin conexión. Si eliges el reconocimiento del sistema, comprueba que aparezca el aviso sobre el proveedor antes de solicitar permisos. Revisa que la configuración de voz ofrezca una voz en inglés instalada sin conexión o explique por qué no está disponible.
 
+## Reconocimiento de voz en Android con modo avión
+
+1. Instala el APK independiente recompilado en un teléfono físico con Android 13 o posterior. Con conexión, confirma que el teléfono tenga instalado un modelo de reconocimiento de inglés (Estados Unidos). Registra el modelo del teléfono, la versión de Android, la versión del reconocedor y el SHA-256 del APK.
+2. Activa el modo avión, apaga el Wi-Fi y los datos móviles, y vuelve a abrir la app. Entra en **Un saludo en la plaza** hasta el paso oral. Toca **Reconocer mi voz sin conexión**, permite el acceso al micrófono y di “Hi! I’m Marisol.” frente al teléfono. Registra la transcripción final y los comentarios de contenido y gramática que aparezcan.
+3. Repite con “My name is Marisol.” y “Hi, Marisol.” Comprueba que el primer intento sugiera agregar un saludo y el segundo indique la estructura de la lección, según el texto reconocido. Verifica que los comentarios sean orientativos y siempre puedas completar la misión.
+4. Repite en modo avión con el permiso de micrófono denegado. En un teléfono sin el modelo local de inglés o sin el reconocedor dedicado, verifica que la app muestre una indicación y que no reintente en línea. Prueba **Solo grabar y escuchar (sin reconocimiento)** con permiso. Sin conceder el permiso, elige **Ahora no puedo hablar**, compara con el modelo y completa la misión.
+
+Anota los resultados y cualquier limitación del proveedor en el [registro de verificación](VERIFICATION.es-419.md). Registra las simulaciones de navegador y las comprobaciones del paquete Android por separado de los resultados en un teléfono físico.
+
 ```bash
 npm run check
 npm test

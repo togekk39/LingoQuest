@@ -31,6 +31,7 @@ import { Celebration } from '../motion';
 import { useChapterAudio } from './useChapterAudio';
 import { illustrations, placeIllustration } from './illustrations';
 import { GrammarWorkbench, TravelScene, VocabularyCard } from './TravelAppearance';
+import { drillFeedback, introductionFeedback } from './speakingFeedback';
 
 function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: string) => void }) {
   const s = useStyles();
@@ -459,7 +460,11 @@ export function TravelFlow({
                 continueLabel: lastStep ? 'Completar misión' : 'Seguir la historia',
                 saving: busy,
               }}
-              offlineOnly
+              feedback={
+                step.learning.conceptId === 'introduction'
+                  ? introductionFeedback
+                  : (transcript) => drillFeedback(transcript, step.phrase)
+              }
             />
           </>
         )}

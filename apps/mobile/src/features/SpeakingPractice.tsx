@@ -2,7 +2,7 @@ import { JournalArt, Notebook, JournalLeaf } from '../Journal';
 import { illustrations } from '../travel/illustrations';
 import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
-import { useSystemSTT } from './useSystemSTT';
+import { onDeviceUnavailable, useSystemSTT } from './useSystemSTT';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
@@ -25,21 +25,24 @@ export function SpeakingPanel({
   onDone,
   onPlay,
   onStopReference,
-  offlineOnly = false,
   story,
+  allowSystemRecognition = false,
+  feedback,
 }: {
   text: string;
   onDone: (method?: SpeakingPracticeMethod) => void;
   onPlay?: () => void;
   onStopReference?: () => void;
-  offlineOnly?: boolean;
   story?: { fallback: string; continueLabel: string; saving: boolean };
+  allowSystemRecognition?: boolean;
+  feedback?: (transcript: string) => { content: string; grammar: string };
 }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
 
   const stt = useSystemSTT();
+  const [systemSelected, setSystemSelected] = useState(false);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const player = useAudioPlayer(null);
@@ -54,6 +57,8 @@ export function SpeakingPanel({
   const mounted = useRef(true);
   const recorderRef = useRef(recorder);
   recorderRef.current = recorder;
+  const audioBusy = busy || stt.phase !== 'idle' || recorderState.isRecording;
+  const textFeedback = stt.finalTranscript && feedback?.(stt.finalTranscript);
   const removeRecording = (path: string | null) => {
     if (!path) return;
     try {
@@ -216,12 +221,10 @@ export function SpeakingPanel({
         <Pressable
           accessibilityRole="button"
           style={s.listen}
-          disabled={busy || stt.phase !== 'idle' || recorderState.isRecording}
-          accessibilityState={{
-            disabled: busy || stt.phase !== 'idle' || recorderState.isRecording,
-          }}
+          disabled={audioBusy}
+          accessibilityState={{ disabled: audioBusy }}
           onPress={() => {
-            if (stt.phase !== 'idle' || recorderState.isRecording || busy) return;
+            if (audioBusy) return;
             playReference();
           }}
         >
@@ -234,13 +237,13 @@ export function SpeakingPanel({
           {speechMessage}
         </Text>
       )}
-      {!offlineOnly && (
+      {systemSelected && (
+        <Text style={f.quiet}>
+          El servicio de voz del sistema o del navegador puede procesar tu audio en línea.
+        </Text>
+      )}
+      {systemSelected || stt.canTryOnDevice ? (
         <>
-          <Text style={f.quiet}>
-            Al practicar con reconocimiento, el servicio de voz del sistema o del navegador puede
-            procesar tu audio en línea. El texto es orientativo y no es una nota de pronunciación.
-            Si prefieres practicar sin conexión, elige solo grabar.
-          </Text>
           <Action
             disabled={busy || recorderState.isRecording || stt.phase === 'stopping'}
             busy={stt.phase === 'starting'}
@@ -248,32 +251,55 @@ export function SpeakingPanel({
               if (stt.phase === 'listening') stt.stop();
               else {
                 setMessage('');
-                void stt.start(() => pausePracticePlayback(player, Platform.OS));
+                void stt.start(systemSelected ? 'system' : 'on-device', () => {
+                  onStopReference?.();
+                  pausePracticePlayback(player, Platform.OS);
+                });
               }
             }}
           >
-            {stt.phase === 'listening' ? 'Terminar reconocimiento' : 'Practicar con mi voz'}
+            {stt.phase === 'listening'
+              ? 'Terminar reconocimiento'
+              : systemSelected
+                ? 'Practicar con mi voz'
+                : 'Reconocer mi voz sin conexión'}
           </Action>
           {stt.phase === 'listening' && (
             <Text accessibilityLiveRegion="polite" style={f.quiet}>
-              Te escuchamos. Lee la frase en inglés.
-            </Text>
-          )}
-          {!!stt.transcript && (
-            <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite" style={f.card}>
-              <Text style={f.eyebrow}>Esto entendió el sistema</Text>
-              <Text style={f.body}>{stt.transcript}</Text>
-              <Text style={f.quiet}>
-                Compara el texto con la frase y vuelve a practicar cuando quieras.
-              </Text>
-            </JournalLeaf>
-          )}
-          {!!stt.message && (
-            <Text accessibilityRole="alert" style={f.body}>
-              {stt.message}
+              Te escuchamos. Di tu frase en inglés.
             </Text>
           )}
         </>
+      ) : (
+        <Text style={f.quiet}>{onDeviceUnavailable}</Text>
+      )}
+      {!!stt.transcript && (
+        <JournalLeaf compact kind="notebook" accessibilityLiveRegion="polite" style={f.card}>
+          <Text style={f.eyebrow}>
+            {stt.finalTranscript ? 'Esto entendió el sistema' : 'Texto provisional'}
+          </Text>
+          <Text accessibilityLanguage="en-US" style={f.body}>
+            {stt.transcript}
+          </Text>
+          {textFeedback && (
+            <>
+              <Text style={f.eyebrow}>Contenido de la frase</Text>
+              <Text style={f.body}>{textFeedback.content}</Text>
+              <Text style={f.eyebrow}>Gramática de la lección</Text>
+              <Text style={f.body}>{textFeedback.grammar}</Text>
+            </>
+          )}
+          {!!stt.finalTranscript && (
+            <Text style={f.quiet}>
+              La transcripción puede contener errores. Úsala para revisar tus palabras.
+            </Text>
+          )}
+        </JournalLeaf>
+      )}
+      {!!stt.message && (
+        <Text accessibilityRole="alert" style={f.body}>
+          {stt.message}
+        </Text>
       )}
       {recorderState.isRecording ? (
         <Action
@@ -332,10 +358,10 @@ export function SpeakingPanel({
           <Action
             journal
             busy={story.saving}
-            disabled={busy || recorderState.isRecording}
+            disabled={audioBusy}
             onPress={() => void finish(uri ? 'recorded' : 'imitated')}
           >
-            {uri ? story.continueLabel : 'Practiqué en voz alta'}
+            {uri || stt.finalTranscript ? story.continueLabel : 'Practiqué en voz alta'}
           </Action>
           {!uri && (
             <Action
@@ -343,6 +369,7 @@ export function SpeakingPanel({
               secondary
               disabled={story.saving || busy || recorderState.isRecording}
               onPress={() => {
+                stt.cancel();
                 onStopReference?.();
                 setQuietPractice(true);
               }}
@@ -352,8 +379,22 @@ export function SpeakingPanel({
           )}
         </>
       ) : (
-        <Action secondary onPress={() => void finish()}>
-          {uri || stt.transcript ? 'Continuar con mi lección' : 'Ahora no puedo hablar'}
+        <Action secondary disabled={busy} onPress={() => void finish()}>
+          {uri || stt.finalTranscript ? 'Continuar con mi lección' : 'Ahora no puedo hablar'}
+        </Action>
+      )}
+      {allowSystemRecognition && (
+        <Action
+          secondary
+          disabled={audioBusy}
+          onPress={() => {
+            stt.cancel();
+            setSystemSelected(!systemSelected);
+          }}
+        >
+          {systemSelected
+            ? 'Volver al modo sin conexión'
+            : 'Ver opción de reconocimiento que puede usar internet'}
         </Action>
       )}
     </View>
@@ -375,7 +416,7 @@ export default function SpeakingPractice({
       eyebrow="Práctica de pronunciación"
       onClose={onClose ?? onDone}
     >
-      <SpeakingPanel text={text} onDone={onDone} />
+      <SpeakingPanel text={text} onDone={onDone} allowSystemRecognition />
     </FlowFrame>
   );
 }
