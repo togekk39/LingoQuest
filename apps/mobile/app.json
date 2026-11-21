@@ -2,7 +2,6 @@
   "expo": {
     "name": "LingoQuest",
     "slug": "lingoquest",
-    "version": "2.1.0",
     "scheme": "lingoquest",
     "orientation": "portrait",
     "userInterfaceStyle": "light",

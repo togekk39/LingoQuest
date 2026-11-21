@@ -1,6 +1,5 @@
 {
   "name": "@lingoquest/mobile",
-  "version": "2.1.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {

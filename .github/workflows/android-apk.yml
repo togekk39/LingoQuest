@@ -6,6 +6,10 @@ on:
       - '**'
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'App version (e.g. 2.2.0-preview). Leave blank for a development build.'
+        type: string
 
 permissions:
   contents: read
@@ -21,6 +25,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     env:
+      LINGOQUEST_RELEASE_VERSION: ${{ inputs.release_version }}
       EXPO_NO_TELEMETRY: '1'
       EXPO_OFFLINE: '1'
       ANDROID_ARCHITECTURES: arm64-v8a,armeabi-v7a

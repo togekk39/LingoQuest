@@ -131,7 +131,9 @@ const commit = process.env.GITHUB_SHA || 'local';
 const shortCommit = commit.slice(0, 8);
 const output = join(repo, 'work/apk');
 await mkdir(output, { recursive: true });
-const filename = `lingoquest-${config.version}-preview-${shortCommit}.apk`;
+const releaseVersion = env.LINGOQUEST_RELEASE_VERSION;
+const buildLabel = releaseVersion || 'dev';
+const filename = `lingoquest-${buildLabel}-${shortCommit}.apk`;
 await copyFile(apk, join(output, filename));
 const bytes = await readFile(apk);
 const apkSha256 = createHash('sha256').update(bytes).digest('hex');
@@ -142,7 +144,7 @@ await writeFile(
     {
       app: config.name,
       packageId: config.android.package,
-      version: config.version,
+      version: releaseVersion || null,
       versionCode,
       commit,
       architectures: architectures.split(','),
