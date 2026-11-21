@@ -36,6 +36,7 @@ import { JournalLeaf, PaperGrain } from '../Journal';
 import { localSettings } from '../lib/api';
 import { useTheme } from '../theme';
 import { StoryPhrase, StorySpeaker } from './StoryDialogueAppearance';
+import { RevealStoryGuideTarget, StoryGuideShade } from './StoryGuide';
 import { StoryScene } from './StoryScene';
 import { TravelFlow, type TravelFlowHandle } from './TravelFlow';
 import { useChapterAudio } from './useChapterAudio';
@@ -189,6 +190,7 @@ export function StoryAdventure({
   const { play, stop, speechMessage } = useChapterAudio();
   const { scene, dialogue, encounter, hotspots, inventory, quests, turn, origin } = story;
   const lesson = useRef<TravelFlowHandle>(null);
+  const questToggle = useRef<View>(null);
   const [guideStep, setGuideStep] = useState<GuideStep | null>(firstVisit ? 'npc' : null);
   const [journal, setJournal] = useState<JournalPanel>(null);
   const [translationsVisible, setTranslationsVisible] = useState(true);
@@ -323,7 +325,7 @@ export function StoryAdventure({
           <Text style={s.guideSkipLabel}>Omitir guía</Text>
         </Pressable>
       </View>
-      <Text accessibilityLiveRegion="polite" aria-live="polite" style={s.tipText}>
+      <Text accessibilityLiveRegion="polite" aria-live="polite" style={s.body}>
         {guideSteps[guideStep].instruction}
       </Text>
     </View>
@@ -352,7 +354,7 @@ export function StoryAdventure({
             <StorySpeaker
               name={dialogue.npc.name}
               heading={
-                <SectionHeading focusKey={dialogue.id} style={s.panelTitle}>
+                <SectionHeading focusKey={guideStep ? undefined : dialogue.id} style={s.panelTitle}>
                   {dialogue.npc.name}
                 </SectionHeading>
               }
@@ -360,7 +362,7 @@ export function StoryAdventure({
               <Text style={s.body}>{dialogue.text}</Text>
             </StorySpeaker>
           ) : (
-            <SectionHeading focusKey={dialogue.id} style={s.panelTitle}>
+            <SectionHeading focusKey={guideStep ? undefined : dialogue.id} style={s.panelTitle}>
               {scene.title}
             </SectionHeading>
           )}
@@ -416,6 +418,7 @@ export function StoryAdventure({
           onPress={closePanel}
         />
       )}
+      {guideStep && <StoryGuideShade />}
     </JournalLeaf>
   ) : hasPanel && encounter ? (
     <JournalLeaf kind="notebook" testID="story-encounter" style={s.dialogue}>
@@ -456,6 +459,7 @@ export function StoryAdventure({
           onPress={() => act({ action: 'finishEncounter', turn })}
         />
       )}
+      {guideStep && <StoryGuideShade />}
     </JournalLeaf>
   ) : null;
 
@@ -492,6 +496,7 @@ export function StoryAdventure({
             )}
           </View>
           {!hasPanel && <Text style={s.sceneDescription}>{scene.description}</Text>}
+          {guideStep === 'quests' && <StoryGuideShade testID="story-guide-scene-mask" />}
         </View>
         <View style={[s.notesPage, wide && s.wideNotesPage]}>
           {panel}
@@ -522,6 +527,7 @@ export function StoryAdventure({
           )}
           <View testID="story-quests" style={s.group}>
             <Pressable
+              ref={questToggle}
               testID="story-quests-toggle"
               accessibilityRole="button"
               accessibilityLabel={`Misiones. ${missionTitle}. ${missionProgress}`}
@@ -548,6 +554,7 @@ export function StoryAdventure({
                 <ChevronRight size={16} color={colors.teal} />
               )}
             </Pressable>
+            {guideStep === 'quests' && <RevealStoryGuideTarget target={questToggle} />}
             {questsOpen && (
               <View style={s.questList}>
                 {quests.map((quest) => {
@@ -609,6 +616,7 @@ export function StoryAdventure({
                 })}
               </View>
             )}
+            {guideStep && guideStep !== 'quests' && <StoryGuideShade />}
           </View>
           <View testID="story-inventory" style={s.group}>
             <View style={s.tools}>
@@ -656,6 +664,7 @@ export function StoryAdventure({
                 )}
               </JournalLeaf>
             )}
+            {guideStep && <StoryGuideShade />}
           </View>
         </View>
       </View>

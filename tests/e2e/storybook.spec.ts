@@ -71,6 +71,7 @@ test('the first chapter guides a new player through the scene and mission list o
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/');
   const guide = page.getByTestId('story-guide');
+  const sceneMask = page.getByTestId('story-guide-scene-mask');
   await adventure(page).click();
   await click(page, 'Honduras');
   await expect(page.getByRole('heading', exact('¿Cómo te llamas?'))).toBeVisible();
@@ -79,18 +80,33 @@ test('the first chapter guides a new player through the scene and mission list o
   await click(page, 'Guardar y continuar');
 
   await expect(guide).toContainText('Guía rápida · 1 de 3');
-  await expect(guide).toContainText('Toca a Sam o a Luz');
+  await expect(guide.getByText('Toca a Sam o a Luz para hablar con un personaje.')).toBeInViewport({
+    ratio: 1,
+  });
+  await expect(sceneMask.locator('path')).toHaveAttribute('fill-rule', 'evenodd');
   await spot(page, 'plaza-luz').click();
   await expect(dialogue(page, 'luz-welcome')).toBeVisible();
   await expect(guide).toContainText('Guía rápida · 2 de 3');
+  await expect(guide.getByText('Toca un objeto, como «Postales», para examinarlo.')).toBeInViewport(
+    {
+      ratio: 1,
+    },
+  );
+  await expect(spot(page, 'plaza-origin')).toBeInViewport();
   await spot(page, 'plaza-origin').click();
   await expect(dialogue(page, 'origin-postcards')).toBeVisible();
   await expect(guide).toContainText('Guía rápida · 3 de 3');
+  await expect(guide.getByText(/^Abre la lista de misiones debajo de la escena/)).toBeInViewport({
+    ratio: 1,
+  });
   await expect(guide).toBeInViewport({ ratio: 1 });
 
   const quests = page.getByTestId('story-quests-toggle');
+  await expect(sceneMask).toBeAttached();
+  await expect(quests).toBeInViewport({ ratio: 1 });
   await quests.click();
   await expect(guide).toHaveCount(0);
+  await expect(sceneMask).toHaveCount(0);
   await expect(quests).toHaveAttribute('aria-expanded', 'true');
   await page.getByTestId('story-quest-meet-sam').getByRole('button').click();
   await expect(page.getByTestId('story-quest-detail-meet-sam')).toBeVisible();
@@ -109,6 +125,7 @@ test('the first chapter guide stays hidden once skipped', async ({ page }) => {
   const guide = page.getByTestId('story-guide');
   await guide.getByRole('button', exact('Omitir guía')).click();
   await expect(guide).toHaveCount(0);
+  await expect(page.getByTestId('story-guide-scene-mask')).toHaveCount(0);
   await click(page, 'Cerrar y volver');
   await openAdventure(page);
   await expect(guide).toHaveCount(0);
