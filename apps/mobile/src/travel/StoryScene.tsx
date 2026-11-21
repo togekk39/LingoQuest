@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Image,
   Pressable,
@@ -13,7 +13,6 @@ import type { StoryView } from '@lingoquest/offline-engine';
 import { JournalPostcardFrame } from '../Journal';
 import { useTheme } from '../theme';
 import { storyArt, storyFigures } from './illustrations';
-import { RevealStoryGuideTarget, StoryGuideShade } from './StoryGuide';
 
 type Hotspot = StoryView['hotspots'][number];
 type FigureId = keyof typeof storyFigures;
@@ -87,21 +86,22 @@ export function StoryScene({
   scene,
   hotspots,
   activeNpc,
-  guidedKind,
+  guideHotspotId,
+  onGuideAnchor,
   disabled,
   onInteract,
 }: {
   scene: StoryView['scene'];
   hotspots: ReadonlyArray<Hotspot>;
   activeNpc?: string;
-  guidedKind?: 'npc' | 'object';
+  guideHotspotId?: string;
+  onGuideAnchor: (view: View | null) => void;
   disabled?: boolean;
   onInteract: (id: string) => void;
 }) {
   const { colors, mode } = useTheme();
   const { fontScale } = useWindowDimensions();
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const guideObject = useRef<View>(null);
   const artId = scene.art === 'bus' || scene.art === 'bag' ? scene.art : 'plaza';
   const sceneFigures = figures[artId];
   const visibleFigures = new Set([activeNpc, ...hotspots.map((hotspot) => hotspot.npcId)]);
@@ -122,9 +122,6 @@ export function StoryScene({
           };
         })
       : [];
-  const cutouts = targets
-    .filter(({ hotspot }) => hotspot.kind === guidedKind)
-    .map(({ target }) => target);
   const light = mode === 'light';
   const tag = {
     backgroundColor: light ? '#FFF1D5' : colors.white,
@@ -174,16 +171,13 @@ export function StoryScene({
           })}
           {targets.map(({ hotspot, figure, marker, target }) => {
             const selected = hotspot.npcId !== undefined && hotspot.npcId === activeNpc;
-            const guided = hotspot.kind === guidedKind;
+            const guided = hotspot.id === guideHotspotId;
             const Icon = hotspot.kind === 'exit' ? ArrowRight : Search;
             const label = marker?.label ?? hotspot.label;
             const iconOnly = hotspot.kind !== 'npc' && target.width < fontScale * label.length * 7;
             return (
               <Pressable
                 key={hotspot.id}
-                ref={
-                  guidedKind === 'object' && hotspot.id === 'plaza-origin' ? guideObject : undefined
-                }
                 testID={`story-hotspot-${hotspot.id}`}
                 accessibilityRole="button"
                 accessibilityLabel={hotspot.label}
@@ -204,6 +198,8 @@ export function StoryScene({
               >
                 {({ pressed }) => (
                   <View
+                    ref={guided ? onGuideAnchor : undefined}
+                    collapsable={!guided}
                     pointerEvents="none"
                     style={[
                       styles.tag,
@@ -232,10 +228,6 @@ export function StoryScene({
               </Pressable>
             );
           })}
-          {!!cutouts.length && (
-            <StoryGuideShade testID="story-guide-scene-mask" spotlight={{ ...size, cutouts }} />
-          )}
-          {guidedKind === 'object' && <RevealStoryGuideTarget target={guideObject} />}
         </View>
       </JournalPostcardFrame>
     </View>
