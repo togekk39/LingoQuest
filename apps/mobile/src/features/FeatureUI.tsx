@@ -343,7 +343,11 @@ export function FlowFrame({
               revealFeedback();
             }}
           >
-            <MotionEntrance key={stepKey} style={{ gap: journal ? 16 : 22 }}>
+            <MotionEntrance
+              key={stepKey}
+              animateOnMount={!journal?.overlay}
+              style={{ gap: journal ? 16 : 22 }}
+            >
               {children}
               {hasFeedback && (
                 <View

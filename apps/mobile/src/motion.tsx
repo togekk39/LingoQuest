@@ -147,14 +147,17 @@ export function MotionPressable({
 export function MotionEntrance({
   children,
   style,
+  animateOnMount = true,
 }: {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  animateOnMount?: boolean;
 }) {
   const reduced = useReducedMotion();
+  const [animate] = useState(animateOnMount);
   const progress = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (reduced) {
+    if (!animate || reduced) {
       progress.setValue(1);
       return;
     }
@@ -168,12 +171,12 @@ export function MotionEntrance({
     });
     animation.start();
     return () => animation.stop();
-  }, [reduced, progress]);
+  }, [animate, reduced, progress]);
   return (
     <Animated.View
       style={[
         style,
-        {
+        animate && {
           opacity: progress,
           transform: [
             { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },

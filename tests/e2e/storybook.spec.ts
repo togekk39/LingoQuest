@@ -68,9 +68,23 @@ async function expectCharacterInsideArt(page: Page, id: string) {
   return character;
 }
 
+async function expectGuideAligned(target: Locator, anchor: Locator) {
+  await expect
+    .poll(async () => {
+      const [spotlight, control] = await Promise.all([target.boundingBox(), anchor.boundingBox()]);
+      if (!spotlight || !control) return Infinity;
+      return Math.max(
+        Math.abs(spotlight.x + spotlight.width / 2 - control.x - control.width / 2),
+        Math.abs(spotlight.y + spotlight.height / 2 - control.y - control.height / 2),
+      );
+    })
+    .toBeLessThanOrEqual(1);
+}
+
 test('the first chapter guides a new player through the scene and mission list only once', async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/');
   const guide = page.getByTestId('story-guide');
@@ -98,6 +112,17 @@ test('the first chapter guides a new player through the scene and mission list o
   expect((await storyProgress(page)).story?.turn).toBe(0);
   await expect(target).toHaveAccessibleName('Luz');
   await expect(target).toBeInViewport({ ratio: 1 });
+  const luz = spot(page, 'plaza-luz').getByText('Luz', { exact: true });
+  await expectGuideAligned(target, luz.locator('..'));
+  expect(
+    await luz.evaluate((label) => {
+      for (let ancestor = label.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        if (ancestor.dataset.testid === 'flow-scroll') break;
+        if (getComputedStyle(ancestor).transform !== 'none') return false;
+      }
+      return true;
+    }),
+  ).toBe(true);
   await guideHeading.focus();
   await page.keyboard.press('Tab');
   await expect(target).toBeFocused();
@@ -111,6 +136,8 @@ test('the first chapter guides a new player through the scene and mission list o
   });
   await expect(target).toHaveAccessibleName('Postales de Honduras');
   await expect(target).toBeInViewport({ ratio: 1 });
+  const postcards = spot(page, 'plaza-origin').getByText('Postales', { exact: true });
+  await expectGuideAligned(target, postcards.locator('..'));
   await target.click();
 
   await expect(dialogue(page, 'origin-postcards')).toBeVisible();
@@ -126,6 +153,7 @@ test('the first chapter guides a new player through the scene and mission list o
   await expect(target).toBeInViewport({ ratio: 1 });
 
   const quests = page.getByTestId('story-quests-toggle');
+  await expectGuideAligned(target, quests);
   await target.click();
   await expect(guide).toHaveCount(0);
   await expect(sceneMask).toHaveCount(0);
