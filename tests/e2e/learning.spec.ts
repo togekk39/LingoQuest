@@ -36,10 +36,9 @@ test('first launch offers two spaced travel routes and opens the first scene', a
   await expect(page.getByRole('heading', exact('¿Cómo te llamas?'))).toBeVisible();
   await page.getByRole('textbox', exact('Tu nombre')).fill('Amaya');
   await click(page, 'Guardar y continuar');
-  expect((await state(page)).user.name).toBe('Amaya');
   await expect(page.getByText('Un saludo en la plaza', { exact: true })).toBeVisible();
   await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
-  expect((await state(page)).travel.country).toBe('HN');
+  expect(await state(page)).toMatchObject({ user: { name: 'Amaya' }, travel: { country: 'HN' } });
 });
 
 test('placement from the welcome evaluates travel listening and jumps to the recommended mission', async ({
