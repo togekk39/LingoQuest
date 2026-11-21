@@ -18,14 +18,14 @@ import {
   type RunView,
   type User,
 } from '@lingoquest/contracts';
-import { chapter, travelLesson } from './travel-content';
+import { route as travelRoute } from './travel-route';
+import { chapter, chapterStory, travelLesson } from './home-content';
 import {
   matchesIntroductionName,
   meetsIntroduction,
   playerIntroductionName,
   readIntroduction,
 } from './introduction';
-import { chapterStory } from './chapter-story';
 import {
   emptyStory,
   readStory,
@@ -68,14 +68,14 @@ import {
   savedResultSchema,
   type TravelState,
 } from './travel';
-export { activeTravelCourse } from './travel-challenges';
+export { activeTravelCourse, travelChallengePools } from './travel-challenges';
 export {
   matchesIntroductionName,
   meetsIntroduction,
   playerIntroductionName,
   readIntroduction,
 } from './introduction';
-export { chapter } from './travel-content';
+export { chapter, installHomeContent, type HomeContent } from './home-content';
 export { learningSkills, travelConcepts, travelCurriculum } from './travel-curriculum';
 export type { TravelReviewRow } from './travel-review';
 export type {
@@ -330,6 +330,14 @@ export function timeBudget(
       );
 }
 function requiredLessons(content: CourseData, requiredUnitId: string) {
+  const stop = travelRoute.findIndex(({ unitId }) => unitId === requiredUnitId);
+  if (
+    stop >= 0 &&
+    travelRoute
+      .slice(0, stop + 1)
+      .some(({ unitId }) => unitId && !content.units.some(({ id }) => id === unitId))
+  )
+    return [];
   const unitIndex = content.units.findIndex((u) => u.id === requiredUnitId);
   return unitIndex < 0
     ? []
@@ -964,6 +972,13 @@ export class OfflineEngine {
         mode: 'offline',
       });
     if (route === '/v1/me/progress') return done(progress(state, now));
+    if (
+      !chapter.missions.length &&
+      (route.startsWith('/v1/story') ||
+        route === '/v1/travel/placement' ||
+        (route === '/v1/reviews/quick' && params.get('source') === 'travel'))
+    )
+      throw new LocalError('Descarga La primera postal para continuar.', 404);
     if (route === '/v1/travel/placement') {
       if (method === 'GET') return done({ questions: placementQuestions(publicExercise) });
       const travel = (state.travel ??= emptyTravel());
@@ -1207,6 +1222,11 @@ export class OfflineEngine {
         if (!lesson) throw new LocalError('No hay ejercicios instalados.', 404);
         return create(lesson, lesson.exercises[0]);
       }
+      if (!travelStarter) {
+        const lesson = lessons.find((entry) => entry.exercises.length > 0);
+        if (!lesson) throw new LocalError('No hay ejercicios instalados.', 404);
+        return create(lesson, lesson.exercises[0]);
+      }
       return create(travelLesson, travelStarter, true);
     }
     if (route === '/v1/me/export')
@@ -1425,7 +1445,7 @@ export class OfflineEngine {
           'Es una orientación personal, no una certificación. Explora las lecciones a tu ritmo.',
       });
     }
-    const homeChallengeOpen = !!state.travel?.stamps[chapter.id];
+    const homeChallengeOpen = chapter.missions.length > 0 && !!state.travel?.stamps[chapter.id];
     if (route === '/v1/challenges/tracks' && params.get('source') === 'travel')
       return done({
         tracks: [
@@ -1435,7 +1455,7 @@ export class OfflineEngine {
             descriptionEs:
               'Pon en práctica los saludos, las indicaciones y las descripciones del capítulo.',
             unlocked: homeChallengeOpen,
-            available: true,
+            available: chapter.missions.length > 0,
             completedLessons: chapter.missions.filter(
               (m) =>
                 state.travel?.completed[m.id] || state.travel?.cleared?.some((id) => id === m.id),
@@ -1461,7 +1481,7 @@ export class OfflineEngine {
             unlocked: trackUnlocked(state, content, track.requiredUnitId),
             completedLessons: required.filter((id) => state.completedLessons.includes(id)).length,
             requiredLessons: required.length,
-            available: track.id === 'present_simple',
+            available: track.id === 'present_simple' && content.challengeLevels.length > 0,
             published: false,
             rankedAvailable: false,
             highestPracticeLevel: Math.max(

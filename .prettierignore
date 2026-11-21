@@ -5,6 +5,7 @@
 playwright-report/
 test-results/
 apps/mobile/src/content/bundled-course.json
+apps/mobile/public/chapter-packs/*/*.json
 content/releases/*.lqp.json
 content/releases/catalog.json
 apps/mobile/android/

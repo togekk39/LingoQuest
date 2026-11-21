@@ -5,6 +5,7 @@ async function files(path) {
   const result = [];
   for (const item of await readdir(new URL(path, root), { withFileTypes: true })) {
     const name = path + item.name;
+    if (name === 'chapter-packs') continue;
     if (item.isDirectory()) result.push(...(await files(name + '/')));
     else if (!name.endsWith('.map') && name !== 'sw.js' && name !== 'metadata.json')
       result.push('/' + name);
@@ -58,7 +59,8 @@ async function assetResponse(request) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin ||
-      url.pathname.startsWith('/v1/') || url.pathname === '/health') return;
+      url.pathname.startsWith('/v1/') || url.pathname.startsWith('/chapter-packs/') ||
+      url.pathname === '/health') return;
   event.respondWith(event.request.mode === 'navigate'
     ? fetch(event.request).catch(() => caches.match('/index.html'))
     : assetResponse(event.request));

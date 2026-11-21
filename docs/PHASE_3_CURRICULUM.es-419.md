@@ -6,7 +6,7 @@ La ruta introduce el inglés estadounidense con veinte situaciones de viaje que 
 
 ## Ruta de los primeros contactos a las metas de B2
 
-El primer capítulo ya se puede jugar como lección de la fase 3. Las paradas 2 a 20 especifican objetivos y tareas previstas para aplicar lo aprendido. Aún faltan redactar y validar las lecciones completas, las voces y las evaluaciones de esas paradas. El curso A1–A2 sigue disponible en **Aprender → Cursos A1–A2** con su propio avance de lecciones y desafíos.
+Las 20 paradas ofrecen una lección descargable con diálogo, vocabulario, gramática, una pregunta de comprensión, práctica por tu cuenta, una ilustración y audio. La primera parada también ofrece la historia interactiva. El curso A1–A2 está disponible en **Aprender → Cursos A1–A2** con su propio avance de lecciones y desafíos. [Paquetes de capítulos](CHAPTER_PACKS.es-419.md)
 
 |                                        Parada | Nivel      | Misión y objetivo de aplicación                                                                                                                            | Material previo para retomar                                                  |
 | --------------------------------------------: | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |

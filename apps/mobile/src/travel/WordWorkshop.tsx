@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Keyboard, View } from 'react-native';
-import type { TravelVocabulary } from '@lingoquest/offline-engine';
+import { grade, travelChallengePools, type TravelVocabulary } from '@lingoquest/offline-engine';
 import {
   ExerciseInput,
   hasAnswer,
@@ -21,6 +21,8 @@ export function WordWorkshop({
 }) {
   const [answer, setAnswer] = useState<ExerciseAnswer>({});
   const [result, setResult] = useState<boolean>();
+  const cloze = travelChallengePools.grammar_rush.find(({ id }) => id === 'home_challenge_name');
+  if (kind === 'cloze' && !cloze) return <Button onPress={onClose}>Volver a las palabras</Button>;
   const pairs = words.map((word) => ({ id: word.term, left: word.term, right: word.meaning }));
   const exercise: Exercise = {
     id: `workshop-${kind}`,
@@ -31,7 +33,7 @@ export function WordWorkshop({
         : 'Escribe solo el verbo que falta.',
     skillId: 'travel.workshop',
     difficulty: 1,
-    ...(kind === 'matching' ? { matchingPairs: pairs } : { sentence: 'Hi! My name ___ Sam.' }),
+    ...(kind === 'matching' ? { matchingPairs: pairs } : { sentence: cloze?.sentence }),
   };
   return (
     <View testID="word-workshop" style={{ gap: 12 }}>
@@ -51,10 +53,7 @@ export function WordWorkshop({
               setResult(
                 kind === 'matching'
                   ? pairs.every(({ id }) => answer.matches?.[id] === id)
-                  : answer.text
-                      ?.trim()
-                      .toLowerCase()
-                      .replace(/[.!?]+$/, '') === 'is',
+                  : !!cloze && grade(cloze, answer),
               );
             }}
           >
@@ -68,7 +67,7 @@ export function WordWorkshop({
                   ? '¡Bien! Ya puedes usar lo que acabas de practicar.'
                   : kind === 'matching'
                     ? 'Revisa qué significa cada palabra e inténtalo otra vez.'
-                    : 'La forma es «My name is…». Usa is con «my name».'}
+                    : cloze?.feedbackEs}
               </Label>
             </View>
             <Button

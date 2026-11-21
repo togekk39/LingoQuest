@@ -37,6 +37,10 @@ import { OfflineProfile as Profile } from './content-manager/OfflineProfile';
 import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
 import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
+import { ChapterPackView } from './travel/ChapterPackView';
+import { ChapterDownload } from './travel/ChapterDownload';
+import { applyDownloadedContent, restoreDownloadedContent } from './lib/downloadedContent';
+import type { ChapterPack } from '@lingoquest/course-pack';
 import { TravelFlow } from './travel/TravelFlow';
 import { StoryAdventure } from './travel/StoryAdventure';
 import { QuickReview } from './travel/QuickReview';
@@ -84,6 +88,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [storyError, setStoryError] = useState('');
   const [finishingEncounter, setFinishingEncounter] = useState(false);
   const [destination, setDestination] = useState('home');
+  const [homeReady, setHomeReady] = useState(Platform.OS === 'web');
+  const [openedChapter, setOpenedChapter] = useState<string>();
+  const [textbookUnit, setTextbookUnit] = useState<string>();
   const [originPicker, setOriginPicker] = useState<{ afterSave?: AfterOrigin } | null>(null);
   const [namePicker, setNamePicker] = useState<{ afterSave?: () => Promise<void> } | null>(null);
   const [passport, setPassport] = useState(false);
@@ -113,9 +120,11 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     let active = true;
     void (async () => {
       try {
+        const ready = await restoreDownloadedContent();
+        if (active) setHomeReady(ready);
         await bootstrap();
         await refresh();
-        if (active) setWelcome(!(await localSettings.get('onboarded', false)));
+        if (active) setWelcome(ready && !(await localSettings.get('onboarded', false)));
       } catch (e) {
         if (active) setError((e as Error).message);
       } finally {
@@ -174,7 +183,17 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     if (askForOrigin(journey, openStory)) return;
     await preparePlayerName(journey, showAdventure);
   }
+  async function onChapterInstalled(pack: ChapterPack) {
+    setHomeReady(await applyDownloadedContent(pack));
+  }
+
+  function showChapterDownloads() {
+    setDestination('home');
+    go('Mapa');
+  }
+
   function startStory() {
+    if (!homeReady) return showChapterDownloads();
     if (starting) return;
     setStarting(true);
     void openStory()
@@ -271,11 +290,13 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     }
   }
   function startPlacement() {
+    if (!homeReady) return showChapterDownloads();
     const open = () => setFlow('placement');
     if (!askForOrigin(travel, open)) open();
   }
   const finishFlow = () => {
     setFlow(null);
+    setTextbookUnit(undefined);
     setReviewMission(undefined);
     void refresh().catch((e) => setNotice(e.message));
     if (story) void refreshStory().catch((e) => setStoryError(e.message));
@@ -425,9 +446,34 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     return withSheets(
       <TextbookFlow
         completed={progress?.completedLessons ?? []}
+        initialUnitId={textbookUnit}
         onClose={finishFlow}
+        onFindDownloads={() => {
+          finishFlow();
+          showChapterDownloads();
+        }}
         onRefresh={() => void refresh().catch((e) => setNotice(e.message))}
         onVoiceSettings={openVoiceSettings}
+      />,
+    );
+  if (openedChapter)
+    return withSheets(
+      <ChapterPackView
+        key={openedChapter}
+        chapterId={openedChapter}
+        onClose={() => setOpenedChapter(undefined)}
+        onAdventure={
+          homeReady && openedChapter === chapter.id
+            ? () => {
+                setOpenedChapter(undefined);
+                startStory();
+              }
+            : undefined
+        }
+        onOpenTextbookUnit={(unitId) => {
+          setTextbookUnit(unitId);
+          setFlow('textbook');
+        }}
       />,
     );
   if (story && !passport)
@@ -471,6 +517,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
 
   function go(next: Tab) {
     setTab(next);
+    setOpenedChapter(undefined);
     setPassport(false);
     storySession.current++;
     setStory(null);
@@ -604,6 +651,26 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   }}
                 />
               </View>
+            ) : !homeReady && (tab === 'Inicio' || tab === 'Aprender') ? (
+              <JournalLeaf style={{ gap: 12 }}>
+                <Heading>La primera postal</Heading>
+                <Label>
+                  Descarga el capítulo para abrir la aventura y sus lecciones sin conexión.
+                </Label>
+                <ChapterDownload
+                  chapterId={chapter.id}
+                  onOpen={setOpenedChapter}
+                  onInstalled={onChapterInstalled}
+                />
+                <Button variant="secondary" onPress={showChapterDownloads}>
+                  Ver todos los capítulos
+                </Button>
+                {tab === 'Aprender' && (
+                  <Button variant="ghost" onPress={() => setFlow('textbook')}>
+                    Cursos A1–A2
+                  </Button>
+                )}
+              </JournalLeaf>
             ) : tab === 'Inicio' && progress ? (
               <TravelHome
                 travel={travel}
@@ -618,6 +685,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onPassport={() => setPassport(true)}
                 onSpeech={() => setFlow('speech')}
                 onFullReview={() => setFlow('reviews')}
+                onOpenChapter={setOpenedChapter}
+                onChapterInstalled={onChapterInstalled}
               />
             ) : tab === 'Mapa' ? (
               <TravelRoute
@@ -631,6 +700,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onAdventure={startStory}
                 onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
+                onOpenChapter={setOpenedChapter}
+                onChapterInstalled={onChapterInstalled}
               />
             ) : tab === 'Aprender' ? (
               <TravelGuide

@@ -142,7 +142,8 @@ async function boundedText(response: Response) {
     throw new Error('El paquete supera el tamaño permitido de 4 MB.');
   return text;
 }
-/** The only application network request: an explicit user-started GitHub course download. */
+/** User-started legacy course download from GitHub.
+ * Descarga del curso original desde GitHub iniciada por el usuario. */
 export async function downloadAndInstallCourse(urlInput: string) {
   const url = validateGitHubCourseDownloadUrl(urlInput);
   const controller = new AbortController();

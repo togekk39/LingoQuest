@@ -470,7 +470,7 @@ export function ChallengesScreen({
                 </Text>
                 <Action
                   label={
-                    item.id === 'present_simple'
+                    item.id === 'present_simple' && item.available !== false
                       ? 'Ver los 13 niveles del curso'
                       : item.available
                         ? item.unlocked
@@ -478,7 +478,9 @@ export function ChallengesScreen({
                           : 'Completa el capítulo primero'
                         : 'En preparación'
                   }
-                  disabled={item.id !== 'present_simple' && (!item.available || !item.unlocked)}
+                  disabled={
+                    item.available === false || (item.id !== 'present_simple' && !item.unlocked)
+                  }
                   secondary
                   onPress={() => openTrack(item)}
                 />

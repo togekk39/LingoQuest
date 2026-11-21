@@ -2,7 +2,7 @@
 
 [English](APK_BUILDS.md)
 
-El flujo **Android APK** en GitHub Actions compila un APK independiente con Java 17, Android SDK y Build Tools 36, NDK 27.1.12297006 y CMake 3.22.1. Usa Node.js 24 y el proyecto nativo generado por Expo. Incluye Hermes, el curso, fuentes, mapa, ilustraciones y audio del primer capítulo. Es compatible con Android 7 o posterior en `arm64-v8a` y `armeabi-v7a`.
+El flujo **Android APK** en GitHub Actions compila un APK independiente con Java 17, Android SDK y Build Tools 36, NDK 27.1.12297006 y CMake 3.22.1. Usa Node.js 24 y el proyecto nativo generado por Expo. Incluye Hermes y los recursos locales de la interfaz. Descarga o importa un paquete de capítulo para cargar el curso, las ilustraciones, el mapa y el audio. Es compatible con Android 7 o posterior en `arm64-v8a` y `armeabi-v7a`.
 
 Desde el flujo ejecutado para el commit correspondiente, descarga el artefacto `lingoquest-apk-<número>-<commit>`. Extrae el ZIP e instala el APK. El ZIP incluye la suma SHA-256 y `build-info.json`. GitHub requiere inicio de sesión para descargar artefactos. La retención es de 30 días.
 

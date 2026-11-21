@@ -22,6 +22,20 @@ export async function getRaw(key: string) {
 export async function putRaw(key: string, value: string) {
   await (await db()).runAsync('INSERT OR REPLACE INTO cache(key,value) VALUES(?,?)', key, value);
 }
+export async function compareAndPutRaw(key: string, previous: string | null, value: string) {
+  const result = await (
+    await db()
+  ).runAsync(
+    `INSERT INTO cache(key, value)
+     SELECT ?, ? WHERE (SELECT value FROM cache WHERE key = ?) IS ?
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    key,
+    value,
+    key,
+    previous,
+  );
+  return result.changes === 1;
+}
 export async function keysRaw() {
   return (await (await db()).getAllAsync<{ key: string }>('SELECT key FROM cache')).map(
     (row) => row.key,

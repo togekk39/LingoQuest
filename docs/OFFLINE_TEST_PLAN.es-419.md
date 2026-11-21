@@ -4,6 +4,10 @@
 
 Consulta el [registro de verificación](VERIFICATION.es-419.md) para ver los resultados y límites de la automatización. Realiza estas comprobaciones sin iniciar Fastify, iniciar sesión ni conectar una cuenta en la nube.
 
+## Primer inicio en Android
+
+Instala sin datos locales y abre el APK en modo avión. Comprueba que se abran el catálogo de capítulos y los controles de importación. Descarga o importa la revisión 2 o posterior de **La primera postal**. Reinicia sin conexión y abre la aventura, la prueba de nivel y el curso.
+
 ## Bienvenida y misión inicial
 
 1. Con datos nuevos, abre la app a 320, 360 y 390 px. Repite con texto ampliado y tema oscuro. Comprueba que **Comenzar mi aventura** sea la acción principal y que la prueba opcional y el botón para cerrar sean accesibles. Elige un origen para abrir la escena de la plaza. Para abrir una lección directamente, entra en **Aprender → Lecciones**.
@@ -12,13 +16,13 @@ Consulta el [registro de verificación](VERIFICATION.es-419.md) para ver los res
 
 ## Vocabulario, misiones y repaso
 
-1. Guarda la app web en caché o instala el APK de vista previa y desconéctate. Llega a **Palabras del viaje** en una misión. Comprueba que cada ficha indique el significado en español, cuándo se usa la palabra y un ejemplo en ambos idiomas. Escucha la palabra y el ejemplo y cambia la velocidad. Abre **Aprender** para consultar el mismo material directamente.
+1. Guarda la app web en caché o instala el paquete del capítulo en Android y desconéctate. Llega a **Palabras del viaje** en una misión. Comprueba que cada ficha indique el significado en español, cuándo se usa la palabra y un ejemplo en ambos idiomas. Escucha la palabra y el ejemplo y cambia la velocidad. Abre **Aprender** para consultar el mismo material directamente.
 2. Sal a mitad del vocabulario, vuelve y comprueba que aparezca la misma ficha. Repite después de escribir una respuesta parcial, al ver la devolución y después de recibir el sello. Cambia entre misiones disponibles y comprueba que el borrador anterior reaparezca al volver.
 3. Comete dos errores de concordancia con `be` en las escenas de presentación. Comprueba la explicación en español, el refuerzo en otra escena y el nuevo intento sin la respuesta visible. Revisa en **Mis habilidades** que las respuestas con ayuda y las independientes queden registradas por separado.
 4. Escucha a Sam con el audio incluido, prueba abrir la transcripción y escribe la siguiente indicación que escuches. Prueba la comparación de audio después del reconocimiento y la opción de omitir sin micrófono. Comprueba que esa alternativa deje la expresión oral sin evaluar. Completa el capítulo y revisa que el pasaporte, la postal y el diario se conserven, con un solo sello.
 5. Abre **Repaso rápido**, guarda parte de una respuesta y vuelve al punto exacto de tu viaje. Vuelve a abrir el repaso y completa la respuesta. Después de un día, vuelve a **Repasar**, completa un ejercicio pendiente sin ayuda y revisa la evidencia de recuerdo diferido en **Mis habilidades**.
 6. Abre el manual de gramática desde **Aprender** y compara dos patrones. En modo avión, abre **Cursos A1–A2**, consulta el material de referencia y retoma una lección anterior desde un borrador.
-7. Elige tu lugar de origen en el mapa. Revisa las 20 paradas y el destino final en Ushuaia y la Antártida. Las paradas futuras deben indicar **En preparación**.
+7. Elige tu lugar de origen en el mapa. Revisa las 20 paradas y el destino final en Ushuaia y la Antártida. Comprueba que cada parada ofrezca la descarga de su capítulo.
 
 ## Desafíos, respaldos y pruebas nativas
 

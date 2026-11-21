@@ -11,6 +11,7 @@ import React, { useContext, useEffect, useImperativeHandle, useRef, useState } f
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import {
+  getAvailableChapterAudio,
   getSpeechPreferences,
   speakOffline,
   stopOfflineSpeech,
@@ -24,6 +25,7 @@ export type SpeakingPanelHandle = { stop: () => void };
 
 export function SpeakingPanel({
   text,
+  chapterId,
   displayText,
   onDone,
   onPlay,
@@ -38,6 +40,7 @@ export function SpeakingPanel({
   ref,
 }: {
   text: string;
+  chapterId?: string;
   displayText?: string;
   onDone: (method?: SpeakingPracticeMethod) => void;
   onPlay?: () => void;
@@ -62,7 +65,7 @@ export function SpeakingPanel({
   const showRecognition = android || systemSelected;
   const player = useAudioPlayer(null);
   const [message, setMessage] = useState('');
-  const { playOffline, speechMessage } = useOfflineSpeech();
+  const { playOffline, speechMessage, stop: stopAudio } = useOfflineSpeech(chapterId);
   const [comparing, setComparing] = useState(false);
   const comparison = useRef<AbortController | null>(null);
   const transcriptPanel = useRef<View>(null);
@@ -113,6 +116,7 @@ export function SpeakingPanel({
   function stopPractice() {
     try {
       stopComparison();
+      stopAudio();
       onStopReference?.();
     } finally {
       stt.cancel();
@@ -140,16 +144,28 @@ export function SpeakingPanel({
     setComparing(true);
     setMessage('');
     try {
+      stopAudio();
       onStopReference?.();
       await stopOfflineSpeech();
       if (run.signal.aborted) return;
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       if (run.signal.aborted) return;
-      const clip = audioClips[text];
-      const preferences = await getSpeechPreferences();
-      const played = clip
-        ? await playPracticeClip(player, clip, preferences.rate ?? 1, run.signal)
-        : await speakOffline(text);
+      const [downloaded, preferences] = await Promise.all([
+        getAvailableChapterAudio(chapterId, text),
+        getSpeechPreferences(),
+      ]);
+      if (run.signal.aborted) return;
+      const rate = preferences.rate ?? 1;
+      const downloadedPlayed =
+        downloaded &&
+        (await playPracticeClip(player, downloaded, rate, run.signal).catch(() => false));
+      if (run.signal.aborted) return;
+      const bundled = audioClips[text];
+      const played =
+        downloadedPlayed ||
+        (bundled
+          ? await playPracticeClip(player, bundled, rate, run.signal)
+          : await speakOffline(text));
       if (!played && !run.signal.aborted) throw new Error('Reference audio unavailable');
       if (played && !run.signal.aborted) {
         await playPracticeClip(player, { uri }, 1, run.signal);
@@ -212,6 +228,7 @@ export function SpeakingPanel({
               else {
                 setMessage('');
                 void stt.start(() => {
+                  stopAudio();
                   onStopReference?.();
                   pausePracticePlayback(player, Platform.OS);
                 });
