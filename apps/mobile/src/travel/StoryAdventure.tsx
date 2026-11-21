@@ -389,6 +389,7 @@ export function StoryAdventure({
           playerName={playerName}
           onUpdate={onLessonUpdate}
           embedded={{
+            entryStepId: encounter.entryStepId,
             translationsVisible,
             onToggleTranslation: toggleTranslation,
           }}

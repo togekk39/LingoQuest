@@ -47,7 +47,7 @@ export type TravelStep =
       exampleLabel?: string;
       text: string;
       examples: Translation[];
-      presentation?: 'question-answer';
+      presentation?: 'question-answer' | 'reply-briefing';
       patterns?: TravelPattern[];
     }
   | TravelExerciseStep
@@ -174,7 +174,7 @@ function adjacentLocation(subjects: string[], reference: string) {
 
 export const chapter: TravelChapter = {
   id: 'home',
-  revision: 2,
+  revision: 3,
   title: 'La primera postal',
   stamp: 'Primer encuentro',
   postcard: 'Una postal para el camino',
@@ -229,8 +229,8 @@ export const chapter: TravelChapter = {
         {
           id: 'hello_welcome',
           type: 'dialogue',
-          speaker: 'Luz',
-          text: 'Trabajo en la mesa de bienvenida. Sam viene con un boleto. Escucha cómo se presenta. Luego te muestro cómo responder con tu propio nombre.',
+          speaker: 'Sam',
+          text: '¡Hola! Acabo de llegar a la plaza. Escucha mi pregunta y luego dime cómo te llamas.',
         },
         {
           id: 'hello_sam',
@@ -242,31 +242,27 @@ export const chapter: TravelChapter = {
         {
           id: 'hello_teach',
           type: 'teach',
-          title: 'Decir tu nombre',
-          exampleLabel: 'Ejemplo de Luz',
-          speaker: 'Luz',
-          text: 'Para responderle a Sam, saluda con Hi o Hello. Luego usa I am o My name is y agrega tu propio nombre. Con I va am y con My name va is. También puedes usar I’m o My name’s. En mis ejemplos, I se refiere a mí, Luz. Cuando tú respondes, I se refiere a ti.',
+          presentation: 'reply-briefing',
+          title: 'Prepara tu respuesta para Sam',
+          text: 'Hi y Hello significan «hola». Para responderle a Sam, empieza con uno de esos saludos. Luego usa I am, I’m, My name is o My name’s y completa con tu nombre. Con I va am y con My name va is.',
           examples: [
-            { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
-            { en: 'My name is Luz.', es: 'Me llamo Luz.' },
+            { en: 'I am', es: 'Soy' },
+            { en: 'My name is', es: 'Me llamo' },
           ],
           patterns: [
             {
               parts: [
-                { text: 'Hi!', role: 'Saludo' },
                 { text: 'I', role: 'Sujeto' },
                 { text: 'am', role: 'Verbo' },
-                { text: 'Luz.', role: 'Nombre' },
               ],
-              es: '¡Hola! Soy Luz.',
+              es: 'Soy',
             },
             {
               parts: [
                 { text: 'My name', role: 'Sujeto' },
                 { text: 'is', role: 'Verbo' },
-                { text: 'Luz.', role: 'Nombre' },
               ],
-              es: 'Me llamo Luz.',
+              es: 'Me llamo',
             },
           ],
         },
@@ -274,11 +270,14 @@ export const chapter: TravelChapter = {
           id: 'travel_hello_recognize',
           type: 'exercise',
           activityTitle: 'Reconoce el saludo de Sam',
-          situation: 'Sam empieza con «Hi!». Identifica lo que dijo para saber cómo responderle.',
+          situation: 'Escucha a Sam y reconoce cómo empieza la conversación.',
+          audio: samGreeting.en,
+          transcript: samGreeting.en,
+          listeningButton: 'Escuchar el saludo de Sam',
           exercise: {
             id: 'travel_hello_recognize',
             type: 'meaning',
-            promptEs: '¿Qué significa «Hi!»?',
+            promptEs: '¿Qué significa el primer saludo de Sam?',
             skillId: 'grammar.be_i_you',
             dimension: 'vocabulary_recognition',
             vocabularyIds: ['u01_l01_v02'],
@@ -303,20 +302,20 @@ export const chapter: TravelChapter = {
         {
           id: 'travel_hello_build',
           type: 'exercise',
-          activityTitle: 'Lee el ejemplo de Luz',
-          situation: 'En su tarjeta, Luz dice «Soy Luz». Ordena las palabras de su ejemplo.',
+          activityTitle: 'Ordena tu respuesta para Sam',
+          situation:
+            'Prepara una respuesta con I am. La ficha «[tu nombre]» es el lugar donde va tu nombre.',
           hint: 'Empieza con la persona que habla. Luego pon el verbo y, al final, el nombre.',
           exercise: {
             id: 'travel_hello_build',
             type: 'reorder',
-            promptEs: '¿Cómo se presenta Luz en inglés?',
+            promptEs: 'Ordena las fichas para decir «Soy [tu nombre]».',
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_understanding',
             difficulty: 1,
-            tokens: ['Luz', 'I', 'am'],
-            acceptedAnswers: ['I am Luz.'],
-            feedbackEs:
-              'En el ejemplo de Luz, I se refiere a Luz. I va primero y am va antes del nombre.',
+            tokens: ['am', '[tu nombre]', 'I'],
+            acceptedAnswers: ['I am [tu nombre].'],
+            feedbackEs: 'I se refiere a ti. Pon I primero, después am y al final tu nombre.',
             learning: {
               conceptId: 'introduction',
               skill: 'grammar',
@@ -382,7 +381,7 @@ export const chapter: TravelChapter = {
           response: 'personal-introduction',
           activityTitle: 'Tu ficha en el puesto de fotos',
           situation:
-            'En otro puesto de la plaza hacen fotos. La persona que toma las fotos te pide que te presentes en su ficha.',
+            'Sam quiere una foto de recuerdo del viaje. En el puesto de fotos te piden que te presentes para anotar tu nombre en tu ficha.',
           exercise: {
             id: 'travel_hello_transfer',
             type: 'short_text',
@@ -403,9 +402,9 @@ export const chapter: TravelChapter = {
         {
           id: 'hello_speak',
           type: 'speak',
-          text: 'Saluda a Sam y preséntate con tu propio nombre.',
-          phrase: 'Hi! I am Luz.',
-          exampleLabel: 'Ejemplo de Luz',
+          text: 'Vuelves con Sam. Saluda a Sam y preséntate con tu propio nombre en voz alta.',
+          phrase: 'Hi! I am',
+          exampleLabel: 'Tu modelo para responder',
           response: 'personal-introduction',
           learning: {
             conceptId: 'introduction',
@@ -468,7 +467,6 @@ export const chapter: TravelChapter = {
         {
           id: 'bus_teach',
           type: 'teach',
-          speaker: 'Luz',
           presentation: 'question-answer',
           title: 'Ubicar un lugar',
           text: 'En «Where is the bus stop?», is va antes del lugar que buscas. En la respuesta, it se refiere a la parada. It’s es la forma corta de It is. Next to significa «junto a». Usa the cuando las dos personas saben de qué lugar hablan.',
@@ -708,7 +706,6 @@ export const chapter: TravelChapter = {
         {
           id: 'bag_teach',
           type: 'teach',
-          speaker: 'Luz',
           title: 'Describir con colores',
           text: 'My bag es «mi mochila». Usa my delante del nombre del objeto para decir que algo es tuyo. En My bag is blue, is une la mochila con su color. Si ya sabemos qué objeto describes, puedes decir It’s blue.',
           examples: [

@@ -128,15 +128,16 @@ test('travel sentences and words autoplay bundled audio when a system voice is u
   await click(page, 'Siguiente palabra');
   await expect.poll(() => clipPlays('word-2')).toBe(1);
   await click(page, 'Siguiente palabra');
+  const beforeGrammar = (await playback()).length;
   await click(page, 'Ver la explicación');
   await expect
     .poll(async () =>
-      (await playback()).flatMap(({ event, src }) => {
-        const clip = src.match(/\/(line-[23])\./)?.[1];
+      (await playback()).slice(beforeGrammar).flatMap(({ event, src }) => {
+        const clip = src.match(/\/(word-[23])\./)?.[1];
         return clip ? [`${clip} ${event}`] : [];
       }),
     )
-    .toEqual(['line-2 start', 'line-2 end', 'line-3 start', 'line-3 end']);
+    .toEqual(['word-2 start', 'word-2 end', 'word-3 start', 'word-3 end']);
   await expect(page.getByRole('tab', exact('Ejemplo 2'))).toHaveAttribute('aria-selected', 'true');
 });
 
@@ -148,25 +149,20 @@ test('manually selecting a grammar example cancels the remaining autoplay', asyn
     page.evaluate(() => (window as any).__speechCalls.map((call: { text: string }) => call.text));
   await page.getByRole('tab', exact('Aprender')).click();
   await click(page, 'Manual de gramática');
-  await expect.poll(spoken).toEqual(['Hi! I am Luz.']);
+  await expect.poll(spoken).toEqual(['I am']);
   await page.getByRole('tab', exact('Ejemplo 2')).click();
   await page.evaluate(() => {
     const fixture = window as any;
     fixture.__finishSpeech();
     fixture.__holdSpeech = false;
   });
-  expect(await spoken()).toEqual(['Hi! I am Luz.']);
+  expect(await spoken()).toEqual(['I am']);
   await click(page, 'Escuchar frase');
-  await expect.poll(spoken).toEqual(['Hi! I am Luz.', 'My name is Luz.']);
+  await expect.poll(spoken).toEqual(['I am', 'My name is']);
   await page.getByRole('tab', exact('Ubicar un lugar')).click();
   await expect
     .poll(spoken)
-    .toEqual([
-      'Hi! I am Luz.',
-      'My name is Luz.',
-      'Where is the bus stop?',
-      'It’s next to the park.',
-    ]);
+    .toEqual(['I am', 'My name is', 'Where is the bus stop?', 'It’s next to the park.']);
 });
 
 async function previewVoice(page: Page) {

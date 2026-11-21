@@ -23,6 +23,7 @@ export function useChapterAudio() {
       phrases: readonly string[],
       onSelect?: (index: number) => void,
       useBundledIfUnavailable = false,
+      fallbackPhrase?: string,
     ) => {
       playback.current?.abort();
       const controller = new AbortController();
@@ -41,12 +42,16 @@ export function useChapterAudio() {
           if (result.played) continue;
           if (!result.message) return;
 
-          const clip = audioClips[phrase];
+          const clip = audioClips[phrase] ?? (fallbackPhrase && audioClips[fallbackPhrase]);
           if (!clip || (preferences.voice !== null && !useBundledIfUnavailable)) {
             setSpeechMessage(result.message);
             continue;
           }
-          setSpeechMessage('Voz del sistema no disponible. Estás escuchando el audio incluido.');
+          setSpeechMessage(
+            fallbackPhrase && !audioClips[phrase]
+              ? 'Voz del sistema no disponible. Escucha el inicio y agrega tu nombre.'
+              : 'Voz del sistema no disponible. Estás escuchando el audio incluido.',
+          );
           if (!(await player.play(clip, preferences.rate ?? 1, signal))) return;
         }
       } catch {
@@ -59,8 +64,8 @@ export function useChapterAudio() {
     [player],
   );
   const play = useCallback(
-    (phrase: string, useBundledIfUnavailable = false) =>
-      playSequence([phrase], undefined, useBundledIfUnavailable),
+    (phrase: string, useBundledIfUnavailable = false, fallbackPhrase?: string) =>
+      playSequence([phrase], undefined, useBundledIfUnavailable, fallbackPhrase),
     [playSequence],
   );
   const stop = useCallback(() => {

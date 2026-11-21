@@ -265,11 +265,13 @@ export function AnswerFeedback({
   const { colors: palette, tone } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
-  const feedbackTitle = result.communicationOnly
-    ? 'Lograste comunicarte'
-    : result.correct
-      ? '¡Muy bien!'
-      : 'Buen intento. Veamos por qué…';
+  const feedbackTitle = result.identityMismatch
+    ? 'Usa tu nombre'
+    : result.communicationOnly
+      ? 'Lograste comunicarte'
+      : result.correct
+        ? '¡Muy bien!'
+        : 'Buen intento. Veamos por qué…';
   const submittedAnswer = exercise.matchingPairs?.length
     ? exercise.matchingPairs
         .map((pair) => {

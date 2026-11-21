@@ -59,6 +59,12 @@ test('travel speaking targets require complete phrases and accept the chapter va
   const matchesIntro = matchesPersonalIntroduction;
   const matchesBag = (text: string) => matchesSpeechTarget(text, bag.phrase, bag.acceptedPhrases);
   assert.equal(matchesIntro(''), false);
+  assert.equal(matchesIntro('Hi, I am Luz.', 'Ana'), false);
+  assert.equal(matchesIntro("Hi, I'm Ana.", 'Ana'), true);
+  assert.equal(matchesIntro('Hi, my name is Mai Linh Nguyen.', 'Mai-Linh Nguyễn'), true);
+  const mismatch = introductionFeedback('Hi, I am Luz.', 'Ana');
+  assert.match(mismatch.content, /otro nombre/);
+  assert.match(mismatch.grammar, /forma de presentación practicada/);
   assert.equal(matchesIntro('Hi!'), false);
   assert.equal(matchesIntro('Hi, my name’s Ana Pérez!'), true);
   assert.equal(matchesIntro('Hi, I’m Jean-Luc.'), true);

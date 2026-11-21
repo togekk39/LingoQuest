@@ -1,4 +1,9 @@
-import { meetsIntroduction, normalize, readIntroduction } from '@lingoquest/offline-engine';
+import {
+  matchesIntroductionName,
+  meetsIntroduction,
+  normalize,
+  readIntroduction,
+} from '@lingoquest/offline-engine';
 
 function speechText(value: string) {
   return normalize(value.replace(/[.,!?;:]/g, ' '))
@@ -18,24 +23,37 @@ export function matchesSpeechTarget(
   );
 }
 
-export function matchesPersonalIntroduction(transcript: string) {
-  return meetsIntroduction(readIntroduction(transcript, true), true);
+export function matchesPersonalIntroduction(transcript: string, playerName?: string) {
+  const response = readIntroduction(transcript, true);
+  return (
+    meetsIntroduction(response, true) &&
+    (!playerName || (!!response.name && matchesIntroductionName(response.name, playerName, true)))
+  );
 }
 
-export function introductionFeedback(transcript: string) {
-  const { greeting: hasGreeting, form, startsTarget, error } = readIntroduction(transcript, true);
+export function introductionFeedback(transcript: string, playerName?: string) {
+  const {
+    greeting: hasGreeting,
+    form,
+    startsTarget,
+    error,
+    name,
+  } = readIntroduction(transcript, true);
   const hasName = !!form;
 
   return {
-    content: error
-      ? 'Incluiste un nombre. Revisa la estructura de la presentación.'
-      : hasGreeting && hasName
-        ? 'El texto incluye un saludo y una presentación. Revisa si tu nombre quedó bien escrito.'
-        : hasGreeting
-          ? 'El texto incluye un saludo. Agrega tu nombre al presentarte.'
-          : hasName
-            ? 'El texto incluye una presentación. Empieza con Hi o Hello para saludar a Sam.'
-            : 'Saluda a Sam con Hi o Hello y preséntate con tu nombre.',
+    content:
+      playerName && name && !matchesIntroductionName(name, playerName, true)
+        ? `La transcripción usa otro nombre. Di tu nombre: ${playerName}.`
+        : error
+          ? 'Incluiste un nombre. Revisa la estructura de la presentación.'
+          : hasGreeting && hasName
+            ? 'El texto incluye un saludo y una presentación. Revisa si tu nombre quedó bien escrito.'
+            : hasGreeting
+              ? 'El texto incluye un saludo. Agrega tu nombre al presentarte.'
+              : hasName
+                ? 'El texto incluye una presentación. Empieza con Hi o Hello para saludar a Sam.'
+                : 'Saluda a Sam con Hi o Hello y preséntate con tu nombre.',
     grammar:
       error === 'be_agreement'
         ? 'Con I usa am y con My name usa is.'

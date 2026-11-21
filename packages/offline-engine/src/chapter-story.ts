@@ -354,6 +354,7 @@ export const chapterStory = {
       id: 'greet-sam',
       npcId: 'sam',
       missionId: 'hello',
+      entryStepId: 'hello_teach',
       onFinish: [
         { type: 'event', id: 'greeted-sam' },
         { type: 'giveItem', id: 'bus-ticket' },
@@ -408,8 +409,11 @@ export const chapterStory = {
     {
       id: 'sam-after-introduction',
       npcId: 'sam',
-      text: '¡Mucho gusto! ¿Me ayudas a encontrar la parada? Mi bus sale a las ocho. Compara el árbol de mi boleto con el del cartel de la plaza.',
-      line: { en: 'Where is the bus stop?', es: '¿Dónde está la parada de bus?' },
+      text: 'Sam te entrega su boleto. Su bus sale a las ocho. Compara el árbol del boleto con el del cartel de la plaza.',
+      line: {
+        en: 'Nice to meet you! Can you help me find the bus stop?',
+        es: '¡Mucho gusto! ¿Me ayudas a encontrar la parada del bus?',
+      },
       choices: [],
     },
     {
@@ -421,11 +425,16 @@ export const chapterStory = {
     {
       id: 'luz-welcome',
       npcId: 'luz',
-      text: 'Para presentarte en inglés, puedes decir «I am» o «My name is» y agregar tu nombre.',
+      text: 'Hi y Hello significan «hola». Para decir tu nombre, usa I am o My name is. En mi ejemplo, I se refiere a mí, Luz. Cuando le respondas a Sam, usa tu propio nombre.',
       line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
       exampleLabel: 'Ejemplo de Luz',
       tip: 'Empieza con «Hi!». Si usas «I», el verbo va como «am».',
       choices: [
+        {
+          id: 'practice-with-luz',
+          label: 'Practicar con el ejemplo de Luz',
+          effects: [{ type: 'dialogue', id: 'luz-introduction-practice' }],
+        },
         {
           id: 'ask-luz-about-origin',
           label: 'Preguntar por las postales',
@@ -442,11 +451,53 @@ export const chapterStory = {
       exampleLabel: 'Ejemplo de Luz',
       choices: [
         {
+          id: 'practice-with-luz',
+          label: 'Practicar con el ejemplo de Luz',
+          effects: [{ type: 'dialogue', id: 'luz-introduction-practice' }],
+        },
+        {
           id: 'ask-luz-about-origin-after-introduction',
           label: 'Preguntar por las postales',
           effects: [{ type: 'dialogue', id: 'origin-postcards' }],
         },
         { id: 'show-origin-sketch-after-introduction', ...showOriginSketch },
+      ],
+    },
+    {
+      id: 'luz-introduction-practice',
+      npcId: 'luz',
+      text: 'En mi ejemplo, ¿qué verbo va con I? Elige la palabra que completa I ___ Luz.',
+      choices: [
+        {
+          id: 'luz-practice-am',
+          label: 'am',
+          effects: [{ type: 'dialogue', id: 'luz-introduction-practice-feedback' }],
+        },
+        {
+          id: 'luz-practice-is',
+          label: 'is',
+          effects: [{ type: 'dialogue', id: 'luz-introduction-practice-retry' }],
+        },
+      ],
+    },
+    {
+      id: 'luz-introduction-practice-feedback',
+      npcId: 'luz',
+      text: 'Con I usamos am. En cambio, con My name usamos is. Ya puedes elegir la forma que prefieras para decirle tu nombre a Sam.',
+      line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
+      exampleLabel: 'Ejemplo de Luz',
+      choices: [],
+    },
+    {
+      id: 'luz-introduction-practice-retry',
+      npcId: 'luz',
+      text: 'Is funciona con My name. Si empiezas con I, usa am.',
+      choices: [
+        {
+          id: 'luz-practice-retry',
+          label: 'Volver al ejemplo',
+          effects: [{ type: 'dialogue', id: 'luz-introduction-practice' }],
+        },
       ],
     },
     {

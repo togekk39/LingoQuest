@@ -24,6 +24,8 @@ export type SpeakingPanelHandle = { stop: () => void };
 
 export function SpeakingPanel({
   text,
+  displayText,
+  fallbackReference,
   onDone,
   onPlay,
   onStopReference,
@@ -37,6 +39,8 @@ export function SpeakingPanel({
   ref,
 }: {
   text: string;
+  displayText?: string;
+  fallbackReference?: string;
   onDone: (method?: SpeakingPracticeMethod) => void;
   onPlay?: () => void;
   onStopReference?: () => void;
@@ -144,9 +148,13 @@ export function SpeakingPanel({
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       if (run.signal.aborted) return;
       const clip = audioClips[text];
-      const played = clip
-        ? await playPracticeClip(player, clip, (await getSpeechPreferences()).rate ?? 1, run.signal)
+      const preferences = await getSpeechPreferences();
+      let played = clip
+        ? await playPracticeClip(player, clip, preferences.rate ?? 1, run.signal)
         : await speakOffline(text);
+      const fallback = fallbackReference && audioClips[fallbackReference];
+      if (!played && !run.signal.aborted && fallback && fallback !== clip)
+        played = await playPracticeClip(player, fallback, preferences.rate ?? 1, run.signal);
       if (!played && !run.signal.aborted) throw new Error('Reference audio unavailable');
       if (played && !run.signal.aborted) {
         await playPracticeClip(player, { uri }, 1, run.signal);
@@ -165,7 +173,7 @@ export function SpeakingPanel({
       <Section title="Dale voz a lo que aprendiste.">
         <Text style={f.quiet}>
           {exampleLabel
-            ? 'Escucha el ejemplo. Luego saluda y di tu nombre en inglés.'
+            ? 'Escucha cómo empezar. Completa el saludo con tu propio nombre.'
             : 'Escucha el ejemplo y di la frase para comprobar tu respuesta.'}
         </Text>
         <Text style={f.eyebrow}>{exampleLabel ?? 'Tu frase para practicar'}</Text>
@@ -173,7 +181,7 @@ export function SpeakingPanel({
           {...(Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' })}
           style={s.reference}
         >
-          {text}
+          {displayText ?? text}
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -259,7 +267,7 @@ export function SpeakingPanel({
                 {passed
                   ? 'La frase reconocida cumple el objetivo.'
                   : matchesTranscript
-                    ? 'Falta un saludo, una forma de presentación o tu nombre. Inténtalo otra vez.'
+                    ? 'Revisa el saludo, la forma de presentación y el nombre en la transcripción.'
                     : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
               </Text>
             )}

@@ -191,6 +191,7 @@ export interface Progress {
 export interface AttemptResult {
   correct: boolean;
   communicationOnly?: true;
+  identityMismatch?: true;
   feedbackEs: string;
   acceptedAnswer?: string;
   errorType?: LearningError;

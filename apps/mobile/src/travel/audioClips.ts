@@ -1,5 +1,7 @@
 // Bundled en-US reference clips for the authored first chapter.
 // Audios de referencia en-US incluidos para el primer capítulo.
+import introductionStarter from '../../assets/travel/introduction-starter.mp3';
+import samAfterIntroduction from '../../assets/travel/sam-after-introduction.mp3';
 import samGreeting from '../../assets/travel/sam-greeting.mp3';
 import line1 from '../../assets/travel/line-1.mp3';
 import line2 from '../../assets/travel/line-2.mp3';
@@ -34,6 +36,8 @@ export const audioClips: Readonly<Record<string, number>> = {
   'My bag is blue.': line9,
   'a blue bag': line10,
   'It’s red.': line11,
+  'Hi! I am': introductionStarter,
+  'Nice to meet you! Can you help me find the bus stop?': samAfterIntroduction,
   Hi: word1,
   'I am': word2,
   'My name is': word3,

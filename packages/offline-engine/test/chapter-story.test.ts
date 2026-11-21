@@ -131,7 +131,9 @@ test('story launch restores a pre-RPG format-2 checkpoint and is atomic on write
   storage.setFailure(false);
   const opened = await storage.open().request<StoryResponse>(storyPath, introduce);
   assert.equal(opened.story.encounter?.missionId, 'hello');
-  assert.deepEqual(opened.travel, saved);
+  assert.equal(saved.active?.stepId, 'hello_sam');
+  assert.equal(opened.travel.active?.stepId, 'hello_teach');
+  assert.deepEqual(opened.travel.active?.answer, saved.active?.answer);
   assert.deepEqual(await storage.open().request(storyPath, introduce), opened);
 
   const pending = { action: 'finishEncounter', turn: opened.story.turn };
@@ -313,4 +315,95 @@ test('Luz search route requires canonical learning and item use before one passp
   assert.equal(reviewCompleted.story?.quests['review-bag'].status, 'completed');
   assert.deepEqual(await engine.request(reviewPath, submission), reviewed);
   assert.deepEqual(storage.state(), reviewCompleted);
+});
+
+test('Sam separates story identity from English evidence and remembers an unset player’s chosen name', async () => {
+  for (const [profile, name] of [
+    ['Ana O’Connor', 'Ana O’Connor'],
+    ['  Mai-Linh Nguyễn  ', 'Mai-Linh Nguyễn'],
+    [undefined, 'Amaya'],
+  ] as const) {
+    const storage = device();
+    const engine = storage.open();
+    if (profile)
+      await engine.request('/v1/me/settings', {
+        name: profile,
+        goalMinutes: 10,
+        reducedMotion: false,
+      });
+    let snapshot = await engine.request<StoryResponse>(storyPath);
+    snapshot = await engine.request<StoryResponse>(storyPath, {
+      action: 'interact',
+      hotspotId: 'plaza-sam',
+      turn: snapshot.story.turn,
+    });
+    snapshot = await engine.request<StoryResponse>(storyPath, {
+      action: 'choose',
+      choiceId: 'introduce-yourself',
+      turn: snapshot.story.turn,
+    });
+    assert.equal(snapshot.travel.active?.stepId, 'hello_teach');
+    let current = (await finishLesson(engine, 'travel_hello_write')).active!;
+    async function gradeReply(text: string) {
+      return journey(engine, { action: 'answer', token: current.token, answer: { text } });
+    }
+    if (profile) {
+      const wrongName = await gradeReply('Hi! I am Luz.');
+      const result = wrongName.active?.result;
+      assert.equal(result?.correct, false);
+      assert.equal(result?.identityMismatch, true);
+      assert.equal(result?.errorType, undefined);
+      assert.match(result?.feedbackEs ?? '', /La estructura en inglés es correcta/);
+      const record = storage
+        .state()
+        .travelLearning?.targets.find(
+          (item) => item.conceptId === 'introduction' && item.skill === 'writing',
+        );
+      assert.equal(record?.successes.production?.independent, 1);
+      assert.deepEqual(record?.errors, {});
+      assert.equal(record?.communicationSuccesses ?? 0, 0);
+      assert.deepEqual(
+        await journey(engine, { action: 'advance', token: current.token }),
+        wrongName,
+      );
+      current = (await journey(engine, { action: 'retry', token: current.token })).active!;
+      assert.equal(current.hint, false);
+    }
+    const correct = await gradeReply(`Hello! My name is ${name}.`);
+    assert.equal(correct.active?.result?.correct, true);
+    if (!profile) {
+      assert.equal(correct.introductionName, name);
+      assert.equal((await journey(storage.open())).introductionName, name);
+      assert.equal(storage.state().user.name, 'Explorador');
+    }
+    current = (await journey(engine, { action: 'advance', token: current.token })).active!;
+    const transfer = await gradeReply(`I'm ${name}.`);
+    assert.equal(transfer.active?.stepId, 'travel_hello_transfer');
+    assert.equal(transfer.active?.result?.correct, true);
+  }
+});
+
+test('an unfinished tile draft keeps its order when the name tile becomes personal', async () => {
+  const storage = device();
+  const engine = storage.open();
+  const backup = await engine.request<{ state: OfflineState }>('/v1/me/export');
+  backup.state.travel = {
+    completed: {},
+    stamps: {},
+    active: {
+      missionId: 'hello',
+      contentRevision: 2,
+      step: chapter.missions[0].steps.findIndex(({ id }) => id === 'travel_hello_build'),
+      token: 'old-name-tiles',
+      answer: { tokens: ['I', 'Luz'] },
+      finished: false,
+      hint: false,
+      transcript: false,
+    },
+  };
+  await storage.reopen(backup);
+  const restored = await journey(storage.open());
+  assert.equal(restored.active?.stepId, 'travel_hello_build');
+  assert.equal(restored.active?.token, 'old-name-tiles');
+  assert.deepEqual(restored.active?.answer.tokens, ['I', '[tu nombre]']);
 });

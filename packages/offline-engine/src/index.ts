@@ -19,7 +19,12 @@ import {
   type User,
 } from '@lingoquest/contracts';
 import { chapter, travelLesson } from './travel-content';
-import { meetsIntroduction, readIntroduction } from './introduction';
+import {
+  matchesIntroductionName,
+  meetsIntroduction,
+  playerIntroductionName,
+  readIntroduction,
+} from './introduction';
 import { chapterStory } from './chapter-story';
 import {
   emptyStory,
@@ -64,7 +69,12 @@ import {
   type TravelState,
 } from './travel';
 export { activeTravelCourse } from './travel-challenges';
-export { meetsIntroduction, readIntroduction } from './introduction';
+export {
+  matchesIntroductionName,
+  meetsIntroduction,
+  playerIntroductionName,
+  readIntroduction,
+} from './introduction';
 export { chapter } from './travel-content';
 export { learningSkills, travelConcepts, travelCurriculum } from './travel-curriculum';
 export type { TravelReviewRow } from './travel-review';
@@ -724,6 +734,7 @@ export class OfflineEngine {
     content: CourseData,
     input: AttemptInput,
     aids: LearningAid[] = [],
+    playerName?: string,
   ) {
     const parsed = attemptSchema.parse(input);
     const fingerprint = JSON.stringify(parsed);
@@ -751,23 +762,36 @@ export class OfflineEngine {
       exercise.introduction && parsed.answer.text !== undefined
         ? readIntroduction(parsed.answer.text)
         : undefined;
+    const identityMismatch = !!(
+      playerName &&
+      introduction?.name &&
+      (introduction.greeting || !exercise.introduction?.greetingRequired) &&
+      !matchesIntroductionName(introduction.name, playerName)
+    );
+    const identityFeedback = `Usa tu propio nombre para presentarte: ${playerName}.`;
+    const model =
+      exercise.introduction && playerName
+        ? exercise.introduction.model.replace('[tu nombre]', () => playerName)
+        : displayedAnswer(exercise);
     if (learning && !correct && alternative && parsed.answer.text !== undefined) {
       const response = normalize(parsed.answer.text);
       const communicates = introduction
         ? introduction.form === 'alternative' &&
           (introduction.greeting || !exercise.introduction?.greetingRequired)
         : alternative.answers.some((answer) => normalize(answer) === response);
-      if (communicates) {
+      if (communicates && !identityMismatch) {
         recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning, {
           exerciseId: exercise.id,
           now,
         });
         if (!state.learningDays.includes(date)) state.learningDays.push(date);
+      }
+      if (communicates) {
         const result: AttemptResult = {
           correct: false,
-          communicationOnly: true,
-          feedbackEs: alternative.feedbackEs,
-          acceptedAnswer: displayedAnswer(exercise),
+          ...(identityMismatch ? { identityMismatch: true } : { communicationOnly: true }),
+          feedbackEs: identityMismatch ? identityFeedback : alternative.feedbackEs,
+          acceptedAnswer: model,
           xpAwarded: 0,
           pending: false,
         };
@@ -792,7 +816,7 @@ export class OfflineEngine {
         now,
       );
     }
-    if (learning && correct && alternative)
+    if (learning && correct && alternative && !identityMismatch)
       recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning);
     let visited = own(state.visitedExercises, lesson.id);
     if (!visited) {
@@ -876,9 +900,12 @@ export class OfflineEngine {
       state.reviewRewards.push(evidenceKey);
     }
     const result: AttemptResult = {
-      correct,
-      feedbackEs: `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${exercise.feedbackEs}`,
-      acceptedAnswer: displayedAnswer(exercise),
+      correct: correct && !identityMismatch,
+      identityMismatch: identityMismatch ? true : undefined,
+      feedbackEs: identityMismatch
+        ? `La estructura en inglés es correcta. ${identityFeedback}`
+        : `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${exercise.feedbackEs}`,
+      acceptedAnswer: model,
       errorType,
       xpAwarded,
       pending: false,
@@ -897,15 +924,27 @@ export class OfflineEngine {
     const params = new URLSearchParams(query);
     const now = this.clock();
     const done = (value: unknown) => ({ state, value });
-    const changeTravel = (travel: TravelState, operation: unknown) =>
+    const changeTravel = (travel: TravelState, operation: unknown, entryStepId?: string) =>
       updateTravel(
         travel,
         operation,
         now,
         this.id,
-        (input, aids) => this.attempt(state, content, input, aids),
+        (input, aids) => {
+          const identifiesPlayer =
+            input.exerciseId === 'travel_hello_write' ||
+            input.exerciseId === 'travel_hello_transfer';
+          const playerName = identifiesPlayer
+            ? (playerIntroductionName(state.user.name) ?? travel.introductionName)
+            : undefined;
+          const result = this.attempt(state, content, input, aids, playerName);
+          if (identifiesPlayer && !playerName && (result.correct || result.communicationOnly))
+            travel.introductionName = readIntroduction(input.answer.text ?? '').name;
+          return result;
+        },
         (target, practice) =>
           recordSpeakingPractice((state.travelLearning ??= { targets: [] }), target, practice),
+        entryStepId,
       );
     if (route.startsWith('/v1/auth/') || route.startsWith('/v1/sync/'))
       throw new LocalError(
@@ -968,9 +1007,16 @@ export class OfflineEngine {
       }
       const context = storyContext(story, travel, state.travelLearning);
       const view = readStory(chapterStory, story, context);
-      if (launch && view.encounter && !view.encounter.ready) {
-        const { missionId } = view.encounter;
-        changeTravel(travel, { action: 'start', missionId });
+      if (
+        view.encounter &&
+        !view.encounter.ready &&
+        (launch ||
+          (view.encounter.entryStepId &&
+            !view.encounter.suspended &&
+            travel.active?.missionId === view.encounter.missionId))
+      ) {
+        const { missionId, entryStepId } = view.encounter;
+        changeTravel(travel, { action: 'start', missionId }, entryStepId);
         if (travel.active?.missionId !== missionId)
           throw new LocalError('Completa la misión anterior para continuar.', 409);
       }

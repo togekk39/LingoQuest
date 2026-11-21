@@ -152,14 +152,16 @@ export function TravelFlow({
   onPassport: () => void;
   onVoiceSettings: () => void;
   onReview?: (missionId: string) => void;
-  embedded?: StoryTranslation;
+  embedded?: StoryTranslation & { entryStepId?: string };
   ref?: React.Ref<TravelFlowHandle>;
 }) {
   const [current, setCurrent] = useState(initial);
   const [answer, setAnswer] = useState<ExerciseAnswer>(initial.answer);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [returning, setReturning] = useState(!initial.finished && initial.step > 0);
+  const [returning, setReturning] = useState(
+    !initial.finished && initial.step > 0 && initial.stepId !== embedded?.entryStepId,
+  );
   const { colors: C } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
@@ -170,6 +172,8 @@ export function TravelFlow({
   const mission: TravelMission = chapter.missions.find((m) => m.id === current.missionId)!;
   const step = mission.steps[current.step];
   const inline = !!embedded;
+  const briefing = inline && step.type === 'teach' && step.presentation === 'reply-briefing';
+  const requiredReply = step.type === 'exercise' && step.response === 'personal-introduction';
   const speaker = step.type === 'dialogue' || step.type === 'teach' ? step.speaker : undefined;
   const personalResponse =
     (step.type === 'exercise' || step.type === 'speak') &&
@@ -177,14 +181,22 @@ export function TravelFlow({
   const responseContext = personalResponse && (
     <View style={{ gap: 3 }}>
       <Text style={f.eyebrow}>Tu respuesta</Text>
-      {!!playerName && <Label style={f.quiet}>Tu nombre en el perfil: {playerName}</Label>}
+      {!!playerName && <Label style={f.quiet}>Tu nombre: {playerName}</Label>}
     </View>
   );
   const Section = inline ? StoryActivity : Notebook;
   const { play, playSequence, stop, speechMessage } = useChapterAudio();
   const wordIndex = current.word ?? 0;
   const word =
-    !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
+    !current.finished && !briefing && step.type === 'teach'
+      ? mission.vocabulary[wordIndex]
+      : undefined;
+  const speakingModel =
+    step.type === 'speak' && personalResponse
+      ? playerName
+        ? `Hi! I am ${playerName}.`
+        : `${step.phrase} [tu nombre].`
+      : undefined;
   const line = !current.finished && step.type === 'dialogue' ? step.line : undefined;
   const referenceAudio =
     word?.term ??
@@ -319,11 +331,14 @@ export function TravelFlow({
             Intentar otra vez
           </Action>
         )}
-        <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
-          {current.result.correct || current.result.communicationOnly
-            ? 'Seguir la historia'
-            : 'Usar la respuesta de QuestBuddy'}
-        </Action>
+        {!current.result.identityMismatch &&
+          (!requiredReply || current.result.correct || current.result.communicationOnly) && (
+            <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
+              {current.result.correct || current.result.communicationOnly
+                ? 'Seguir la historia'
+                : 'Usar la respuesta de QuestBuddy'}
+            </Action>
+          )}
       </View>
     ) : (
       <Action
@@ -352,9 +367,11 @@ export function TravelFlow({
     <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
       {lastStep
         ? 'Completar misión'
-        : step.type === 'teach'
-          ? 'Probar en la historia'
-          : 'Continuar'}
+        : briefing
+          ? 'Escuchar a Sam'
+          : step.type === 'teach'
+            ? 'Probar en la historia'
+            : 'Continuar'}
     </Action>
   ) : undefined;
 
@@ -363,11 +380,14 @@ export function TravelFlow({
   const feedback = step.type === 'exercise' && current.result && (
     <View ref={feedbackView} collapsable={false} style={{ gap: 8 }}>
       <AnswerFeedback result={current.result} exercise={step.exercise} answer={current.answer} />
-      {review && !current.result.correct && !current.result.communicationOnly && (
-        <Button variant="ghost" icon={RotateCcw} disabled={busy} onPress={review}>
-          Repasar en otra escena
-        </Button>
-      )}
+      {review &&
+        !current.result.correct &&
+        !current.result.identityMismatch &&
+        !current.result.communicationOnly && (
+          <Button variant="ghost" icon={RotateCcw} disabled={busy} onPress={review}>
+            Repasar en otra escena
+          </Button>
+        )}
     </View>
   );
   const content = (
@@ -558,23 +578,40 @@ export function TravelFlow({
             <SpeakingPanel
               ref={speaking}
               inline={inline}
-              text={step.phrase}
+              text={playerName && speakingModel ? speakingModel : step.phrase}
+              displayText={speakingModel}
+              fallbackReference={personalResponse ? step.phrase : undefined}
               onDone={(practice) => {
                 if (practice) void act({ action: 'speak', token: current.token, practice });
                 else advance();
               }}
-              onPlay={() => void play(step.phrase, true)}
+              onPlay={() =>
+                void play(
+                  playerName && speakingModel ? speakingModel : step.phrase,
+                  true,
+                  step.phrase,
+                )
+              }
               onStopReference={stop}
               acceptedPhrases={step.acceptedPhrases}
               exampleLabel={step.exampleLabel}
-              matchesTranscript={personalResponse ? matchesPersonalIntroduction : undefined}
+              matchesTranscript={
+                personalResponse
+                  ? (text) => matchesPersonalIntroduction(text, playerName)
+                  : undefined
+              }
               story={{
-                continueLabel: lastStep ? 'Completar misión' : 'Seguir la historia',
+                continueLabel:
+                  personalResponse && inline
+                    ? 'Responder a Sam'
+                    : lastStep
+                      ? 'Completar misión'
+                      : 'Seguir la historia',
                 saving: busy,
               }}
               feedback={
                 step.learning.conceptId === 'introduction'
-                  ? introductionFeedback
+                  ? (transcript) => introductionFeedback(transcript, playerName)
                   : (transcript) => drillFeedback(transcript, step.phrase)
               }
             />

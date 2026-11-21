@@ -110,7 +110,7 @@ test('the grammar handbook compares examples offline and reflows with enlarged t
   await workbench.getByRole('tab', exact('Ejemplo 1')).click();
   await expect(workbench.getByText('Sujeto', { exact: true })).toBeVisible();
   await click(page, 'Comparar ejemplos');
-  await expect(workbench.getByText('My name is Luz.', { exact: true })).toBeVisible();
+  await expect(workbench.getByText('My name is', { exact: true })).toBeVisible();
   await capture(page, '09-grammar-handbook');
   await page.setViewportSize({ width: 320, height: 720 });
   await workbench.evaluate((root) => {

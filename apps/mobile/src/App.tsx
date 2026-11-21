@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookOpen, House, MapPinned, Settings2, Trophy, UserRound, X } from 'lucide-react-native';
 import {
   OFFLINE_STATE_KEY,
+  playerIntroductionName,
   chapter,
   nextTravelMission,
   route,
@@ -337,8 +338,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       {originSheet}
     </>
   );
-  const profileName = progress?.user.name;
-  const playerName = profileName === 'Explorador' ? undefined : profileName;
+  const playerName = playerIntroductionName(progress?.user.name) ?? travel.introductionName;
   if (mission)
     return withSheets(
       <TravelFlow

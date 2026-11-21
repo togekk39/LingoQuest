@@ -195,19 +195,14 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   const learning = page.getByTestId('story-learning');
   await expect(learning).toBeVisible();
   await expect(scene(page)).toBeVisible();
-  await click(page, 'Continuar');
+  await expect(learning.getByText('Prepara tu respuesta para Sam')).toBeVisible();
+  await expect(learning.getByText(/Retomamos donde lo dejaste/)).toHaveCount(0);
+  await expect(learning.getByRole('heading', exact('Luz'))).toHaveCount(0);
+  await expect.poll(async () => (await playback()).slice(-2)).toEqual(['word-2', 'word-3']);
+  await capture(page, 'storybook-mobile-sam-briefing');
+  await click(page, 'Escuchar a Sam');
+  await click(page, 'Escuchar el saludo de Sam');
   await expect.poll(() => clipPlays('sam-greeting')).toBe(2);
-  await click(page, 'Continuar');
-  await expect.poll(() => clipPlays('word-1')).toBe(1);
-  await click(page, 'Siguiente palabra');
-  await expect.poll(() => clipPlays('word-2')).toBe(1);
-  await click(page, 'Siguiente palabra');
-  await expect.poll(() => clipPlays('word-3')).toBe(1);
-  await click(page, 'Ver la explicación');
-  await expect(learning.getByRole('heading', exact('Luz'))).toBeVisible();
-  await expect(learning.getByText('Ejemplo de Luz', { exact: true })).toBeVisible();
-  await expect.poll(async () => (await playback()).slice(-2)).toEqual(['line-2', 'line-3']);
-  await click(page, 'Probar en la historia');
   await finishGreetingPractice(page);
 
   const input = learning
@@ -215,7 +210,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
     .getByRole('textbox', exact('Tu respuesta en inglés'));
   await expect(learning.getByText('Tu saludo para Sam', { exact: true })).toBeVisible();
   await expect(learning.getByText('Tu respuesta', { exact: true })).toBeVisible();
-  await expect(learning.getByText('Tu nombre en el perfil: Ana O’Connor')).toBeVisible();
+  await expect(learning.getByText('Tu nombre: Ana O’Connor')).toBeVisible();
   await expect(learning.getByRole('heading', exact('Sam'))).toHaveCount(0);
   await input.fill('Hi! I am Ana');
   await input.scrollIntoViewIfNeeded();
@@ -228,7 +223,15 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   const resumedLuz = dialogue(page, 'luz-welcome').or(dialogue(page, 'luz-after-introduction'));
   await expect(resumedLuz).toBeVisible();
   await expect(learning).toBeHidden();
-  await restoreAdventure(page, resumedLuz);
+  await choice(page, 'practice-with-luz');
+  await choice(page, 'luz-practice-is');
+  await expect(dialogue(page, 'luz-introduction-practice-retry')).toBeVisible();
+  await choice(page, 'luz-practice-retry');
+  await choice(page, 'luz-practice-am');
+  const guidance = dialogue(page, 'luz-introduction-practice-feedback');
+  await expect(guidance.getByText('Ejemplo de Luz', { exact: true })).toBeVisible();
+  await capture(page, 'storybook-mobile-luz-practice');
+  await restoreAdventure(page, guidance);
   await spot(page, 'plaza-sam').click();
   await expect(input).toHaveValue('Hi! I am Ana');
   expect((await state(page)).travel.active).toEqual(draft);
@@ -244,6 +247,12 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await restoreAdventure(page, feedback);
   expect((await state(page)).attempts).toEqual(incorrectlyAnswered.attempts);
   await click(page, 'Intentar otra vez');
+  await input.fill('Hi! I am Luz.');
+  await click(page, 'Comprobar respuesta');
+  await expect(feedback.getByText('Usa tu nombre', { exact: true })).toBeVisible();
+  await expect(feedback.getByText(/La estructura en inglés es correcta/)).toBeVisible();
+  await expect(page.getByRole('button', exact('Seguir la historia'))).toHaveCount(0);
+  await click(page, 'Intentar otra vez');
   await input.fill("Hi! My name's Ana O’Connor.");
   await capture(page, 'storybook-mobile-own-name');
   await click(page, 'Comprobar respuesta');
@@ -252,8 +261,8 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await answerTravelText(page, 'travel_hello_transfer', "I'm Ana O’Connor.");
   const voice = page.getByText(/reconocimiento de voz de la misión está disponible en Android/);
   await expect(voice).toBeVisible();
-  await expect(learning.getByText('Saluda a Sam y preséntate con tu propio nombre.')).toBeVisible();
-  await expect(learning.getByText('Ejemplo de Luz', { exact: true })).toBeVisible();
+  await expect(learning.getByText('Hi! I am Ana O’Connor.', { exact: true })).toBeVisible();
+  await expect(learning.getByText('Tu modelo para responder', { exact: true })).toBeVisible();
   await capture(page, 'storybook-mobile-speaking');
   await click(page, 'Ahora no puedo hablar');
   await expect
@@ -262,7 +271,10 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await expect(scene(page)).toBeVisible();
   await expect(learning).toBeHidden();
   await expect(
-    dialogue(page, 'sam-after-introduction').getByText('Where is the bus stop?', { exact: true }),
+    dialogue(page, 'sam-after-introduction').getByText(
+      'Nice to meet you! Can you help me find the bus stop?',
+      { exact: true },
+    ),
   ).toBeVisible();
   await expect(
     page.getByText('1 de 3 misiones principales completadas', { exact: true }).first(),
@@ -380,4 +392,24 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
     ]),
   );
   expect(finished.travelLearning?.targets.filter(({ skill }) => skill === 'speaking')).toEqual([]);
+});
+
+test('Sam’s introduction is complete without visiting Luz or setting a profile name', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enterApp(page);
+  await openAdventure(page);
+  await spot(page, 'plaza-sam').click();
+  await choice(page, 'introduce-yourself');
+  const learning = page.getByTestId('story-learning');
+  await expect(learning.getByText('Prepara tu respuesta para Sam')).toBeVisible();
+  await click(page, 'Escuchar a Sam');
+  await finishGreetingPractice(page);
+  await answerTravelText(page, 'travel_hello_write', 'Hi! My name is Amaya.');
+  await answerTravelText(page, 'travel_hello_transfer', "I'm Amaya.");
+  await expect(learning.getByText('Hi! I am Amaya.', { exact: true })).toBeVisible();
+  expect((await state(page)).user.name).toBe('Explorador');
+  await click(page, 'Ahora no puedo hablar');
+  await expect(dialogue(page, 'sam-after-introduction')).toBeVisible();
 });

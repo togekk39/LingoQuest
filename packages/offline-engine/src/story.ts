@@ -134,6 +134,7 @@ export interface StoryEncounter {
   id: string;
   npcId?: string;
   missionId: string;
+  entryStepId?: string;
   endBeforeStepId?: string;
   onFinish?: readonly StoryEffect[];
 }
@@ -517,6 +518,7 @@ export function readStory(
     encounter: encounter && {
       id: encounter.id,
       missionId: encounter.missionId,
+      entryStepId: encounter.entryStepId,
       endBeforeStepId: encounter.endBeforeStepId,
       ready: encounter.id === context.readyEncounterId,
       suspended: !!current.encounterSuspended,
