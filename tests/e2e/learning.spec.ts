@@ -33,9 +33,12 @@ test('first launch offers two spaced travel routes and opens the first scene', a
   await expect(start).toBeVisible();
   await start.click();
   await click(page, 'Honduras');
+  await expect(page.getByRole('heading', exact('¿Cómo te llamas?'))).toBeVisible();
+  await page.getByRole('textbox', exact('Tu nombre')).fill('Amaya');
+  await click(page, 'Guardar y continuar');
   await expect(page.getByText('Un saludo en la plaza', { exact: true })).toBeVisible();
   await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
-  expect((await state(page)).travel.country).toBe('HN');
+  expect(await state(page)).toMatchObject({ user: { name: 'Amaya' }, travel: { country: 'HN' } });
 });
 
 test('placement from the welcome evaluates travel listening and jumps to the recommended mission', async ({
@@ -110,7 +113,7 @@ test('the grammar handbook compares examples offline and reflows with enlarged t
   await workbench.getByRole('tab', exact('Ejemplo 1')).click();
   await expect(workbench.getByText('Sujeto', { exact: true })).toBeVisible();
   await click(page, 'Comparar ejemplos');
-  await expect(workbench.getByText('My name is Luz.', { exact: true })).toBeVisible();
+  await expect(workbench.getByText('My name is', { exact: true })).toBeVisible();
   await capture(page, '09-grammar-handbook');
   await page.setViewportSize({ width: 320, height: 720 });
   await workbench.evaluate((root) => {

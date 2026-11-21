@@ -19,6 +19,25 @@ import {
   type User,
 } from '@lingoquest/contracts';
 import { chapter, travelLesson } from './travel-content';
+import {
+  matchesIntroductionName,
+  meetsIntroduction,
+  playerIntroductionName,
+  readIntroduction,
+} from './introduction';
+import { chapterStory } from './chapter-story';
+import {
+  emptyStory,
+  readStory,
+  recordStoryReview,
+  resumeStoryEncounter,
+  storyStateSchema,
+  updateStory,
+  upgradeStory,
+  type StoryContext,
+  type StoryState,
+  type StoryView,
+} from './story';
 import { travelPracticeStep, travelReviewPlans, travelReviewRows } from './travel-review';
 import {
   findLearningError,
@@ -50,6 +69,12 @@ import {
   type TravelState,
 } from './travel';
 export { activeTravelCourse } from './travel-challenges';
+export {
+  matchesIntroductionName,
+  meetsIntroduction,
+  playerIntroductionName,
+  readIntroduction,
+} from './introduction';
 export { chapter } from './travel-content';
 export { learningSkills, travelConcepts, travelCurriculum } from './travel-curriculum';
 export type { TravelReviewRow } from './travel-review';
@@ -71,12 +96,19 @@ export type {
   TravelPlacementResponse,
 } from './travel-placement';
 export type { TravelCheckpoint, TravelState, TravelOperation } from './travel';
+export type { StoryOperation, StoryState, StoryView } from './story';
+
+export interface StoryResponse {
+  story: StoryView;
+  travel: TravelState;
+}
 
 /** Device-local learning only. Scores are personal practice, never verified rankings. */
 export interface CourseExercise extends PublicExercise {
   feedbackEs: string;
   acceptedAnswers: string[];
   communicationOnly?: { answers: string[]; feedbackEs: string };
+  introduction?: { greetingRequired: boolean; model: string };
   correctOptionId?: string;
   learning?: LearningTarget;
 }
@@ -168,6 +200,7 @@ export interface OfflineState {
   reviewRewards: string[];
   skillDayBaseline: Record<string, { day: string; lastPracticedAt: string | null }>;
   travel?: TravelState;
+  story?: StoryState;
   travelLearning?: TravelLearningState;
   lessonCheckpoints?: Record<string, LessonCheckpoint>;
   quickReview?: QuickCheckpoint;
@@ -207,6 +240,11 @@ export const normalize = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 export function grade(exercise: CourseExercise, answer: Answer) {
+  if (exercise.introduction)
+    return meetsIntroduction(
+      readIntroduction(answer.text ?? ''),
+      exercise.introduction.greetingRequired,
+    );
   if (exercise.type === 'matching') {
     const pairs = exercise.matchingPairs ?? [];
     return (
@@ -228,6 +266,7 @@ export function grade(exercise: CourseExercise, answer: Answer) {
   );
 }
 function displayedAnswer(e: CourseExercise) {
+  if (e.introduction) return e.introduction.model;
   if (e.type === 'matching')
     return (e.matchingPairs ?? []).map((p) => `${p.left} = ${p.right}`).join('; ');
   return (
@@ -535,6 +574,7 @@ const backupStateSchema = z
       .max(1000),
     reviewRewards: z.array(z.string().max(500)).max(200000),
     travel: travelStateSchema.optional(),
+    story: storyStateSchema.optional(),
     travelLearning: travelLearningSchema.optional(),
     lessonCheckpoints: z.record(lessonCheckpointSchema).optional(),
     quickReview: quickCheckpointSchema.optional(),
@@ -556,6 +596,45 @@ const backupSchema = z
     privacy: z.unknown().optional(),
   })
   .strict();
+
+function storyContext(
+  story: StoryState,
+  travel: TravelState,
+  learning?: TravelLearningState,
+): StoryContext {
+  const encounter = chapterStory.encounters.find((entry) => entry.id === story.encounterId);
+  let readyEncounterId: string | undefined;
+  if (encounter) {
+    const { missionId, endBeforeStepId } = encounter;
+    const saved =
+      travel.active?.missionId === missionId ? travel.active : travel.paused?.[missionId];
+    const boundary = chapter.missions
+      .find((mission) => mission.id === missionId)
+      ?.steps.findIndex((step) => step.id === endBeforeStepId);
+    if (
+      travel.completed[missionId] ||
+      (endBeforeStepId &&
+        boundary !== undefined &&
+        boundary >= 0 &&
+        saved?.contentRevision === chapter.revision &&
+        saved.step >= boundary)
+    )
+      readyEncounterId = encounter.id;
+  }
+  return {
+    country: travel.country,
+    completedMissions: Object.keys(travel.completed),
+    clearedMissions: travel.cleared ?? [],
+    demonstratedConcepts: learning?.targets
+      .filter(
+        ({ successes }) =>
+          (successes.production?.independent ?? 0) > 0 ||
+          (successes.transfer?.independent ?? 0) > 0,
+      )
+      .map(({ conceptId }) => conceptId),
+    readyEncounterId,
+  };
+}
 
 export class OfflineEngine {
   private tail: Promise<unknown> = Promise.resolve();
@@ -655,6 +734,7 @@ export class OfflineEngine {
     content: CourseData,
     input: AttemptInput,
     aids: LearningAid[] = [],
+    playerName?: string,
   ) {
     const parsed = attemptSchema.parse(input);
     const fingerprint = JSON.stringify(parsed);
@@ -678,19 +758,40 @@ export class OfflineEngine {
     const learning = lesson.id === travelLesson.id ? exercise.learning : undefined;
     const date = today(now);
     const alternative = exercise.communicationOnly;
+    const introduction =
+      exercise.introduction && parsed.answer.text !== undefined
+        ? readIntroduction(parsed.answer.text)
+        : undefined;
+    const identityMismatch = !!(
+      playerName &&
+      introduction?.name &&
+      (introduction.greeting || !exercise.introduction?.greetingRequired) &&
+      !matchesIntroductionName(introduction.name, playerName)
+    );
+    const identityFeedback = `Usa tu propio nombre para presentarte: ${playerName}.`;
+    const model =
+      exercise.introduction && playerName
+        ? exercise.introduction.model.replace('[tu nombre]', () => playerName)
+        : displayedAnswer(exercise);
     if (learning && !correct && alternative && parsed.answer.text !== undefined) {
       const response = normalize(parsed.answer.text);
-      if (alternative.answers.some((answer) => normalize(answer) === response)) {
+      const communicates = introduction
+        ? introduction.form === 'alternative' &&
+          (introduction.greeting || !exercise.introduction?.greetingRequired)
+        : alternative.answers.some((answer) => normalize(answer) === response);
+      if (communicates && !identityMismatch) {
         recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning, {
           exerciseId: exercise.id,
           now,
         });
         if (!state.learningDays.includes(date)) state.learningDays.push(date);
+      }
+      if (communicates) {
         const result: AttemptResult = {
           correct: false,
-          communicationOnly: true,
-          feedbackEs: alternative.feedbackEs,
-          acceptedAnswer: displayedAnswer(exercise),
+          ...(identityMismatch ? { identityMismatch: true } : { communicationOnly: true }),
+          feedbackEs: identityMismatch ? identityFeedback : alternative.feedbackEs,
+          acceptedAnswer: model,
           xpAwarded: 0,
           pending: false,
         };
@@ -700,7 +801,8 @@ export class OfflineEngine {
     }
     const errorType =
       learning && !correct
-        ? findLearningError(learning, parsed.answer, exercise.acceptedAnswers)
+        ? (introduction?.error ??
+          findLearningError(learning, parsed.answer, exercise.acceptedAnswers))
         : undefined;
     let unassisted = !parsed.hintUsed;
     if (learning && learning.skill !== 'speaking') {
@@ -714,7 +816,7 @@ export class OfflineEngine {
         now,
       );
     }
-    if (learning && correct && alternative)
+    if (learning && correct && alternative && !identityMismatch)
       recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning);
     let visited = own(state.visitedExercises, lesson.id);
     if (!visited) {
@@ -798,9 +900,12 @@ export class OfflineEngine {
       state.reviewRewards.push(evidenceKey);
     }
     const result: AttemptResult = {
-      correct,
-      feedbackEs: `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${exercise.feedbackEs}`,
-      acceptedAnswer: displayedAnswer(exercise),
+      correct: correct && !identityMismatch,
+      identityMismatch: identityMismatch ? true : undefined,
+      feedbackEs: identityMismatch
+        ? `La estructura en inglés es correcta. ${identityFeedback}`
+        : `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${exercise.feedbackEs}`,
+      acceptedAnswer: model,
       errorType,
       xpAwarded,
       pending: false,
@@ -819,6 +924,28 @@ export class OfflineEngine {
     const params = new URLSearchParams(query);
     const now = this.clock();
     const done = (value: unknown) => ({ state, value });
+    const changeTravel = (travel: TravelState, operation: unknown, entryStepId?: string) =>
+      updateTravel(
+        travel,
+        operation,
+        now,
+        this.id,
+        (input, aids) => {
+          const identifiesPlayer =
+            input.exerciseId === 'travel_hello_write' ||
+            input.exerciseId === 'travel_hello_transfer';
+          const playerName = identifiesPlayer
+            ? (playerIntroductionName(state.user.name) ?? travel.introductionName)
+            : undefined;
+          const result = this.attempt(state, content, input, aids, playerName);
+          if (identifiesPlayer && !playerName && (result.correct || result.communicationOnly))
+            travel.introductionName = readIntroduction(input.answer.text ?? '').name;
+          return result;
+        },
+        (target, practice) =>
+          recordSpeakingPractice((state.travelLearning ??= { targets: [] }), target, practice),
+        entryStepId,
+      );
     if (route.startsWith('/v1/auth/') || route.startsWith('/v1/sync/'))
       throw new LocalError(
         'Esta edición funciona sin cuenta ni sincronización en línea.',
@@ -853,17 +980,47 @@ export class OfflineEngine {
     if (route === '/v1/travel') {
       const travel = (state.travel ??= emptyTravel());
       upgradeTravelCheckpoints(travel);
-      if (method === 'POST')
-        updateTravel(
-          travel,
-          body,
-          now,
-          this.id,
-          (input, aids) => this.attempt(state, content, input, aids),
-          (target, practice) =>
-            recordSpeakingPractice((state.travelLearning ??= { targets: [] }), target, practice),
-        );
+      if (method === 'POST') changeTravel(travel, body);
       return done(travel);
+    }
+    if (route === '/v1/story' || (route === '/v1/story/encounter' && method === 'POST')) {
+      const travel = (state.travel ??= emptyTravel());
+      const story = (state.story ??= emptyStory(chapterStory));
+      upgradeTravelCheckpoints(travel);
+      upgradeStory(chapterStory, story);
+      const before = story.encounterId;
+      let launch = false;
+      if (route === '/v1/story/encounter') {
+        const request = z
+          .object({ turn: z.number().int().nonnegative().safe() })
+          .strict()
+          .parse(body);
+        launch = resumeStoryEncounter(story, request.turn);
+      } else if (method === 'POST') {
+        updateStory(chapterStory, story, storyContext(story, travel, state.travelLearning), body);
+        launch = story.encounterId !== before;
+        if (launch && before && travel.active?.finished) {
+          const previous = chapterStory.encounters.find((entry) => entry.id === before);
+          if (travel.active.missionId === previous?.missionId)
+            changeTravel(travel, { action: 'dismiss', token: travel.active.token });
+        }
+      }
+      const context = storyContext(story, travel, state.travelLearning);
+      const view = readStory(chapterStory, story, context);
+      if (
+        view.encounter &&
+        !view.encounter.ready &&
+        (launch ||
+          (view.encounter.entryStepId &&
+            !view.encounter.suspended &&
+            travel.active?.missionId === view.encounter.missionId))
+      ) {
+        const { missionId, entryStepId } = view.encounter;
+        changeTravel(travel, { action: 'start', missionId }, entryStepId);
+        if (travel.active?.missionId !== missionId)
+          throw new LocalError('Completa la misión anterior para continuar.', 409);
+      }
+      return done({ story: view, travel } satisfies StoryResponse);
     }
     if (route === '/v1/travel/learning' && method === 'GET')
       return done(state.travelLearning ?? { targets: [] });
@@ -970,6 +1127,20 @@ export class OfflineEngine {
                 aids,
               );
               previous.answer = update.answer;
+              if (
+                state.story &&
+                state.travel &&
+                travelOnly &&
+                mission &&
+                !previous.starter &&
+                previous.result.correct
+              )
+                recordStoryReview(
+                  chapterStory,
+                  state.story,
+                  mission,
+                  storyContext(state.story, state.travel, state.travelLearning),
+                );
             }
           }
         }

@@ -23,6 +23,7 @@ export const savedResultSchema = z
   .object({
     correct: z.boolean(),
     communicationOnly: z.literal(true).optional(),
+    identityMismatch: z.literal(true).optional(),
     feedbackEs: z.string().max(5000),
     acceptedAnswer: z.string().max(5000).optional(),
     errorType: learningErrorSchema.optional(),
@@ -54,6 +55,7 @@ const checkpointSchema = z
 export const travelStateSchema = z
   .object({
     country: countrySchema.optional(),
+    introductionName: z.string().trim().min(1).max(120).optional(),
     active: checkpointSchema.optional(),
     paused: z.record(checkpointSchema).optional(),
     placement: travelPlacementSchema.optional(),
@@ -124,15 +126,24 @@ const revisionOneSteps: Record<string, string[]> = {
 export function upgradeTravelCheckpoints(travel: TravelState) {
   function upgrade(saved: TravelCheckpoint) {
     if (saved.contentRevision === chapter.revision) return saved;
+    const mission = chapter.missions.find((item) => item.id === saved.missionId);
     const stableId =
       saved.stepId ??
       (saved.contentRevision === 1 && Object.hasOwn(revisionOneSteps, saved.missionId)
         ? revisionOneSteps[saved.missionId][saved.step]
-        : undefined);
-    const mission = chapter.missions.find((item) => item.id === saved.missionId);
+        : saved.contentRevision === 2
+          ? mission?.steps[saved.step]?.id
+          : undefined);
     const step = mission?.steps.findIndex((item) => item.id === stableId) ?? -1;
     if (step < 0) return saved;
-    return { ...saved, step, stepId: stableId, contentRevision: chapter.revision };
+    const answer =
+      stableId === 'travel_hello_build' && !saved.result && saved.answer.tokens
+        ? {
+            ...saved.answer,
+            tokens: saved.answer.tokens.map((word) => (word === 'Luz' ? '[tu nombre]' : word)),
+          }
+        : saved.answer;
+    return { ...saved, step, stepId: stableId, answer, contentRevision: chapter.revision };
   }
   if (travel.active) travel.active = upgrade(travel.active);
   for (const [key, saved] of Object.entries(travel.paused ?? {}))
@@ -160,6 +171,7 @@ export function updateTravel(
   id: () => string,
   attempt: (input: AttemptInput, aids: LearningAid[]) => AttemptResult,
   speaking: (target: LearningTarget, practice: SpeechPractice) => void,
+  entryStepId?: string,
 ) {
   const input = operationSchema.parse(body);
   if (input.action === 'country') {
@@ -172,15 +184,23 @@ export function updateTravel(
   }
   const current = travel.active;
   if (input.action === 'start') {
-    if (current?.missionId === input.missionId && current.contentRevision === chapter.revision)
+    const mission = chapter.missions.find(({ id: missionId }) => missionId === input.missionId);
+    const entry = entryStepId
+      ? Math.max(0, mission?.steps.findIndex(({ id: stepId }) => stepId === entryStepId) ?? -1)
+      : 0;
+    if (current?.missionId === input.missionId && current.contentRevision === chapter.revision) {
+      if (current.step < entry) travel.active = checkpoint(input.missionId, entry, id());
       return;
+    }
     if (!canStartTravelMission(travel, input.missionId)) return;
     const paused = (travel.paused ??= {});
     if (current && !current.finished && current.contentRevision === chapter.revision)
       paused[current.missionId] = current;
     const saved = paused[input.missionId];
     travel.active =
-      saved?.contentRevision === chapter.revision ? saved : checkpoint(input.missionId, 0, id());
+      saved?.contentRevision === chapter.revision && saved.step >= entry
+        ? saved
+        : checkpoint(input.missionId, entry, id());
     delete paused[input.missionId];
     return;
   }
@@ -223,13 +243,20 @@ export function updateTravel(
     if (input.action === 'retry' && current.result && !current.result.correct) {
       travel.active = {
         ...checkpoint(mission.id, current.step, id()),
-        hint: true,
-        retry: true,
+        hint: current.result.identityMismatch ? current.hint : true,
+        retry: current.result.identityMismatch ? current.retry : true,
         transcript: current.transcript,
       };
       return;
     }
-    if (!current.result) return;
+    if (
+      !current.result ||
+      current.result.identityMismatch ||
+      (step.response === 'personal-introduction' &&
+        !current.result.correct &&
+        !current.result.communicationOnly)
+    )
+      return;
   }
   if (input.action === 'speak') {
     if (step.type !== 'speak') return;

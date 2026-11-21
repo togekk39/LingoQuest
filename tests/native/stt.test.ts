@@ -8,6 +8,7 @@ import { playPracticeClip } from '../../apps/mobile/src/features/playPracticeCli
 import {
   drillFeedback,
   introductionFeedback,
+  matchesPersonalIntroduction,
   matchesSpeechTarget,
 } from '../../apps/mobile/src/travel/speakingFeedback';
 
@@ -54,23 +55,30 @@ test('travel speaking targets require complete phrases and accept the chapter va
   const tasks = chapter.missions.flatMap((mission) =>
     mission.steps.filter((step) => step.type === 'speak'),
   );
-  const intro = tasks.find((step) => step.id === 'hello_speak')!;
   const bag = tasks.find((step) => step.id === 'bag_speak')!;
-  const matchesIntro = (text: string) =>
-    matchesSpeechTarget(text, intro.phrase, intro.acceptedPhrases);
+  const matchesIntro = matchesPersonalIntroduction;
   const matchesBag = (text: string) => matchesSpeechTarget(text, bag.phrase, bag.acceptedPhrases);
   assert.equal(matchesIntro(''), false);
+  assert.equal(matchesIntro('Hi, I am Luz.', 'Ana'), false);
+  assert.equal(matchesIntro("Hi, I'm Ana.", 'Ana'), true);
+  assert.equal(matchesIntro('Hi, my name is Mai Linh Nguyen.', 'Mai-Linh Nguyễn'), true);
+  const mismatch = introductionFeedback('Hi, I am Luz.', 'Ana');
+  assert.match(mismatch.content, /otro nombre/);
+  assert.match(mismatch.grammar, /forma de presentación practicada/);
   assert.equal(matchesIntro('Hi!'), false);
-  assert.equal(matchesIntro('Hi, my name’s Luz!'), true);
-  assert.equal(matchesIntro('Hi, I’m Los.'), true);
-  assert.equal(matchesIntro('Hello, my name is Loose.'), true);
-  assert.equal(matchesIntro("Hi, I'm Lou’s."), true);
-  assert.equal(matchesIntro('My name is Los.'), false);
-  assert.equal(matchesIntro('Hi, Los.'), false);
-  assert.equal(matchesIntro('Hi, I am Los Angeles.'), false);
-  assert.equal(matchesIntro('Hi, I am Luke.'), false);
-  assert.equal(matchesIntro('Hi, my name is Ana.'), false);
-  assert.equal(matchesIntro('Hi, I am Luz. I am happy.'), false);
+  assert.equal(matchesIntro('Hi, my name’s Ana Pérez!'), true);
+  assert.equal(matchesIntro('Hi, I’m Jean-Luc.'), true);
+  assert.equal(matchesIntro('Hello, my name is Mei Lin.'), true);
+  assert.equal(matchesIntro("Hi Sam, I'm Niamh O’Connor."), true);
+  assert.equal(matchesIntro('Hi im Marisol'), true);
+  assert.equal(matchesIntro('Hello, my name is Ái Añez.'), true);
+  assert.equal(matchesIntro('My name is Marisol.'), false);
+  assert.equal(matchesIntro('Hi, Marisol.'), false);
+  assert.equal(matchesIntro('Hi, I is Marisol.'), false);
+  assert.match(introductionFeedback('Hi, I is Marisol.').grammar, /Con I usa am/);
+  assert.equal(matchesIntro('Hi, Marisol here.'), false);
+  assert.equal(matchesIntro('Hi, I am very happy.'), false);
+  assert.equal(matchesIntro('Hi, I am Marisol. I am happy.'), false);
   assert.equal(matchesBag('It is red.'), true);
   assert.equal(matchesBag('Her backpack’s red.'), true);
   assert.equal(matchesBag('Red.'), false);

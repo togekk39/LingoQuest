@@ -1,4 +1,9 @@
-import { normalize } from '@lingoquest/offline-engine';
+import {
+  matchesIntroductionName,
+  meetsIntroduction,
+  normalize,
+  readIntroduction,
+} from '@lingoquest/offline-engine';
 
 function speechText(value: string) {
   return normalize(value.replace(/[.,!?;:]/g, ' '))
@@ -18,37 +23,45 @@ export function matchesSpeechTarget(
   );
 }
 
-const greetings = '(?:(?:hi|hello|hey)(?: there)?|good (?:morning|afternoon|evening))';
-const greeting = new RegExp(`^${greetings}\\b`);
-const introduction = new RegExp(`^(?:${greetings} )?(?:i am|my name is)\\b`);
-const informalIntroduction = new RegExp(`^(?:${greetings} )?(.+) here$`);
+export function matchesPersonalIntroduction(transcript: string, playerName?: string) {
+  const response = readIntroduction(transcript, true);
+  return (
+    meetsIntroduction(response, true) &&
+    (!playerName || (!!response.name && matchesIntroductionName(response.name, playerName, true)))
+  );
+}
 
-export function introductionFeedback(transcript: string) {
-  const text = speechText(transcript);
-  const hasGreeting = greeting.test(text);
-  const hasIntroduction = introduction.test(text);
-  const name = hasIntroduction
-    ? text.replace(introduction, '').trim()
-    : (text.match(informalIntroduction)?.[1] ?? '');
-  const hasName =
-    /^\p{L}[\p{L}'-]*(?: \p{L}[\p{L}'-]*)*$/u.test(name) &&
-    !/^(?:not|a|an|the)\b/.test(name) &&
-    !/^(?:fine|good|okay|ok|(?:uh|um|er|ah)(?: (?:uh|um|er|ah))*)$/.test(name);
+export function introductionFeedback(transcript: string, playerName?: string) {
+  const {
+    greeting: hasGreeting,
+    form,
+    startsTarget,
+    error,
+    name,
+  } = readIntroduction(transcript, true);
+  const hasName = !!form;
 
   return {
     content:
-      hasGreeting && hasName
-        ? 'El texto incluye un saludo y una presentación. Revisa si tu nombre quedó bien escrito.'
-        : hasGreeting
-          ? 'El texto incluye un saludo. Agrega tu nombre al presentarte.'
-          : hasName
-            ? 'El texto incluye una presentación. Empieza con Hi o Hello para saludar a Sam.'
-            : 'Saluda a Sam con Hi o Hello y preséntate con tu nombre.',
-    grammar: hasIntroduction
-      ? hasName
-        ? 'El texto usa una forma de presentación practicada: I am, I’m, My name is o My name’s.'
-        : 'La estructura empieza bien. Coloca tu nombre después de I am, I’m, My name is o My name’s.'
-      : 'Para presentarte, usa I am, I’m, My name is o My name’s y luego tu nombre.',
+      playerName && name && !matchesIntroductionName(name, playerName, true)
+        ? `La transcripción usa otro nombre. Di tu nombre: ${playerName}.`
+        : error
+          ? 'Incluiste un nombre. Revisa la estructura de la presentación.'
+          : hasGreeting && hasName
+            ? 'El texto incluye un saludo y una presentación. Revisa si tu nombre quedó bien escrito.'
+            : hasGreeting
+              ? 'El texto incluye un saludo. Agrega tu nombre al presentarte.'
+              : hasName
+                ? 'El texto incluye una presentación. Empieza con Hi o Hello para saludar a Sam.'
+                : 'Saluda a Sam con Hi o Hello y preséntate con tu nombre.',
+    grammar:
+      error === 'be_agreement'
+        ? 'Con I usa am y con My name usa is.'
+        : startsTarget && form !== 'alternative'
+          ? form === 'target'
+            ? 'El texto usa una forma de presentación practicada: I am, I’m, My name is o My name’s.'
+            : 'La estructura empieza bien. Coloca tu nombre después de I am, I’m, My name is o My name’s.'
+          : 'Para presentarte, usa I am, I’m, My name is o My name’s y luego tu nombre.',
   };
 }
 
