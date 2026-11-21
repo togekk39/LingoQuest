@@ -65,6 +65,56 @@ async function expectCharacterInsideArt(page: Page, id: string) {
   return character;
 }
 
+test('the first chapter guides a new player through the scene and mission list only once', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/');
+  const guide = page.getByTestId('story-guide');
+  await adventure(page).click();
+  await click(page, 'Honduras');
+  await expect(page.getByRole('heading', exact('¿Cómo te llamas?'))).toBeVisible();
+  await expect(guide).toHaveCount(0);
+  await page.getByRole('textbox', exact('Tu nombre')).fill('Ana');
+  await click(page, 'Guardar y continuar');
+
+  await expect(guide).toContainText('Guía rápida · 1 de 3');
+  await expect(guide).toContainText('Toca a Sam o a Luz');
+  await spot(page, 'plaza-luz').click();
+  await expect(dialogue(page, 'luz-welcome')).toBeVisible();
+  await expect(guide).toContainText('Guía rápida · 2 de 3');
+  await spot(page, 'plaza-origin').click();
+  await expect(dialogue(page, 'origin-postcards')).toBeVisible();
+  await expect(guide).toContainText('Guía rápida · 3 de 3');
+  await expect(guide).toBeInViewport({ ratio: 1 });
+
+  const quests = page.getByTestId('story-quests-toggle');
+  await quests.click();
+  await expect(guide).toHaveCount(0);
+  await expect(quests).toHaveAttribute('aria-expanded', 'true');
+  await page.getByTestId('story-quest-meet-sam').getByRole('button').click();
+  await expect(page.getByTestId('story-quest-detail-meet-sam')).toBeVisible();
+
+  await click(page, 'Cerrar y volver');
+  await openAdventure(page);
+  await expect(guide).toHaveCount(0);
+  await page.reload();
+  await openAdventure(page);
+  await expect(guide).toHaveCount(0);
+});
+
+test('the first chapter guide stays hidden once skipped', async ({ page }) => {
+  await enterApp(page);
+  await openAdventure(page, 'Ana');
+  const guide = page.getByTestId('story-guide');
+  await guide.getByRole('button', exact('Omitir guía')).click();
+  await expect(guide).toHaveCount(0);
+  await click(page, 'Cerrar y volver');
+  await openAdventure(page);
+  await expect(guide).toHaveCount(0);
+  expect((await storyProgress(page)).story?.turn).toBe(0);
+});
+
 test.describe('small touch screen', () => {
   test.use({ viewport: { width: 320, height: 568 }, isMobile: true, hasTouch: true });
 

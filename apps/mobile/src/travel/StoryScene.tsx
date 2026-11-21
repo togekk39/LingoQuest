@@ -86,12 +86,14 @@ export function StoryScene({
   scene,
   hotspots,
   activeNpc,
+  guidedKind,
   disabled,
   onInteract,
 }: {
   scene: StoryView['scene'];
   hotspots: ReadonlyArray<Hotspot>;
   activeNpc?: string;
+  guidedKind?: 'npc' | 'object';
   disabled?: boolean;
   onInteract: (id: string) => void;
 }) {
@@ -163,6 +165,7 @@ export function StoryScene({
                 };
               const target = placement(bounds, size.width, size.height);
               const selected = hotspot.npcId !== undefined && hotspot.npcId === activeNpc;
+              const guided = hotspot.kind === guidedKind;
               const Icon = hotspot.kind === 'exit' ? ArrowRight : Search;
               const label = marker?.label ?? hotspot.label;
               const iconOnly =
@@ -194,7 +197,8 @@ export function StoryScene({
                       style={[
                         styles.tag,
                         hotspot.kind === 'npc' && styles.nameTag,
-                        selected || pressed ? highlightedTag : tag,
+                        selected || pressed || guided ? highlightedTag : tag,
+                        guided && styles.guidedTag,
                       ]}
                     >
                       {iconOnly ? (
@@ -245,6 +249,7 @@ const styles = StyleSheet.create({
     boxShadow: '0 2px 5px rgba(61, 37, 18, 0.34)',
   },
   nameTag: { minHeight: 29, paddingHorizontal: 12, borderRadius: 11 },
+  guidedTag: { borderWidth: 2 },
   tagText: { fontFamily: 'ManropeBold', fontSize: 11 },
   nameText: { fontFamily: 'LoraBold', fontSize: 16 },
 });

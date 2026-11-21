@@ -49,6 +49,16 @@ const questStatuses = {
 };
 const questKinds = { main: 'Historia principal', side: 'Opcional', review: 'Repaso' };
 const translationKey = 'storyTranslations';
+const guideSteps = {
+  npc: { number: 1, instruction: 'Toca a Sam o a Luz para hablar con un personaje.' },
+  object: { number: 2, instruction: 'Toca un objeto, como «Postales», para examinarlo.' },
+  quests: {
+    number: 3,
+    instruction:
+      'Abre la lista de misiones debajo de la escena para ver tus objetivos y tu progreso.',
+  },
+} as const;
+type GuideStep = keyof typeof guideSteps;
 type JournalPanel = { type: 'quests'; questId?: string } | { type: 'inventory' } | null;
 
 function SectionHeading({
@@ -144,6 +154,7 @@ function StoryButton({
 
 export function StoryAdventure({
   story,
+  firstVisit,
   checkpoint,
   playerName,
   onEditName,
@@ -158,6 +169,7 @@ export function StoryAdventure({
   onVoiceSettings,
 }: {
   story: StoryView;
+  firstVisit: boolean;
   checkpoint?: TravelCheckpoint;
   playerName?: string;
   onEditName: () => void;
@@ -177,6 +189,7 @@ export function StoryAdventure({
   const { play, stop, speechMessage } = useChapterAudio();
   const { scene, dialogue, encounter, hotspots, inventory, quests, turn, origin } = story;
   const lesson = useRef<TravelFlowHandle>(null);
+  const [guideStep, setGuideStep] = useState<GuideStep | null>(firstVisit ? 'npc' : null);
   const [journal, setJournal] = useState<JournalPanel>(null);
   const [translationsVisible, setTranslationsVisible] = useState(true);
   const translationTouched = useRef(false);
@@ -267,10 +280,11 @@ export function StoryAdventure({
     }
   }
 
-  const act = (operation: StoryOperation) =>
+  const act = (operation: StoryOperation, afterAction?: () => void) =>
     void perform(async () => {
       await onAction(operation);
       setJournal(null);
+      afterAction?.();
     });
   const resume = () =>
     void perform(async () => {
@@ -285,8 +299,35 @@ export function StoryAdventure({
       if (!activeCheckpoint) resume();
       return;
     }
-    act({ action: 'interact', hotspotId, turn });
+    act({ action: 'interact', hotspotId, turn }, () => {
+      setGuideStep((step) => {
+        if (hotspot?.kind === 'exit') return null;
+        if (step === 'npc' && hotspot?.kind === 'npc') return 'object';
+        if (step === 'object' && hotspot?.kind === 'object') return 'quests';
+        return step;
+      });
+    });
   }
+
+  const guide = guideStep && (
+    <View testID="story-guide" style={s.guide}>
+      <View style={s.guideHeader}>
+        <Text accessibilityRole="header" style={s.guideTitle}>
+          Guía rápida · {guideSteps[guideStep].number} de 3
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setGuideStep(null)}
+          style={({ pressed }) => [s.guideSkip, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={s.guideSkipLabel}>Omitir guía</Text>
+        </Pressable>
+      </View>
+      <Text accessibilityLiveRegion="polite" aria-live="polite" style={s.tipText}>
+        {guideSteps[guideStep].instruction}
+      </Text>
+    </View>
+  );
 
   const closeControl = (
     <Pressable
@@ -422,7 +463,7 @@ export function StoryAdventure({
     <FlowFrame
       title={chapter.title}
       eyebrow="Aventura"
-      journal={{ storybook: true, wide }}
+      journal={{ storybook: true, wide, banner: guide }}
       onVoiceSettings={() => void perform(onVoiceSettings)}
       onClose={() => void perform(onClose)}
     >
@@ -432,6 +473,7 @@ export function StoryAdventure({
             scene={scene}
             hotspots={hotspots}
             activeNpc={dialogue?.npc?.id ?? (activeCheckpoint ? encounter?.npc?.id : undefined)}
+            guidedKind={guideStep === 'quests' ? undefined : (guideStep ?? undefined)}
             disabled={locked}
             onInteract={interact}
           />
@@ -485,8 +527,15 @@ export function StoryAdventure({
               accessibilityLabel={`Misiones. ${missionTitle}. ${missionProgress}`}
               accessibilityState={{ expanded: questsOpen }}
               aria-expanded={questsOpen}
-              onPress={() => setJournal(questsOpen ? null : { type: 'quests' })}
-              style={({ pressed }) => [s.questSummary, pressed && { opacity: 0.82 }]}
+              onPress={() => {
+                setJournal(questsOpen ? null : { type: 'quests' });
+                if (!questsOpen && guideStep === 'quests') setGuideStep(null);
+              }}
+              style={({ pressed }) => [
+                s.questSummary,
+                guideStep === 'quests' && s.guidedQuestSummary,
+                pressed && { opacity: 0.82 },
+              ]}
             >
               <BookOpen color={colors.teal} size={18} />
               <View style={s.questCopy}>
@@ -643,6 +692,27 @@ function useStyles() {
     sceneDescription: { fontFamily: 'Manrope', fontSize: 12, lineHeight: 18, color: C.muted },
     body: { color: C.ink, fontFamily: 'Manrope', fontSize: 15, lineHeight: 22 },
     small: { flexShrink: 1, color: C.muted, fontFamily: 'Manrope', fontSize: 12, lineHeight: 17 },
+    guide: {
+      backgroundColor: C.mint,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingBottom: 10,
+    },
+    guideHeader: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      columnGap: 8,
+    },
+    guideTitle: { color: C.ink, fontFamily: 'ManropeBold', fontSize: 14 },
+    guideSkip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 3 },
+    guideSkipLabel: {
+      color: C.ink,
+      fontFamily: 'ManropeBold',
+      fontSize: 12,
+      textDecorationLine: 'underline',
+    },
     dialogue: { gap: 11, padding: 14 },
     speakerRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
     speaker: { flex: 1, minWidth: 0 },
@@ -684,6 +754,13 @@ function useStyles() {
       borderColor: C.line,
       paddingHorizontal: 4,
       paddingVertical: 4,
+    },
+    guidedQuestSummary: {
+      backgroundColor: C.mint,
+      borderColor: C.teal,
+      borderWidth: 2,
+      borderRadius: 8,
+      paddingHorizontal: 8,
     },
     questCopy: { flex: 1, minWidth: 0 },
     questTitle: { color: C.ink, fontFamily: 'ManropeBold', fontSize: 13 },

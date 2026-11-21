@@ -109,6 +109,7 @@ export function FlowFrame({
     onSettings?: () => void;
     storybook?: boolean;
     wide?: boolean;
+    banner?: React.ReactNode;
   };
   onVoiceSettings?: () => void;
 }) {
@@ -270,6 +271,17 @@ export function FlowFrame({
           </View>
         )}
       </View>
+      {journal?.banner && (
+        <View
+          style={[
+            f.journalBanner,
+            journal.storybook && f.storybookBanner,
+            journal.wide && f.storybookWide,
+          ]}
+        >
+          {journal.banner}
+        </View>
+      )}
       {progress !== undefined && (
         <View style={journal && f.journalProgress}>
           <ProgressBar
@@ -419,6 +431,8 @@ export function useFeatureStyles() {
     storybookTitleCompact: { fontSize: 27, lineHeight: 34 },
     storybookWidth: { maxWidth: 736 },
     storybookWide: { maxWidth: 1120 },
+    journalBanner: { width: '100%', maxWidth: 686, alignSelf: 'center', paddingHorizontal: 15 },
+    storybookBanner: { maxWidth: 766 },
     journalProgress: { width: '100%', maxWidth: 686, alignSelf: 'center', paddingHorizontal: 16 },
     journalScroll: { paddingHorizontal: 15, paddingVertical: 12 },
     journalWidth: { maxWidth: 650 },

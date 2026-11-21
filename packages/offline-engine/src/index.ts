@@ -101,6 +101,7 @@ export type { StoryOperation, StoryState, StoryView } from './story';
 export interface StoryResponse {
   story: StoryView;
   travel: TravelState;
+  firstVisit?: true;
 }
 
 /** Device-local learning only. Scores are personal practice, never verified rankings. */
@@ -985,6 +986,7 @@ export class OfflineEngine {
     }
     if (route === '/v1/story' || (route === '/v1/story/encounter' && method === 'POST')) {
       const travel = (state.travel ??= emptyTravel());
+      const firstVisit = method === 'GET' && route === '/v1/story' && !state.story;
       const story = (state.story ??= emptyStory(chapterStory));
       upgradeTravelCheckpoints(travel);
       upgradeStory(chapterStory, story);
@@ -1020,7 +1022,11 @@ export class OfflineEngine {
         if (travel.active?.missionId !== missionId)
           throw new LocalError('Completa la misión anterior para continuar.', 409);
       }
-      return done({ story: view, travel } satisfies StoryResponse);
+      return done({
+        story: view,
+        travel,
+        ...(firstVisit && { firstVisit: true }),
+      } satisfies StoryResponse);
     }
     if (route === '/v1/travel/learning' && method === 'GET')
       return done(state.travelLearning ?? { targets: [] });
