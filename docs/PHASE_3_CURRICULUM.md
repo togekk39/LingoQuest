@@ -6,7 +6,7 @@ The route introduces American English through twenty progressively harder travel
 
 ## Route from first contact to B2 targets
 
-The first chapter is playable as a Phase 3 lesson. Stops 2–20 specify teaching goals and planned transfer tasks. Their complete travel lessons, voices, and assessments still need authoring and validation. The existing A1–A2 course remains available through **Aprender → Cursos A1–A2** with its own lesson and challenge progression.
+All 20 stops offer a downloadable scenario lesson with dialogue, vocabulary, grammar, a comprehension check, independent practice, an illustration, and audio. The first stop also offers the interactive story. The A1–A2 course is available through **Aprender → Cursos A1–A2** with its own lesson and challenge progression. [Chapter packs](CHAPTER_PACKS.md)
 
 |                                     Stop | Band      | Mission and transfer target                                                                                                                       | Prior material to reuse                                         |
 | ---------------------------------------: | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |

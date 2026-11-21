@@ -11,11 +11,13 @@ import { LessonReference } from './LessonReference';
 
 export function TextbookFlow({
   completed,
+  initialUnitId,
   onClose,
   onRefresh,
   onVoiceSettings,
 }: {
   completed: string[];
+  initialUnitId?: string;
   onClose: () => void;
   onRefresh: () => void;
   onVoiceSettings: () => void;
@@ -24,7 +26,7 @@ export function TextbookFlow({
   const [catalog, setCatalog] = useState<{ units: Unit[]; draftIds: string[] }>();
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
-  const [unitId, setUnitId] = useState<string>();
+  const [unitId, setUnitId] = useState(initialUnitId);
   const [lesson, setLesson] = useState<{ id: string; mode: 'learn' | 'reference' }>();
 
   useEffect(() => {

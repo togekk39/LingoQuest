@@ -253,6 +253,7 @@ export function TravelPronunciation({
         <SpeakingPanel
           key={selected}
           text={selected}
+          chapterId="home"
           onDone={leave}
           onStopReference={stop}
           onPlay={() => void play(selected)}

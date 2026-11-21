@@ -3,8 +3,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Text, View } from 'react-native';
 import type { AttemptResult, Progress } from '@lingoquest/contracts';
 import type { LessonCheckpoint } from '@lingoquest/offline-engine';
-import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
+import { useOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
+import { chapterForUnit } from '../lib/chapterPacks';
 import { Notebook, JournalLeaf } from '../Journal';
 import { Action, ErrorCard, useFeatureStyles, FlowFrame, newEventId } from './FeatureUI';
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from './ExerciseInput';
@@ -36,9 +37,9 @@ export default function LearningFlow({
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
-  const { playOffline, speechMessage } = useOfflineSpeech();
-
   const [lesson, setLesson] = useState<IntegratedLesson | null>(null);
+  const chapterId = lesson ? chapterForUnit(lesson.unitId) : undefined;
+  const { playOffline, speechMessage, stop: stopAudio } = useOfflineSpeech(chapterId);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -99,10 +100,8 @@ export default function LearningFlow({
   }
   useEffect(() => {
     void load();
-    return () => {
-      void stopOfflineSpeech();
-    };
-  }, [lessonId]);
+    return stopAudio;
+  }, [lessonId, stopAudio]);
   const {
     stage: stagePosition,
     vocabulary: vocabularyPosition,
@@ -161,7 +160,7 @@ export default function LearningFlow({
     save(next);
   }
   function advanceStage() {
-    void stopOfflineSpeech();
+    stopAudio();
     const next = stagePosition + 1;
     move({
       stage: next,
@@ -206,7 +205,7 @@ export default function LearningFlow({
     else advanceStage();
   }
   function nextVocabulary() {
-    void stopOfflineSpeech();
+    stopAudio();
     if (lesson && vocabularyPosition + 1 < lesson.vocabulary.length)
       save({ ...latest.current, vocabulary: vocabularyPosition + 1 });
     else if (stageExercises.length) move({ exercise: 0 });
@@ -366,7 +365,7 @@ export default function LearningFlow({
       {!loading && lesson && stage && (
         <View testID={`lesson-stage-${stage.type}`} style={{ gap: 14 }}>
           {stage.type !== 'goal' && <StageProgress lesson={lesson} position={stagePosition} />}
-          {!!audioText && !!speechMessage && (
+          {!!audioText && stage.type !== 'vocabulary' && !!speechMessage && (
             <Text accessibilityRole="alert" style={f.quiet}>
               {speechMessage}
             </Text>
@@ -424,15 +423,19 @@ export default function LearningFlow({
               item={lesson.vocabulary[vocabularyPosition]}
               position={vocabularyPosition}
               total={lesson.vocabulary.length}
+              playOffline={playOffline}
+              stopAudio={stopAudio}
+              speechMessage={speechMessage}
             />
           ) : stage.type === 'grammar' ? (
-            <GrammarStage lesson={lesson} />
+            <GrammarStage lesson={lesson} playOffline={playOffline} />
           ) : stage.type === 'dialogue' ? (
-            <DialogueStage lesson={lesson} />
+            <DialogueStage lesson={lesson} playOffline={playOffline} />
           ) : stage.type === 'speaking' ? (
             <>
               <SpeakingPanel
                 text={lesson.speakingText}
+                chapterId={chapterId}
                 allowSystemRecognition
                 onDone={() => {
                   if (!busy) void complete();

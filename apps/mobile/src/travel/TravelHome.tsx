@@ -40,6 +40,7 @@ import {
   PaperInput,
 } from '../Journal';
 import { illustrations, placeIllustration } from './illustrations';
+import { ChapterDownload } from './ChapterDownload';
 import { Button, Heading, Label } from '../ui';
 import { useTheme } from '../theme';
 
@@ -65,6 +66,7 @@ export function TravelHome({
   onPassport,
   onSpeech,
   onFullReview,
+  onOpenChapter,
 }: {
   travel: TravelState;
   progress: Progress;
@@ -78,6 +80,7 @@ export function TravelHome({
   onPassport: () => void;
   onSpeech: () => void;
   onFullReview: () => void;
+  onOpenChapter: (chapterId: string) => void;
 }) {
   const { colors: C } = useTheme();
   const { width, fontScale } = useWindowDimensions();
@@ -253,6 +256,7 @@ export function TravelHome({
             <Button variant="ghost" icon={MapPinned} style={s.openMap} onPress={onRoute}>
               Ver mapa y misiones
             </Button>
+            <ChapterDownload chapterId={chapter.id} onOpen={onOpenChapter} />
           </JournalLeaf>
           <View testID="home-practice" style={s.practice}>
             <Text accessibilityRole="header" style={s.homeSubheading}>
@@ -349,6 +353,7 @@ export function TravelRoute({
   onAdventure,
   onCountry,
   onPassport,
+  onOpenChapter,
 }: {
   travel: TravelState;
   selected: Destination;
@@ -357,6 +362,7 @@ export function TravelRoute({
   onAdventure: () => void;
   onCountry: () => void;
   onPassport: () => void;
+  onOpenChapter: (chapterId: string) => void;
 }) {
   const { colors: C } = useTheme();
   const { width, fontScale } = useWindowDimensions();
@@ -449,7 +455,7 @@ export function TravelRoute({
           <Heading style={{ fontSize: 30 }}>{isHome ? chapter.title : selected.name}</Heading>
           <Label style={s.copy}>{selected.description}</Label>
           <Text style={s.rowTitle}>{selected.goals.join(' · ')}</Text>
-          {isHome ? (
+          {isHome && (
             <>
               <Button icon={Compass} onPress={onAdventure}>
                 Comenzar mi aventura
@@ -497,11 +503,8 @@ export function TravelRoute({
                 );
               })}
             </>
-          ) : (
-            <Label style={s.status}>
-              Historia en preparación · Plan de estudio {selected.band}
-            </Label>
           )}
+          <ChapterDownload key={selected.id} chapterId={selected.id} onOpen={onOpenChapter} />
         </JournalLeaf>
         <JournalLeaf
           style={[
@@ -543,7 +546,7 @@ export function TravelRoute({
                     ? travel.stamps.home
                       ? 'Sello obtenido'
                       : 'Capítulo disponible'
-                    : 'En preparación'}
+                    : `Capítulo ${destination.band}`}
                 </Text>
               </View>
               <ChevronRight size={17} color={C.teal} />
@@ -963,7 +966,6 @@ function useStyles() {
     },
     mapSelected: { backgroundColor: '#9b3e23' },
     markerText: { color: '#fff', fontFamily: 'ManropeBold', fontSize: 12 },
-    status: { fontFamily: 'ManropeBold', color: C.teal, fontSize: 14, paddingVertical: 7 },
     countryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
     countryTitle: { flex: 1, fontFamily: 'LoraBold', fontSize: 27, color: C.ink },
     input: {

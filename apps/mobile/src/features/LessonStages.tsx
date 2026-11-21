@@ -5,13 +5,13 @@ import type { CourseLesson } from '@lingoquest/course-pack';
 import type { Answer, AttemptResult, PublicExercise } from '@lingoquest/contracts';
 import { Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
 import { useFeatureStyles } from './FeatureUI';
-import { stopOfflineSpeech, useOfflineSpeech } from './offlineSpeech';
 import { Celebration, MotionEntrance, MotionPressable } from '../motion';
 import { QuestBuddy } from '../QuestBuddy';
 import { Notebook, PaperGrain, PlazaPostcard, JournalLeaf } from '../Journal';
 
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
 export type StageKind = CourseLesson['stages'][number]['type'];
+type PlayLessonAudio = (text: string) => Promise<void>;
 export const plazaExample = { en: 'Hi! My name is Sam.', es: '¡Hola! Me llamo Sam.' };
 export const stageLabels: Record<StageKind, string> = {
   goal: 'Meta',
@@ -98,15 +98,20 @@ export function VocabularyCard({
   item,
   position,
   total,
+  playOffline,
+  stopAudio,
+  speechMessage,
 }: {
   item: CourseLesson['vocabulary'][number];
   position: number;
   total: number;
+  playOffline: PlayLessonAudio;
+  stopAudio: () => void;
+  speechMessage: string;
 }) {
   const s = useStyles();
   const f = useFeatureStyles();
 
-  const { playOffline, speechMessage } = useOfflineSpeech();
   useEffect(() => {
     // Defer until after mounting so a discarded effect never starts playback.
     const timer = setTimeout(() => {
@@ -114,9 +119,9 @@ export function VocabularyCard({
     }, 0);
     return () => {
       clearTimeout(timer);
-      void stopOfflineSpeech();
+      stopAudio();
     };
-  }, [item.id, item.en, playOffline]);
+  }, [item.id, item.en, playOffline, stopAudio]);
   return (
     <>
       <Text style={f.eyebrow}>
@@ -142,7 +147,7 @@ export function VocabularyCard({
       </JournalLeaf>
       <Text accessibilityLiveRegion="polite" style={f.quiet}>
         {speechMessage ||
-          'Escucha con la voz sin conexión del dispositivo. Puedes cambiar la voz y la velocidad en Configuración.'}
+          'Escucha sin conexión. Puedes cambiar la voz y la velocidad en Configuración.'}
       </Text>
       <Text style={f.body}>
         Mira el significado y el ejemplo. Primero reconocerás estas palabras; después las
@@ -151,7 +156,7 @@ export function VocabularyCard({
     </>
   );
 }
-function AudioButton({ text, onPlay }: { text: string; onPlay: (text: string) => Promise<void> }) {
+function AudioButton({ text, onPlay }: { text: string; onPlay: PlayLessonAudio }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
 
@@ -168,12 +173,17 @@ function AudioButton({ text, onPlay }: { text: string; onPlay: (text: string) =>
     </MotionPressable>
   );
 }
-export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
+export function GrammarStage({
+  lesson,
+  playOffline,
+}: {
+  lesson: IntegratedLesson;
+  playOffline: PlayLessonAudio;
+}) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
 
-  const { playOffline, speechMessage } = useOfflineSpeech();
   return (
     <>
       <Text style={f.eyebrow}>Gramática en contexto</Text>
@@ -204,20 +214,20 @@ export function GrammarStage({ lesson }: { lesson: IntegratedLesson }) {
           </View>
         ))}
       </JournalLeaf>
-      {!!speechMessage && (
-        <Text accessibilityRole="alert" style={f.quiet}>
-          {speechMessage}
-        </Text>
-      )}
     </>
   );
 }
-export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
+export function DialogueStage({
+  lesson,
+  playOffline,
+}: {
+  lesson: IntegratedLesson;
+  playOffline: PlayLessonAudio;
+}) {
   const { tone } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
 
-  const { playOffline, speechMessage } = useOfflineSpeech();
   return (
     <>
       <Text style={f.eyebrow}>Conversación</Text>
@@ -243,11 +253,6 @@ export function DialogueStage({ lesson }: { lesson: IntegratedLesson }) {
           ))}
         </JournalLeaf>
       ))}
-      {!!speechMessage && (
-        <Text accessibilityRole="alert" style={f.quiet}>
-          {speechMessage}
-        </Text>
-      )}
     </>
   );
 }

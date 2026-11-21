@@ -1,0 +1,106 @@
+{
+  "format": "lingoquest-chapter-catalog",
+  "schemaVersion": 1,
+  "chapters": {
+    "home": {
+      "revision": 1,
+      "sizeBytes": 4599233,
+      "sha256": "17ac045ca0a15c0dbcfc34446e631465e7524064cbf9943edf9a82468f09da99"
+    },
+    "mexico": {
+      "revision": 1,
+      "sizeBytes": 900290,
+      "sha256": "5ad69187294693248368d8382b2e940a11340c635c0f75a27db9e1187188482c"
+    },
+    "colombia": {
+      "revision": 1,
+      "sizeBytes": 1032436,
+      "sha256": "107554fccc507977d4a4362a0a7ea3ef5d44b22602d68cd987a1ab19f92805ab"
+    },
+    "peru": {
+      "revision": 1,
+      "sizeBytes": 978931,
+      "sha256": "cefe9dda30ca7f2cb8bf4925823073df8a5be4438e885cf2022f7488a68ed72c"
+    },
+    "brazil": {
+      "revision": 1,
+      "sizeBytes": 996195,
+      "sha256": "f7ffdf65c845bb386aeadebdd56d80d6598470cadfaeae6fb8431e436829b625"
+    },
+    "chile": {
+      "revision": 1,
+      "sizeBytes": 1017272,
+      "sha256": "f35c60e540761b1d87064412513cbaac44fcd82ad85e9854f7a7c333d51959c4"
+    },
+    "miami": {
+      "revision": 1,
+      "sizeBytes": 1004636,
+      "sha256": "a5dab42bf2aa45862cea80b3718c3e852ac85c02e191cbf15c4de3f775b050ed"
+    },
+    "new-york": {
+      "revision": 1,
+      "sizeBytes": 1256640,
+      "sha256": "a3d4579bab9647b48386458c91cdfeafda21da9cddb859e854c3c4859907442c"
+    },
+    "toronto": {
+      "revision": 1,
+      "sizeBytes": 332457,
+      "sha256": "d2712a89b7c11b1b3fc256246489910bbb996cdb5f01b2baf16a42df870f80e0"
+    },
+    "london": {
+      "revision": 1,
+      "sizeBytes": 396182,
+      "sha256": "57861e10567d87fada9f9c8df13b8aa29168d94f01ddbf3be79fe7ff78653dfe"
+    },
+    "paris": {
+      "revision": 1,
+      "sizeBytes": 333629,
+      "sha256": "b6d6c240bbde89b07002ed499ffe7184fd353d9052f635c7d7b37ae1995371b6"
+    },
+    "rome": {
+      "revision": 1,
+      "sizeBytes": 326861,
+      "sha256": "c3465ac618777dd6a303c9dfa8e1bcead0e2a5c18b0eb7461cb8e5c46442543d"
+    },
+    "cairo": {
+      "revision": 1,
+      "sizeBytes": 326420,
+      "sha256": "9dd19fd952977101bb37d770a525754af668fc57cf66f75c12e052f1c1463bdf"
+    },
+    "singapore": {
+      "revision": 1,
+      "sizeBytes": 335261,
+      "sha256": "75e67ac5f3bc9e13ae188bb3f9b7833be88d85507497b7e8ef5d566df12bd46c"
+    },
+    "tokyo": {
+      "revision": 1,
+      "sizeBytes": 349086,
+      "sha256": "a1abb5c3272694834fa0bebda1997020dd61141ff96f6336fff5a59706399485"
+    },
+    "australia": {
+      "revision": 1,
+      "sizeBytes": 389696,
+      "sha256": "d5718ba18878ca1e7568787d21b7fcdaf76224de047edde846cb6caeb9bfcc18"
+    },
+    "new-zealand": {
+      "revision": 1,
+      "sizeBytes": 374356,
+      "sha256": "8139ee4dc4369f91ba4d98cbeffe555d6e0d428be2d792d87d63793ef28c3d72"
+    },
+    "kenya": {
+      "revision": 1,
+      "sizeBytes": 376020,
+      "sha256": "02eab024485e809cec5dd2293cdafc8c01f8b0563ba739749a8f77be0e0a0743"
+    },
+    "south-africa": {
+      "revision": 1,
+      "sizeBytes": 397074,
+      "sha256": "eecf659e78d4eb4e8410271547b81257559ac4625e0c86101036901268462a57"
+    },
+    "antarctica": {
+      "revision": 1,
+      "sizeBytes": 388627,
+      "sha256": "0b5550243d6a849a55fc29f73aadfbe4e832e08b191068c8c2def7cdc243fbd7"
+    }
+  }
+}

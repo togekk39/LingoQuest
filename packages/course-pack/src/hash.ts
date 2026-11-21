@@ -1,6 +1,8 @@
 /** Portable SHA-256 over UTF-8; works in Hermes, browsers and Node without network/native APIs. */
 export function utf8Bytes(value: string): Uint8Array {
-  const bytes: number[] = [];
+  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(value);
+  const bytes = new Uint8Array(value.length * 3);
+  let length = 0;
   for (let i = 0; i < value.length; i++) {
     let code = value.charCodeAt(i);
     if (code >= 0xd800 && code <= 0xdbff) {
@@ -10,19 +12,23 @@ export function utf8Bytes(value: string): Uint8Array {
         i++;
       } else code = 0xfffd;
     } else if (code >= 0xdc00 && code <= 0xdfff) code = 0xfffd;
-    if (code < 0x80) bytes.push(code);
-    else if (code < 0x800) bytes.push(0xc0 | (code >> 6), 0x80 | (code & 63));
-    else if (code < 0x10000)
-      bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 63), 0x80 | (code & 63));
-    else
-      bytes.push(
-        0xf0 | (code >> 18),
-        0x80 | ((code >> 12) & 63),
-        0x80 | ((code >> 6) & 63),
-        0x80 | (code & 63),
-      );
+    if (code < 0x80) {
+      bytes[length++] = code;
+    } else if (code < 0x800) {
+      bytes[length++] = 0xc0 | (code >> 6);
+      bytes[length++] = 0x80 | (code & 63);
+    } else if (code < 0x10000) {
+      bytes[length++] = 0xe0 | (code >> 12);
+      bytes[length++] = 0x80 | ((code >> 6) & 63);
+      bytes[length++] = 0x80 | (code & 63);
+    } else {
+      bytes[length++] = 0xf0 | (code >> 18);
+      bytes[length++] = 0x80 | ((code >> 12) & 63);
+      bytes[length++] = 0x80 | ((code >> 6) & 63);
+      bytes[length++] = 0x80 | (code & 63);
+    }
   }
-  return new Uint8Array(bytes);
+  return bytes.subarray(0, length);
 }
 const K = [
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -35,8 +41,8 @@ const K = [
   0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ];
 const rotate = (n: number, b: number) => (n >>> b) | (n << (32 - b));
-export function sha256Hex(value: string): string {
-  const input = utf8Bytes(value);
+export function sha256Hex(value: string | Uint8Array): string {
+  const input = typeof value === 'string' ? utf8Bytes(value) : value;
   const length = input.length;
   const total = Math.ceil((length + 9) / 64) * 64;
   const bytes = new Uint8Array(total);

@@ -37,6 +37,7 @@ import { OfflineProfile as Profile } from './content-manager/OfflineProfile';
 import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
 import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
+import { ChapterPackView } from './travel/ChapterPackView';
 import { TravelFlow } from './travel/TravelFlow';
 import { StoryAdventure } from './travel/StoryAdventure';
 import { QuickReview } from './travel/QuickReview';
@@ -84,6 +85,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [storyError, setStoryError] = useState('');
   const [finishingEncounter, setFinishingEncounter] = useState(false);
   const [destination, setDestination] = useState('home');
+  const [openedChapter, setOpenedChapter] = useState<string>();
+  const [textbookUnit, setTextbookUnit] = useState<string>();
   const [originPicker, setOriginPicker] = useState<{ afterSave?: AfterOrigin } | null>(null);
   const [namePicker, setNamePicker] = useState<{ afterSave?: () => Promise<void> } | null>(null);
   const [passport, setPassport] = useState(false);
@@ -276,6 +279,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   }
   const finishFlow = () => {
     setFlow(null);
+    setTextbookUnit(undefined);
     setReviewMission(undefined);
     void refresh().catch((e) => setNotice(e.message));
     if (story) void refreshStory().catch((e) => setStoryError(e.message));
@@ -425,9 +429,30 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     return withSheets(
       <TextbookFlow
         completed={progress?.completedLessons ?? []}
+        initialUnitId={textbookUnit}
         onClose={finishFlow}
         onRefresh={() => void refresh().catch((e) => setNotice(e.message))}
         onVoiceSettings={openVoiceSettings}
+      />,
+    );
+  if (openedChapter)
+    return withSheets(
+      <ChapterPackView
+        key={openedChapter}
+        chapterId={openedChapter}
+        onClose={() => setOpenedChapter(undefined)}
+        onAdventure={
+          openedChapter === chapter.id
+            ? () => {
+                setOpenedChapter(undefined);
+                startStory();
+              }
+            : undefined
+        }
+        onOpenTextbookUnit={(unitId) => {
+          setTextbookUnit(unitId);
+          setFlow('textbook');
+        }}
       />,
     );
   if (story && !passport)
@@ -471,6 +496,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
 
   function go(next: Tab) {
     setTab(next);
+    setOpenedChapter(undefined);
     setPassport(false);
     storySession.current++;
     setStory(null);
@@ -618,6 +644,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onPassport={() => setPassport(true)}
                 onSpeech={() => setFlow('speech')}
                 onFullReview={() => setFlow('reviews')}
+                onOpenChapter={setOpenedChapter}
               />
             ) : tab === 'Mapa' ? (
               <TravelRoute
@@ -631,6 +658,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onAdventure={startStory}
                 onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
+                onOpenChapter={setOpenedChapter}
               />
             ) : tab === 'Aprender' ? (
               <TravelGuide

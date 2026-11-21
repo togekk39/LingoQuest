@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClipPlayer } from './useClipPlayer';
 import {
+  DOWNLOADED_AUDIO_NOTICE,
+  getAvailableChapterAudio,
   getSpeechPreferences,
   stopOfflineSpeech,
   playOfflineVoice,
@@ -41,6 +43,14 @@ export function useChapterAudio() {
           if (result.played) continue;
           if (!result.message) return;
 
+          const downloaded = await getAvailableChapterAudio('home', phrase);
+          if (signal.aborted) return;
+          if (downloaded) {
+            setSpeechMessage(DOWNLOADED_AUDIO_NOTICE);
+            if (await player.play(downloaded, preferences.rate ?? 1, signal).catch(() => false))
+              continue;
+            if (signal.aborted) return;
+          }
           const clip = audioClips[phrase];
           if (!clip || (preferences.voice !== null && !useBundledIfUnavailable)) {
             setSpeechMessage(result.message);

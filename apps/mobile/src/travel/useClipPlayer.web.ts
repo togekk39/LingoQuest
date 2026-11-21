@@ -1,48 +1,60 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Asset } from 'expo-asset';
 
+const mp3DataPrefix = 'data:audio/mpeg;base64,';
+
 export function useClipPlayer() {
-  const current = useRef<HTMLAudioElement | null>(null);
+  const current = useRef<(() => void) | null>(null);
   const player = useMemo(() => {
-    const stop = () => {
-      const audio = current.current;
-      if (!audio) return;
-      current.current = null;
-      audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
-    };
+    const stop = () => current.current?.();
     return {
       stop,
-      play: (clip: number, rate: number, signal: AbortSignal) => {
-        if (signal.aborted) return Promise.resolve(false);
+      async play(clip: number | string, rate: number, signal: AbortSignal) {
+        if (signal.aborted) return false;
         stop();
-        const audio = new Audio(Asset.fromModule(clip).uri);
-        current.current = audio;
+        const uri = typeof clip === 'number' ? Asset.fromModule(clip).uri : clip;
+        let blobUri: string | undefined;
+        if (uri.startsWith(mp3DataPrefix)) {
+          const binary = atob(uri.slice(mp3DataPrefix.length));
+          const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+          blobUri = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
+        }
+        const audio = new Audio(blobUri ?? uri);
         audio.playbackRate = rate;
         audio.preservesPitch = true;
         return new Promise<boolean>((resolve, reject) => {
-          const cleanup = () => {
+          const cleanup = (unload: boolean) => {
+            if (current.current !== cancelled) return false;
+            current.current = null;
             audio.removeEventListener('ended', ended);
             audio.removeEventListener('error', failed);
             signal.removeEventListener('abort', cancelled);
+            if (unload) {
+              audio.pause();
+              audio.removeAttribute('src');
+              audio.load();
+            }
+            if (blobUri) URL.revokeObjectURL(blobUri);
+            return true;
           };
           const ended = () => {
-            cleanup();
-            resolve(true);
+            if (cleanup(false)) resolve(true);
           };
-          const failed = () => {
-            cleanup();
-            reject(audio.error ?? new Error('Audio playback failed'));
+          const failed = (cause?: unknown) => {
+            if (cleanup(true)) reject(audio.error ?? cause ?? new Error('Audio playback failed'));
           };
           const cancelled = () => {
-            cleanup();
-            resolve(false);
+            if (cleanup(true)) resolve(false);
           };
+          current.current = cancelled;
           audio.addEventListener('ended', ended);
           audio.addEventListener('error', failed);
           signal.addEventListener('abort', cancelled, { once: true });
-          void audio.play().catch(failed);
+          try {
+            void audio.play().catch(failed);
+          } catch (error) {
+            failed(error);
+          }
         });
       },
     };

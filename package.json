@@ -21,6 +21,7 @@
     "build:android": "npm run build:android -w @lingoquest/mobile",
     "preview": "node scripts/serve-preview.mjs",
     "packs:build": "tsx scripts/build-course-pack.ts",
+    "packs:chapters": "tsx scripts/build-chapter-packs.ts",
     "packs:verify": "tsx scripts/verify-course-release.ts",
     "build:apk": "node scripts/build-apk.mjs",
     "test:stt": "tsx --test tests/native/stt.test.ts"

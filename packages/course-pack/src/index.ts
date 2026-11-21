@@ -234,6 +234,177 @@ export const coursePayloadSchema = z
 export type CoursePayload = z.infer<typeof coursePayloadSchema>;
 export type CourseUnit = CoursePayload['units'][number];
 export type CourseLesson = CoursePayload['lessons'][string];
+
+export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
+export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
+export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
+export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
+const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
+const chapterRevisionSchema = z.number().int().min(1).max(999999);
+const chapterDigestSchema = z.string().regex(/^[a-f0-9]{64}$/);
+
+const chapterLessonSchema = z
+  .object({
+    title: text,
+    objectiveEs: text,
+    dialogue: z
+      .array(z.object({ speaker: text, en: text, es: text }).strict())
+      .min(2)
+      .max(12),
+    vocabulary: z.array(translation).min(1).max(15),
+    grammarEs: text,
+    question: z
+      .object({
+        promptEs: text,
+        options: z.array(text).min(2).max(6),
+        answerIndex: z.number().int().nonnegative(),
+        feedbackEs: text,
+      })
+      .strict()
+      .refine(({ answerIndex, options }) => answerIndex < options.length),
+    practiceEs: text,
+    model: translation,
+  })
+  .strict();
+export type ChapterLesson = z.infer<typeof chapterLessonSchema>;
+export type ChapterLessonSource = ChapterLesson | [ChapterLesson, ...ChapterLesson[]];
+
+const chapterMediaSchema = z
+  .object({
+    mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'audio/mpeg']),
+    dataBase64: z
+      .string()
+      .min(4)
+      .max(1_500_000)
+      .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+      .refine((data) => data.length % 4 === 0),
+  })
+  .strict();
+export type ChapterMedia = z.infer<typeof chapterMediaSchema>;
+
+export const chapterPackSchema = z
+  .object({
+    format: z.literal(CHAPTER_PACK_FORMAT),
+    schemaVersion: z.literal(CHAPTER_PACK_SCHEMA_VERSION),
+    revision: chapterRevisionSchema,
+    chapterId: chapterIdSchema,
+    sha256: chapterDigestSchema,
+    lesson: chapterLessonSchema,
+    additionalLessons: z.array(chapterLessonSchema).max(30),
+    unit: z
+      .object({ id, titleEs: text, lessons: z.array(lessonSchema).min(1).max(20) })
+      .strict()
+      .optional(),
+    story: z
+      .object({
+        chapter: z
+          .object({ id: z.literal('home'), missions: z.array(z.unknown()).min(1) })
+          .passthrough(),
+        adventure: z
+          .object({
+            id: z.literal('home'),
+            scenes: z.array(z.unknown()).min(1),
+            dialogues: z.array(z.unknown()).min(1),
+          })
+          .passthrough(),
+        practice: z.array(z.unknown()).min(1),
+      })
+      .strict()
+      .optional(),
+    images: z.record(id, chapterMediaSchema),
+    audio: z.record(text, chapterMediaSchema),
+  })
+  .strict()
+  .refine(({ chapterId, lesson, additionalLessons, unit, story, images, audio }) => {
+    const requiredImages =
+      chapterId === 'home'
+        ? [
+            'cover',
+            'story-plaza',
+            'bus',
+            'bag',
+            'story-sam',
+            'story-luz',
+            'story-sam-portrait',
+            'story-luz-portrait',
+          ]
+        : ['cover'];
+    return (
+      requiredImages.every((key) => Object.hasOwn(images, key)) &&
+      Object.values(images).every((media) => media.mimeType !== 'audio/mpeg') &&
+      Object.values(audio).every((media) => media.mimeType === 'audio/mpeg') &&
+      chapterLessonPhrases([lesson, ...additionalLessons], unit?.lessons).every((phrase) =>
+        Object.hasOwn(audio, phrase),
+      ) &&
+      (unit?.lessons.every((item) => item.unitId === unit.id) ?? true) &&
+      (chapterId === 'home') === !!story
+    );
+  }, 'Faltan recursos del capítulo o algún recurso tiene un formato incorrecto.');
+export type ChapterPack = z.infer<typeof chapterPackSchema>;
+
+export function chapterLessonPhrases(
+  lessons: readonly ChapterLesson[],
+  unitLessons: readonly CourseLesson[] = [],
+) {
+  return [
+    ...new Set([
+      ...lessons.flatMap((lesson) => [
+        ...lesson.dialogue.map(({ en }) => en),
+        ...lesson.vocabulary.map(({ en }) => en),
+        lesson.model.en,
+      ]),
+      ...unitLessons.flatMap((item) => [
+        item.speakingText,
+        ...item.examples.map(({ en }) => en),
+        ...item.vocabulary.flatMap(({ en, example }) => [en, example.en]),
+        ...item.grammar.examples.map(({ en }) => en),
+        ...item.dialogue.map(({ en }) => en),
+      ]),
+    ]),
+  ];
+}
+
+export function serializeChapterPack(content: Omit<ChapterPack, 'sha256'>): string {
+  const body = JSON.stringify(content);
+  return `${body.slice(0, -1)},"sha256":"${sha256Hex(body)}"}\n`;
+}
+
+export function parseChapterPack(source: string, expectedId: string): ChapterPack {
+  if (source.length > MAX_CHAPTER_PACK_BYTES || utf8Bytes(source).length > MAX_CHAPTER_PACK_BYTES)
+    throw new Error('El paquete del capítulo es demasiado grande.');
+  let input: unknown;
+  try {
+    input = JSON.parse(source);
+  } catch {
+    throw new Error('No pudimos leer el archivo del capítulo.');
+  }
+  const pack = chapterPackSchema.safeParse(input);
+  if (!pack.success || pack.data.chapterId !== expectedId)
+    throw new Error('El archivo no contiene un paquete compatible para este capítulo.');
+  const { sha256, ...content } = input as ChapterPack;
+  if (sha256Hex(JSON.stringify(content)) !== sha256)
+    throw new Error('El paquete del capítulo está incompleto o dañado.');
+  return pack.data;
+}
+
+export const chapterCatalogSchema = z
+  .object({
+    format: z.literal('lingoquest-chapter-catalog'),
+    schemaVersion: z.literal(CHAPTER_PACK_SCHEMA_VERSION),
+    chapters: z.record(
+      chapterIdSchema,
+      z
+        .object({
+          revision: chapterRevisionSchema,
+          sizeBytes: z.number().int().min(1).max(MAX_CHAPTER_PACK_BYTES),
+          sha256: chapterDigestSchema,
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+export type ChapterCatalog = z.infer<typeof chapterCatalogSchema>;
+
 export const courseManifestSchema = z
   .object({
     format: z.literal(COURSE_PACK_FORMAT),

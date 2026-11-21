@@ -1,15 +1,36 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useAudioPlayer } from 'expo-audio';
 import { playPracticeClip } from '../features/playPracticeClip';
 
 export function useClipPlayer() {
   const player = useAudioPlayer(null);
-  return useMemo(
-    () => ({
-      stop: () => player.pause(),
-      play: (clip: number, rate: number, signal: AbortSignal) =>
-        playPracticeClip(player, clip, rate, signal),
-    }),
-    [player],
-  );
+  const current = useRef<AbortController | null>(null);
+  useEffect(() => () => current.current?.abort(), []);
+  return useMemo(() => {
+    const stop = () => {
+      const playback = current.current;
+      if (!playback || playback.signal.aborted) return;
+      playback.abort();
+      player.pause();
+    };
+    return {
+      stop,
+      async play(clip: number | string, rate: number, signal: AbortSignal) {
+        if (signal.aborted) return false;
+        stop();
+        const playback = new AbortController();
+        current.current = playback;
+        const cancel = () => {
+          if (current.current === playback) stop();
+        };
+        signal.addEventListener('abort', cancel, { once: true });
+        try {
+          return await playPracticeClip(player, clip, rate, playback.signal);
+        } finally {
+          signal.removeEventListener('abort', cancel);
+          if (current.current === playback) current.current = null;
+        }
+      },
+    };
+  }, [player]);
 }
