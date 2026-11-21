@@ -168,7 +168,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   const playback = () =>
     page.evaluate(() =>
       (window as Window & { storyPlayback?: string[] }).storyPlayback!.map(
-        (src) => src.match(/\/(line-\d+|word-\d+|sam-greeting)\./)?.[1],
+        (src) => src.match(/\/(line-\d+|word-\d+|sam-greeting|introduction-starter)\./)?.[1],
       ),
     );
   const clipPlays = async (clip: string) => (await playback()).filter((id) => id === clip).length;
@@ -268,9 +268,38 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await answerTravelText(page, 'travel_hello_transfer', "I'm Ana O’Connor.");
   const voice = page.getByText(/reconocimiento de voz de la misión está disponible en Android/);
   await expect(voice).toBeVisible();
-  await expect(learning.getByText('Hi! I am Ana O’Connor.', { exact: true })).toBeVisible();
+  const model = learning.getByText('Hi! I am Ana O’Connor.', { exact: true });
+  await expect(model).toBeVisible();
   await expect(learning.getByText('Tu modelo para responder', { exact: true })).toBeVisible();
   await capture(page, 'storybook-mobile-speaking');
+  await click(page, 'Escuchar ejemplo');
+  await expect(learning.getByText(/No pudimos usar una voz de inglés sin conexión/)).toBeVisible();
+  expect(await clipPlays('introduction-starter')).toBe(0);
+
+  await page.evaluate(() => {
+    const voice = {
+      voiceURI: 'local-us',
+      name: 'Local English',
+      lang: 'en-US',
+      localService: true,
+    };
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', {
+      configurable: true,
+      value: class {
+        constructor(readonly text: string) {}
+      },
+    });
+    Object.assign(window.speechSynthesis, {
+      getVoices: () => [voice],
+      speak: (utterance: SpeechSynthesisUtterance) => {
+        document.body.dataset.spoken = utterance.text;
+        utterance.onend?.({} as SpeechSynthesisEvent);
+      },
+    });
+  });
+  await click(page, 'Escuchar ejemplo');
+  await expect(page.locator('body')).toHaveAttribute('data-spoken', (await model.textContent())!);
+  await page.evaluate(() => (window.speechSynthesis.getVoices = () => []));
   await click(page, 'Ahora no puedo hablar');
   await expect
     .poll(async () => (await storyProgress(page)).story?.events['greeted-sam'])

@@ -25,7 +25,6 @@ export type SpeakingPanelHandle = { stop: () => void };
 export function SpeakingPanel({
   text,
   displayText,
-  fallbackReference,
   onDone,
   onPlay,
   onStopReference,
@@ -40,7 +39,6 @@ export function SpeakingPanel({
 }: {
   text: string;
   displayText?: string;
-  fallbackReference?: string;
   onDone: (method?: SpeakingPracticeMethod) => void;
   onPlay?: () => void;
   onStopReference?: () => void;
@@ -149,12 +147,9 @@ export function SpeakingPanel({
       if (run.signal.aborted) return;
       const clip = audioClips[text];
       const preferences = await getSpeechPreferences();
-      let played = clip
+      const played = clip
         ? await playPracticeClip(player, clip, preferences.rate ?? 1, run.signal)
         : await speakOffline(text);
-      const fallback = fallbackReference && audioClips[fallbackReference];
-      if (!played && !run.signal.aborted && fallback && fallback !== clip)
-        played = await playPracticeClip(player, fallback, preferences.rate ?? 1, run.signal);
       if (!played && !run.signal.aborted) throw new Error('Reference audio unavailable');
       if (played && !run.signal.aborted) {
         await playPracticeClip(player, { uri }, 1, run.signal);
@@ -172,7 +167,7 @@ export function SpeakingPanel({
       {!inline && <JournalArt source={illustrations.review} aspectRatio={3.1} taped />}
       <Section title="Dale voz a lo que aprendiste.">
         <Text style={f.quiet}>
-          {exampleLabel
+          {displayText
             ? 'Escucha cómo empezar. Completa el saludo con tu propio nombre.'
             : 'Escucha el ejemplo y di la frase para comprobar tu respuesta.'}
         </Text>

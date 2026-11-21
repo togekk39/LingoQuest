@@ -209,12 +209,13 @@ export function TravelFlow({
     !current.finished && !briefing && step.type === 'teach'
       ? mission.vocabulary[wordIndex]
       : undefined;
-  const speakingModel =
-    step.type === 'speak' && personalResponse
-      ? playerName
-        ? `Hi! I am ${playerName}.`
-        : `${step.phrase} [tu nombre].`
-      : undefined;
+  const speakingText =
+    step.type === 'speak'
+      ? personalResponse && playerName
+        ? `${step.phrase} ${playerName}.`
+        : step.phrase
+      : '';
+  const speakingTemplate = personalResponse && !playerName;
   const line = !current.finished && step.type === 'dialogue' ? step.line : undefined;
   const referenceAudio =
     word?.term ??
@@ -615,20 +616,13 @@ export function TravelFlow({
             <SpeakingPanel
               ref={speaking}
               inline={inline}
-              text={playerName && speakingModel ? speakingModel : step.phrase}
-              displayText={speakingModel}
-              fallbackReference={personalResponse ? step.phrase : undefined}
+              text={speakingText}
+              displayText={speakingTemplate ? `${speakingText} [tu nombre].` : undefined}
               onDone={(practice) => {
                 if (practice) void act({ action: 'speak', token: current.token, practice });
                 else advance();
               }}
-              onPlay={() =>
-                void play(
-                  playerName && speakingModel ? speakingModel : step.phrase,
-                  true,
-                  step.phrase,
-                )
-              }
+              onPlay={() => void play(speakingText, true)}
               onStopReference={stop}
               acceptedPhrases={step.acceptedPhrases}
               exampleLabel={step.exampleLabel}
