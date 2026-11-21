@@ -2,6 +2,7 @@ import {
   test,
   expect,
   enterApp,
+  openLessons,
   readyOfflineShell,
   finishVocabulary,
   finishGreetingPractice,
@@ -24,7 +25,7 @@ test.describe('origin picker on a small touch screen', () => {
     const search = page.getByRole('textbox', exact('Buscar lugar de origen'));
 
     await page.getByRole('button', exact('Explorar primero')).tap();
-    await page.getByRole('button', exact('Continuar viaje')).tap();
+    await page.getByRole('button', exact('Comenzar mi aventura')).tap();
     await expect(search).toBeVisible();
     expect((await state(page)).travel.active).toBeUndefined();
     await page.getByRole('button', exact('Cerrar')).tap();
@@ -71,8 +72,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await expect(page.getByRole('textbox', exact('Buscar lugar de origen'))).toBeHidden();
   await page.getByRole('tab', exact('Inicio')).click();
   await expect(page.getByText('República Dominicana', { exact: true })).toBeVisible();
-  const postcard = page.getByTestId('home-mission-postcard');
-  await postcard.getByRole('button', exact('Continuar viaje')).click();
+  await openLessons(page);
   const click = (name: string) => page.getByRole('button', exact(name)).click();
   await expect(page.getByTestId('travel-dialogue-postcard')).toBeVisible();
   await capture(page, '01-plaza-dialogue');
@@ -93,11 +93,9 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
     page.evaluate(() => JSON.parse(localStorage.getItem('lq_offline_state_v1')!).travel);
   await expect.poll(async () => (await travelState()).active.answer.text).toBe('Hi! I am');
   await click('Cerrar y volver');
-  await expect(
-    page.getByTestId('home-stop-hello').getByText('En curso', { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', exact('Lecciones'))).toBeVisible();
   await page.reload();
-  await click('Continuar viaje');
+  await openLessons(page);
   await expect(input).toHaveValue('Hi! I am');
   await expect(page.getByText(/Retomamos donde lo dejaste/)).toBeVisible();
   await input.fill("Hi! I'm Ana.");
@@ -105,7 +103,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await expect(page.getByRole('button', exact('Seguir la historia'))).toBeVisible();
   const beforeReload = await state(page);
   await page.reload();
-  await click('Continuar viaje');
+  await openLessons(page);
   await expect(page.getByRole('button', exact('Seguir la historia'))).toBeVisible();
   expect((await state(page)).attempts).toEqual(beforeReload.attempts);
   await click('Seguir la historia');
@@ -119,7 +117,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await click('Ahora no puedo hablar');
   await expect(page.getByText('¡Misión completada!')).toBeVisible();
   await click('Volver al viaje');
-  await click('Continuar viaje');
+  await openLessons(page);
   await click('Continuar');
   await finishVocabulary(page);
   await page.evaluate(() => {
@@ -154,7 +152,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await answerTravelText(page, 'travel_bus_transfer', 'The park is next to the bus stop.');
   await click('Completar misión');
   await click('Volver al viaje');
-  await click('Continuar viaje');
+  await openLessons(page);
   await click('Continuar');
   await finishVocabulary(page);
   await answerTravelChoice(page, 'travel_bag_read', 'A blue bag');
@@ -167,7 +165,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await click('Completar misión');
   await expect(page.getByText('Sello obtenido · Primer encuentro')).toBeVisible();
   await page.reload();
-  await click('Continuar viaje');
+  await openLessons(page);
   await expect(page.getByText('Sello obtenido · Primer encuentro')).toBeVisible();
   await click('Abrir pasaporte');
   await expect(page.getByText('La postal de Sam', { exact: true })).toBeVisible();

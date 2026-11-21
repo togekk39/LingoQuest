@@ -9,7 +9,8 @@ for (const width of [390, 1280]) {
 
     const postcard = page.getByTestId('home-mission-postcard');
     await expect(postcard.getByText('Un saludo en la plaza', { exact: true })).toBeVisible();
-    await expect(postcard.getByRole('button', exact('Continuar viaje'))).toBeInViewport();
+    await expect(postcard.getByRole('button', exact('Comenzar mi aventura'))).toBeInViewport();
+    await expect(postcard.getByRole('button')).toHaveCount(1);
 
     const route = page.getByTestId('home-route');
     await expect(route.getByRole('heading', exact('Ruta del capítulo'))).toBeVisible();
@@ -19,7 +20,7 @@ for (const width of [390, 1280]) {
     await firstStop.click();
     await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
     await click(page, 'Cerrar y volver');
-    await expect(postcard.getByRole('button', exact('Continuar viaje'))).toBeVisible();
+    await expect(postcard.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
 
     const practice = page.getByTestId('home-practice');
     await expect(practice.getByRole('heading', exact('Practicar a tu ritmo'))).toBeVisible();

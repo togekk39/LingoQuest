@@ -7,20 +7,21 @@ import {
   readyOfflineShell,
   state,
   openPlacement,
+  openLessons,
   capture,
 } from './helpers';
 
-test('first launch offers two spaced travel routes and opens the first scene', async ({
+test('first launch has one start button for the adventure and an optional assessment', async ({
   page,
   context,
 }) => {
   await page.setViewportSize({ width: 320, height: 650 });
   await page.goto('/');
-  const start = page.getByRole('button', exact('Empezar mi viaje'));
+  const start = page.getByRole('button', exact('Comenzar mi aventura'));
   const assess = page.getByRole('button', exact('Ya sé algo de inglés'));
   await expect(start).toBeVisible();
   await expect(assess).toBeVisible();
-  await expect(page.getByRole('button', exact('Empiezo desde cero'))).toHaveCount(0);
+  await expect(page.getByRole('button', exact('Empezar mi viaje'))).toHaveCount(0);
   const [first, second] = await Promise.all([start.boundingBox(), assess.boundingBox()]);
   expect(second!.y - first!.y - first!.height).toBeGreaterThanOrEqual(10);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
@@ -36,8 +37,7 @@ test('first launch offers two spaced travel routes and opens the first scene', a
   await expect(page.getByRole('heading', exact('¿Cómo te llamas?'))).toBeVisible();
   await page.getByRole('textbox', exact('Tu nombre')).fill('Amaya');
   await click(page, 'Guardar y continuar');
-  await expect(page.getByText('Un saludo en la plaza', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
+  await expect(page.getByTestId('story-scene-plaza')).toBeVisible();
   expect(await state(page)).toMatchObject({ user: { name: 'Amaya' }, travel: { country: 'HN' } });
 });
 
@@ -71,7 +71,7 @@ test('placement from the welcome evaluates travel listening and jumps to the rec
   await click(page, 'Ir a mi misión');
   await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
   await page.reload();
-  await click(page, 'Continuar viaje');
+  await openLessons(page);
   expect((await state(page)).travel.active?.missionId).toBe('bag');
 });
 

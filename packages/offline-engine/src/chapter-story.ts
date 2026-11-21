@@ -354,7 +354,6 @@ export const chapterStory = {
       id: 'greet-sam',
       npcId: 'sam',
       missionId: 'hello',
-      entryStepId: 'hello_teach',
       onFinish: [
         { type: 'event', id: 'greeted-sam' },
         { type: 'giveItem', id: 'bus-ticket' },

@@ -8,10 +8,10 @@ LingoQuest is an Android-first app for learning American English (`en-US`) with 
 
 ## Explore and learn
 
-- **Explorar aventura** opens **La primera postal**. Meet Sam and Luz in the plaza, use a ticket to find the bus stop, and choose a lead to recover Sam's backpack. Practice English with the characters and use it to solve the three missions. The adventure earns a stamp, postcard, and journal entry. **Empezar mi viaje** opens the lessons directly. [Chapter walkthrough](docs/PHASE_4_RPG.md)
+- **Comenzar mi aventura** opens **La primera postal**. Meet Sam and Luz in the plaza, use a ticket to find the bus stop, and choose a lead to recover Sam's backpack. Each mission includes its full English lesson. The adventure earns a stamp, postcard, and journal entry. [Chapter walkthrough](docs/PHASE_4_RPG.md)
 - **Ya sé algo de inglés** offers six optional, un-timed questions. Your answers suggest one of the three published missions. Earlier missions stay playable. You can retake the assessment from **Aprender** or **Perfil**.
 - **Mapa** covers 20 stops across seven continents and ends in Antarctica via Ushuaia. Choose an origin in Latin America or the Caribbean. Planned chapters say **En preparación**.
-- **Aprender** opens the vocabulary guide, grammar handbook, pronunciation practice, and **Cursos A1–A2**, with eight units and 32 lessons from the bundled LQP 2.1.0 course. Start any lesson or pick up the most recent draft. The handbook and vocabulary guide can be used independently of the story.
+- In **Aprender**, choose **Lecciones** to start or resume a chapter lesson directly. **Aprender** also offers the vocabulary guide, grammar handbook, pronunciation practice, and **Cursos A1–A2**, with eight units and 32 lessons from the bundled LQP 2.1.0 course. Start any course lesson or pick up the most recent draft.
 - **Repaso rápido** offers one practice item. **Repasar** shows queued reviews and **Mis habilidades** shows chapter evidence and skills to revisit. Review timing accounts for assistance, errors, independent retrieval, delay, and use in a fresh context.
 - **Desafíos** offers the original 13-level A1–A2 course track and the optional journey track. Travel ranks 1–3 open with the chapter stamp. The course levels open with the relevant lessons. Timers can be turned off in practice. Travel stages, challenge results, and XP describe activity. Curriculum bands are teaching targets.
 

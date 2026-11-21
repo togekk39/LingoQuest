@@ -6,7 +6,7 @@ Follow the [verification record](VERIFICATION.md) for automated results and limi
 
 ## Welcome and starting mission
 
-1. With fresh data, open the app at 320, 360, and 390 px, then repeat with larger text and dark mode. Check that the two actions are easy to tell apart and that the close button is accessible. Choose an origin after **Empezar mi viaje** to open the plaza scene.
+1. With fresh data, open the app at 320, 360, and 390 px, then repeat with larger text and dark mode. Check that **Comenzar mi aventura** is the primary action and that the optional assessment and close button are accessible. Choose an origin to open the plaza scene. To open a lesson directly, go to **Aprender → Lecciones**.
 2. From the welcome, choose **Ya sé algo de inglés** and skip all six questions. Check that **Ir a mi misión** opens **Un saludo en la plaza**.
 3. Retake the assessment in **Aprender**. Answer only the first two correctly to start at the bus stop. Answer the first four correctly without a transcript to start at lost and found. Confirm earlier missions can still be opened and the assessment awarded no XP, stamps, or completed missions.
 
