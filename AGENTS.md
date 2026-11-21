@@ -11,3 +11,8 @@
 - Conserva el nombre del archivo Markdown en inglés y usa un archivo en la misma carpeta con el sufijo `.es-419.md` para la traducción al español. Enlaza las dos versiones. En las reglas breves y los comentarios se puede escribir primero el inglés y enseguida el español latinoamericano.
 - Evita el texto en chino en los archivos del repositorio, incluidos los comentarios, ejemplos y datos de prueba. Usa identificadores en inglés. Conserva los contratos de API, nombres de comandos, etiquetas de idioma y textos de la interfaz cuando el equipo necesite identificarlos tal como aparecen.
 - Antes de entregar cambios, revisa los archivos modificados para detectar texto pendiente de traducir y actualiza ambas versiones en el mismo cambio. Para revisar el repositorio, ejecuta `rg -n --hidden -g '!.git' '\p{Han}'`. Mantén los materiales para estudiantes en el idioma que requiere el curso. La interfaz usa español latinoamericano y el idioma meta es el inglés estadounidense.
+
+## App releases / Versiones de la app
+
+- Use development builds identified by their commit. Set `LINGOQUEST_RELEASE_VERSION` only when the release version has been explicitly approved. Course-pack versions and Android build codes have their own versioning.
+- Usa compilaciones de desarrollo identificadas por su commit. Define `LINGOQUEST_RELEASE_VERSION` solo cuando se haya aprobado explícitamente la versión de lanzamiento. Los paquetes del curso y los códigos de compilación de Android tienen su propia numeración.
