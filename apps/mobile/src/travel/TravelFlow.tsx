@@ -137,6 +137,7 @@ export type TravelFlowHandle = {
 export function TravelFlow({
   initial,
   playerName,
+  onEditName,
   onUpdate,
   onClose,
   onPassport,
@@ -147,6 +148,7 @@ export function TravelFlow({
 }: {
   initial: TravelCheckpoint;
   playerName?: string;
+  onEditName: () => void;
   onUpdate: (travel: TravelState) => void;
   onClose: () => void;
   onPassport: () => void;
@@ -178,10 +180,26 @@ export function TravelFlow({
   const personalResponse =
     (step.type === 'exercise' || step.type === 'speak') &&
     step.response === 'personal-introduction';
-  const responseContext = personalResponse && (
+  const nameTile = step.id === 'travel_hello_build';
+  const tokenLabel =
+    nameTile && playerName
+      ? (token: string) => (token === '[tu nombre]' ? playerName : token)
+      : undefined;
+  const responseContext = (personalResponse || nameTile) && (
     <View style={{ gap: 3 }}>
       <Text style={f.eyebrow}>Tu respuesta</Text>
       {!!playerName && <Label style={f.quiet}>Tu nombre: {playerName}</Label>}
+      <Button
+        variant="ghost"
+        disabled={busy}
+        onPress={() => {
+          stop();
+          onEditName();
+        }}
+        style={{ alignSelf: 'flex-start' }}
+      >
+        {playerName ? 'Cambiar mi nombre' : 'Escribir mi nombre'}
+      </Button>
     </View>
   );
   const Section = inline ? StoryActivity : Notebook;
@@ -379,7 +397,25 @@ export function TravelFlow({
   const progress = current.finished ? 1 : (current.step + 1) / mission.steps.length;
   const feedback = step.type === 'exercise' && current.result && (
     <View ref={feedbackView} collapsable={false} style={{ gap: 8 }}>
-      <AnswerFeedback result={current.result} exercise={step.exercise} answer={current.answer} />
+      <AnswerFeedback
+        result={
+          tokenLabel
+            ? {
+                ...current.result,
+                acceptedAnswer: current.result.acceptedAnswer?.replace(
+                  '[tu nombre]',
+                  () => playerName!,
+                ),
+              }
+            : current.result
+        }
+        exercise={step.exercise}
+        answer={
+          tokenLabel
+            ? { ...current.answer, tokens: current.answer.tokens?.map(tokenLabel) }
+            : current.answer
+        }
+      />
       {review &&
         !current.result.correct &&
         !current.result.identityMismatch &&
@@ -549,6 +585,7 @@ export function TravelFlow({
                   journal
                   inline={inline}
                   exercise={step.exercise}
+                  tokenLabel={tokenLabel}
                   kindLabel={step.audio ? 'Comprensión auditiva' : undefined}
                   answer={answer}
                   setAnswer={draft}

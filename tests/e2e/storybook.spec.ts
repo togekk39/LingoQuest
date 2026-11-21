@@ -25,15 +25,26 @@ const adventure = (page: Page) => page.getByRole('button', exact('Explorar avent
 const storyProgress = async (page: Page) =>
   (await state(page)) as Awaited<ReturnType<typeof state>> & { story?: StoryState };
 
-async function openAdventure(page: Page) {
+async function openAdventure(page: Page, name?: string) {
   await adventure(page).click();
+  const picker = page.getByRole('heading', exact('¿Cómo te llamas?'));
+  await expect(picker.or(scene(page))).toBeVisible();
+  if (name) {
+    await expect(picker).toBeVisible();
+    await expect(page.getByRole('button', exact('Guardar y continuar'))).toBeDisabled();
+    await page.getByRole('textbox', exact('Tu nombre')).fill(name);
+    await capture(page, 'storybook-name-entry');
+    await click(page, 'Guardar y continuar');
+  } else if (await picker.isVisible()) {
+    await click(page, 'Continuar sin nombre');
+  }
   await expect(scene(page)).toBeVisible();
 }
 
 async function restoreAdventure(page: Page, expected: Locator) {
   await page.reload();
   await expect(expected.or(adventure(page)).first()).toBeVisible();
-  if (await adventure(page).isVisible()) await adventure(page).click();
+  if (await adventure(page).isVisible()) await openAdventure(page);
   await expect(expected).toBeVisible();
 }
 
@@ -149,13 +160,9 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
     };
   });
   await enterApp(page);
-  await page.getByRole('tab', exact('Perfil')).click();
-  await page.getByRole('textbox', exact('Tu nombre')).fill('Ana O’Connor');
-  await click(page, 'Guardar preferencias');
-  await expect.poll(async () => (await state(page)).user.name).toBe('Ana O’Connor');
-  await page.getByRole('tab', exact('Inicio')).click();
   await readyOfflineShell(page, context);
-  await openAdventure(page);
+  await openAdventure(page, 'Ana O’Connor');
+  await expect.poll(async () => (await state(page)).user.name).toBe('Ana O’Connor');
   const initialXp = (await state(page)).xp;
   const quests = page.getByTestId('story-quests-toggle');
   const playback = () =>
@@ -203,7 +210,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await click(page, 'Escuchar a Sam');
   await click(page, 'Escuchar el saludo de Sam');
   await expect.poll(() => clipPlays('sam-greeting')).toBe(2);
-  await finishGreetingPractice(page);
+  await finishGreetingPractice(page, 'Ana O’Connor');
 
   const input = learning
     .getByTestId('exercise-travel_hello_write')
@@ -412,4 +419,32 @@ test('Sam’s introduction is complete without visiting Luz or setting a profile
   expect((await state(page)).user.name).toBe('Explorador');
   await click(page, 'Ahora no puedo hablar');
   await expect(dialogue(page, 'sam-after-introduction')).toBeVisible();
+});
+
+test('adding a name from the reorder exercise preserves the draft and updates its tile', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await enterApp(page);
+  await openAdventure(page);
+  await spot(page, 'plaza-sam').click();
+  await choice(page, 'introduce-yourself');
+  await click(page, 'Escuchar a Sam');
+  await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
+  await click(page, 'Agregar palabra: I');
+  await click(page, 'Agregar palabra: am');
+  await click(page, 'Agregar palabra: [tu nombre]');
+  await expect
+    .poll(async () => (await state(page)).travel.active?.answer.tokens)
+    .toEqual(['I', 'am', '[tu nombre]']);
+  const before = (await state(page)).travel.active;
+  await click(page, 'Escribir mi nombre');
+  await page.getByRole('textbox', exact('Tu nombre')).fill('Mai-Linh Nguyễn');
+  await click(page, 'Guardar nombre');
+  await expect(page.getByRole('button', exact('Quitar palabra: Mai-Linh Nguyễn'))).toBeVisible();
+  await capture(page, 'storybook-name-tile');
+  expect((await state(page)).travel.active).toEqual(before);
+  await click(page, 'Comprobar respuesta');
+  await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
+  await restoreAdventure(page, page.getByRole('button', exact('Quitar palabra: Mai-Linh Nguyễn')));
 });

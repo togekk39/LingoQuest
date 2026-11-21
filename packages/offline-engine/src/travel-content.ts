@@ -303,13 +303,12 @@ export const chapter: TravelChapter = {
           id: 'travel_hello_build',
           type: 'exercise',
           activityTitle: 'Ordena tu respuesta para Sam',
-          situation:
-            'Prepara una respuesta con I am. La ficha «[tu nombre]» es el lugar donde va tu nombre.',
+          situation: 'Prepara tu respuesta para Sam con I am y tu nombre.',
           hint: 'Empieza con la persona que habla. Luego pon el verbo y, al final, el nombre.',
           exercise: {
             id: 'travel_hello_build',
             type: 'reorder',
-            promptEs: 'Ordena las fichas para decir «Soy [tu nombre]».',
+            promptEs: 'Ordena las fichas para presentarte en inglés.',
             skillId: 'grammar.be_i_you',
             dimension: 'grammar_understanding',
             difficulty: 1,

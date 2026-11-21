@@ -35,6 +35,7 @@ export function ExerciseInput({
   disabled,
   journal = false,
   inline = false,
+  tokenLabel = (token: string) => token,
   kindLabel = kindLabels[exercise.type],
 }: {
   exercise: Exercise;
@@ -43,6 +44,7 @@ export function ExerciseInput({
   disabled?: boolean;
   journal?: boolean;
   inline?: boolean;
+  tokenLabel?: (token: string) => string;
   kindLabel?: string;
 }) {
   const { colors: palette } = useTheme();
@@ -232,7 +234,7 @@ export function ExerciseInput({
                 <Pressable
                   disabled={disabled}
                   accessibilityRole="button"
-                  accessibilityLabel={`Quitar palabra: ${token}`}
+                  accessibilityLabel={`Quitar palabra: ${tokenLabel(token)}`}
                   key={`${index}-${token}`}
                   onPress={() =>
                     setAnswer({ tokens: selectedTokens.filter((_, i) => i !== index) })
@@ -240,7 +242,7 @@ export function ExerciseInput({
                   style={[s.token, s.selectedToken]}
                 >
                   <Text {...english} style={s.tokenText}>
-                    {token}
+                    {tokenLabel(token)}
                   </Text>
                 </Pressable>
               ))
@@ -253,13 +255,13 @@ export function ExerciseInput({
               <Pressable
                 disabled={disabled || used.includes(index)}
                 accessibilityRole="button"
-                accessibilityLabel={`Agregar palabra: ${text}`}
+                accessibilityLabel={`Agregar palabra: ${tokenLabel(text)}`}
                 key={`${index}-${text}`}
                 onPress={() => setAnswer({ tokens: [...selectedTokens, text] })}
                 style={[s.token, used.includes(index) && { opacity: 0.25 }]}
               >
                 <Text {...english} style={s.tokenText}>
-                  {text}
+                  {tokenLabel(text)}
                 </Text>
               </Pressable>
             ))}

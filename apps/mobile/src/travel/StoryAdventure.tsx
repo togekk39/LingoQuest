@@ -146,6 +146,7 @@ export function StoryAdventure({
   story,
   checkpoint,
   playerName,
+  onEditName,
   error,
   finishing,
   onAction,
@@ -159,6 +160,7 @@ export function StoryAdventure({
   story: StoryView;
   checkpoint?: TravelCheckpoint;
   playerName?: string;
+  onEditName: () => void;
   error?: string;
   finishing: boolean;
   onAction: (operation: StoryOperation) => Promise<void>;
@@ -387,6 +389,7 @@ export function StoryAdventure({
           ref={lesson}
           initial={activeCheckpoint}
           playerName={playerName}
+          onEditName={onEditName}
           onUpdate={onLessonUpdate}
           embedded={{
             entryStepId: encounter.entryStepId,

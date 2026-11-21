@@ -33,6 +33,10 @@ test('first launch offers two spaced travel routes and opens the first scene', a
   await expect(start).toBeVisible();
   await start.click();
   await click(page, 'Honduras');
+  await expect(page.getByRole('heading', exact('¿Cómo te llamas?'))).toBeVisible();
+  await page.getByRole('textbox', exact('Tu nombre')).fill('Amaya');
+  await click(page, 'Guardar y continuar');
+  expect((await state(page)).user.name).toBe('Amaya');
   await expect(page.getByText('Un saludo en la plaza', { exact: true })).toBeVisible();
   await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
   expect((await state(page)).travel.country).toBe('HN');
