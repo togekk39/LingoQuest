@@ -310,12 +310,16 @@ test('storybook character conversations are keyboard accessible on desktop', asy
   await expect(
     samPanel.getByText("Hi! My name is Sam. What's your name?", { exact: true }),
   ).toBeVisible();
+  await expect(samPanel.getByRole('heading', exact('Sam'))).toBeFocused();
   await capture(page, 'storybook-web-sam');
+  await expect(luz).toBeEnabled();
   await luz.focus();
+  await expect(luz).toBeFocused();
   await page.keyboard.press('Enter');
   const luzPanel = dialogue(page, 'luz-welcome');
   await expect(luzPanel.getByText('Ejemplo de Luz', { exact: true })).toBeVisible();
   await expect(luzPanel.getByText('Hi! I am Luz.', { exact: true })).toBeVisible();
+  await expect(luzPanel.getByRole('heading', exact('Luz'))).toBeFocused();
   await capture(page, 'storybook-web-luz');
 });
 
