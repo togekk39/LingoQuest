@@ -13,14 +13,14 @@ export function TextbookFlow({
   completed,
   initialUnitId,
   onClose,
-  onFindDownloads,
+  onFindChapters,
   onRefresh,
   onVoiceSettings,
 }: {
   completed: string[];
   initialUnitId?: string;
   onClose: () => void;
-  onFindDownloads: () => void;
+  onFindChapters: () => void;
   onRefresh: () => void;
   onVoiceSettings: () => void;
 }) {
@@ -90,8 +90,8 @@ export function TextbookFlow({
         <ActivityIndicator color={colors.teal} accessibilityLabel="Cargando cursos" />
       ) : !catalog.units.length ? (
         <JournalLeaf style={{ gap: 12 }}>
-          <Label>Descarga un capítulo con lecciones de Cursos A1–A2.</Label>
-          <Button onPress={onFindDownloads}>Ver capítulos</Button>
+          <Label>Abre un capítulo con lecciones de Cursos A1–A2.</Label>
+          <Button onPress={onFindChapters}>Ver capítulos</Button>
         </JournalLeaf>
       ) : unit ? (
         <View style={{ gap: 16 }}>

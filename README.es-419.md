@@ -10,7 +10,7 @@ LingoQuest es una app diseñada primero para Android para aprender inglés estad
 
 - **Comenzar mi aventura** abre **La primera postal**. Conoce a Sam y a Luz en la plaza, usa un boleto para encontrar la parada y elige una pista para recuperar la mochila de Sam. Cada misión incluye su lección de inglés completa. La aventura otorga un sello, una postal y una entrada de diario. [Recorrido del capítulo](docs/PHASE_4_RPG.es-419.md)
 - **Ya sé algo de inglés** ofrece seis preguntas opcionales sin reloj. Tus respuestas determinan cuál de las tres misiones publicadas se recomienda. Las misiones anteriores siguen disponibles. Puedes repetir la prueba desde **Aprender** o **Perfil**.
-- **Mapa** recorre 20 paradas en siete continentes y termina en la Antártida, vía Ushuaia. Elige un lugar de origen en Latinoamérica o el Caribe. Elige cualquier destino y selecciona **Descargar capítulo** para guardar lecciones, ilustraciones y audio en inglés sin conexión.
+- **Mapa** recorre 20 paradas en siete continentes y termina en la Antártida, vía Ushuaia. Elige un lugar de origen en Latinoamérica o el Caribe. Selecciona **Abrir capítulo** en un destino para abrir sus lecciones, ilustraciones y audio en inglés. La app descarga el paquete cuando hace falta.
 - En **Aprender**, elige **Lecciones** para iniciar o retomar directamente una lección del capítulo. **Aprender** también incluye la guía de vocabulario, el manual de gramática, la práctica de pronunciación y **Cursos A1–A2**, con ocho unidades y 32 lecciones del curso LQP 2.1.0. Android carga cada unidad desde el paquete del destino correspondiente. Abre cualquier lección del curso o retoma el borrador más reciente.
 - **Repaso rápido** ofrece un ejercicio. **Repasar** muestra prácticas pendientes y **Mis habilidades** muestra la evidencia del capítulo y lo que puedes reforzar. Los intervalos de repaso toman en cuenta la ayuda, los errores, la recuperación autónoma, el tiempo transcurrido y la aplicación en una situación nueva.
 - **Desafíos** ofrece los 13 niveles del curso A1–A2 y las pruebas opcionales del viaje. Los niveles 1 a 3 del viaje se abren con el sello del capítulo. Los niveles del curso se abren al completar sus lecciones. Puedes practicar sin reloj. Las etapas, los resultados de los desafíos y los XP registran actividad. Las bandas del currículo describen objetivos de enseñanza.
@@ -21,7 +21,7 @@ LingoQuest es una app diseñada primero para Android para aprender inglés estad
 
 ## Desarrollo y compilación
 
-Usa Node.js 24 o posterior y npm. Inicia el desarrollo web con `npm ci` y `npm run dev`, y abre `http://localhost:8081`. Para una vista previa sin conexión, ejecuta `npm run build:web` y `npm run preview`, y abre `http://localhost:3000`. Espera a que el service worker llene la caché antes de desconectarte. El instalador de Android permite abrir el catálogo de capítulos sin conexión. Descarga o importa un paquete para usar la aventura, las lecciones, las ilustraciones y el audio.
+Usa Node.js 24 o posterior y npm. Inicia el desarrollo web con `npm ci` y `npm run dev`, y abre `http://localhost:8081`. Para una vista previa sin conexión, ejecuta `npm run build:web` y `npm run preview`, y abre `http://localhost:3000`. Espera a que el service worker llene la caché antes de desconectarte. En el primer inicio, la app descarga **La primera postal** y muestra el avance. Al continuar a Ciudad de México, la app descarga el capítulo 2 y luego borra los recursos guardados del primer capítulo.
 
 ```sh
 npm run check

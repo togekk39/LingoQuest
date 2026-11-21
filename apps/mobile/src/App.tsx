@@ -38,9 +38,18 @@ import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
 import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
 import { ChapterPackView } from './travel/ChapterPackView';
-import { ChapterDownload } from './travel/ChapterDownload';
-import { applyDownloadedContent, restoreDownloadedContent } from './lib/downloadedContent';
-import type { ChapterPack } from '@lingoquest/course-pack';
+import {
+  downloadChapter,
+  firstChapter,
+  getCurrentChapter,
+  getInstalledChapter,
+  secondChapter,
+} from './lib/chapterPacks';
+import {
+  applyDownloadedContent,
+  discardFirstChapterContent,
+  restoreDownloadedContent,
+} from './lib/downloadedContent';
 import { TravelFlow } from './travel/TravelFlow';
 import { StoryAdventure } from './travel/StoryAdventure';
 import { QuickReview } from './travel/QuickReview';
@@ -62,6 +71,7 @@ type Tab = (typeof tabs)[number]['id'];
 type Flow = 'placement' | 'speech' | 'reviews' | 'skills' | 'quick' | 'grammar' | 'textbook';
 type WelcomeChoice = 'adventure' | 'placement' | 'explore';
 type AfterOrigin = (journey: TravelState) => Promise<void> | void;
+type ChapterTransfer = { id: string; open: boolean; percent?: number; error?: string };
 
 export default function App() {
   const [reducedMotion, setReducedMotion] = useState(true);
@@ -89,6 +99,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [finishingEncounter, setFinishingEncounter] = useState(false);
   const [destination, setDestination] = useState('home');
   const [homeReady, setHomeReady] = useState(Platform.OS === 'web');
+  const [currentChapterId, setCurrentChapterId] = useState(firstChapter.id);
+  const [chapterTransfer, setChapterTransfer] = useState<ChapterTransfer>();
+  const transferring = useRef(false);
   const [openedChapter, setOpenedChapter] = useState<string>();
   const [textbookUnit, setTextbookUnit] = useState<string>();
   const [originPicker, setOriginPicker] = useState<{ afterSave?: AfterOrigin } | null>(null);
@@ -116,15 +129,66 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     onMotionPreference(!!p.user.reducedMotion);
     setError('');
   }, [onMotionPreference]);
+
+  const prepareChapter = useCallback(async (id: string, open: boolean) => {
+    if (transferring.current) return;
+    transferring.current = true;
+    setChapterTransfer({ id, open });
+    try {
+      const installed = await getInstalledChapter(id);
+      const pack =
+        installed && (id !== firstChapter.id || installed.story?.runtime)
+          ? installed
+          : await downloadChapter(id, (percent) => setChapterTransfer({ id, open, percent }));
+      if (id === firstChapter.id && !pack.story?.runtime)
+        throw new Error('La aventura todavía no está disponible. Inténtalo de nuevo más tarde.');
+
+      const ready = await applyDownloadedContent(pack);
+      if (open && id === secondChapter.id) {
+        setHomeReady(await discardFirstChapterContent());
+        setCurrentChapterId(id);
+      } else {
+        setHomeReady(ready);
+      }
+      if (open) {
+        storySession.current++;
+        setStory(null);
+        setPassport(false);
+        setTab('Mapa');
+        setDestination(id);
+        setOpenedChapter(id);
+      } else if (id === firstChapter.id && !(await localSettings.get('onboarded', false))) {
+        setWelcome(true);
+      }
+      setChapterTransfer(undefined);
+    } catch (failure) {
+      setChapterTransfer({
+        id,
+        open,
+        error:
+          failure instanceof Error
+            ? failure.message
+            : 'No pudimos preparar el capítulo. Inténtalo de nuevo.',
+      });
+    } finally {
+      transferring.current = false;
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     void (async () => {
       try {
+        const current = await getCurrentChapter();
         const ready = await restoreDownloadedContent();
-        if (active) setHomeReady(ready);
+        if (active) {
+          setHomeReady(ready);
+          setCurrentChapterId(current.id);
+          setDestination(current.id);
+        }
         await bootstrap();
         await refresh();
-        if (active) setWelcome(ready && !(await localSettings.get('onboarded', false)));
+        if (active) await prepareChapter(current.id, false);
       } catch (e) {
         if (active) setError((e as Error).message);
       } finally {
@@ -134,7 +198,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     return () => {
       active = false;
     };
-  }, [refresh]);
+  }, [prepareChapter, refresh]);
   useEffect(() => {
     if (
       Platform.OS === 'web' &&
@@ -183,17 +247,17 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     if (askForOrigin(journey, openStory)) return;
     await preparePlayerName(journey, showAdventure);
   }
-  async function onChapterInstalled(pack: ChapterPack) {
-    setHomeReady(await applyDownloadedContent(pack));
+  function openChapter(id: string) {
+    void prepareChapter(id, true);
   }
 
-  function showChapterDownloads() {
-    setDestination('home');
+  function showChapterMap(id = firstChapter.id) {
+    setDestination(id);
     go('Mapa');
   }
 
   function startStory() {
-    if (!homeReady) return showChapterDownloads();
+    if (!homeReady) return showChapterMap();
     if (starting) return;
     setStarting(true);
     void openStory()
@@ -290,7 +354,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     }
   }
   function startPlacement() {
-    if (!homeReady) return showChapterDownloads();
+    if (!homeReady) return showChapterMap();
     const open = () => setFlow('placement');
     if (!askForOrigin(travel, open)) open();
   }
@@ -448,9 +512,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         completed={progress?.completedLessons ?? []}
         initialUnitId={textbookUnit}
         onClose={finishFlow}
-        onFindDownloads={() => {
+        onFindChapters={() => {
           finishFlow();
-          showChapterDownloads();
+          showChapterMap(currentChapterId);
         }}
         onRefresh={() => void refresh().catch((e) => setNotice(e.message))}
         onVoiceSettings={openVoiceSettings}
@@ -505,7 +569,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         onVoiceSettings={openVoiceSettings}
       />,
     );
-  if (welcome && !loading && !error)
+  if (welcome && !loading && !error && !chapterTransfer)
     return withSheets(
       <TravelWelcome
         busy={starting}
@@ -529,8 +593,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         <Pressable
           key={id}
           accessibilityRole="tab"
-          accessibilityState={{ selected: tab === id }}
+          accessibilityState={{ selected: tab === id, disabled: !!chapterTransfer }}
           accessibilityLabel={id}
+          disabled={!!chapterTransfer}
           onPress={() => go(id)}
           style={({ pressed }) => [
             desktop ? s.desktopTab : s.mobileTab,
@@ -598,7 +663,32 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={[s.content, { padding: desktop ? 31 : 15 }]}
           >
-            {loading ? (
+            {chapterTransfer ? (
+              <JournalLeaf style={{ gap: 12 }}>
+                <Heading>
+                  {chapterTransfer.id === firstChapter.id
+                    ? chapter.title
+                    : route.find(({ id }) => id === chapterTransfer.id)?.name}
+                </Heading>
+                {chapterTransfer.error ? (
+                  <>
+                    <Text accessibilityRole="alert" style={{ color: C.red }}>
+                      {chapterTransfer.error}
+                    </Text>
+                    <Button
+                      onPress={() => void prepareChapter(chapterTransfer.id, chapterTransfer.open)}
+                    >
+                      Reintentar
+                    </Button>
+                    <Button variant="ghost" onPress={() => setChapterTransfer(undefined)}>
+                      Volver
+                    </Button>
+                  </>
+                ) : (
+                  <ChapterProgress percent={chapterTransfer.percent} />
+                )}
+              </JournalLeaf>
+            ) : loading ? (
               <View style={s.loading}>
                 <ActivityIndicator color={C.accent} />
                 <Label>Preparando el viaje…</Label>
@@ -646,24 +736,34 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 <Passport
                   travel={travel}
                   onContinue={startStory}
+                  onNextChapter={() => openChapter(secondChapter.id)}
                   onNote={async (text) => {
                     await updateTravel({ action: 'note', text });
                   }}
                 />
               </View>
+            ) : currentChapterId === secondChapter.id &&
+              (tab === 'Inicio' || (tab === 'Aprender' && !homeReady)) ? (
+              <JournalLeaf style={{ gap: 12 }}>
+                <Heading>{secondChapter.name}</Heading>
+                <Button icon={BookOpen} onPress={() => openChapter(secondChapter.id)}>
+                  Continuar capítulo 2
+                </Button>
+                {tab === 'Aprender' ? (
+                  <Button variant="secondary" onPress={() => setFlow('textbook')}>
+                    Cursos A1–A2
+                  </Button>
+                ) : (
+                  <Button variant="secondary" onPress={() => setPassport(true)}>
+                    Abrir pasaporte
+                  </Button>
+                )}
+              </JournalLeaf>
             ) : !homeReady && (tab === 'Inicio' || tab === 'Aprender') ? (
               <JournalLeaf style={{ gap: 12 }}>
-                <Heading>La primera postal</Heading>
-                <Label>
-                  Descarga el capítulo para abrir la aventura y sus lecciones sin conexión.
-                </Label>
-                <ChapterDownload
-                  chapterId={chapter.id}
-                  onOpen={setOpenedChapter}
-                  onInstalled={onChapterInstalled}
-                />
-                <Button variant="secondary" onPress={showChapterDownloads}>
-                  Ver todos los capítulos
+                <Heading>{chapter.title}</Heading>
+                <Button onPress={() => void prepareChapter(firstChapter.id, false)}>
+                  Preparar la aventura
                 </Button>
                 {tab === 'Aprender' && (
                   <Button variant="ghost" onPress={() => setFlow('textbook')}>
@@ -685,8 +785,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onPassport={() => setPassport(true)}
                 onSpeech={() => setFlow('speech')}
                 onFullReview={() => setFlow('reviews')}
-                onOpenChapter={setOpenedChapter}
-                onChapterInstalled={onChapterInstalled}
+                onOpenChapter={openChapter}
               />
             ) : tab === 'Mapa' ? (
               <TravelRoute
@@ -700,8 +799,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onAdventure={startStory}
                 onCountry={openOriginPicker}
                 onPassport={() => setPassport(true)}
-                onOpenChapter={setOpenedChapter}
-                onChapterInstalled={onChapterInstalled}
+                onOpenChapter={openChapter}
               />
             ) : tab === 'Aprender' ? (
               <TravelGuide
@@ -728,9 +826,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
               <Profile
                 key={progress.user.id}
                 progress={progress}
-                missionsCompleted={
-                  chapter.missions.filter((item) => travel.completed[item.id]).length
-                }
+                missionsCompleted={Object.keys(travel.completed).length}
                 onRefresh={refresh}
                 onNotice={setNotice}
                 onPlacement={startPlacement}
@@ -777,6 +873,36 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       {settingsSheet}
       {nameSheet}
     </SafeAreaView>
+  );
+}
+
+function ChapterProgress({ percent }: { percent?: number }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ gap: 8 }}>
+      <Text accessibilityLiveRegion="polite" style={{ color: colors.teal }}>
+        {percent === undefined
+          ? 'Preparando descarga…'
+          : percent === 100
+            ? 'Guardando capítulo…'
+            : `Descargando capítulo… ${percent} %`}
+      </Text>
+      {percent === undefined ? (
+        <ActivityIndicator color={colors.teal} />
+      ) : (
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Descarga del capítulo"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          style={{ height: 8, borderRadius: 4, backgroundColor: colors.mint, overflow: 'hidden' }}
+        >
+          <View style={{ width: `${percent}%`, height: '100%', backgroundColor: colors.teal }} />
+        </View>
+      )}
+    </View>
   );
 }
 

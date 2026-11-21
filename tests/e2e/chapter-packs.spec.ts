@@ -1,23 +1,126 @@
-import { createHash } from 'node:crypto';
-import {
-  serializeChapterPack,
-  type ChapterCatalog,
-  type ChapterPack,
-} from '@lingoquest/course-pack';
-import type { Page, Response } from '@playwright/test';
+import type { ChapterPack } from '@lingoquest/course-pack';
+import type { Page } from '@playwright/test';
 import { click, enterApp, exact, expect, readyOfflineShell, state, test } from './helpers';
 
-const catalogPath = '/chapter-packs/catalog.json';
-const londonPath = /^\/chapter-packs\/\d+\/london\.json$/;
-const isLondonPack = (response: Response) => londonPath.test(new URL(response.url()).pathname);
-
-async function openLondon(page: Page) {
-  await page.getByRole('tab', exact('Mapa')).click();
-  await click(page, '10. Londres');
-  return page.getByTestId('chapter-package-london');
+async function savedChapters(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<string[]>((resolve, reject) => {
+        const database = indexedDB.open('lingoquest-chapter-packs');
+        database.onerror = () => reject(database.error);
+        database.onsuccess = () => {
+          const db = database.result;
+          const request = db.transaction('packs').objectStore('packs').getAllKeys();
+          request.onsuccess = () => resolve(request.result.map(String));
+          request.onerror = () => reject(request.error);
+          db.close();
+        };
+      }),
+  );
 }
 
-test('a chapter download can be retried and opens with its own media after an offline reload', async ({
+test('launch downloads the first chapter with byte progress and reuses it offline', async ({
+  page,
+  context,
+  networkGuard,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('lq_setting:onboarded', 'true');
+    const fetchFile = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const response = await fetchFile(input, init);
+      if (new URL(response.url).pathname !== '/chapter-packs/2/home.json') return response;
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const middle = Math.ceil(bytes.length / 2);
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(bytes.subarray(0, middle));
+            window.addEventListener(
+              'finish-home-transfer',
+              () => {
+                controller.enqueue(bytes.subarray(middle));
+                controller.close();
+              },
+              { once: true },
+            );
+          },
+        }),
+        { status: response.status, headers: response.headers },
+      );
+    };
+  });
+
+  await page.goto('/');
+  const progress = page.getByRole('progressbar', exact('Descarga del capítulo'));
+  await expect(progress).toHaveAttribute('aria-valuenow', '50');
+  await expect(page.getByText('Descargando capítulo… 50 %')).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('finish-home-transfer')));
+  const adventure = page.getByRole('button', exact('Comenzar mi aventura'));
+  await expect(adventure).toBeVisible();
+  expect(await savedChapters(page)).toContain('home');
+
+  await readyOfflineShell(page, context);
+  const transferCount = networkGuard.attempted.filter((url) =>
+    url.includes('/chapter-packs/'),
+  ).length;
+  await page.reload();
+  await expect(adventure).toBeVisible();
+  expect(networkGuard.attempted.filter((url) => url.includes('/chapter-packs/'))).toHaveLength(
+    transferCount,
+  );
+});
+
+test('continuing to chapter two keeps chapter one until the new pack is verified', async ({
+  page,
+  context,
+  networkGuard,
+}) => {
+  await enterApp(page);
+  await page.evaluate(() => {
+    const key = 'lq_offline_state_v1';
+    const saved = JSON.parse(localStorage.getItem(key)!);
+    const date = new Date().toISOString();
+    saved.travel.completed = { hello: date, bus: date, bag: date };
+    saved.travel.stamps.home = date;
+    saved.travel.note = 'My first postcard';
+    localStorage.setItem(key, JSON.stringify(saved));
+  });
+  await page.reload();
+  await click(page, 'Abrir pasaporte');
+  const before = await state(page);
+
+  const packUrl = '**/chapter-packs/1/mexico.json';
+  await context.route(packUrl, (request) =>
+    request.fulfill({ body: '{"incomplete":true}', contentType: 'application/json' }),
+  );
+  await click(page, 'Continuar a Ciudad de México');
+  await expect(page.getByRole('alert')).toContainText('La descarga del capítulo está incompleta');
+  expect(await savedChapters(page)).toContain('home');
+  expect(await savedChapters(page)).not.toContain('mexico');
+
+  await context.unroute(packUrl);
+  await click(page, 'Reintentar');
+  await expect(page.getByTestId('chapter-lesson-mexico')).toBeVisible();
+  expect(await savedChapters(page)).toContain('mexico');
+  expect(await savedChapters(page)).not.toContain('home');
+  expect(await state(page)).toEqual(before);
+
+  await readyOfflineShell(page, context);
+  const transferCount = networkGuard.attempted.filter((url) =>
+    url.includes('/chapter-packs/'),
+  ).length;
+  await page.reload();
+  await click(page, 'Abrir pasaporte');
+  await expect(page.getByRole('textbox', exact('Mi recuerdo'))).toHaveValue('My first postcard');
+  await click(page, 'Continuar a Ciudad de México');
+  await expect(page.getByTestId('chapter-lesson-mexico')).toBeVisible();
+  expect(networkGuard.attempted.filter((url) => url.includes('/chapter-packs/'))).toHaveLength(
+    transferCount,
+  );
+});
+
+test('opening a destination downloads its lessons and media when needed', async ({
   page,
   context,
   networkGuard,
@@ -39,8 +142,17 @@ test('a chapter download can be retried and opens with its own media after an of
       return play.call(this);
     };
   });
+  const openLondon = async () => {
+    await page.getByRole('tab', exact('Mapa')).click();
+    await click(page, '10. Londres');
+    await expect(
+      page.getByRole('button', {
+        name: /Descargar capítulo|Importar archivo del capítulo|Buscar actualización/,
+      }),
+    ).toHaveCount(0);
+    await click(page, 'Abrir capítulo');
+  };
   await enterApp(page);
-  const panel = await openLondon(page);
   await readyOfflineShell(page, context);
   const before = await state(page);
   const cachedPacks = await page.evaluate(async () => {
@@ -51,30 +163,25 @@ test('a chapter download can be retried and opens with its own media after an of
       .length;
   });
   expect(cachedPacks).toBe(0);
-  expect(networkGuard.attempted.some((url) => url.includes('/chapter-packs/'))).toBe(false);
-
-  await panel.getByRole('button', exact('Descargar capítulo')).click();
-  const retry = panel.getByRole('button', exact('Reintentar descarga'));
-  await expect(retry).toBeVisible();
-  await expect(panel.getByText('Disponible sin conexión', { exact: true })).toHaveCount(0);
+  await openLondon();
+  await expect(page.getByRole('alert')).toBeVisible();
 
   await context.setOffline(false);
-  const transfer = page.waitForResponse(isLondonPack);
-  await retry.click();
+  const transfer = page.waitForResponse((response) =>
+    /^\/chapter-packs\/\d+\/london\.json$/.test(new URL(response.url()).pathname),
+  );
+  await click(page, 'Reintentar');
   const downloaded = await transfer;
   expect(downloaded.ok()).toBe(true);
   const { lesson: downloadedLesson }: ChapterPack = await downloaded.json();
   const openingLine = downloadedLesson.dialogue[0].en;
-  await expect(panel.getByText('Disponible sin conexión', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('chapter-lesson-london')).toBeVisible();
   expect(await state(page)).toEqual(before);
   const transferCount = networkGuard.attempted.filter((url) => url === downloaded.url()).length;
 
   await context.setOffline(true);
   await page.reload();
-  const saved = await openLondon(page);
-  await expect(saved.getByText('Disponible sin conexión', { exact: true })).toBeVisible();
-  await saved.getByRole('button', exact('Abrir capítulo descargado')).click();
-
+  await openLondon();
   const lesson = page.getByTestId('chapter-lesson-london');
   await expect(lesson).toBeVisible();
   await expect(page.getByRole('heading', exact(downloadedLesson.title))).toBeVisible();
@@ -98,118 +205,4 @@ test('a chapter download can be retried and opens with its own media after an of
   expect(networkGuard.attempted.filter((url) => url === downloaded.url())).toHaveLength(
     transferCount,
   );
-});
-
-test('a content revision updates without a new app build and failed updates keep the old lesson', async ({
-  page,
-  context,
-}) => {
-  await enterApp(page);
-  const panel = await openLondon(page);
-  const before = await state(page);
-  const catalogResponse = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === catalogPath,
-  );
-  const transfer = page.waitForResponse(isLondonPack);
-  await panel.getByRole('button', exact('Descargar capítulo')).click();
-  const { sha256: originalDigest, ...original }: ChapterPack = await (await transfer).json();
-  expect(originalDigest).toMatch(/^[a-f0-9]{64}$/);
-  const catalog: ChapterCatalog = await (await catalogResponse).json();
-  const versionLabel = (revision: number) =>
-    panel.getByText(`Versión ${revision}`, { exact: true });
-  const checkUpdate = panel.getByRole('button', exact('Buscar actualización'));
-  await expect(versionLabel(original.revision)).toBeVisible();
-
-  await readyOfflineShell(page, context);
-  await checkUpdate.click();
-  await expect(panel.getByRole('alert')).toBeVisible();
-  await expect(versionLabel(original.revision)).toBeVisible();
-  await panel.getByRole('button', exact('Abrir capítulo descargado')).click();
-  await expect(page.getByRole('heading', exact(original.lesson.title))).toBeVisible();
-  await click(page, 'Cerrar y volver');
-
-  const revision = original.revision + 1;
-  const title = 'Una nueva edición de la lección de Londres';
-  const extraTitle = 'Otra ruta para llegar a tiempo';
-  const extraObjective = 'Practica otra alternativa para llegar a la entrevista.';
-  const body = serializeChapterPack({
-    ...original,
-    revision,
-    lesson: { ...original.lesson, title },
-    additionalLessons: [
-      ...original.additionalLessons,
-      { ...original.lesson, title: extraTitle, objectiveEs: extraObjective },
-    ],
-  });
-  catalog.chapters.london = {
-    revision,
-    sizeBytes: Buffer.byteLength(body),
-    sha256: createHash('sha256').update(body).digest('hex'),
-  };
-  const updatedPath = `/chapter-packs/${revision}/london.json`;
-  let incomplete = true;
-  await context.route(`**${catalogPath}`, (route) => route.fulfill({ json: catalog }));
-  await context.route(`**${updatedPath}`, (route) =>
-    route.fulfill({
-      body: incomplete ? body.slice(0, -16) : body,
-      contentType: 'application/json',
-    }),
-  );
-  await context.setOffline(false);
-  await checkUpdate.click();
-  await expect(panel.getByRole('alert')).toBeVisible();
-  await expect(versionLabel(original.revision)).toBeVisible();
-
-  incomplete = false;
-  await checkUpdate.click();
-  await expect(panel.getByText('Capítulo actualizado.', { exact: true })).toBeVisible();
-  await expect(versionLabel(revision)).toBeVisible();
-  expect(await state(page)).toEqual(before);
-
-  await context.setOffline(true);
-  await page.reload();
-  const saved = await openLondon(page);
-  await expect(versionLabel(revision)).toBeVisible();
-  await saved.getByRole('button', exact('Abrir capítulo descargado')).click();
-  await expect(page.getByRole('heading', exact(title))).toBeVisible();
-  const opened = page.getByTestId('chapter-lesson-london');
-  await opened.getByRole('button', exact(extraTitle)).click();
-  await expect(page.getByRole('heading', exact(extraTitle))).toBeVisible();
-  await expect(opened.getByText(extraObjective, { exact: true })).toBeVisible();
-});
-
-test('a saved package can be imported offline only for its matching chapter', async ({
-  page,
-  context,
-  request,
-}) => {
-  const catalog: ChapterCatalog = await (await request.get(catalogPath)).json();
-  const revision = catalog.chapters.london.revision;
-  const file = await request.get(`/chapter-packs/${revision}/london.json`);
-  expect(file.ok()).toBe(true);
-  const buffer = await file.body();
-  const { lesson }: ChapterPack = JSON.parse(buffer.toString());
-  const upload = { name: 'london.json', mimeType: 'application/json', buffer };
-
-  await enterApp(page);
-  await readyOfflineShell(page, context);
-  await page.getByRole('tab', exact('Mapa')).click();
-  await click(page, '2. Ciudad de México');
-  const other = page.getByTestId('chapter-package-mexico');
-  const wrongChoice = page.waitForEvent('filechooser');
-  await other.getByRole('button', exact('Importar archivo del capítulo')).click();
-  await (await wrongChoice).setFiles(upload);
-  await expect(other.getByRole('alert')).toContainText('para este capítulo');
-  await expect(other.getByRole('button', exact('Abrir capítulo descargado'))).toHaveCount(0);
-
-  const london = await openLondon(page);
-  const matchingChoice = page.waitForEvent('filechooser');
-  await london.getByRole('button', exact('Importar archivo del capítulo')).click();
-  await (await matchingChoice).setFiles(upload);
-  await expect(london.getByText(`Versión ${revision}`, { exact: true })).toBeVisible();
-
-  await page.reload();
-  const saved = await openLondon(page);
-  await saved.getByRole('button', exact('Abrir capítulo descargado')).click();
-  await expect(page.getByRole('heading', exact(lesson.title))).toBeVisible();
 });

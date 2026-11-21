@@ -31,11 +31,11 @@ export const storyPortraits: Record<'sam' | 'luz', ImageSourcePropType | undefin
   luz: undefined,
 };
 
-export async function applyHomeImages(images: ChapterPack['images']) {
+export async function applyHomeImages(chapterId: string, images: ChapterPack['images']) {
   const sources = new Map(
     await Promise.all(
       Object.entries(images).map(async ([key, media]) => {
-        const uri = await chapterMediaUri(media.mimeType, media.dataBase64);
+        const uri = await chapterMediaUri(chapterId, media.mimeType, media.dataBase64);
         return [key, { uri }] as const;
       }),
     ),

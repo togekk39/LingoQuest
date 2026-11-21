@@ -6,7 +6,7 @@ Consulta el [registro de verificación](VERIFICATION.es-419.md) para ver los res
 
 ## Primer inicio en Android
 
-Instala sin datos locales y abre el APK en modo avión. Comprueba que se abran el catálogo de capítulos y los controles de importación. Descarga o importa la revisión 2 o posterior de **La primera postal**. Reinicia sin conexión y abre la aventura, la prueba de nivel y el curso.
+Instala sin datos locales y abre el APK con conexión. Comprueba que **La primera postal** se descargue automáticamente y muestre el avance. Reinicia en modo avión y abre la aventura, la prueba de nivel y el curso. Después de ganar el primer sello, selecciona **Continuar a Ciudad de México** en modo avión. Comprueba que la app ofrezca **Reintentar** y aún puedas abrir el primer capítulo. Recupera la conexión y vuelve a intentarlo. Comprueba que se abra el capítulo 2, se borre el primer paquete y el pasaporte y la entrada del diario sigan disponibles tras reiniciar sin conexión.
 
 ## Bienvenida y misión inicial
 
@@ -22,7 +22,7 @@ Instala sin datos locales y abre el APK en modo avión. Comprueba que se abran e
 4. Escucha a Sam con el audio incluido, prueba abrir la transcripción y escribe la siguiente indicación que escuches. Prueba la comparación de audio después del reconocimiento y la opción de omitir sin micrófono. Comprueba que esa alternativa deje la expresión oral sin evaluar. Completa el capítulo y revisa que el pasaporte, la postal y el diario se conserven, con un solo sello.
 5. Abre **Repaso rápido**, guarda parte de una respuesta y vuelve al punto exacto de tu viaje. Vuelve a abrir el repaso y completa la respuesta. Después de un día, vuelve a **Repasar**, completa un ejercicio pendiente sin ayuda y revisa la evidencia de recuerdo diferido en **Mis habilidades**.
 6. Abre el manual de gramática desde **Aprender** y compara dos patrones. En modo avión, abre **Cursos A1–A2**, consulta el material de referencia y retoma una lección anterior desde un borrador.
-7. Elige tu lugar de origen en el mapa. Revisa las 20 paradas y el destino final en Ushuaia y la Antártida. Comprueba que cada parada ofrezca la descarga de su capítulo.
+7. Elige tu lugar de origen en el mapa. Revisa las 20 paradas y el destino final en Ushuaia y la Antártida. Comprueba que **Abrir capítulo** en cada parada abra el capítulo y descargue el paquete si hace falta.
 
 ## Desafíos, respaldos y pruebas nativas
 

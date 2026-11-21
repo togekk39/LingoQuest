@@ -11,6 +11,7 @@ import {
   expect,
   finishGreetingPractice,
   finishVocabulary,
+  labelFirstChapterAudio,
   readyOfflineShell,
   state,
   test,
@@ -321,9 +322,18 @@ test('storybook character conversations are keyboard accessible on desktop', asy
 test('an offline storybook restores dialogue, grades exercises and awards one postcard', async ({
   page,
   context,
+  request,
 }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
+  await labelFirstChapterAudio(page, request, {
+    'line-2': 'Hi! I am Luz.',
+    'line-4': 'Where is the bus stop?',
+    'word-2': 'I am',
+    'word-3': 'My name is',
+    'sam-greeting': "Hi! My name is Sam. What's your name?",
+    'introduction-starter': 'Hi! I am',
+  });
   await page.addInitScript(() => {
     if (window.speechSynthesis) window.speechSynthesis.getVoices = () => [];
     const playback: string[] = [];
@@ -332,9 +342,12 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
     HTMLMediaElement.prototype.play = function () {
       const result = play.call(this);
       void result
-        .then(() => {
-          document.body.dataset.played = this.currentSrc;
-          playback.push(this.currentSrc);
+        .then(async () => {
+          const clip = await window.chapterAudioLabel(this.currentSrc);
+          if (clip) {
+            document.body.dataset.played = clip;
+            playback.push(clip);
+          }
         })
         .catch(() => {});
       return result;
@@ -347,11 +360,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   const initialXp = (await state(page)).xp;
   const quests = page.getByTestId('story-quests-toggle');
   const playback = () =>
-    page.evaluate(() =>
-      (window as Window & { storyPlayback?: string[] }).storyPlayback!.map(
-        (src) => src.match(/\/(line-\d+|word-\d+|sam-greeting|introduction-starter)\./)?.[1],
-      ),
-    );
+    page.evaluate(() => (window as Window & { storyPlayback: string[] }).storyPlayback);
   const clipPlays = async (clip: string) => (await playback()).filter((id) => id === clip).length;
   await expect(quests).toContainText('Un saludo en la plaza');
   await capture(page, 'storybook-mobile-plaza');
@@ -521,9 +530,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await click(page, 'Continuar');
   await finishVocabulary(page);
   await click(page, 'Escuchar a Sam');
-  await expect
-    .poll(() => page.evaluate(() => document.body.dataset.played))
-    .toMatch(/line-4.*\.mp3/);
+  await expect.poll(() => page.evaluate(() => document.body.dataset.played)).toBe('line-4');
   await click(page, 'Leer la transcripción');
   await answerTravelChoice(page, 'travel_bus_listen', 'La parada de bus');
   await answerTravelReorder(page, 'travel_bus_direction', ['It’s', 'next', 'to', 'the', 'park']);

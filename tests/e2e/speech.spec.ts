@@ -1,4 +1,13 @@
-import { test, expect, enterApp, openLessons, readyOfflineShell, click, exact } from './helpers';
+import {
+  test,
+  expect,
+  enterApp,
+  labelFirstChapterAudio,
+  openLessons,
+  readyOfflineShell,
+  click,
+  exact,
+} from './helpers';
 import type { Page } from '@playwright/test';
 
 async function installSpeechFixture(page: Page, noVoices = false) {
@@ -79,36 +88,42 @@ async function installSpeechFixture(page: Page, noVoices = false) {
     });
   }, noVoices);
 }
-test('travel sentences and words autoplay bundled audio when a system voice is unavailable', async ({
+test('travel sentences and words autoplay downloaded audio when a system voice is unavailable', async ({
   page,
   context,
+  request,
 }) => {
   await installSpeechFixture(page, true);
+  await labelFirstChapterAudio(page, request, {
+    'sam-greeting': "Hi! My name is Sam. What's your name?",
+    'line-1': 'Hi! My name is Sam.',
+    'word-1': 'Hi',
+    'word-2': 'I am',
+    'word-3': 'My name is',
+  });
   await page.addInitScript(() => {
-    const playback: { event: 'start' | 'end'; src: string }[] = [];
+    const playback: { event: 'start' | 'end'; clip?: string }[] = [];
     Object.assign(window, { playback });
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () {
-      this.addEventListener('ended', () => playback.push({ event: 'end', src: this.currentSrc }), {
-        once: true,
-      });
+      const record = async (event: 'start' | 'end') => {
+        const clip = await window.chapterAudioLabel(this.currentSrc);
+        playback.push({ event, clip });
+      };
+      this.addEventListener('ended', () => void record('end'), { once: true });
       const result = play.call(this);
-      void result
-        .then(() => {
-          playback.push({ event: 'start', src: this.currentSrc });
-        })
-        .catch(() => {});
+      void result.then(() => record('start')).catch(() => {});
       return result;
     };
   });
   await enterApp(page);
   await readyOfflineShell(page, context);
   const playback = () =>
-    page.evaluate(() => (window as any).playback as { event: string; src: string }[]);
+    page.evaluate(() => (window as any).playback as { event: string; clip?: string }[]);
   const clipPlays = (clip: string) =>
     playback().then(
       (events) =>
-        events.filter(({ event, src }) => event === 'start' && src.includes(`/${clip}.`)).length,
+        events.filter(({ event, clip: played }) => event === 'start' && played === clip).length,
     );
   await openLessons(page);
   await click(page, 'Continuar');
@@ -119,7 +134,7 @@ test('travel sentences and words autoplay bundled audio when a system voice is u
   await expect.poll(() => clipPlays('word-1')).toBe(1);
   await click(page, 'Revelar significado');
   await expect(page.getByText('hola', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Estás escuchando el audio incluido/)).toBeVisible();
+  await expect(page.getByText(/Estás escuchando el audio descargado/)).toBeVisible();
   expect(await clipPlays('sam-greeting')).toBe(2);
   await click(page, 'Escuchar ejemplo');
   await expect.poll(() => clipPlays('line-1')).toBe(1);
@@ -132,10 +147,11 @@ test('travel sentences and words autoplay bundled audio when a system voice is u
   await click(page, 'Ver la explicación');
   await expect
     .poll(async () =>
-      (await playback()).slice(beforeGrammar).flatMap(({ event, src }) => {
-        const clip = src.match(/\/(word-[23])\./)?.[1];
-        return clip ? [`${clip} ${event}`] : [];
-      }),
+      (await playback())
+        .slice(beforeGrammar)
+        .flatMap(({ event, clip }) =>
+          clip === 'word-2' || clip === 'word-3' ? [`${clip} ${event}`] : [],
+        ),
     )
     .toEqual(['word-2 start', 'word-2 end', 'word-3 start', 'word-3 end']);
   await expect(page.getByRole('tab', exact('Ejemplo 2'))).toHaveAttribute('aria-selected', 'true');
@@ -270,8 +286,7 @@ test('removed or network-only saved voices are not silently replaced; playback e
   await click(page, 'Cerrar configuración');
   await click(page, 'Palabras del viaje');
   await click(page, 'Escuchar: Hi');
-  await expect(page.getByText(/No pudimos usar una voz de inglés sin conexión/)).toBeVisible();
-  await expect(page.getByText(/Estás escuchando el audio incluido/)).toHaveCount(0);
+  await expect(page.getByText(/Estás escuchando el audio descargado/)).toBeVisible();
   expect(await page.evaluate(() => (window as any).__speechCalls.length)).toBe(1);
 });
 

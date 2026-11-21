@@ -40,7 +40,7 @@ import {
   PaperInput,
 } from '../Journal';
 import { illustrations, placeIllustration, world } from './illustrations';
-import { ChapterDownload } from './ChapterDownload';
+import { secondChapter } from '../lib/chapterPacks';
 import { Button, Heading, Label } from '../ui';
 import { useTheme } from '../theme';
 
@@ -65,7 +65,6 @@ export function TravelHome({
   onSpeech,
   onFullReview,
   onOpenChapter,
-  onChapterInstalled,
 }: {
   travel: TravelState;
   progress: Progress;
@@ -80,7 +79,6 @@ export function TravelHome({
   onSpeech: () => void;
   onFullReview: () => void;
   onOpenChapter: (chapterId: string) => void;
-  onChapterInstalled: NonNullable<React.ComponentProps<typeof ChapterDownload>['onInstalled']>;
 }) {
   const { colors: C } = useTheme();
   const { width, fontScale } = useWindowDimensions();
@@ -171,9 +169,15 @@ export function TravelHome({
                     ? 'Tu primer sello y la postal de Sam están en el pasaporte.'
                     : 'Puedes volver a cualquiera de estas misiones desde la ruta.'))}
             </Text>
-            <Button icon={Compass} loading={starting} onPress={onAdventure}>
-              Comenzar mi aventura
-            </Button>
+            {chapterDone ? (
+              <Button icon={ArrowRight} onPress={() => onOpenChapter(secondChapter.id)}>
+                Continuar a Ciudad de México
+              </Button>
+            ) : (
+              <Button icon={Compass} loading={starting} onPress={onAdventure}>
+                Comenzar mi aventura
+              </Button>
+            )}
             {!!next && (
               <JournalLeaf compact kind="stamp" style={s.missionTime}>
                 <Text style={s.missionTimeText}>{next.minutes.join('–')} min</Text>
@@ -256,11 +260,6 @@ export function TravelHome({
             <Button variant="ghost" icon={MapPinned} style={s.openMap} onPress={onRoute}>
               Ver mapa y misiones
             </Button>
-            <ChapterDownload
-              chapterId={chapter.id}
-              onOpen={onOpenChapter}
-              onInstalled={onChapterInstalled}
-            />
           </JournalLeaf>
           <View testID="home-practice" style={s.practice}>
             <Text accessibilityRole="header" style={s.homeSubheading}>
@@ -358,7 +357,6 @@ export function TravelRoute({
   onCountry,
   onPassport,
   onOpenChapter,
-  onChapterInstalled,
 }: {
   travel: TravelState;
   selected: Destination;
@@ -368,7 +366,6 @@ export function TravelRoute({
   onCountry: () => void;
   onPassport: () => void;
   onOpenChapter: (chapterId: string) => void;
-  onChapterInstalled: NonNullable<React.ComponentProps<typeof ChapterDownload>['onInstalled']>;
 }) {
   const { colors: C } = useTheme();
   const { width, fontScale } = useWindowDimensions();
@@ -516,12 +513,9 @@ export function TravelRoute({
               })}
             </>
           )}
-          <ChapterDownload
-            key={selected.id}
-            chapterId={selected.id}
-            onOpen={onOpenChapter}
-            onInstalled={onChapterInstalled}
-          />
+          <Button variant="secondary" icon={BookOpen} onPress={() => onOpenChapter(selected.id)}>
+            Abrir capítulo
+          </Button>
         </JournalLeaf>
         <JournalLeaf
           style={[
@@ -666,10 +660,12 @@ export function Passport({
   travel,
   onNote,
   onContinue,
+  onNextChapter,
 }: {
   travel: TravelState;
   onNote: (value: string) => Promise<void>;
   onContinue: () => void;
+  onNextChapter: () => void;
 }) {
   const s = useStyles();
   const { colors: C } = useTheme();
@@ -712,11 +708,9 @@ export function Passport({
             ? `${chapter.stamp} · ${new Date(stamp).toLocaleDateString('es-419')}`
             : 'Completa La primera postal para recibir tu primer sello.'}
         </Label>
-        {!stamp && (
-          <Button icon={ArrowRight} onPress={onContinue}>
-            Continuar viaje
-          </Button>
-        )}
+        <Button icon={ArrowRight} onPress={stamp ? onNextChapter : onContinue}>
+          {stamp ? 'Continuar a Ciudad de México' : 'Continuar viaje'}
+        </Button>
       </Notebook>
       {stamp && (
         <>

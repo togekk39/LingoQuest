@@ -16,4 +16,4 @@ export { chapterStory } from './chapter-story';
 export { travelChallengePools } from './travel-challenge-pools';
 export { travelPlacementItems } from './travel-placement-items';
 
-export function installHomeContent(_content: HomeContent) {}
+export function installHomeContent(_content?: HomeContent) {}

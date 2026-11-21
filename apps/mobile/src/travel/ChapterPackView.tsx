@@ -48,7 +48,7 @@ export function ChapterPackView({
         const pack = await getInstalledChapter(chapterId);
         if (!pack) throw new Error('Descarga el capítulo para abrirlo sin conexión.');
         const image = pack.images.cover;
-        const cover = await chapterMediaUri(image.mimeType, image.dataBase64);
+        const cover = await chapterMediaUri(chapterId, image.mimeType, image.dataBase64);
         if (current) setContent({ pack, cover });
       } catch (error) {
         if (current) {
@@ -84,7 +84,7 @@ export function ChapterPackView({
     setPlaying(phrase);
     try {
       const [uri, preferences] = await Promise.all([
-        chapterMediaUri(clip.mimeType, clip.dataBase64),
+        chapterMediaUri(chapterId, clip.mimeType, clip.dataBase64),
         getSpeechPreferences(),
       ]);
       if (!signal.aborted) await player.play(uri, preferences.rate ?? 1, signal);

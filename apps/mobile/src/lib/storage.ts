@@ -44,3 +44,11 @@ export async function keysRaw() {
 export async function removeRaw(keys: string[]) {
   for (const key of keys) await (await db()).runAsync('DELETE FROM cache WHERE key=?', key);
 }
+export async function putRawAndRemove(key: string, value: string, removedKey: string) {
+  await (
+    await db()
+  ).withExclusiveTransactionAsync(async (transaction) => {
+    await transaction.runAsync('INSERT OR REPLACE INTO cache(key,value) VALUES(?,?)', key, value);
+    await transaction.runAsync('DELETE FROM cache WHERE key=?', removedKey);
+  });
+}
