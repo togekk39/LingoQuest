@@ -206,9 +206,7 @@ export function TravelFlow({
   const { play, playSequence, stop, speechMessage } = useChapterAudio();
   const wordIndex = current.word ?? 0;
   const word =
-    !current.finished && !briefing && step.type === 'teach'
-      ? mission.vocabulary[wordIndex]
-      : undefined;
+    !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
   const speakingText =
     step.type === 'speak'
       ? personalResponse && playerName
