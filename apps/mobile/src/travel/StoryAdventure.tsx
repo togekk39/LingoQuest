@@ -208,6 +208,7 @@ export function StoryAdventure({
   const questsOpen = journal?.type === 'quests';
   const inventoryOpen = journal?.type === 'inventory';
   const dialogueAudio = dialogue?.line?.en;
+  const postcardConfirmation = dialogue?.id === 'origin-sketch-taken';
   const activeCheckpoint =
     encounter &&
     !encounter.suspended &&
@@ -235,10 +236,12 @@ export function StoryAdventure({
   }, []);
 
   useEffect(() => {
-    const acquired = inventory.filter(({ id }) => !knownItems.current.has(id));
+    const acquired = inventory.filter(
+      ({ id }) => !knownItems.current.has(id) && !(postcardConfirmation && id === 'origin-card'),
+    );
     knownItems.current = new Set(inventory.map(({ id }) => id));
     if (acquired.length) setNewItem(acquired.map(({ name }) => name).join(', '));
-  }, [inventory]);
+  }, [inventory, postcardConfirmation]);
 
   useEffect(() => {
     if (!newItem) return;
@@ -342,7 +345,7 @@ export function StoryAdventure({
             </StorySpeaker>
           ) : (
             <SectionHeading focusKey={guideStep ? undefined : dialogue.id} style={s.panelTitle}>
-              {scene.title}
+              {dialogue.title ?? scene.title}
             </SectionHeading>
           )}
         </View>
