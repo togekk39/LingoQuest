@@ -80,6 +80,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
   const [mission, setMission] = useState<TravelCheckpoint | null>(null);
   const [story, setStory] = useState<StoryView | null>(null);
+  const [firstStoryVisit, setFirstStoryVisit] = useState(false);
   const [storyError, setStoryError] = useState('');
   const [finishingEncounter, setFinishingEncounter] = useState(false);
   const [destination, setDestination] = useState('home');
@@ -152,15 +153,16 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setStory(response.story);
     setStoryError('');
   }
-  async function refreshStory() {
+  async function refreshStory(opening = false) {
     const session = storySession.current;
     const response = await api<StoryResponse>('/v1/story');
     if (session !== storySession.current) return false;
+    if (opening) setFirstStoryVisit(response.firstVisit === true);
     showStory(response);
     return true;
   }
   async function showAdventure() {
-    if (!(await refreshStory())) return;
+    if (!(await refreshStory(true))) return;
     setPassport(false);
     setFlow(null);
   }
@@ -429,6 +431,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     return withSheets(
       <StoryAdventure
         story={story}
+        firstVisit={firstStoryVisit}
         checkpoint={travel.active}
         playerName={playerName}
         onEditName={editPlayerName}
@@ -442,8 +445,14 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         }}
         onLessonUpdate={updateStoryLesson}
         onResumeEncounter={resumeStoryLesson}
-        onReview={openQuickReview}
-        onPassport={() => setPassport(true)}
+        onReview={(missionId) => {
+          setFirstStoryVisit(false);
+          openQuickReview(missionId);
+        }}
+        onPassport={() => {
+          setFirstStoryVisit(false);
+          setPassport(true);
+        }}
         onVoiceSettings={openVoiceSettings}
       />,
     );

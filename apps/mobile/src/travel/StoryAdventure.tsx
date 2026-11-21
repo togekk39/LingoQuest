@@ -36,6 +36,7 @@ import { JournalLeaf, PaperGrain } from '../Journal';
 import { localSettings } from '../lib/api';
 import { useTheme } from '../theme';
 import { StoryPhrase, StorySpeaker } from './StoryDialogueAppearance';
+import { StoryGuide, type GuideStep } from './StoryGuide';
 import { StoryScene } from './StoryScene';
 import { TravelFlow, type TravelFlowHandle } from './TravelFlow';
 import { useChapterAudio } from './useChapterAudio';
@@ -144,6 +145,7 @@ function StoryButton({
 
 export function StoryAdventure({
   story,
+  firstVisit,
   checkpoint,
   playerName,
   onEditName,
@@ -158,6 +160,7 @@ export function StoryAdventure({
   onVoiceSettings,
 }: {
   story: StoryView;
+  firstVisit: boolean;
   checkpoint?: TravelCheckpoint;
   playerName?: string;
   onEditName: () => void;
@@ -177,6 +180,13 @@ export function StoryAdventure({
   const { play, stop, speechMessage } = useChapterAudio();
   const { scene, dialogue, encounter, hotspots, inventory, quests, turn, origin } = story;
   const lesson = useRef<TravelFlowHandle>(null);
+  const [guideStep, setGuideStep] = useState<GuideStep | null>(firstVisit ? 'npc' : null);
+  const [guideAnchor, setGuideAnchor] = useState<View | null>(null);
+  const guideHotspot = hotspots.find(
+    (hotspot) =>
+      (guideStep === 'npc' && hotspot.npcId === 'luz') ||
+      (guideStep === 'object' && hotspot.id === 'plaza-origin'),
+  );
   const [journal, setJournal] = useState<JournalPanel>(null);
   const [translationsVisible, setTranslationsVisible] = useState(true);
   const translationTouched = useRef(false);
@@ -267,10 +277,11 @@ export function StoryAdventure({
     }
   }
 
-  const act = (operation: StoryOperation) =>
+  const act = (operation: StoryOperation, afterAction?: () => void) =>
     void perform(async () => {
       await onAction(operation);
       setJournal(null);
+      afterAction?.();
     });
   const resume = () =>
     void perform(async () => {
@@ -285,7 +296,18 @@ export function StoryAdventure({
       if (!activeCheckpoint) resume();
       return;
     }
-    act({ action: 'interact', hotspotId, turn });
+    act({ action: 'interact', hotspotId, turn }, () => {
+      setGuideStep((step) => {
+        if (step === 'npc' && hotspot?.npcId === 'luz') return 'object';
+        if (step === 'object' && hotspotId === 'plaza-origin') return 'quests';
+        return step;
+      });
+    });
+  }
+
+  function toggleQuests() {
+    setJournal(questsOpen ? null : { type: 'quests' });
+    if (guideStep === 'quests') setGuideStep(null);
   }
 
   const closeControl = (
@@ -311,7 +333,7 @@ export function StoryAdventure({
             <StorySpeaker
               name={dialogue.npc.name}
               heading={
-                <SectionHeading focusKey={dialogue.id} style={s.panelTitle}>
+                <SectionHeading focusKey={guideStep ? undefined : dialogue.id} style={s.panelTitle}>
                   {dialogue.npc.name}
                 </SectionHeading>
               }
@@ -319,7 +341,7 @@ export function StoryAdventure({
               <Text style={s.body}>{dialogue.text}</Text>
             </StorySpeaker>
           ) : (
-            <SectionHeading focusKey={dialogue.id} style={s.panelTitle}>
+            <SectionHeading focusKey={guideStep ? undefined : dialogue.id} style={s.panelTitle}>
               {scene.title}
             </SectionHeading>
           )}
@@ -422,7 +444,25 @@ export function StoryAdventure({
     <FlowFrame
       title={chapter.title}
       eyebrow="Aventura"
-      journal={{ storybook: true, wide }}
+      journal={{
+        storybook: true,
+        wide,
+        overlay: guideStep && (
+          <StoryGuide
+            key={guideStep}
+            step={guideStep}
+            anchor={guideAnchor}
+            targetLabel={guideHotspot?.label ?? 'Abrir lista de misiones'}
+            busy={locked}
+            error={error || actionError}
+            onTarget={() => {
+              if (guideHotspot) interact(guideHotspot.id);
+              if (guideStep === 'quests') toggleQuests();
+            }}
+            onSkip={() => setGuideStep(null)}
+          />
+        ),
+      }}
       onVoiceSettings={() => void perform(onVoiceSettings)}
       onClose={() => void perform(onClose)}
     >
@@ -432,6 +472,8 @@ export function StoryAdventure({
             scene={scene}
             hotspots={hotspots}
             activeNpc={dialogue?.npc?.id ?? (activeCheckpoint ? encounter?.npc?.id : undefined)}
+            guideHotspotId={guideHotspot?.id}
+            onGuideAnchor={setGuideAnchor}
             disabled={locked}
             onInteract={interact}
           />
@@ -480,12 +522,13 @@ export function StoryAdventure({
           )}
           <View testID="story-quests" style={s.group}>
             <Pressable
+              ref={guideStep === 'quests' ? setGuideAnchor : undefined}
               testID="story-quests-toggle"
               accessibilityRole="button"
               accessibilityLabel={`Misiones. ${missionTitle}. ${missionProgress}`}
               accessibilityState={{ expanded: questsOpen }}
               aria-expanded={questsOpen}
-              onPress={() => setJournal(questsOpen ? null : { type: 'quests' })}
+              onPress={toggleQuests}
               style={({ pressed }) => [s.questSummary, pressed && { opacity: 0.82 }]}
             >
               <BookOpen color={colors.teal} size={18} />

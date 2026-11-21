@@ -86,12 +86,16 @@ export function StoryScene({
   scene,
   hotspots,
   activeNpc,
+  guideHotspotId,
+  onGuideAnchor,
   disabled,
   onInteract,
 }: {
   scene: StoryView['scene'];
   hotspots: ReadonlyArray<Hotspot>;
   activeNpc?: string;
+  guideHotspotId?: string;
+  onGuideAnchor: (view: View | null) => void;
   disabled?: boolean;
   onInteract: (id: string) => void;
 }) {
@@ -101,6 +105,23 @@ export function StoryScene({
   const artId = scene.art === 'bus' || scene.art === 'bag' ? scene.art : 'plaza';
   const sceneFigures = figures[artId];
   const visibleFigures = new Set([activeNpc, ...hotspots.map((hotspot) => hotspot.npcId)]);
+  const targets =
+    size.width > 0
+      ? hotspots.map((hotspot) => {
+          const id = figureId(hotspot.npcId);
+          const figure = id && sceneFigures[id];
+          const marker = markers[hotspot.id];
+          const { x = 50, y = 50 } = hotspot.position ?? {};
+          const bounds = figure?.bounds ??
+            marker?.bounds ?? { x: x - 13, y: y - 12, width: 26, height: 24 };
+          return {
+            hotspot,
+            figure,
+            marker,
+            target: placement(bounds, size.width, size.height),
+          };
+        })
+      : [];
   const light = mode === 'light';
   const tag = {
     backgroundColor: light ? '#FFF1D5' : colors.white,
@@ -148,75 +169,65 @@ export function StoryScene({
               </View>
             ) : null;
           })}
-          {size.width > 0 &&
-            hotspots.map((hotspot) => {
-              const id = figureId(hotspot.npcId);
-              const figure = id && sceneFigures[id];
-              const marker = markers[hotspot.id];
-              const { x = 50, y = 50 } = hotspot.position ?? {};
-              const bounds = figure?.bounds ??
-                marker?.bounds ?? {
-                  x: x - 13,
-                  y: y - 12,
-                  width: 26,
-                  height: 24,
-                };
-              const target = placement(bounds, size.width, size.height);
-              const selected = hotspot.npcId !== undefined && hotspot.npcId === activeNpc;
-              const Icon = hotspot.kind === 'exit' ? ArrowRight : Search;
-              const label = marker?.label ?? hotspot.label;
-              const iconOnly =
-                hotspot.kind !== 'npc' && target.width < fontScale * label.length * 7;
-              return (
-                <Pressable
-                  key={hotspot.id}
-                  testID={`story-hotspot-${hotspot.id}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={hotspot.label}
-                  accessibilityState={{
-                    disabled,
-                    expanded: hotspot.kind === 'npc' ? selected : undefined,
-                  }}
-                  disabled={disabled}
-                  onPress={() => onInteract(hotspot.id)}
-                  style={[
-                    styles.target,
-                    target,
-                    figure && {
-                      justifyContent: 'flex-end',
-                      paddingBottom: target.height * figure.labelInset,
-                    },
-                  ]}
-                >
-                  {({ pressed }) => (
-                    <View
-                      pointerEvents="none"
-                      style={[
-                        styles.tag,
-                        hotspot.kind === 'npc' && styles.nameTag,
-                        selected || pressed ? highlightedTag : tag,
-                      ]}
-                    >
-                      {iconOnly ? (
-                        <Icon size={18} color={colors.ink} />
-                      ) : (
-                        <Text
-                          accessible={false}
-                          numberOfLines={1}
-                          style={[
-                            styles.tagText,
-                            { color: colors.ink },
-                            hotspot.kind === 'npc' && styles.nameText,
-                          ]}
-                        >
-                          {label}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
+          {targets.map(({ hotspot, figure, marker, target }) => {
+            const selected = hotspot.npcId !== undefined && hotspot.npcId === activeNpc;
+            const guided = hotspot.id === guideHotspotId;
+            const Icon = hotspot.kind === 'exit' ? ArrowRight : Search;
+            const label = marker?.label ?? hotspot.label;
+            const iconOnly = hotspot.kind !== 'npc' && target.width < fontScale * label.length * 7;
+            return (
+              <Pressable
+                key={hotspot.id}
+                testID={`story-hotspot-${hotspot.id}`}
+                accessibilityRole="button"
+                accessibilityLabel={hotspot.label}
+                accessibilityState={{
+                  disabled,
+                  expanded: hotspot.kind === 'npc' ? selected : undefined,
+                }}
+                disabled={disabled}
+                onPress={() => onInteract(hotspot.id)}
+                style={[
+                  styles.target,
+                  target,
+                  figure && {
+                    justifyContent: 'flex-end',
+                    paddingBottom: target.height * figure.labelInset,
+                  },
+                ]}
+              >
+                {({ pressed }) => (
+                  <View
+                    ref={guided ? onGuideAnchor : undefined}
+                    collapsable={!guided}
+                    pointerEvents="none"
+                    style={[
+                      styles.tag,
+                      hotspot.kind === 'npc' && styles.nameTag,
+                      selected || pressed || guided ? highlightedTag : tag,
+                      guided && styles.guidedTag,
+                    ]}
+                  >
+                    {iconOnly ? (
+                      <Icon size={18} color={colors.ink} />
+                    ) : (
+                      <Text
+                        accessible={false}
+                        numberOfLines={1}
+                        style={[
+                          styles.tagText,
+                          { color: colors.ink },
+                          hotspot.kind === 'npc' && styles.nameText,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
         </View>
       </JournalPostcardFrame>
     </View>
@@ -245,6 +256,7 @@ const styles = StyleSheet.create({
     boxShadow: '0 2px 5px rgba(61, 37, 18, 0.34)',
   },
   nameTag: { minHeight: 29, paddingHorizontal: 12, borderRadius: 11 },
+  guidedTag: { borderWidth: 2 },
   tagText: { fontFamily: 'ManropeBold', fontSize: 11 },
   nameText: { fontFamily: 'LoraBold', fontSize: 16 },
 });

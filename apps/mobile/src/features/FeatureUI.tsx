@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useEffect, useRef, useState } from '
 import {
   ActivityIndicator,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,8 +23,14 @@ import { JournalLeaf, PaperEdge, PaperGrain } from '../Journal';
 export const InputViewportContext = createContext<{
   revealInput: (input: TextInput | null) => void;
   revealItem: (item: View, isCurrent: () => boolean) => void;
+  observeViewport: (listener: () => void) => () => void;
   maxHeight: number;
-}>({ revealInput: () => {}, revealItem: () => {}, maxHeight: 200 });
+}>({
+  revealInput: () => {},
+  revealItem: () => {},
+  observeViewport: () => () => {},
+  maxHeight: 200,
+});
 
 export const newEventId = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -109,6 +116,7 @@ export function FlowFrame({
     onSettings?: () => void;
     storybook?: boolean;
     wide?: boolean;
+    overlay?: React.ReactNode;
   };
   onVoiceSettings?: () => void;
 }) {
@@ -122,8 +130,15 @@ export function FlowFrame({
   const focusedInput = useRef<TextInput | null>(null);
   const scrollOffset = useRef(0);
   const pendingFrame = useRef<number | null>(null);
+  const viewportListener = useRef<(() => void) | null>(null);
   const [inputMaxHeight, setInputMaxHeight] = useState(200);
   const hasFeedback = !!feedback;
+  const observeViewport = useCallback((listener: () => void) => {
+    viewportListener.current = listener;
+    return () => {
+      if (viewportListener.current === listener) viewportListener.current = null;
+    };
+  }, []);
   const revealItem = useCallback((item: View | TextInput, isCurrent: () => boolean) => {
     scroll.current?.getNativeScrollRef()?.measureInWindow((_x, top, _width, height) => {
       item.measureInWindow((_x, itemTop, _width, itemHeight) => {
@@ -188,6 +203,15 @@ export function FlowFrame({
     };
   }, [hasFeedback, stepKey]);
 
+  const inputViewport = { revealInput, revealItem, observeViewport, maxHeight: inputMaxHeight };
+  const covered = journal?.overlay
+    ? {
+        accessibilityElementsHidden: true,
+        importantForAccessibility: 'no-hide-descendants' as const,
+        ...(Platform.OS === 'web' && { inert: true }),
+      }
+    : undefined;
+
   return (
     <View
       ref={frame}
@@ -199,6 +223,7 @@ export function FlowFrame({
     >
       {journal && <PaperGrain />}
       <View
+        {...covered}
         style={[
           journal ? f.journalTopbar : f.topbar,
           journal?.storybook && f.storybookTopbar,
@@ -281,26 +306,31 @@ export function FlowFrame({
         </View>
       )}
       <ScrollView
+        {...covered}
         ref={scroll}
         testID="flow-scroll"
         style={{ flex: 1 }}
         contentContainerStyle={[f.scroll, journal && f.journalScroll]}
         keyboardShouldPersistTaps="handled"
-        onContentSizeChange={revealFeedback}
+        removeClippedSubviews={journal?.overlay ? false : undefined}
+        onContentSizeChange={() => {
+          revealFeedback();
+          viewportListener.current?.();
+        }}
         onLayout={(event) => {
           revealFeedback();
+          viewportListener.current?.();
           // Leave space around the field; long answers scroll inside the input.
           setInputMaxHeight(Math.max(1, event.nativeEvent.layout.height - 32));
           revealFocusedInput();
         }}
         onScroll={(event) => {
           scrollOffset.current = event.nativeEvent.contentOffset.y;
+          viewportListener.current?.();
         }}
         scrollEventThrottle={16}
       >
-        <InputViewportContext.Provider
-          value={{ revealInput, revealItem, maxHeight: inputMaxHeight }}
-        >
+        <InputViewportContext.Provider value={inputViewport}>
           <View
             style={[
               f.content,
@@ -313,7 +343,11 @@ export function FlowFrame({
               revealFeedback();
             }}
           >
-            <MotionEntrance key={stepKey} style={{ gap: journal ? 16 : 22 }}>
+            <MotionEntrance
+              key={stepKey}
+              animateOnMount={!journal?.overlay}
+              style={{ gap: journal ? 16 : 22 }}
+            >
               {children}
               {hasFeedback && (
                 <View
@@ -337,6 +371,11 @@ export function FlowFrame({
       )}
       {/* A real layout spacer creates scroll room even when the OS overlays the keyboard. */}
       <View testID="keyboard-spacer" style={{ height: overlap, flexShrink: 0 }} />
+      {journal?.overlay && (
+        <InputViewportContext.Provider value={inputViewport}>
+          {journal.overlay}
+        </InputViewportContext.Provider>
+      )}
     </View>
   );
 }
