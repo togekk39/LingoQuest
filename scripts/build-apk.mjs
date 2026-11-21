@@ -132,7 +132,7 @@ const shortCommit = commit.slice(0, 8);
 const output = join(repo, 'work/apk');
 await mkdir(output, { recursive: true });
 const releaseVersion = env.LINGOQUEST_RELEASE_VERSION;
-const buildLabel = releaseVersion ? `${releaseVersion}-preview` : 'dev';
+const buildLabel = releaseVersion || 'dev';
 const filename = `lingoquest-${buildLabel}-${shortCommit}.apk`;
 await copyFile(apk, join(output, filename));
 const bytes = await readFile(apk);

@@ -6,7 +6,7 @@
 
 The pipeline uses Node.js 24, Java 17, Android SDK/build tools 36, NDK 27.1.12297006 and CMake 3.22.1. It runs the existing checks/tests, generates native Android files with the installed Expo SDK 54 template, and runs Gradle `:app:assembleRelease` for `arm64-v8a` and `armeabi-v7a`. The resulting universal ARM APK works on Android 7 or newer. The release variant embeds the Hermes bundle, full offline course, local fonts, travel illustrations, map, and first-chapter reference audio; it does not need Metro, Expo Go, an Expo account or online learning APIs.
 
-Development APKs use `lingoquest-dev-<commit>.apk`. Expo uses `0.0.0` as the native version placeholder. For an explicitly approved release, supply `LINGOQUEST_RELEASE_VERSION` in the build environment.
+Development APKs use `lingoquest-dev-<commit>.apk`. Expo uses `0.0.0` as the native version placeholder. For a release build, supply the version in the manual Android APK workflow or set `LINGOQUEST_RELEASE_VERSION` locally. Use the next minor version with a zero patch for a regular preview, such as `2.2.0-preview`. Increment the patch for an urgent fix to a stable release, such as `2.2.1-preview`. Increment the major version only when explicitly requested. For a stable release, build with the same version without the `-preview` suffix.
 
 ## Download and install
 
