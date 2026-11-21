@@ -131,13 +131,13 @@ test('the first chapter guides a new player through the scene and mission list o
   await expect(dialogue(page, 'luz-welcome')).toBeVisible();
   await expect(guide).toContainText('Guía rápida · 2 de 3');
   await expect(guide.getByText('Examina los objetos')).toBeInViewport({ ratio: 1 });
-  await expect(guide.getByText(/Toca «Postales» para descubrir qué hay/)).toBeInViewport({
+  await expect(guide.getByText(/Toca «Postal» para revisar el reverso/)).toBeInViewport({
     ratio: 1,
   });
-  await expect(target).toHaveAccessibleName('Postales de Honduras');
+  await expect(target).toHaveAccessibleName('Postal de la plaza');
   await expect(target).toBeInViewport({ ratio: 1 });
-  const postcards = spot(page, 'plaza-origin').getByText('Postales', { exact: true });
-  await expectGuideAligned(target, postcards.locator('..'));
+  const postcard = spot(page, 'plaza-origin').getByText('Postal', { exact: true });
+  await expectGuideAligned(target, postcard.locator('..'));
   await target.click();
 
   await expect(dialogue(page, 'origin-postcards')).toBeVisible();
@@ -231,7 +231,7 @@ test.describe('small touch screen', () => {
     await expect(sam).toBeVisible();
   });
 
-  test('the postcards hotspot shows its own heading before and after collecting the sketch', async ({
+  test('the plaza postcard keeps its name from inspection through collection and use', async ({
     page,
   }) => {
     await enterApp(page, { chooseOrigin: false });
@@ -239,24 +239,45 @@ test.describe('small touch screen', () => {
     await click(page, 'Bolivia');
     await openAdventure(page);
 
-    const postcards = spot(page, 'plaza-origin');
+    const postcard = spot(page, 'plaza-origin');
+    const postcardName = 'Postal de la plaza';
     const panel = dialogue(page, 'origin-postcards');
-    const heading = panel.getByRole('heading', exact('Postales de Bolivia'));
-    const saveSketch = panel.getByRole('button', exact('Guardar el croquis'));
+    const confirmation = dialogue(page, 'origin-sketch-taken');
+    const savePostcard = panel.getByRole('button', exact('Guardar la postal'));
+    const backpackToggle = page.getByTestId('story-inventory-toggle');
+    const backpackItem = page.getByTestId('story-inventory-origin-card');
 
-    await postcards.tap();
-    await expect(heading).toBeVisible();
-    await expect(panel.getByText(/Entre las postales de Bolivia/)).toBeVisible();
-    await saveSketch.tap();
-    await expect(dialogue(page, 'origin-sketch-taken')).toBeVisible();
+    await expect(postcard).toHaveAccessibleName(postcardName);
+    await expect(postcard.getByText('Postal', { exact: true })).toBeVisible();
+    await postcard.tap();
+    await expect(panel.getByRole('heading', exact(postcardName))).toBeVisible();
+    await expect(
+      panel.getByText(/En el reverso de esta postal de Bolivia hay un mapa/),
+    ).toBeVisible();
+    await savePostcard.tap();
+    await expect(confirmation.getByRole('heading', exact(postcardName))).toBeVisible();
+    await expect(confirmation.getByText(/La postal está en tu mochila/)).toBeVisible();
+    await restoreAdventure(page, confirmation);
+    await backpackToggle.tap();
+    await expect(backpackItem.getByText(postcardName, { exact: true })).toBeVisible();
     await closeDialogue(page);
 
-    await postcards.tap();
-    await expect(heading).toBeVisible();
-    await expect(saveSketch).toBeHidden();
+    await postcard.tap();
+    await expect(panel.getByRole('heading', exact(postcardName))).toBeVisible();
+    await expect(savePostcard).toBeHidden();
     await panel.getByRole('button', exact('Volver a la escena')).tap();
     await expect(panel).toBeHidden();
     await expect(page.getByRole('heading', exact('La plaza'))).toBeVisible();
+
+    await spot(page, 'plaza-luz').tap();
+    await dialogue(page, 'luz-welcome').getByRole('button', exact('Mostrarle la postal')).tap();
+    await expect(dialogue(page, 'luz-map-clue')).toContainText(
+      'En el reverso de la postal, Luz marca',
+    );
+    await backpackToggle.tap();
+    await expect(backpackItem).toContainText('Usado en la historia');
+    await page.getByTestId('story-quests-toggle').tap();
+    await expect(page.getByTestId('story-quest-origin-sketch')).toContainText('Completada');
   });
 });
 

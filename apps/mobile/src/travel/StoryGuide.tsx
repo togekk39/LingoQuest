@@ -25,8 +25,7 @@ const guideSteps = {
   object: {
     number: 2,
     title: 'Examina los objetos',
-    instruction:
-      'Los objetos pueden guardar pistas. Toca «Postales» para descubrir qué hay entre ellas.',
+    instruction: 'Los objetos pueden guardar pistas. Toca «Postal» para revisar el reverso.',
   },
   quests: {
     number: 3,

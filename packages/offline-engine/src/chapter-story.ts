@@ -24,9 +24,14 @@ const knowsIntroduction = {
 } as const;
 
 const close = { type: 'closeDialogue' } as const;
-const originPostcardsTitle = 'Postales de {origin}';
-const showOriginSketch = {
-  label: 'Mostrarle el croquis',
+const plazaPostcardName = 'Postal de la plaza';
+const askAboutPlazaPostcard = {
+  label: 'Preguntar por la postal',
+  requires: [{ ...hasOriginCard, not: true }],
+  effects: [{ type: 'dialogue', id: 'origin-postcards' }],
+} as const;
+const showPlazaPostcard = {
+  label: 'Mostrarle la postal',
   requires: [hasOriginCard, { ...annotatedOriginCard, not: true }],
   effects: [
     { type: 'useItem', id: 'origin-card' },
@@ -59,10 +64,9 @@ export const chapterStory = {
     },
     {
       id: 'origin-card',
-      name: 'Croquis de la plaza',
+      name: plazaPostcardName,
       kind: 'story',
-      description:
-        'Un dibujo del barrio donde empieza tu viaje. Luz puede indicar qué camino pasa por la fuente y llega al parque.',
+      description: 'En el reverso hay un mapa sencillo de la plaza y el parque.',
     },
     {
       id: 'sam-postcard',
@@ -111,18 +115,18 @@ export const chapterStory = {
     },
     {
       id: 'origin-sketch',
-      title: 'Un croquis del barrio',
+      title: 'La ruta en la postal',
       kind: 'side',
-      description: 'Pídele a Luz que marque en el croquis el camino de la plaza al parque.',
+      description: 'Pídele a Luz que marque el camino al parque en el mapa de la postal.',
       goals: [
         {
           id: 'find-sketch',
-          label: 'Encuentra el croquis entre las postales.',
+          label: 'Guarda la postal de la plaza en tu mochila.',
           requires: [hasOriginCard],
         },
         {
           id: 'show-sketch',
-          label: 'Muéstrale el croquis a Luz.',
+          label: 'Muéstrale la postal a Luz.',
           requires: [annotatedOriginCard],
         },
       ],
@@ -201,7 +205,7 @@ export const chapterStory = {
         },
         {
           id: 'plaza-origin',
-          label: originPostcardsTitle,
+          label: plazaPostcardName,
           kind: 'object',
           position: { x: 17, y: 29 },
           effects: [{ type: 'dialogue', id: 'origin-postcards' }],
@@ -436,18 +440,14 @@ export const chapterStory = {
           label: 'Practicar con el ejemplo de Luz',
           effects: [{ type: 'dialogue', id: 'luz-introduction-practice' }],
         },
-        {
-          id: 'ask-luz-about-origin',
-          label: 'Preguntar por las postales',
-          effects: [{ type: 'dialogue', id: 'origin-postcards' }],
-        },
-        { id: 'show-origin-sketch', ...showOriginSketch },
+        { id: 'ask-luz-about-origin', ...askAboutPlazaPostcard },
+        { id: 'show-origin-sketch', ...showPlazaPostcard },
       ],
     },
     {
       id: 'luz-after-introduction',
       npcId: 'luz',
-      text: 'Un saludo y tu nombre bastan para empezar. Si te fijas en las postales de {origin}, muchas cuentan cómo se conocieron dos personas.',
+      text: 'Un saludo y tu nombre bastan para empezar. Si necesitas orientarte, la postal de la plaza tiene un mapa en el reverso.',
       line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
       exampleLabel: 'Ejemplo de Luz',
       choices: [
@@ -456,12 +456,8 @@ export const chapterStory = {
           label: 'Practicar con el ejemplo de Luz',
           effects: [{ type: 'dialogue', id: 'luz-introduction-practice' }],
         },
-        {
-          id: 'ask-luz-about-origin-after-introduction',
-          label: 'Preguntar por las postales',
-          effects: [{ type: 'dialogue', id: 'origin-postcards' }],
-        },
-        { id: 'show-origin-sketch-after-introduction', ...showOriginSketch },
+        { id: 'ask-luz-about-origin-after-introduction', ...askAboutPlazaPostcard },
+        { id: 'show-origin-sketch-after-introduction', ...showPlazaPostcard },
       ],
     },
     {
@@ -503,12 +499,12 @@ export const chapterStory = {
     },
     {
       id: 'origin-postcards',
-      title: originPostcardsTitle,
-      text: 'Entre las postales de {origin} hay un dibujo de la plaza y el parque. La calle que sale de la fuente quedó sin marcar.',
+      title: plazaPostcardName,
+      text: 'En el reverso de esta postal de {origin} hay un mapa sencillo de la plaza y el parque.',
       choices: [
         {
           id: 'take-origin-sketch',
-          label: 'Guardar el croquis',
+          label: 'Guardar la postal',
           requires: [{ ...hasOriginCard, not: true }],
           effects: [
             { type: 'startQuest', id: 'origin-sketch' },
@@ -520,13 +516,14 @@ export const chapterStory = {
     },
     {
       id: 'origin-sketch-taken',
-      text: 'Guardas el croquis en la mochila. Luz conoce bien los caminos de esta plaza.',
+      title: plazaPostcardName,
+      text: 'La postal está en tu mochila. Muéstrasela a Luz para que marque el camino al parque.',
       choices: [],
     },
     {
       id: 'luz-map-clue',
       npcId: 'luz',
-      text: 'Luz marca una línea desde la fuente hasta el parque. «Sigue el borde del parque. Si encuentras el poste con el árbol, llegaste a la parada».',
+      text: 'En el reverso de la postal, Luz marca el camino desde la fuente hasta el parque. «Sigue el borde del parque. Si encuentras el poste con el árbol, llegaste a la parada».',
       choices: [],
     },
     {
@@ -670,7 +667,7 @@ export const chapterStory = {
             { type: 'dialogue', id: 'luz-clue' },
           ],
         },
-        { id: 'show-origin-sketch-while-searching', ...showOriginSketch },
+        { id: 'show-origin-sketch-while-searching', ...showPlazaPostcard },
       ],
     },
     {

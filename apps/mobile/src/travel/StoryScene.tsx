@@ -55,7 +55,7 @@ const figures: Record<ArtId, Partial<Record<FigureId, Figure>>> = {
 };
 
 const markers: Record<string, { bounds: Bounds; label: string }> = {
-  'plaza-origin': { bounds: { x: 53, y: 81, width: 27, height: 19 }, label: 'Postales' },
+  'plaza-origin': { bounds: { x: 53, y: 81, width: 27, height: 19 }, label: 'Postal' },
   'plaza-ticket': { bounds: { x: 46, y: 25, width: 27, height: 19 }, label: 'Boleto' },
   'plaza-to-stop': { bounds: { x: 74, y: 24, width: 25, height: 19 }, label: 'Parque' },
   'stop-to-plaza': { bounds: { x: 0, y: 79, width: 32, height: 21 }, label: 'Plaza' },
