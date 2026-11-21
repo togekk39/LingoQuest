@@ -159,10 +159,6 @@ export function TravelGuide({
   );
 }
 
-const grammarTopics = chapter.missions.flatMap((mission) =>
-  mission.steps.filter((step) => step.type === 'teach'),
-);
-
 export function TravelGrammar({
   onClose,
   onVoiceSettings,
@@ -173,6 +169,9 @@ export function TravelGrammar({
   const { colors: C } = useTheme();
   const [index, select] = useState(0);
   const { play, playSequence, stop, speechMessage } = useChapterAudio();
+  const grammarTopics = chapter.missions.flatMap((mission) =>
+    mission.steps.filter((step) => step.type === 'teach'),
+  );
   const topic = grammarTopics[index];
   return (
     <FlowFrame
@@ -223,12 +222,6 @@ export function TravelGrammar({
   );
 }
 
-const drills = chapter.missions.flatMap((mission) =>
-  Array.from(new Set(mission.vocabulary.map((word) => word.example.en))).map((text) => ({
-    mission,
-    text,
-  })),
-);
 export function TravelPronunciation({
   onClose,
   onVoiceSettings,
@@ -237,6 +230,12 @@ export function TravelPronunciation({
   onVoiceSettings: () => void;
 }) {
   const { colors: C } = useTheme();
+  const drills = chapter.missions.flatMap((mission) =>
+    Array.from(new Set(mission.vocabulary.map((word) => word.example.en))).map((text) => ({
+      mission,
+      text,
+    })),
+  );
   const [selected, select] = useState<string>();
   const { play, stop, speechMessage } = useChapterAudio();
   const configureVoice = () => {

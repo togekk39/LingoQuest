@@ -4,6 +4,10 @@
 
 Follow the [verification record](VERIFICATION.md) for automated results and limitations. Run these checks without starting Fastify, signing in, or connecting a cloud account.
 
+## Android first launch
+
+Install with no local data and open the APK in airplane mode. Verify the chapter catalog and import controls open. Download or import **La primera postal** revision 2 or later, then restart offline and open the adventure, placement, and course.
+
 ## Welcome and starting mission
 
 1. With fresh data, open the app at 320, 360, and 390 px, then repeat with larger text and dark mode. Check that **Comenzar mi aventura** is the primary action and that the optional assessment and close button are accessible. Choose an origin to open the plaza scene. To open a lesson directly, go to **Aprender → Lecciones**.
@@ -12,13 +16,13 @@ Follow the [verification record](VERIFICATION.md) for automated results and limi
 
 ## Vocabulary, missions, and review
 
-1. Cache the Web app or install the preview APK, then disconnect. Reach **Palabras del viaje** in a mission. Verify that each card gives the Spanish meaning, when to use the word, and an example in both languages. Play the word and example and change the audio speed. Open **Aprender** to access the same material directly.
+1. Cache the Web app or install the chapter pack on Android, then disconnect. Reach **Palabras del viaje** in a mission. Verify that each card gives the Spanish meaning, when to use the word, and an example in both languages. Play the word and example and change the audio speed. Open **Aprender** to access the same material directly.
 2. Leave midway through the vocabulary, reopen, and verify the same card. Repeat with a partial text answer, with the feedback showing, and after collecting the stamp. Switch available missions and verify the previous draft is still there when reopened.
 3. Give two `be` agreement errors in the introduction scenes. Verify the Spanish explanation, repair in another scene, and a new attempt without the answer displayed. Verify in **Mis habilidades** that assisted responses and later independent responses remain separate.
 4. Listen to Sam with the bundled audio, try opening the transcript, and type the next indication from its audio. Try the audio comparison after recognition and the microphone-free skip. Check that the alternative leaves speaking ability unassessed. Finish the chapter and check that the passport, postcard, and journal persist with one stamp.
 5. Open **Repaso rápido**, save part of a response, and return to the same step of your journey. Reopen the review and finish the response. After a full day, revisit **Repasar**, finish a due exercise without help, and check the delayed-recall evidence in **Mis habilidades**.
 6. From **Aprender**, open the grammar handbook and compare two patterns. Open **Cursos A1–A2** in airplane mode, consult a reference, and resume an old lesson from a draft.
-7. Choose your place of origin from the map. Check the 20 stops and the destination at Ushuaia and Antarctica. Future stops should show **En preparación**.
+7. Choose your place of origin from the map. Check the 20 stops and the destination at Ushuaia and Antarctica. Check that every stop offers a chapter download.
 
 ## Challenges, backups, and native checks
 

@@ -126,6 +126,21 @@ if (!entries.includes('assets/index.android.bundle'))
   );
 if (!entries.some((entry) => entry.endsWith('.ttf')))
   throw new Error('APK is missing embedded fonts required by the offline UI.');
+if (
+  entries.some(
+    (entry) =>
+      entry.includes('chapter-packs/') ||
+      /assets_(journal|travel)_.*\.(png|jpe?g|webp|mp3)$/i.test(entry),
+  )
+)
+  throw new Error('APK embeds chapter art or audio. These files belong in chapter packs.');
+const bundle = await run('unzip', ['-p', apk, 'assets/index.android.bundle'], repo, true);
+for (const marker of ['travel_quick_hello', 'home_challenge_readbag', 'u08_l04']) {
+  if (bundle.includes(Buffer.from(marker)))
+    throw new Error(
+      'APK embeds course data. Course content must load from installed chapter packs.',
+    );
+}
 const config = JSON.parse(await readFile(join(mobile, 'app.json'), 'utf8')).expo;
 const commit = process.env.GITHUB_SHA || 'local';
 const shortCommit = commit.slice(0, 8);

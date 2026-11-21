@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
+import type { ChapterPack } from '@lingoquest/course-pack';
 import { BookOpen, Download, FolderOpen } from 'lucide-react-native';
 import { downloadChapter, getInstalledChapter, importChapterFile } from '../lib/chapterPacks';
 import { useTheme } from '../theme';
@@ -11,9 +12,11 @@ type Transfer = 'download' | 'import';
 export function ChapterDownload({
   chapterId,
   onOpen,
+  onInstalled,
 }: {
   chapterId: string;
   onOpen: (chapterId: string) => void;
+  onInstalled: (pack: ChapterPack) => Promise<void>;
 }) {
   const { colors } = useTheme();
   const [revision, setRevision] = useState<number | null>();
@@ -60,6 +63,7 @@ export function ChapterDownload({
         ? downloadChapter(chapterId)
         : importChapterFile(chapterId));
       if (saved) {
+        await onInstalled(saved);
         for (const listener of installedListeners) listener(chapterId, saved.revision);
         if (revision != null && saved.revision !== revision) setMessage('Capítulo actualizado.');
         else if (revision != null)

@@ -1,11 +1,7 @@
+import type { TravelExerciseStep } from './travel-content';
 import type { PublicExercise } from '@lingoquest/contracts';
 import type { OfflineState } from './index';
-import {
-  chapter,
-  travelLesson,
-  travelPracticeSteps,
-  type TravelExerciseStep,
-} from './travel-content';
+import { chapter, travelLesson, travelPracticeSteps } from './home-content';
 import { learningSkills, travelConcepts, type TravelConceptId } from './travel-curriculum';
 import {
   learningKey,

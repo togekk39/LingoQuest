@@ -13,22 +13,19 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Compass, Mountain, PencilLine } from 'lucide-react-native';
-import notebookEdge from '../assets/journal/notebook-edge.png';
-import notebookSide from '../assets/journal/notebook-side.png';
-import grain from '../assets/journal/paper-grain.png';
-import plaza from '../assets/journal/plaza.jpg';
-import postcardEdge from '../assets/journal/postcard-edge.png';
-import postcardSide from '../assets/journal/postcard-side.png';
-import postagePaper from '../assets/journal/postage-paper.png';
-import portrait from '../assets/journal/sam.jpg';
+import { illustrations } from './travel/illustrations';
 import { useTheme } from './theme';
+import { paperTextures } from './paperTextures';
+
+const { notebookEdge, notebookSide, grain, postcardEdge, postcardSide, postagePaper } =
+  paperTextures;
 
 const notebookColor = '#FCF0DD';
 const postcardColor = '#FEF1DC';
 
 export function PaperGrain({ opacity = 0.11 }: { opacity?: number }) {
   const { mode } = useTheme();
-  if (mode !== 'light') return null;
+  if (mode !== 'light' || !grain) return null;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Image
@@ -77,6 +74,7 @@ function PaperEdges({
   const { mode, colors } = useTheme();
   const horizontal = kind === 'notebook' ? notebookEdge : postcardEdge;
   const vertical = kind === 'notebook' ? notebookSide : postcardSide;
+  if (!horizontal || !vertical) return null;
   const sides = edge ? [edge] : (Object.keys(edgeStyles) as Edge[]);
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -126,10 +124,11 @@ export function JournalStamp({
   size = 56,
   rotation = -9,
 }: {
-  source: ImageSourcePropType;
+  source: ImageSourcePropType | undefined;
   size?: number;
   rotation?: number;
 }) {
+  if (!source) return null;
   return (
     <View
       pointerEvents="none"
@@ -140,7 +139,7 @@ export function JournalStamp({
         { width: size, height: size, transform: [{ rotate: `${rotation}deg` }] },
       ]}
     >
-      <Image accessible={false} source={postagePaper} style={styles.grain} />
+      {postagePaper && <Image accessible={false} source={postagePaper} style={styles.grain} />}
       <View style={styles.postageVignette}>
         <Image accessible={false} source={source} style={styles.grain} resizeMode="cover" />
         <View style={[StyleSheet.absoluteFillObject, styles.stampInk]} />
@@ -152,7 +151,7 @@ export function JournalStamp({
 export function PlazaPhoto() {
   return (
     <JournalArt
-      source={plaza}
+      source={illustrations.plaza}
       label="Una plaza entre montañas, con una fuente y buganvilias"
       aspectRatio={2.36}
       taped
@@ -177,7 +176,10 @@ export function PlazaPostcard() {
       >
         <PaperEdges kind="postcard" tint={colors.white} />
         <PaperGrain opacity={0.32} />
-        <Image source={portrait} style={[styles.portrait, { borderColor: colors.white }]} />
+        <Image
+          source={illustrations.sam}
+          style={[styles.portrait, { borderColor: colors.white }]}
+        />
         <View style={{ flex: 1 }}>
           <Text style={[styles.travelerName, { color: colors.ink }]}>Sam</Text>
           <Text style={[styles.travelerRole, { color: colors.muted }]}>Viajero</Text>
@@ -201,7 +203,7 @@ export function PlazaPostcard() {
               ))}
             </View>
           )}
-          <JournalStamp source={plaza} size={49} rotation={-8} />
+          <JournalStamp source={illustrations.plaza} size={49} rotation={-8} />
         </View>
       </View>
     </View>
@@ -243,12 +245,13 @@ export function JournalArt({
   aspectRatio = 2.2,
   taped = false,
 }: {
-  source: ImageSourcePropType;
+  source: ImageSourcePropType | undefined;
   label?: string;
   aspectRatio?: number;
   taped?: boolean;
 }) {
   const { colors } = useTheme();
+  if (!source) return null;
   const image = (
     <View style={[styles.artCrop, { aspectRatio, backgroundColor: colors.mint }]}>
       <Image
@@ -290,15 +293,17 @@ export function JournalLeaf({
       ]}
     >
       {kind === 'stamp' ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Image
-            accessible={false}
-            source={postagePaper}
-            tintColor={mode === 'light' ? undefined : colors.mint}
-            style={styles.grain}
-            resizeMode="stretch"
-          />
-        </View>
+        postagePaper && (
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <Image
+              accessible={false}
+              source={postagePaper}
+              tintColor={mode === 'light' ? undefined : colors.mint}
+              style={styles.grain}
+              resizeMode="stretch"
+            />
+          </View>
+        )
       ) : (
         <PaperEdges kind={kind} tint={backgroundColor} />
       )}
@@ -334,7 +339,7 @@ export function JournalSpread({
   detail,
   children,
 }: {
-  source: ImageSourcePropType;
+  source: ImageSourcePropType | undefined;
   title: string;
   detail?: string;
   children?: React.ReactNode;

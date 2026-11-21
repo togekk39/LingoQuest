@@ -282,6 +282,52 @@ const chapterMediaSchema = z
   .strict();
 export type ChapterMedia = z.infer<typeof chapterMediaSchema>;
 
+const travelExercise = z
+  .object({
+    id,
+    type: courseExerciseSchema.shape.type,
+    promptEs: text,
+    acceptedAnswers: z.array(z.string()),
+    feedbackEs: text,
+    skillId: id,
+  })
+  .passthrough();
+const homeRuntime = z
+  .object({
+    lesson: z
+      .object({
+        id: z.literal('travel_home'),
+        unitId: z.literal('travel'),
+        title: text,
+        introEs: text,
+        examples: z.array(translation),
+        speakingText: text,
+        estimatedMinutes: z.number().positive(),
+        exercises: z.array(travelExercise).min(1),
+      })
+      .passthrough(),
+    placement: z
+      .array(
+        z
+          .object({
+            missionId: z.enum(['hello', 'bus', 'bag']),
+            audio: text.optional(),
+            exercise: travelExercise,
+          })
+          .strict(),
+      )
+      .length(6),
+    challenges: z
+      .object({
+        grammar_rush: z.array(travelExercise).min(1),
+        cloze_battle: z.array(travelExercise).min(1),
+        reading_quest: z.array(travelExercise).min(1),
+      })
+      .strict(),
+    course: coursePayloadSchema.omit({ units: true, lessons: true }),
+  })
+  .strict();
+
 export const chapterPackSchema = z
   .object({
     format: z.literal(CHAPTER_PACK_FORMAT),
@@ -298,16 +344,56 @@ export const chapterPackSchema = z
     story: z
       .object({
         chapter: z
-          .object({ id: z.literal('home'), missions: z.array(z.unknown()).min(1) })
+          .object({
+            id: z.literal('home'),
+            revision: chapterRevisionSchema,
+            title: text,
+            stamp: text,
+            postcard: text,
+            message: text,
+            collectible: text,
+            missions: z
+              .array(
+                z
+                  .object({
+                    id,
+                    title: text,
+                    place: text,
+                    objective: text,
+                    minutes: z.tuple([z.number().positive(), z.number().positive()]),
+                    vocabulary: z
+                      .array(z.object({ term: text, example: translation }).passthrough())
+                      .min(1),
+                    steps: z
+                      .array(
+                        z
+                          .object({ id, type: z.enum(['dialogue', 'teach', 'exercise', 'speak']) })
+                          .passthrough(),
+                      )
+                      .min(1),
+                  })
+                  .passthrough(),
+              )
+              .min(1),
+          })
           .passthrough(),
         adventure: z
           .object({
             id: z.literal('home'),
-            scenes: z.array(z.unknown()).min(1),
-            dialogues: z.array(z.unknown()).min(1),
+            revision: chapterRevisionSchema,
+            initialSceneId: id,
+            scenes: z.array(z.object({ id, hotspots: z.array(z.unknown()) }).passthrough()).min(1),
+            dialogues: z
+              .array(z.object({ id, choices: z.array(z.unknown()) }).passthrough())
+              .min(1),
+            encounters: z.array(z.object({ id, missionId: id }).passthrough()),
+            npcs: z.array(z.object({ id }).passthrough()),
+            quests: z.array(z.object({ id, goals: z.array(z.unknown()) }).passthrough()),
+            items: z.array(z.object({ id }).passthrough()),
           })
           .passthrough(),
         practice: z.array(z.unknown()).min(1),
+        runtime: homeRuntime.optional(),
       })
       .strict()
       .optional(),
@@ -315,7 +401,7 @@ export const chapterPackSchema = z
     audio: z.record(text, chapterMediaSchema),
   })
   .strict()
-  .refine(({ chapterId, lesson, additionalLessons, unit, story, images, audio }) => {
+  .refine(({ chapterId, revision, lesson, additionalLessons, unit, story, images, audio }) => {
     const requiredImages =
       chapterId === 'home'
         ? [
@@ -337,7 +423,23 @@ export const chapterPackSchema = z
         Object.hasOwn(audio, phrase),
       ) &&
       (unit?.lessons.every((item) => item.unitId === unit.id) ?? true) &&
-      (chapterId === 'home') === !!story
+      (chapterId === 'home') === !!story &&
+      (!story || story.adventure.scenes.some(({ id }) => id === story.adventure.initialSceneId)) &&
+      (chapterId !== 'home' ||
+        revision === 1 ||
+        (!!story?.runtime &&
+          [
+            'world',
+            'atlas',
+            'passport',
+            'expedition',
+            'sam',
+            'plaza',
+            'welcome',
+            'review',
+            'writing',
+            'luz',
+          ].every((key) => Object.hasOwn(images, key))))
     );
   }, 'Faltan recursos del capítulo o algún recurso tiene un formato incorrecto.');
 export type ChapterPack = z.infer<typeof chapterPackSchema>;

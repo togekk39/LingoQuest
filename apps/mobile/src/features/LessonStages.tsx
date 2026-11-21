@@ -1,6 +1,7 @@
 import { useTheme } from '../theme';
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { chapter } from '@lingoquest/offline-engine';
 import type { CourseLesson } from '@lingoquest/course-pack';
 import type { Answer, AttemptResult, PublicExercise } from '@lingoquest/contracts';
 import { Lightbulb, Sparkles, Volume2 } from 'lucide-react-native';
@@ -12,7 +13,9 @@ import { Notebook, PaperGrain, PlazaPostcard, JournalLeaf } from '../Journal';
 export type IntegratedLesson = Omit<CourseLesson, 'exercises'> & { exercises: PublicExercise[] };
 export type StageKind = CourseLesson['stages'][number]['type'];
 type PlayLessonAudio = (text: string) => Promise<void>;
-export const plazaExample = { en: 'Hi! My name is Sam.', es: '¡Hola! Me llamo Sam.' };
+export function getPlazaExample() {
+  return chapter.missions.find(({ id }) => id === 'hello')?.vocabulary[0]?.example;
+}
 export const stageLabels: Record<StageKind, string> = {
   goal: 'Meta',
   vocabulary: 'Vocabulario',
@@ -50,9 +53,10 @@ export function GoalStage({
   const s = useStyles();
   const f = useFeatureStyles();
 
+  const plazaExample = getPlazaExample();
   return (
     <>
-      {lesson.id === 'u01_l01' ? (
+      {plazaExample && lesson.id === 'u01_l01' ? (
         <>
           <PlazaPostcard />
           <JournalLeaf compact kind="postcard" style={[f.card, s.phraseCard]}>

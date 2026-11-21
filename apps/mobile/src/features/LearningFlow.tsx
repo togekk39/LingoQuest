@@ -15,7 +15,7 @@ import {
   DialogueStage,
   GoalStage,
   GrammarStage,
-  plazaExample,
+  getPlazaExample,
   RecapStage,
   StageProgress,
   VocabularyCard,
@@ -125,7 +125,7 @@ export default function LearningFlow({
     !lesson || loading || exercise
       ? undefined
       : {
-          goal: isPlaza ? plazaExample.en : undefined,
+          goal: isPlaza ? getPlazaExample()?.en : undefined,
           vocabulary: lesson.vocabulary[vocabularyPosition]?.en,
           grammar: lesson.grammar.examples[0]?.en,
           dialogue: lesson.dialogue[0]?.en,

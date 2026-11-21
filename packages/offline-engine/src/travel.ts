@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { answerSchema, type AttemptInput, type AttemptResult } from '@lingoquest/contracts';
 import { travelPlacementSchema } from './travel-placement';
-import { chapter, travelLesson } from './travel-content';
+import { chapter, travelLesson } from './home-content';
 import {
   learningErrorSchema,
   speechPracticeSchema,

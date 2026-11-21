@@ -10,6 +10,11 @@ const mobileAssets = new URL('../apps/mobile/assets/', import.meta.url);
 const chapterArt = new URL('../content/media/chapters/', import.meta.url);
 const homeImages = {
   cover: 'travel/hometown.jpg',
+  world: 'travel/world.png',
+  atlas: 'journal/atlas.jpg',
+  passport: 'journal/passport.jpg',
+  expedition: 'journal/expedition.jpg',
+  sam: 'journal/sam.jpg',
   plaza: 'journal/plaza.jpg',
   bus: 'journal/bus-stop.jpg',
   bag: 'journal/lost-bag.jpg',

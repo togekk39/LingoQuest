@@ -7,9 +7,6 @@ import { useTheme } from '../theme';
 import { JournalArt, JournalLeaf, Notebook } from '../Journal';
 import { illustrations, placeIllustration, wordIllustration } from './illustrations';
 import { StoryActivity, type StoryTranslation } from './StoryDialogueAppearance';
-import stop from '../../assets/travel/plaza.jpg';
-
-export { stop };
 
 const english = Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' };
 

@@ -39,13 +39,11 @@ import {
   PaperGrain,
   PaperInput,
 } from '../Journal';
-import { illustrations, placeIllustration } from './illustrations';
+import { illustrations, placeIllustration, world } from './illustrations';
 import { ChapterDownload } from './ChapterDownload';
 import { Button, Heading, Label } from '../ui';
 import { useTheme } from '../theme';
 
-import hometown from '../../assets/travel/hometown.jpg';
-import world from '../../assets/travel/world.png';
 const displayNumber = (n: number) => String(n).padStart(2, '0');
 const homeName = (state: TravelState) =>
   state.country ? homeCountries[state.country] : 'Tu lugar de origen';
@@ -67,6 +65,7 @@ export function TravelHome({
   onSpeech,
   onFullReview,
   onOpenChapter,
+  onChapterInstalled,
 }: {
   travel: TravelState;
   progress: Progress;
@@ -81,6 +80,7 @@ export function TravelHome({
   onSpeech: () => void;
   onFullReview: () => void;
   onOpenChapter: (chapterId: string) => void;
+  onChapterInstalled: NonNullable<React.ComponentProps<typeof ChapterDownload>['onInstalled']>;
 }) {
   const { colors: C } = useTheme();
   const { width, fontScale } = useWindowDimensions();
@@ -256,7 +256,11 @@ export function TravelHome({
             <Button variant="ghost" icon={MapPinned} style={s.openMap} onPress={onRoute}>
               Ver mapa y misiones
             </Button>
-            <ChapterDownload chapterId={chapter.id} onOpen={onOpenChapter} />
+            <ChapterDownload
+              chapterId={chapter.id}
+              onOpen={onOpenChapter}
+              onInstalled={onChapterInstalled}
+            />
           </JournalLeaf>
           <View testID="home-practice" style={s.practice}>
             <Text accessibilityRole="header" style={s.homeSubheading}>
@@ -354,6 +358,7 @@ export function TravelRoute({
   onCountry,
   onPassport,
   onOpenChapter,
+  onChapterInstalled,
 }: {
   travel: TravelState;
   selected: Destination;
@@ -363,6 +368,7 @@ export function TravelRoute({
   onCountry: () => void;
   onPassport: () => void;
   onOpenChapter: (chapterId: string) => void;
+  onChapterInstalled: NonNullable<React.ComponentProps<typeof ChapterDownload>['onInstalled']>;
 }) {
   const { colors: C } = useTheme();
   const { width, fontScale } = useWindowDimensions();
@@ -377,7 +383,11 @@ export function TravelRoute({
       <JournalSpread
         source={illustrations.atlas}
         title="Mapa del viaje"
-        detail="20 paradas, 7 continentes. Explora el mapa o elige un destino en la lista."
+        detail={
+          world
+            ? '20 paradas, 7 continentes. Explora el mapa o elige un destino en la lista.'
+            : '20 paradas, 7 continentes. Elige un destino en la lista.'
+        }
       >
         <View style={[s.row, { flexWrap: 'wrap' }]}>
           <Button variant="secondary" icon={Flag} onPress={onCountry}>
@@ -388,57 +398,59 @@ export function TravelRoute({
           </Button>
         </View>
       </JournalSpread>
-      <JournalLeaf style={{ padding: 6 }}>
-        <View style={s.world}>
-          <Image
-            accessible={false}
-            source={world}
-            resizeMode="stretch"
-            style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]}
-          />
-          {!isHome && (
-            <View
-              pointerEvents="none"
-              style={[
-                s.destinationPin,
-                {
-                  left: `${(selected.position[0] + 180) / 3.6}%`,
-                  top: `${(90 - selected.position[1]) / 1.8}%`,
-                },
-              ]}
+      {world && (
+        <JournalLeaf style={{ padding: 6 }}>
+          <View style={s.world}>
+            <Image
+              accessible={false}
+              source={world}
+              resizeMode="stretch"
+              style={[StyleSheet.absoluteFillObject, { width: '100%', height: '100%' }]}
             />
-          )}
-          {mapGroups.map((region, i) => (
-            <Pressable
-              key={region.target}
-              accessibilityRole="button"
-              accessibilityLabel={region.name}
-              accessibilityState={{ selected: selectedContinent === region.name }}
-              onPress={() => {
-                const target = homeIsInSouthAmerica
-                  ? region.target === 'home'
-                    ? 'mexico'
-                    : region.target === 'colombia'
-                      ? 'home'
-                      : region.target
-                  : region.target;
-                onSelect(target);
-              }}
-              style={[
-                s.mapTarget,
-                {
-                  left: `${(region.position[0] + 180) / 3.6}%`,
-                  top: `${(90 - region.position[1]) / 1.8}%`,
-                },
-              ]}
-            >
-              <View style={[s.mapMarker, selectedContinent === region.name && s.mapSelected]}>
-                <Text style={s.markerText}>{i + 1}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      </JournalLeaf>
+            {!isHome && (
+              <View
+                pointerEvents="none"
+                style={[
+                  s.destinationPin,
+                  {
+                    left: `${(selected.position[0] + 180) / 3.6}%`,
+                    top: `${(90 - selected.position[1]) / 1.8}%`,
+                  },
+                ]}
+              />
+            )}
+            {mapGroups.map((region, i) => (
+              <Pressable
+                key={region.target}
+                accessibilityRole="button"
+                accessibilityLabel={region.name}
+                accessibilityState={{ selected: selectedContinent === region.name }}
+                onPress={() => {
+                  const target = homeIsInSouthAmerica
+                    ? region.target === 'home'
+                      ? 'mexico'
+                      : region.target === 'colombia'
+                        ? 'home'
+                        : region.target
+                    : region.target;
+                  onSelect(target);
+                }}
+                style={[
+                  s.mapTarget,
+                  {
+                    left: `${(region.position[0] + 180) / 3.6}%`,
+                    top: `${(90 - region.position[1]) / 1.8}%`,
+                  },
+                ]}
+              >
+                <View style={[s.mapMarker, selectedContinent === region.name && s.mapSelected]}>
+                  <Text style={s.markerText}>{i + 1}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </JournalLeaf>
+      )}
       <View
         style={{ flexDirection: horizon ? 'column' : 'row', alignItems: 'flex-start', gap: 16 }}
       >
@@ -455,7 +467,7 @@ export function TravelRoute({
           <Heading style={{ fontSize: 30 }}>{isHome ? chapter.title : selected.name}</Heading>
           <Label style={s.copy}>{selected.description}</Label>
           <Text style={s.rowTitle}>{selected.goals.join(' · ')}</Text>
-          {isHome && (
+          {isHome && chapter.missions.length > 0 && (
             <>
               <Button icon={Compass} onPress={onAdventure}>
                 Comenzar mi aventura
@@ -464,7 +476,7 @@ export function TravelRoute({
                 const available = canStartTravelMission(travel, mission.id);
                 const inProgress =
                   active?.missionId === mission.id || !!travel.paused?.[mission.id];
-                const Icon = missionIcons[i];
+                const Icon = missionIcons[i] ?? MapPin;
                 return (
                   <Pressable
                     key={mission.id}
@@ -504,7 +516,12 @@ export function TravelRoute({
               })}
             </>
           )}
-          <ChapterDownload key={selected.id} chapterId={selected.id} onOpen={onOpenChapter} />
+          <ChapterDownload
+            key={selected.id}
+            chapterId={selected.id}
+            onOpen={onOpenChapter}
+            onInstalled={onChapterInstalled}
+          />
         </JournalLeaf>
         <JournalLeaf
           style={[
@@ -705,7 +722,7 @@ export function Passport({
         <>
           <JournalLeaf style={s.routeDetail}>
             <Heading>{chapter.postcard}</Heading>
-            <JournalArt source={hometown} taped />
+            <JournalArt source={illustrations.hometown} taped />
             <Text style={s.rowTitle}>{chapter.collectible}</Text>
             <Label style={s.copy}>{chapter.message}</Label>
           </JournalLeaf>

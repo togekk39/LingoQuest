@@ -3,9 +3,9 @@
   "schemaVersion": 1,
   "chapters": {
     "home": {
-      "revision": 1,
-      "sizeBytes": 4599233,
-      "sha256": "17ac045ca0a15c0dbcfc34446e631465e7524064cbf9943edf9a82468f09da99"
+      "revision": 2,
+      "sizeBytes": 5200542,
+      "sha256": "2d64e1f13d0722eb856c2eeac0e28beb1ffc2b49037a36bde9969f32800e268e"
     },
     "mexico": {
       "revision": 1,

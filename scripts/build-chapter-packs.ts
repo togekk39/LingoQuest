@@ -1,8 +1,14 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { route, publicExercise } from '@lingoquest/offline-engine';
-import { chapter, travelPracticeSteps } from '../packages/offline-engine/src/travel-content';
+import {
+  chapter,
+  travelLesson,
+  travelPracticeSteps,
+} from '../packages/offline-engine/src/travel-content';
 import { chapterStory } from '../packages/offline-engine/src/chapter-story';
+import { travelChallengePools } from '../packages/offline-engine/src/travel-challenge-pools';
+import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
 import { placementQuestions } from '../packages/offline-engine/src/travel-placement';
 import { westernChapterLessons } from '../content/source/chapter-lessons-west';
 import { easternChapterLessons } from '../content/source/chapter-lessons-east';
@@ -27,7 +33,18 @@ const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
   ...easternChapterLessons,
 };
-const story = { chapter, adventure: chapterStory, practice: travelPracticeSteps };
+const { units: courseUnits, lessons: courseLessons, ...courseActivities } = course;
+const story = {
+  chapter,
+  adventure: chapterStory,
+  practice: travelPracticeSteps,
+  runtime: {
+    lesson: travelLesson,
+    placement: travelPlacementItems,
+    challenges: travelChallengePools,
+    course: courseActivities,
+  },
+};
 const storyPhrases = [
   ...chapterStory.dialogues.flatMap((dialogue) => ('line' in dialogue ? [dialogue.line.en] : [])),
   ...chapter.missions.flatMap(({ vocabulary, steps }) => [
@@ -99,12 +116,12 @@ async function main() {
     const [lesson, ...additionalLessons] = Array.isArray(chapterSource)
       ? chapterSource
       : [chapterSource];
-    const unitSource = unitId ? course.units.find(({ id }) => id === unitId) : undefined;
+    const unitSource = unitId ? courseUnits.find(({ id }) => id === unitId) : undefined;
     if (unitId && !unitSource) throw new Error(`Missing course unit ${unitId}.`);
     const unit = unitSource && {
       id: unitSource.id,
       titleEs: unitSource.titleEs,
-      lessons: unitSource.lessons.map(({ id }) => course.lessons[id]),
+      lessons: unitSource.lessons.map(({ id }) => courseLessons[id]),
     };
     const phrases = chapterLessonPhrases([lesson, ...additionalLessons], unit?.lessons);
     if (id === 'home') phrases.push(...storyPhrases);

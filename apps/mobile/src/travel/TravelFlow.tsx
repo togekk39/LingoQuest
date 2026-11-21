@@ -8,7 +8,6 @@ import {
   type TravelOperation,
   type TravelState,
 } from '@lingoquest/offline-engine';
-import samPortrait from '../../assets/journal/sam.jpg';
 import { api } from '../lib/api';
 import {
   Action,
@@ -94,7 +93,7 @@ function DialoguePostcard({
             <PaperGrain opacity={0.18} />
             <View style={s.speakerRow}>
               {sam ? (
-                <Image source={samPortrait} accessible={false} style={s.avatar} />
+                <Image source={illustrations.sam} accessible={false} style={s.avatar} />
               ) : step.speaker === 'QuestBuddy' ? (
                 <QuestBuddy size={54} />
               ) : (
