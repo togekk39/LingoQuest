@@ -78,7 +78,9 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await capture(page, '01-plaza-dialogue');
   await click('Continuar');
   await expect(
-    page.getByTestId('travel-reference-phrase').getByText('Hi! My name is Sam.', { exact: true }),
+    page
+      .getByTestId('travel-reference-phrase')
+      .getByText("Hi! My name is Sam. What's your name?", { exact: true }),
   ).toBeVisible();
   await click('Continuar');
   await finishVocabulary(page);
@@ -98,7 +100,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await click('Continuar viaje');
   await expect(input).toHaveValue('Hi! I am');
   await expect(page.getByText(/Retomamos donde lo dejaste/)).toBeVisible();
-  await input.fill("Hi! I'm Luz.");
+  await input.fill("Hi! I'm Ana.");
   await click('Comprobar respuesta');
   await expect(page.getByRole('button', exact('Seguir la historia'))).toBeVisible();
   const beforeReload = await state(page);
@@ -107,7 +109,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await expect(page.getByRole('button', exact('Seguir la historia'))).toBeVisible();
   expect((await state(page)).attempts).toEqual(beforeReload.attempts);
   await click('Seguir la historia');
-  await answerTravelText(page, 'travel_hello_transfer', "I'm Nico.");
+  await answerTravelText(page, 'travel_hello_transfer', "I'm Ana.");
   await expect(page.getByRole('button', exact('Practicar con mi voz'))).toHaveCount(0);
   await expect(
     page.getByText(/reconocimiento de voz de la misión está disponible en Android/),

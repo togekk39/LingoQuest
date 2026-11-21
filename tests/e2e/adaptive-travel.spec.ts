@@ -23,17 +23,17 @@ test('two be-agreement errors lead to contextual repair and leave the story chec
 
   const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
   const feedback = page.getByTestId('answer-feedback');
-  await input.fill('Hi! I is Luz.');
+  await input.fill('Hi! I is Marisol.');
   await click(page, 'Comprobar respuesta');
   await expect(feedback.getByText(/Elige la forma de be que va con el sujeto/)).toBeVisible();
   await capture(page, '05-be-agreement-feedback');
   await click(page, 'Intentar otra vez');
-  await input.fill("Hi! I'm Luz.");
+  await input.fill("Hi! I'm Marisol.");
   await click(page, 'Comprobar respuesta');
   await click(page, 'Seguir la historia');
 
   await expect(page.getByTestId('exercise-travel_hello_transfer')).toBeVisible();
-  await input.fill('I is Nico.');
+  await input.fill('I is Marisol.');
   await click(page, 'Comprobar respuesta');
   await expect(feedback.getByText(/Elige la forma de be que va con el sujeto/)).toBeVisible();
   const before = await state(page);
@@ -50,7 +50,7 @@ test('two be-agreement errors lead to contextual repair and leave the story chec
   await input.fill('am');
   await click(page, 'Cerrar y volver');
   await click(page, 'Continuar viaje');
-  await expect(page.getByTestId('submitted-answer')).toHaveText(/I is Nico\./);
+  await expect(page.getByTestId('submitted-answer')).toHaveText(/I is Marisol\./);
   await click(page, 'Repasar en otra escena');
   await expect(input).toHaveValue('am');
   await click(page, 'Comprobar respuesta');
@@ -92,7 +92,7 @@ test('a clear introduction outside the target form gets feedback without mastery
   await readyOfflineShell(page, context);
   await openTravelWriting(page);
   const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
-  await input.fill("Hi! I'm Luz.");
+  await input.fill("Hi! I'm Marisol.");
   await click(page, 'Comprobar respuesta');
   await click(page, 'Seguir la historia');
   await expect(page.getByTestId('exercise-travel_hello_transfer')).toBeVisible();
@@ -102,7 +102,7 @@ test('a clear introduction outside the target form gets feedback without mastery
     snapshot.travelLearning?.targets.find(
       (target) => target.skill === 'writing' && target.conceptId === 'introduction',
     );
-  await input.fill('Nico here.');
+  await input.fill('Marisol here.');
   await click(page, 'Comprobar respuesta');
   const feedback = page.getByTestId('answer-feedback');
   await expect(feedback.getByText('Lograste comunicarte', { exact: true })).toBeVisible();
@@ -115,7 +115,7 @@ test('a clear introduction outside the target form gets feedback without mastery
   expect(writing(alternative)?.nextReviewAt).toBe(writing(before)?.nextReviewAt);
 
   await click(page, 'Intentar otra vez');
-  await input.fill('My name’s Nico.');
+  await input.fill('My name’s Marisol.');
   await click(page, 'Comprobar respuesta');
   await expect(feedback.getByText('¡Muy bien!', { exact: true })).toBeVisible();
   const retried = writing(await state(page));

@@ -255,19 +255,23 @@ export function AnswerFeedback({
   result,
   exercise,
   answer,
+  speaker,
 }: {
   result: AttemptResult;
   exercise: PublicExercise;
   answer: Partial<Answer>;
+  speaker?: React.ReactNode;
 }) {
   const { colors: palette, tone } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
-  const feedbackTitle = result.communicationOnly
-    ? 'Lograste comunicarte'
-    : result.correct
-      ? '¡Muy bien!'
-      : 'Buen intento. Veamos por qué…';
+  const feedbackTitle = result.identityMismatch
+    ? 'Usa tu nombre'
+    : result.communicationOnly
+      ? 'Lograste comunicarte'
+      : result.correct
+        ? '¡Muy bien!'
+        : 'Buen intento. Veamos por qué…';
   const submittedAnswer = exercise.matchingPairs?.length
     ? exercise.matchingPairs
         .map((pair) => {
@@ -300,13 +304,14 @@ export function AnswerFeedback({
       >
         <PaperGrain />
         <View style={f.row}>
-          {result.correct ? (
-            <Celebration size={72}>
-              <QuestBuddy size={68} mood="happy" />
-            </Celebration>
-          ) : (
-            <QuestBuddy size={64} mood="encouraging" />
-          )}
+          {speaker ??
+            (result.correct ? (
+              <Celebration size={72}>
+                <QuestBuddy size={68} mood="happy" />
+              </Celebration>
+            ) : (
+              <QuestBuddy size={64} mood="encouraging" />
+            ))}
           <Text style={[f.cardTitle, { flex: 1 }]}>{feedbackTitle}</Text>
         </View>
         {!result.correct && (

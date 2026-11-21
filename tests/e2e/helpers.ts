@@ -112,9 +112,9 @@ export async function answerTravelText(page: Page, id: string, answer: string) {
   await checkTravelAnswer(page);
 }
 
-export async function finishGreetingPractice(page: Page) {
+export async function finishGreetingPractice(page: Page, name = '[tu nombre]') {
   await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
-  await answerTravelReorder(page, 'travel_hello_build', ['I', 'am', 'Luz']);
+  await answerTravelReorder(page, 'travel_hello_build', ['I', 'am', name]);
   await answerTravelText(page, 'travel_hello_recall', 'Hi');
 }
 

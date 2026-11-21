@@ -2,11 +2,12 @@ import { JournalArt, Notebook, JournalLeaf } from '../Journal';
 import { illustrations } from '../travel/illustrations';
 import { audioClips } from '../travel/audioClips';
 import { matchesSpeechTarget } from '../travel/speakingFeedback';
+import { StoryActivity } from '../travel/StoryDialogueAppearance';
 import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
 import { playPracticeClip } from './playPracticeClip';
 import { useSystemSTT } from './useSystemSTT';
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import {
@@ -19,9 +20,11 @@ import { ShieldCheck, Volume2 } from 'lucide-react-native';
 import { Action, useFeatureStyles, FlowFrame, InputViewportContext } from './FeatureUI';
 
 export type SpeakingPracticeMethod = 'recorded' | 'imitated';
+export type SpeakingPanelHandle = { stop: () => void };
 
 export function SpeakingPanel({
   text,
+  displayText,
   onDone,
   onPlay,
   onStopReference,
@@ -29,19 +32,29 @@ export function SpeakingPanel({
   allowSystemRecognition = false,
   feedback,
   acceptedPhrases,
+  exampleLabel,
+  matchesTranscript,
+  inline = false,
+  ref,
 }: {
   text: string;
+  displayText?: string;
   onDone: (method?: SpeakingPracticeMethod) => void;
   onPlay?: () => void;
   onStopReference?: () => void;
   story?: { continueLabel: string; saving: boolean };
   acceptedPhrases?: string[];
+  exampleLabel?: string;
+  matchesTranscript?: (transcript: string) => boolean;
   allowSystemRecognition?: boolean;
   feedback?: (transcript: string) => { content: string; grammar: string };
+  inline?: boolean;
+  ref?: React.Ref<SpeakingPanelHandle>;
 }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
+  const Section = inline ? StoryActivity : Notebook;
 
   const stt = useSystemSTT();
   const [systemSelected, setSystemSelected] = useState(false);
@@ -57,7 +70,9 @@ export function SpeakingPanel({
   const recognizing = stt.phase !== 'idle';
   const audioBusy = comparing || recognizing;
   const textFeedback = stt.finalTranscript && feedback?.(stt.finalTranscript);
-  const passed = matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
+  const passed = matchesTranscript
+    ? matchesTranscript(stt.finalTranscript)
+    : matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
   const transcript = stt.finalTranscript || stt.liveTranscript;
   const transcriptStatus =
     stt.phase === 'starting'
@@ -95,12 +110,21 @@ export function SpeakingPanel({
     void stopOfflineSpeech();
   }
 
-  function finish(method?: SpeakingPracticeMethod) {
+  function stopPractice() {
     try {
       stopComparison();
       onStopReference?.();
     } finally {
       stt.cancel();
+    }
+  }
+
+  useImperativeHandle(ref, () => ({ stop: stopPractice }));
+
+  function finish(method?: SpeakingPracticeMethod) {
+    try {
+      stopPractice();
+    } finally {
       onDone(method);
     }
   }
@@ -122,8 +146,9 @@ export function SpeakingPanel({
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       if (run.signal.aborted) return;
       const clip = audioClips[text];
+      const preferences = await getSpeechPreferences();
       const played = clip
-        ? await playPracticeClip(player, clip, (await getSpeechPreferences()).rate ?? 1, run.signal)
+        ? await playPracticeClip(player, clip, preferences.rate ?? 1, run.signal)
         : await speakOffline(text);
       if (!played && !run.signal.aborted) throw new Error('Reference audio unavailable');
       if (played && !run.signal.aborted) {
@@ -139,12 +164,19 @@ export function SpeakingPanel({
   }
   return (
     <View testID="speaking-studio" style={{ gap: 12 }}>
-      <JournalArt source={illustrations.review} aspectRatio={3.1} taped />
-      <Notebook title="Dale voz a lo que aprendiste.">
-        <Text style={f.quiet}>Escucha el ejemplo y di la frase para comprobar tu respuesta.</Text>
-        <Text style={f.eyebrow}>Tu frase para practicar</Text>
-        <Text accessibilityLanguage="en-US" style={s.reference}>
-          {text}
+      {!inline && <JournalArt source={illustrations.review} aspectRatio={3.1} taped />}
+      <Section title="Dale voz a lo que aprendiste.">
+        <Text style={f.quiet}>
+          {displayText
+            ? 'Escucha cómo empezar. Completa el saludo con tu propio nombre.'
+            : 'Escucha el ejemplo y di la frase para comprobar tu respuesta.'}
+        </Text>
+        <Text style={f.eyebrow}>{exampleLabel ?? 'Tu frase para practicar'}</Text>
+        <Text
+          {...(Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' })}
+          style={s.reference}
+        >
+          {displayText ?? text}
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -159,7 +191,7 @@ export function SpeakingPanel({
           <Volume2 color={palette.teal} size={19} />
           <Text style={s.listenText}>Escuchar ejemplo</Text>
         </Pressable>
-      </Notebook>
+      </Section>
       {!!speechMessage && (
         <Text accessibilityRole="alert" style={f.quiet}>
           {speechMessage}
@@ -229,7 +261,9 @@ export function SpeakingPanel({
               <Text style={f.quiet}>
                 {passed
                   ? 'La frase reconocida cumple el objetivo.'
-                  : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
+                  : matchesTranscript
+                    ? 'Revisa el saludo, la forma de presentación y el nombre en la transcripción.'
+                    : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
               </Text>
             )}
           </JournalLeaf>

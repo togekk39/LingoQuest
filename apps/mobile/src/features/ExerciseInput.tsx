@@ -34,6 +34,8 @@ export function ExerciseInput({
   setAnswer,
   disabled,
   journal = false,
+  inline = false,
+  tokenLabel = (token: string) => token,
   kindLabel = kindLabels[exercise.type],
 }: {
   exercise: Exercise;
@@ -41,6 +43,8 @@ export function ExerciseInput({
   setAnswer: (a: ExerciseAnswer) => void;
   disabled?: boolean;
   journal?: boolean;
+  inline?: boolean;
+  tokenLabel?: (token: string) => string;
   kindLabel?: string;
 }) {
   const { colors: palette } = useTheme();
@@ -230,7 +234,7 @@ export function ExerciseInput({
                 <Pressable
                   disabled={disabled}
                   accessibilityRole="button"
-                  accessibilityLabel={`Quitar palabra: ${token}`}
+                  accessibilityLabel={`Quitar palabra: ${tokenLabel(token)}`}
                   key={`${index}-${token}`}
                   onPress={() =>
                     setAnswer({ tokens: selectedTokens.filter((_, i) => i !== index) })
@@ -238,7 +242,7 @@ export function ExerciseInput({
                   style={[s.token, s.selectedToken]}
                 >
                   <Text {...english} style={s.tokenText}>
-                    {token}
+                    {tokenLabel(token)}
                   </Text>
                 </Pressable>
               ))
@@ -251,13 +255,13 @@ export function ExerciseInput({
               <Pressable
                 disabled={disabled || used.includes(index)}
                 accessibilityRole="button"
-                accessibilityLabel={`Agregar palabra: ${text}`}
+                accessibilityLabel={`Agregar palabra: ${tokenLabel(text)}`}
                 key={`${index}-${text}`}
                 onPress={() => setAnswer({ tokens: [...selectedTokens, text] })}
                 style={[s.token, used.includes(index) && { opacity: 0.25 }]}
               >
                 <Text {...english} style={s.tokenText}>
-                  {text}
+                  {tokenLabel(text)}
                 </Text>
               </Pressable>
             ))}
@@ -270,6 +274,7 @@ export function ExerciseInput({
       ) : (
         <View>
           <PaperInput
+            {...english}
             ref={input}
             onFocus={() => revealInput(input.current)}
             onBlur={() => revealInput(null)}
@@ -280,7 +285,10 @@ export function ExerciseInput({
             style={[
               s.textInput,
               journal && s.journalTextInput,
-              { minHeight: Math.min(120, maxHeight), maxHeight: Math.min(200, maxHeight) },
+              {
+                minHeight: Math.min(inline ? 66 : 120, maxHeight),
+                maxHeight: Math.min(inline ? 150 : 200, maxHeight),
+              },
             ]}
             placeholder="Escribe tu respuesta en inglés…"
             placeholderTextColor="#91A09B"
@@ -292,13 +300,16 @@ export function ExerciseInput({
             editable={!disabled}
             autoCapitalize="sentences"
             autoCorrect={false}
+            maxLength={2000}
             multiline
             scrollEnabled
           />
-          <View style={[f.row, { marginTop: 10 }]}>
-            <CornerDownLeft size={13} color={palette.muted} />
-            <Text style={f.quiet}>Tómate el tiempo que necesites.</Text>
-          </View>
+          {!inline && (
+            <View style={[f.row, { marginTop: 10 }]}>
+              <CornerDownLeft size={13} color={palette.muted} />
+              <Text style={f.quiet}>Tómate el tiempo que necesites.</Text>
+            </View>
+          )}
         </View>
       )}
     </View>
