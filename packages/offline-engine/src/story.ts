@@ -105,6 +105,7 @@ export interface StoryNpc {
 export interface StoryDialogue {
   id: string;
   npcId?: string;
+  title?: string;
   text: string;
   line?: { en: string; es: string };
   tip?: string;
@@ -164,7 +165,7 @@ export interface StoryView {
   origin: string;
   scene: Omit<StoryScene, 'hotspots'>;
   hotspots: Omit<StoryHotspot, 'requires' | 'effects'>[];
-  dialogue?: Pick<StoryDialogue, 'id' | 'text' | 'line' | 'tip' | 'exampleLabel'> & {
+  dialogue?: Pick<StoryDialogue, 'id' | 'title' | 'text' | 'line' | 'tip' | 'exampleLabel'> & {
     npc?: StoryNpc;
     choices: Pick<Interaction, 'id' | 'label'>[];
   };
@@ -484,6 +485,7 @@ export function readStory(
       })),
     dialogue: node && {
       id: node.id,
+      title: node.title && personalize(node.title),
       text: personalize(node.text),
       line: node.line && { en: personalize(node.line.en), es: personalize(node.line.es) },
       tip: node.tip && personalize(node.tip),

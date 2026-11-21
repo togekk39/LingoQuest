@@ -24,6 +24,7 @@ const knowsIntroduction = {
 } as const;
 
 const close = { type: 'closeDialogue' } as const;
+const originPostcardsTitle = 'Postales de {origin}';
 const showOriginSketch = {
   label: 'Mostrarle el croquis',
   requires: [hasOriginCard, { ...annotatedOriginCard, not: true }],
@@ -200,7 +201,7 @@ export const chapterStory = {
         },
         {
           id: 'plaza-origin',
-          label: 'Postales de {origin}',
+          label: originPostcardsTitle,
           kind: 'object',
           position: { x: 17, y: 29 },
           effects: [{ type: 'dialogue', id: 'origin-postcards' }],
@@ -502,6 +503,7 @@ export const chapterStory = {
     },
     {
       id: 'origin-postcards',
+      title: originPostcardsTitle,
       text: 'Entre las postales de {origin} hay un dibujo de la plaza y el parque. La calle que sale de la fuente quedó sin marcar.',
       choices: [
         {

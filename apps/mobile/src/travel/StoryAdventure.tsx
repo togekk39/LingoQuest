@@ -342,7 +342,7 @@ export function StoryAdventure({
             </StorySpeaker>
           ) : (
             <SectionHeading focusKey={guideStep ? undefined : dialogue.id} style={s.panelTitle}>
-              {scene.title}
+              {dialogue.title ?? scene.title}
             </SectionHeading>
           )}
         </View>

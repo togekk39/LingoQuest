@@ -230,6 +230,34 @@ test.describe('small touch screen', () => {
     await expect(dialogue(page, 'luz-welcome')).toBeHidden();
     await expect(sam).toBeVisible();
   });
+
+  test('the postcards hotspot shows its own heading before and after collecting the sketch', async ({
+    page,
+  }) => {
+    await enterApp(page, { chooseOrigin: false });
+    await click(page, 'Elegir lugar de origen');
+    await click(page, 'Bolivia');
+    await openAdventure(page);
+
+    const postcards = spot(page, 'plaza-origin');
+    const panel = dialogue(page, 'origin-postcards');
+    const heading = panel.getByRole('heading', exact('Postales de Bolivia'));
+    const saveSketch = panel.getByRole('button', exact('Guardar el croquis'));
+
+    await postcards.tap();
+    await expect(heading).toBeVisible();
+    await expect(panel.getByText(/Entre las postales de Bolivia/)).toBeVisible();
+    await saveSketch.tap();
+    await expect(dialogue(page, 'origin-sketch-taken')).toBeVisible();
+    await closeDialogue(page);
+
+    await postcards.tap();
+    await expect(heading).toBeVisible();
+    await expect(saveSketch).toBeHidden();
+    await panel.getByRole('button', exact('Volver a la escena')).tap();
+    await expect(panel).toBeHidden();
+    await expect(page.getByRole('heading', exact('La plaza'))).toBeVisible();
+  });
 });
 
 test('storybook character conversations are keyboard accessible on desktop', async ({ page }) => {
