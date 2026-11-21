@@ -56,7 +56,7 @@ const tabs = [
 ] as const;
 type Tab = (typeof tabs)[number]['id'];
 type Flow = 'placement' | 'speech' | 'reviews' | 'skills' | 'quick' | 'grammar' | 'textbook';
-type WelcomeChoice = 'adventure' | 'start' | 'placement' | 'explore';
+type WelcomeChoice = 'adventure' | 'placement' | 'explore';
 type AfterOrigin = (journey: TravelState) => Promise<void> | void;
 
 export default function App() {
@@ -222,31 +222,34 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setOriginPicker({ afterSave });
     return true;
   }
-  async function openMission(id?: string, journey = travel) {
-    const target = id ?? nextTravelMission(journey)?.id;
-    if (!target) {
-      setPassport(true);
+  async function openMission(id: string, journey = travel, askName = false) {
+    if (askForOrigin(journey, (saved) => openMission(id, saved, askName))) return;
+    if (
+      askName &&
+      !journey.active &&
+      !Object.keys(journey.completed).length &&
+      !Object.keys(journey.paused ?? {}).length
+    ) {
+      await preparePlayerName(journey, () => openMission(id, journey));
       return;
     }
-    if (askForOrigin(journey, (saved) => openMission(target, saved))) return;
-    const value = await updateTravel({ action: 'start', missionId: target });
-    if (value.active?.missionId !== target)
+    const value = await updateTravel({ action: 'start', missionId: id });
+    if (value.active?.missionId !== id)
       throw new Error('Completa la misión anterior para continuar.');
     setPassport(false);
     setFlow(null);
     setMission(value.active);
   }
-  function startMission(id?: string) {
+  function startMission(id: string, askName = false) {
     if (starting) return;
     setStarting(true);
-    void openMission(id)
+    void openMission(id, travel, askName)
       .catch((e) => setNotice(e.message))
       .finally(() => setStarting(false));
   }
   async function finishWelcome(choice: WelcomeChoice, journey: TravelState) {
     await localSettings.set('onboarded', true);
     if (choice === 'adventure') await openStory(journey);
-    if (choice === 'start') await preparePlayerName(journey, () => openMission(undefined, journey));
     if (choice === 'placement') setFlow('placement');
     setWelcome(false);
   }
@@ -452,7 +455,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       <TravelWelcome
         busy={starting}
         onAdventure={() => void chooseWelcome('adventure')}
-        onStart={() => void chooseWelcome('start')}
         onAssessment={() => void chooseWelcome('placement')}
         onClose={() => void chooseWelcome('explore')}
       />,
@@ -599,7 +601,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 progress={progress}
                 starting={starting}
                 onMission={startMission}
-                onContinue={() => startMission()}
                 onAdventure={startStory}
                 onReview={() => openQuickReview()}
                 onRoute={() => go('Mapa')}
@@ -625,6 +626,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
             ) : tab === 'Aprender' ? (
               <TravelGuide
                 travel={travel}
+                onLessons={() =>
+                  startMission(nextTravelMission(travel)?.id ?? chapter.missions[0].id, true)
+                }
                 onMission={startMission}
                 onAssessment={startPlacement}
                 onVoiceSettings={openVoiceSettings}

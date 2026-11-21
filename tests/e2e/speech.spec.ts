@@ -1,4 +1,4 @@
-import { test, expect, enterApp, readyOfflineShell, click, exact } from './helpers';
+import { test, expect, enterApp, openLessons, readyOfflineShell, click, exact } from './helpers';
 import type { Page } from '@playwright/test';
 
 async function installSpeechFixture(page: Page, noVoices = false) {
@@ -110,7 +110,7 @@ test('travel sentences and words autoplay bundled audio when a system voice is u
       (events) =>
         events.filter(({ event, src }) => event === 'start' && src.includes(`/${clip}.`)).length,
     );
-  await click(page, 'Continuar viaje');
+  await openLessons(page);
   await click(page, 'Continuar');
   await expect.poll(() => clipPlays('sam-greeting')).toBe(1);
   await click(page, 'Escuchar frase');
@@ -178,7 +178,7 @@ test('the mission uses the system TTS and applies in-mission voice changes to ac
   await enterApp(page);
   await readyOfflineShell(page, context);
   const lastSpeech = () => page.evaluate(() => (window as any).__speechCalls.at(-1));
-  await click(page, 'Continuar viaje');
+  await openLessons(page);
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await expect.poll(lastSpeech).toMatchObject({
@@ -291,5 +291,5 @@ test('voice settings are reachable and scrollable on a phone without horizontal 
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBeTruthy();
   await page.getByRole('button', { name: 'Cerrar configuración', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Continuar viaje', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
 });

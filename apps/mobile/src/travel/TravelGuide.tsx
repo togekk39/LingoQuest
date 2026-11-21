@@ -25,6 +25,7 @@ import { useChapterAudio } from './useChapterAudio';
 
 export function TravelGuide({
   travel,
+  onLessons,
   onMission,
   onAssessment,
   onSpeech,
@@ -34,6 +35,7 @@ export function TravelGuide({
   onReview,
 }: {
   travel: TravelState;
+  onLessons: () => void;
   onMission: (id: string) => void;
   onAssessment: () => void;
   onSpeech: () => void;
@@ -62,6 +64,9 @@ export function TravelGuide({
         detail={chapter.title}
       >
         <View style={styles.actions}>
+          <Button variant="secondary" icon={BookOpen} onPress={onLessons}>
+            Lecciones
+          </Button>
           <Button variant="secondary" icon={BookOpen} onPress={onGrammar}>
             Manual de gramática
           </Button>

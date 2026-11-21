@@ -57,7 +57,6 @@ export function TravelHome({
   progress,
   starting,
   onAdventure,
-  onContinue,
   onMission,
   onReview,
   onRoute,
@@ -71,7 +70,6 @@ export function TravelHome({
   progress: Progress;
   starting: boolean;
   onAdventure: () => void;
-  onContinue: () => void;
   onMission: (id: string) => void;
   onReview: () => void;
   onRoute: () => void;
@@ -114,17 +112,15 @@ export function TravelHome({
             Cuaderno de viaje
           </Text>
         </View>
-        {!!next && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abrir pasaporte"
-            onPress={onPassport}
-            style={({ pressed }) => [s.passportButton, pressed && { opacity: 0.7 }]}
-          >
-            <Stamp size={21} color={C.accent} />
-            <Text style={s.passportLabel}>Pasaporte</Text>
-          </Pressable>
-        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Abrir pasaporte"
+          onPress={onPassport}
+          style={({ pressed }) => [s.passportButton, pressed && { opacity: 0.7 }]}
+        >
+          <Stamp size={21} color={C.accent} />
+          <Text style={s.passportLabel}>Pasaporte</Text>
+        </Pressable>
       </View>
       <View style={[s.homeColumns, wide && s.homeColumnsWide]}>
         <View testID="home-mission-postcard" style={[s.missionPostcard, wide && { flex: 1.35 }]}>
@@ -173,24 +169,13 @@ export function TravelHome({
                     : 'Puedes volver a cualquiera de estas misiones desde la ruta.'))}
             </Text>
             <Button icon={Compass} loading={starting} onPress={onAdventure}>
-              Explorar aventura
+              Comenzar mi aventura
             </Button>
-            <View style={s.postcardAction}>
-              {!!next && (
-                <JournalLeaf compact kind="stamp" style={s.missionTime}>
-                  <Text style={s.missionTimeText}>{next.minutes.join('–')} min</Text>
-                </JournalLeaf>
-              )}
-              <Button
-                icon={next ? ArrowRight : Stamp}
-                variant="secondary"
-                style={s.missionAction}
-                loading={starting}
-                onPress={onContinue}
-              >
-                {next ? 'Continuar viaje' : 'Ver mi pasaporte'}
-              </Button>
-            </View>
+            {!!next && (
+              <JournalLeaf compact kind="stamp" style={s.missionTime}>
+                <Text style={s.missionTimeText}>{next.minutes.join('–')} min</Text>
+              </JournalLeaf>
+            )}
           </JournalLeaf>
         </View>
 
@@ -467,7 +452,7 @@ export function TravelRoute({
           {isHome ? (
             <>
               <Button icon={Compass} onPress={onAdventure}>
-                Explorar aventura
+                Comenzar mi aventura
               </Button>
               {chapter.missions.map((mission, i) => {
                 const available = canStartTravelMission(travel, mission.id);
@@ -834,9 +819,7 @@ function useStyles() {
     },
     missionTitle: { color: C.ink, fontFamily: 'LoraBold', fontSize: 26, letterSpacing: -0.45 },
     missionBrief: { color: C.muted, fontFamily: 'Manrope', fontSize: 13 },
-    postcardAction: { flexDirection: 'row', gap: 9, alignItems: 'center', marginTop: 5 },
-    missionTime: { maxWidth: '31%', padding: 8 },
-    missionAction: { flex: 1, minHeight: 48, paddingHorizontal: 10 },
+    missionTime: { alignSelf: 'flex-start', padding: 8 },
     missionTimeText: { color: C.ink, fontFamily: 'ManropeBold', fontSize: 12 },
     homeRoute: {
       backgroundColor: C.white,

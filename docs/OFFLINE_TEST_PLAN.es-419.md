@@ -6,7 +6,7 @@ Consulta el [registro de verificación](VERIFICATION.es-419.md) para ver los res
 
 ## Bienvenida y misión inicial
 
-1. Con datos nuevos, abre la app a 320, 360 y 390 px. Repite con texto ampliado y tema oscuro. Comprueba que las dos acciones se distingan y que el botón para cerrar sea accesible. Elige un origen después de **Empezar mi viaje** para abrir la escena de la plaza.
+1. Con datos nuevos, abre la app a 320, 360 y 390 px. Repite con texto ampliado y tema oscuro. Comprueba que **Comenzar mi aventura** sea la acción principal y que la prueba opcional y el botón para cerrar sean accesibles. Elige un origen para abrir la escena de la plaza. Para abrir una lección directamente, entra en **Aprender → Lecciones**.
 2. En la bienvenida, elige **Ya sé algo de inglés** y omite las seis preguntas. Verifica que **Ir a mi misión** abra **Un saludo en la plaza**.
 3. Repite la prueba en **Aprender**. Responde bien solo las primeras dos para empezar en la parada de bus. Responde bien las primeras cuatro sin transcripción para empezar en objetos perdidos. Comprueba que sigan disponibles las misiones anteriores y que la prueba no otorgue XP, sellos ni misiones completadas.
 

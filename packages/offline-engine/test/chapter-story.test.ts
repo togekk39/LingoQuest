@@ -132,8 +132,7 @@ test('story launch restores a pre-RPG format-2 checkpoint and is atomic on write
   const opened = await storage.open().request<StoryResponse>(storyPath, introduce);
   assert.equal(opened.story.encounter?.missionId, 'hello');
   assert.equal(saved.active?.stepId, 'hello_sam');
-  assert.equal(opened.travel.active?.stepId, 'hello_teach');
-  assert.deepEqual(opened.travel.active?.answer, saved.active?.answer);
+  assert.deepEqual(opened.travel.active, saved.active);
   assert.deepEqual(await storage.open().request(storyPath, introduce), opened);
 
   const pending = { action: 'finishEncounter', turn: opened.story.turn };
@@ -342,7 +341,7 @@ test('Sam separates story identity from English evidence and remembers an unset 
       choiceId: 'introduce-yourself',
       turn: snapshot.story.turn,
     });
-    assert.equal(snapshot.travel.active?.stepId, 'hello_teach');
+    assert.equal(snapshot.travel.active?.stepId, 'hello_welcome');
     let current = (await finishLesson(engine, 'travel_hello_write')).active!;
     async function gradeReply(text: string) {
       return journey(engine, { action: 'answer', token: current.token, answer: { text } });

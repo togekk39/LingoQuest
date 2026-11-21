@@ -64,7 +64,7 @@ export { expect };
 export async function enterApp(page: Page, { chooseOrigin = true } = {}) {
   await page.addInitScript(() => localStorage.setItem('lq_setting:onboarded', 'true'));
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'Continuar viaje', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
   if (chooseOrigin) {
     await click(page, 'Elegir lugar de origen');
     await click(page, 'Honduras');
@@ -79,6 +79,16 @@ export function learningProgress(s: LocalState) {
 }
 export const exact = (name: string) => ({ name, exact: true });
 export const click = (page: Page, name: string) => page.getByRole('button', exact(name)).click();
+
+export async function openLessons(page: Page) {
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Lecciones');
+  const skipName = page.getByRole('button', exact('Continuar sin nombre'));
+  const closeLesson = page.getByRole('button', exact('Cerrar y volver'));
+  await expect(skipName.or(closeLesson)).toBeVisible();
+  if (await skipName.isVisible()) await skipName.click();
+  await expect(closeLesson).toBeVisible();
+}
 
 export async function finishVocabulary(page: Page) {
   await click(page, 'Siguiente palabra');
@@ -119,7 +129,7 @@ export async function finishGreetingPractice(page: Page, name = '[tu nombre]') {
 }
 
 export async function openTravelWriting(page: Page) {
-  await click(page, 'Continuar viaje');
+  await openLessons(page);
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await finishVocabulary(page);
