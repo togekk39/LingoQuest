@@ -53,8 +53,10 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
 
   await page.goto('/');
   const progress = page.getByRole('progressbar', exact('Descarga del capítulo'));
+  await expect(page.getByRole('heading', exact('La primera postal'))).toBeVisible();
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
-  await expect(page.getByText('Descargando capítulo… 50 %')).toBeVisible();
+  await expect(page.getByText('Descargando capítulo…', { exact: true })).toBeVisible();
+  await expect(page.getByText('50 %', { exact: true })).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new Event('finish-home-transfer')));
   const adventure = page.getByRole('button', exact('Comenzar mi aventura'));
   await expect(adventure).toBeVisible();
@@ -95,6 +97,7 @@ test('continuing to chapter two keeps chapter one until the new pack is verified
     request.fulfill({ body: '{"incomplete":true}', contentType: 'application/json' }),
   );
   await click(page, 'Continuar a Ciudad de México');
+  await expect(page.getByRole('heading', exact('No se pudo descargar'))).toBeVisible();
   await expect(page.getByRole('alert')).toContainText('La descarga del capítulo está incompleta');
   expect(await savedChapters(page)).toContain('home');
   expect(await savedChapters(page)).not.toContain('mexico');
@@ -164,7 +167,11 @@ test('opening a destination downloads its lessons and media when needed', async 
   });
   expect(cachedPacks).toBe(0);
   await openLondon();
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Revisa tu conexión a internet');
+  await click(page, 'Volver');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await openLondon();
+  await expect(page.getByRole('alert')).toContainText('Revisa tu conexión a internet');
 
   await context.setOffline(false);
   const transfer = page.waitForResponse((response) =>

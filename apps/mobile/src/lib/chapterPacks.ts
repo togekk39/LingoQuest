@@ -22,6 +22,8 @@ const baseUrl = web
   : 'https://raw.githubusercontent.com/togekk39/LingoQuest/main/apps/mobile/public/chapter-packs/';
 const destinations = new Map(route.map((destination) => [destination.id, destination]));
 export const [firstChapter, secondChapter] = route;
+export class ChapterDownloadError extends Error {}
+
 type ProgressListener = (percent: number) => void;
 type Download = {
   operation: Promise<ChapterPack>;
@@ -65,14 +67,11 @@ export async function retireFirstChapter() {
 
 async function saveChapter(id: string, text: string, pack: ChapterPack) {
   let installed = pack;
-  const destination = destinations.get(id);
-  if (pack.unit?.id !== destination?.unitId)
-    throw new Error('El contenido del paquete no corresponde a este capítulo.');
   const committed = await writeChapterPack(id, text, (previous) => {
     const current = parseStored(id, previous);
     if (!current || current.revision < pack.revision) return true;
     if (current.revision === pack.revision && current.sha256 !== pack.sha256)
-      throw new Error('Ya tienes un paquete diferente con esta versión.');
+      throw new ChapterDownloadError('Ya tienes un paquete diferente con esta versión.');
     installed = current;
     return false;
   });
@@ -96,21 +95,18 @@ async function fetchChapterFile(
     signal: controller.signal,
   } as const;
   try {
-    let response: Response;
-    try {
-      response = web
-        ? await fetch(url, { ...options, cache: 'no-store' })
-        : await nativeFetch(url, {
-            ...options,
-            headers: { ...options.headers, 'Cache-Control': 'no-cache' },
-          });
-    } catch {
-      throw new Error('No pudimos descargar el capítulo. Revisa tu conexión e inténtalo de nuevo.');
-    }
+    const response = web
+      ? await fetch(url, { ...options, cache: 'no-store' })
+      : await nativeFetch(url, {
+          ...options,
+          headers: { ...options.headers, 'Cache-Control': 'no-cache' },
+        });
     if (!response.ok || !response.body)
-      throw new Error('La descarga del capítulo no está disponible en este momento.');
+      throw new ChapterDownloadError(
+        'La descarga del capítulo no está disponible en este momento.',
+      );
     if (Number(response.headers.get('content-length')) > maxBytes)
-      throw new Error('El archivo del capítulo supera el tamaño permitido.');
+      throw new ChapterDownloadError('El archivo del capítulo supera el tamaño permitido.');
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let length = 0;
@@ -122,7 +118,7 @@ async function fetchChapterFile(
         if (item.done) break;
         length += item.value.length;
         if (length > maxBytes)
-          throw new Error('El archivo del capítulo supera el tamaño permitido.');
+          throw new ChapterDownloadError('El archivo del capítulo supera el tamaño permitido.');
         chunks.push(item.value);
         if (expectedBytes && onProgress) {
           const next = Math.floor((length / expectedBytes) * 100);
@@ -133,7 +129,7 @@ async function fetchChapterFile(
       await reader.cancel().catch(() => {});
     }
     if (expectedBytes !== undefined && length !== expectedBytes)
-      throw new Error('La descarga del capítulo está incompleta. Inténtalo de nuevo.');
+      throw new ChapterDownloadError('La descarga del capítulo está incompleta.');
     const bytes = new Uint8Array(length);
     let offset = 0;
     for (const chunk of chunks) {
@@ -143,26 +139,29 @@ async function fetchChapterFile(
     return bytes;
   } catch (error) {
     if (controller.signal.aborted)
-      throw new Error('La descarga tardó demasiado. Inténtalo de nuevo.');
-    throw error;
+      throw new ChapterDownloadError('La descarga tardó demasiado. Revisa tu conexión a internet.');
+    if (error instanceof ChapterDownloadError) throw error;
+    throw new ChapterDownloadError('Revisa tu conexión a internet y vuelve a intentarlo.');
   } finally {
     clearTimeout(timeout);
   }
 }
 
 async function fetchChapter(id: string, onProgress: ProgressListener) {
-  if (!destinations.has(id)) throw new Error('No encontramos este capítulo.');
+  const destination = destinations.get(id);
+  if (!destination) throw new ChapterDownloadError('No encontramos este capítulo.');
   const source = await fetchChapterFile('catalog.json', MAX_CHAPTER_CATALOG_BYTES);
   let value: unknown;
   try {
     value = JSON.parse(new TextDecoder().decode(source));
   } catch {
-    throw new Error('No pudimos leer el catálogo de capítulos. Inténtalo de nuevo.');
+    throw new ChapterDownloadError('No pudimos leer el catálogo de capítulos.');
   }
   const catalog = chapterCatalogSchema.safeParse(value);
-  if (!catalog.success) throw new Error('El catálogo de capítulos no es compatible.');
+  if (!catalog.success)
+    throw new ChapterDownloadError('El catálogo de capítulos no es compatible.');
   const entry = catalog.data.chapters[id];
-  if (!entry) throw new Error('Este capítulo no está disponible para descargar.');
+  if (!entry) throw new ChapterDownloadError('Este capítulo no está disponible para descargar.');
   const installed = await getInstalledChapter(id);
   if (installed && installed.revision >= entry.revision) return installed;
   const bytes = await fetchChapterFile(
@@ -172,11 +171,20 @@ async function fetchChapter(id: string, onProgress: ProgressListener) {
     onProgress,
   );
   if (sha256Hex(bytes) !== entry.sha256)
-    throw new Error('La descarga del capítulo está dañada. Inténtalo de nuevo.');
+    throw new ChapterDownloadError('La descarga del capítulo está dañada.');
   const text = new TextDecoder().decode(bytes);
-  const pack = parseChapterPack(text, id);
+  let pack: ChapterPack;
+  try {
+    pack = parseChapterPack(text, id);
+  } catch {
+    throw new ChapterDownloadError('El archivo recibido no contiene un paquete compatible.');
+  }
   if (pack.revision !== entry.revision)
-    throw new Error('El archivo del capítulo no coincide con el catálogo publicado.');
+    throw new ChapterDownloadError(
+      'El archivo del capítulo no coincide con el catálogo publicado.',
+    );
+  if (pack.unit?.id !== destination.unitId)
+    throw new ChapterDownloadError('El contenido del paquete no corresponde a este capítulo.');
   return saveChapter(id, text, pack);
 }
 
