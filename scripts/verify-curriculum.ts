@@ -50,9 +50,49 @@ function unique<T>(items: readonly T[], label: string) {
 }
 
 const planLabels = {
-  en: ['Prerequisites', 'New', 'Review', 'Form and patterns', 'L', 'S', 'R', 'W'],
-  es: ['Requisitos', 'Nuevo', 'Repaso', 'Forma y estructuras', 'L', 'S', 'R', 'W'],
+  en: {
+    unit: ['Story', 'Transfer'],
+    lesson: [
+      'Prerequisites',
+      'New',
+      'Review',
+      'Form and patterns',
+      'Guided practice',
+      'L',
+      'S',
+      'R',
+      'W',
+    ],
+  },
+  es: {
+    unit: ['Historia', 'Transferencia'],
+    lesson: [
+      'Requisitos',
+      'Nuevo',
+      'Repaso',
+      'Forma y estructuras',
+      'Práctica guiada',
+      'L',
+      'S',
+      'R',
+      'W',
+    ],
+  },
 };
+
+function fieldValues(lines: string[], labels: string[], id: string, list = false) {
+  assert.equal(lines.length, labels.length, 'Plan fields / Campos del plan: ' + id);
+  return labels.map((label, index) => {
+    const prefix = (list ? '- ' : '') + '**' + label + '** · ';
+    const line = lines[index];
+    const value = line.slice(prefix.length).trim();
+    assert.ok(
+      line.startsWith(prefix) && value && value !== '-',
+      'Plan field / Campo del plan: ' + id + ' → ' + label,
+    );
+    return value;
+  });
+}
 
 function readPlan(text: string, locale: keyof typeof planLabels) {
   const units: { id: string; stop: string; band: string; lessonIds: string[] }[] = [];
@@ -65,9 +105,15 @@ function readPlan(text: string, locale: keyof typeof planLabels) {
   const sections = text.split(/(?=^#{3,4} `lq-)/m).slice(1);
   for (const section of sections) {
     const [heading, ...body] = section.trimEnd().split(/\r?\n/);
+    const fields = body.filter((line) => line.trim());
+    const labels = planLabels[locale];
     const header = unitPattern.exec(heading);
     if (header) {
       const [, id, stop, band] = header;
+      assert.ok(
+        fieldValues(fields, labels.unit, id).every((value) => value !== '—'),
+        'Missing scenario / Falta escenario: ' + id,
+      );
       units.push({ id, stop, band, lessonIds: [] });
       continue;
     }
@@ -78,21 +124,15 @@ function readPlan(text: string, locale: keyof typeof planLabels) {
     const unit = units.at(-1);
     assert.ok(unit && id.startsWith(unit.id + '.'), 'Lesson unit / Unidad de lección: ' + id);
     assert.ok(!lessons.has(id), 'Duplicate lesson / Lección duplicada: ' + id);
-    const fields = body.filter((line) => line.trim());
-    const labels = planLabels[locale];
-    assert.equal(fields.length, labels.length, 'Lesson fields / Campos de lección: ' + id);
-    const [requirements, newLexicon, reviewLexicon, ...modeGoals] = labels.map((label, index) => {
-      const prefix = '- **' + label + '** · ';
-      const value = fields[index].slice(prefix.length);
-      assert.ok(
-        fields[index].startsWith(prefix) && value.trim() && value !== '-',
-        'Lesson field / Campo de lección: ' + id + ' → ' + label,
-      );
-      return value;
-    });
+    const [requirements, newLexicon, reviewLexicon, ...practiceAndGoals] = fieldValues(
+      fields,
+      labels.lesson,
+      id,
+      true,
+    );
     assert.ok(
-      modeGoals.every((goal) => goal !== '—'),
-      'Missing goal / Falta objetivo: ' + id,
+      practiceAndGoals.every((goal) => goal !== '—'),
+      'Missing practice or goal / Falta práctica u objetivo: ' + id,
     );
 
     const prerequisites = entries(requirements);

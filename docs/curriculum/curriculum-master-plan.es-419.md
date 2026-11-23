@@ -63,6 +63,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · hi, hello, goodbye, please, thank you
 - **Repaso** · —
 - **Forma y estructuras** · Saludos y despedidas como bloques: Hi. Goodbye. Thank you.
+- **Práctica guiada** · Clasifica audios de saludos y despedidas y representa una llegada y una salida con imágenes.
 - **L** · Distingue dos saludos de dos despedidas.
 - **S** · Saluda y despídete de Sam en dos turnos.
 - **R** · Asocia dos etiquetas con llegada y salida.
@@ -74,6 +75,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · I, you, my name is, I am
 - **Repaso** · hi, hello
 - **Forma y estructuras** · Estructuras fijas de primera persona antes de la concordancia: I'm [name] / My name is [name].
+- **Práctica guiada** · Asocia tarjetas de saludo con voces, arma una presentación e intercambia nombres.
 - **L** · Identifica el nombre en dos presentaciones pausadas.
 - **S** · Saluda a Sam y di tu nombre o uno que hayas elegido.
 - **R** · Ubica un nombre en una tarjeta sin depender de una imagen.
@@ -85,6 +87,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · spell, letter, number, zero, one, two, three, four, five, six, seven, eight, nine
 - **Repaso** · my name is, thank you
 - **Forma y estructuras** · Alfabeto de la A a la Z en tres bloques breves; How do you spell…? / [dígito] como código de identificación.
+- **Práctica guiada** · Usa asociación de sonidos con letras, dictado de dígitos e inscripción con dos campos.
 - **L** · Distingue B/V y E/I y recupera un código de tres dígitos.
 - **S** · Deletrea un nombre elegido y confirma el último dígito.
 - **R** · Ubica un nombre y un código de sala en una lista con dos entradas.
@@ -96,6 +99,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · again, slowly, sorry, yes, no
 - **Repaso** · please, spell, number
 - **Forma y estructuras** · Fórmulas para resolver malentendidos: Again, please. Slowly, please. Yes / No.
+- **Práctica guiada** · Distingue códigos con sonidos parecidos y usa una ficha para aclarar un malentendido oral.
 - **L** · Corrige un dígito después de pedir que lo repitan.
 - **S** · Pide que repitan más despacio y confirma el nombre o código corregido.
 - **R** · Identifica cuál de dos inscripciones se corrigió.
@@ -113,6 +117,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · he, she, friend, from, student
 - **Repaso** · I, you, hello
 - **Forma y estructuras** · am/are/is con I/you/he/she; afirmación, negación y pregunta de origen en prácticas sucesivas.
+- **Práctica guiada** · Empareja perfiles ficticios con voces, cambia tarjetas de sujeto y presenta el perfil nuevo.
 - **L** · Asocia dos personas con sus lugares de origen.
 - **S** · Di de dónde eres y presenta a un amigo usando dos sujetos.
 - **R** · Asocia un perfil breve con un nombre y un lugar de origen.
@@ -124,6 +129,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · it, they, book, phone, small, happy, these, those
 - **Repaso** · friend, student, one, two
 - **Forma y estructuras** · it is / they are; this/that/these/those, plurales regulares y posición básica del adjetivo.
+- **Práctica guiada** · Clasifica pares de pies de imagen y sustituye pronombres o demostrativos al cambiar la imagen.
 - **L** · Asocia una descripción singular y una plural con dos imágenes.
 - **S** · Identifica un objeto y dos personas en un intercambio de dos turnos.
 - **R** · Distingue singular y plural en un conjunto de tres etiquetas.
@@ -135,6 +141,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · where, bus stop, park, next to, near, sign
 - **Repaso** · please, number
 - **Forma y estructuras** · Where is…? / It's next to…; enseña la inversión y el referente de it.
+- **Práctica guiada** · Asocia expresiones de referencia en un plano y completa un vacío de ubicación en pareja.
 - **L** · Ubica una parada en un mapa con dos puntos de referencia a partir de un audio.
 - **S** · Pregunta dónde está la parada y da una ubicación útil.
 - **R** · Asocia el número del recorrido en el boleto con el letrero correcto.
@@ -146,6 +153,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · left, right, straight, turn, entrance
 - **Repaso** · park, bus stop, next to
 - **Forma y estructuras** · Imperativos con Go/Turn y secuencia con then.
+- **Práctica guiada** · Sigue indicaciones modelo, ordena dos instrucciones y usa un plano cuyo destino desconoce la otra persona.
 - **L** · Sigue dos indicaciones hasta el destino correcto.
 - **S** · Orienta a Sam con dos indicaciones sin señalar la respuesta.
 - **R** · Lee dos flechas y una etiqueta de entrada.
@@ -157,6 +165,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · under, between, in front of, shelf, bench
 - **Repaso** · book, sign, these
 - **Forma y estructuras** · in/on/under con referentes concretos; between e in front of con práctica de mapa de un paso.
+- **Práctica guiada** · Mueve íconos tras una indicación breve y escribe pistas para otra distribución.
 - **L** · Elige dónde van dos objetos según indicaciones breves.
 - **S** · Pregunta dónde están dos objetos y ubícalos hablando.
 - **R** · Asocia tres notas de objetos con un plano sencillo.
@@ -168,6 +177,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · bag, blue, red, mine, yours, lost
 - **Repaso** · my name is, friend
 - **Forma y estructuras** · a/an según el sonido inicial; adjetivo antes del sustantivo; my/your frente a mine/yours; What's this?
+- **Práctica guiada** · Compara fichas de colores y dueños, reconstruye frases nominales y pregunta qué reclamo coincide.
 - **L** · Distingue dos mochilas por dueño y color.
 - **S** · Pregunta de quién es e identifica la mochila de Sam con dos datos.
 - **R** · Asocia una nota de objetos perdidos con el objeto correcto.
@@ -185,6 +195,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · work, study, live, get up, every day, breakfast
 - **Repaso** · I, from, friend
 - **Forma y estructuras** · Presente simple con I/you/we/they; sujeto obligatorio; ubicación básica del objeto.
+- **Práctica guiada** · Escucha y ordena fichas de rutinas e intercambia una agenda cotidiana con apoyo.
 - **L** · Ordena tres actividades de entre semana según el audio.
 - **S** · Cuéntale a alguien que te recibe tres cosas que haces un día normal.
 - **R** · Encuentra las actividades de trabajo y estudio en una agenda.
@@ -196,6 +207,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · sister, brother, cook, read, usually, never
 - **Repaso** · work, study, every day
 - **Forma y estructuras** · Tercera persona en -s/-es y ubicación de los adverbios; contrasta /s/, /z/ e /ɪz/.
+- **Práctica guiada** · Escucha terminaciones de tercera persona, corrige una nota de agenda y comunica dos hábitos de otra persona.
 - **L** · Asocia dos personas con sus rutinas y una frecuencia.
 - **S** · Describe un hábito de cada una de dos personas del hogar.
 - **R** · Identifica qué actividad nunca ocurre en dos perfiles.
@@ -207,6 +219,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · o’clock, half past, noon, morning, afternoon, on Saturdays
 - **Repaso** · breakfast, number, bus stop
 - **Forma y estructuras** · Números hasta 59 por patrón; at + hora, on + día, in + parte del día.
+- **Práctica guiada** · Distingue contrastes de horas habladas, asocia relojes y completa un dato de agenda semanal.
 - **L** · Distingue dos contrastes entre números del 13 al 19 y decenas, y recupera día y hora.
 - **S** · Indica dos horarios de encuentro con sus días.
 - **R** · Encuentra un horario disponible en la agenda del mercado.
@@ -218,6 +231,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · when, open, close, available, meet
 - **Repaso** · on Saturdays, afternoon, read
 - **Forma y estructuras** · Do/does en preguntas sobre rutinas; don't/doesn't + verbo base en respuestas.
+- **Práctica guiada** · Reconstruye preguntas con do/does e intercambia horarios incompletos para acordar un espacio.
 - **L** · Encuentra el único horario disponible en una conversación entre dos personas.
 - **S** · Haz dos preguntas, una sobre otra persona, y acuerda un horario.
 - **R** · Descarta un horario cerrado entre dos avisos.
@@ -235,6 +249,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · like, want, coffee, tea, cheese, bread
 - **Repaso** · yes, no, cook
 - **Forma y estructuras** · Do you like…? / I don't like…; and/but conectan preferencias que contrastan.
+- **Práctica guiada** · Clasifica gustos y rechazos de audios breves y haz una entrevista con modelo.
 - **L** · Asocia dos comensales con una preferencia de cada uno.
 - **S** · Pregunta a otra persona por dos alimentos y expresa un contraste.
 - **R** · Extrae dos preferencias de una nota de intercambio.
@@ -246,6 +261,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · water, arepa, lemonade, glass, some, any
 - **Repaso** · cheese, bread, number
 - **Forma y estructuras** · Plural contable y sustantivos incontables; some/any en intercambios básicos sobre disponibilidad.
+- **Práctica guiada** · Asocia pedidos hablados con líneas de un recibo y completa un vacío de cantidad y disponibilidad.
 - **L** · Distingue dos pedidos por cantidad y bebida.
 - **S** · Pregunta si hay dos productos e indica una cantidad.
 - **R** · Identifica cuántas unidades hay en un menú y un recibo.
@@ -257,6 +273,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · price, dollar, cent, total, cost, how much
 - **Repaso** · bread, water, some, number
 - **Forma y estructuras** · How much is/are…?; referencia con demostrativos; centenas y precios decimales en bloques breves.
+- **Práctica guiada** · Distingue precios similares en audio y compra con una lista de precios y un presupuesto sencillo.
 - **L** · Distingue dos precios con distintas decenas y centavos.
 - **S** · Pregunta el precio de dos productos y comprueba el total.
 - **R** · Asocia tres precios con productos e identifica el que se ajusta al presupuesto.
@@ -268,6 +285,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · I’d like, to go, out of, instead, change
 - **Repaso** · please, arepa, lemonade
 - **Forma y estructuras** · I’d like + sustantivo; Can you…? y un turno para aclarar una sustitución.
+- **Práctica guiada** · Ordena un intercambio de servicio modelo y responde ante un producto agotado en otro menú.
 - **L** · Identifica qué producto se agotó y cuál se ofrece en su lugar.
 - **S** · Pide dos productos, acepta o rechaza un sustituto y confirma.
 - **R** · Usa el menú para elegir un sustituto disponible.
@@ -285,6 +303,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · yesterday, busy, tired, at home, last night
 - **Repaso** · work, park, from
 - **Forma y estructuras** · was/were, wasn't/weren't y referencias temporales.
+- **Práctica guiada** · Completa was/were en fichas de tiempo y lugar e intercambia dos pistas de ubicación en conflicto.
 - **L** · Asocia a dos personas con su lugar y hora en el pasado.
 - **S** · Di dónde estaban tú y otra persona a una hora indicada.
 - **R** · Encuentra qué persona estuvo ausente en dos entradas de un registro.
@@ -296,6 +315,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · visit, clean, finish, call, first, then
 - **Repaso** · yesterday, entrance
 - **Forma y estructuras** · Pasado regular en -ed con un tiempo terminado; introduce las terminaciones /t d ɪd/ para facilitar la comprensión.
+- **Práctica guiada** · Clasifica tres sonidos de -ed, ordena fichas de eventos y narra una cronología distinta.
 - **L** · Ordena tres acciones terminadas a partir de una grabación breve.
 - **S** · Vuelve a contar dos acciones terminadas en orden cronológico.
 - **R** · Ubica el primer y el último evento en una entrada breve de diario.
@@ -307,6 +327,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · go–went, buy–bought, see–saw, take–took, market
 - **Repaso** · bread, yesterday, first, then
 - **Forma y estructuras** · Pasado irregular de alta frecuencia y secuencia con before/after.
+- **Práctica guiada** · Asocia formas base y pasadas con imágenes y reconstruye en pareja un relato del mercado.
 - **L** · Recupera tres acciones y su orden en un relato del mercado.
 - **S** · Vuelve a contar tres eventos con al menos dos verbos irregulares.
 - **R** · Asocia tres notas del mercado con el orden de una cronología breve.
@@ -318,6 +339,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · last weekend, happen, arrive, leave–left
 - **Repaso** · market, yesterday, at home
 - **Forma y estructuras** · Did/didn't + forma base; contrasta con el pasado afirmativo.
+- **Práctica guiada** · Corrige errores de did con forma pasada y entrevista a alguien con una cronología incompleta.
 - **L** · Identifica un dato omitido y uno corregido en una conversación.
 - **S** · Haz dos preguntas sobre el pasado para completar información y confirma las respuestas.
 - **R** · Encuentra una discrepancia entre una nota breve y una cronología.
@@ -335,6 +357,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · now, right now, wash, make, kitchen, table
 - **Repaso** · cook, read, at home
 - **Forma y estructuras** · am/is/are + -ing; cambios ortográficos básicos y concordancia.
+- **Práctica guiada** · Asocia acciones con imágenes que cambian, completa concordancia y da dos avisos en directo.
 - **L** · Asocia tres voces con acciones que ocurren ahora.
 - **S** · Describe dos acciones en una escena que cambia.
 - **R** · Asocia dos pies de imagen con tarjetas de actividades actuales.
@@ -346,6 +369,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · today, stir, bowl, usually sets the table
 - **Repaso** · usually, wash, kitchen
 - **Forma y estructuras** · Presente simple frente al progresivo, con una negación y un verbo de estado como like.
+- **Práctica guiada** · Clasifica acciones habituales y actuales y explica diferencias entre una lista y una escena en curso.
 - **L** · Distingue dos actividades habituales de dos actividades en curso.
 - **S** · Explica dos cambios en una rutina de tareas.
 - **R** · Indica qué cambió entre una tarjeta de rutina y una actualización.
@@ -357,6 +381,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · carry out, need, can, can’t, take a break, help
 - **Repaso** · slowly, table, please
 - **Forma y estructuras** · can/can't + verbo base para habilidad; Can you…? para pedir algo; énfasis en afirmación y negación.
+- **Práctica guiada** · Escucha afirmación y negación de habilidades y asigna peticiones a personas adecuadas.
 - **L** · Distingue quién puede hacerse cargo de cada una de tres tareas.
 - **S** · Expresa una habilidad y pide ayuda con otra tarea.
 - **R** · Escoge a una persona adecuada de dos perfiles breves.
@@ -368,6 +393,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · cut, put, still, next
 - **Repaso** · table, bread, then
 - **Forma y estructuras** · Preguntas y negaciones en progresivo; Can you…? y secuencia de imperativos.
+- **Práctica guiada** · Asocia peticiones orales con tareas y resuelve una asignación duplicada en un tablero.
 - **L** · Asigna dos instrucciones escuchadas a las personas adecuadas.
 - **S** · Pregunta por una acción, aclara un conflicto y asigna la siguiente tarea.
 - **R** · Identifica una tarea pendiente en una lista de dos columnas.
@@ -385,6 +411,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · tomorrow, next week, venue, forecast, plan
 - **Repaso** · meet, afternoon, now
 - **Forma y estructuras** · be going to para intenciones; formas interrogativas y datos de hora y lugar.
+- **Práctica guiada** · Arma preguntas con going to, compara dos calendarios y elige un horario para un plan conjunto.
 - **L** · Recupera hora, lugar y actividad de un plan.
 - **S** · Haz un plan y resuelve un choque de horarios.
 - **R** · Ubica la hora de apertura y la dirección del lugar.
@@ -396,6 +423,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · cancel, text, carry, rain, indoors
 - **Repaso** · help, change, available
 - **Forma y estructuras** · will/won't para ofertas y decisiones inmediatas; I'll y won't en audio.
+- **Práctica guiada** · Escucha decisiones y ofrecimientos breves y responde a un cambio con apoyo.
 - **L** · Identifica quién se ofrece a hacer dos cosas.
 - **S** · Responde a un cambio con un ofrecimiento y confirma el siguiente paso.
 - **R** · Distingue una cancelación de un cambio de lugar en dos mensajes.
@@ -407,6 +435,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · backup, be free, instead of, later, meeting point
 - **Repaso** · forecast, indoors, venue
 - **Forma y estructuras** · Let's / How about…?; going to frente a will; because para dar un motivo.
+- **Práctica guiada** · Marca datos anteriores y nuevos en dos avisos y negocia otra opción con restricciones incompatibles.
 - **L** · Separa el plan anterior y el nuevo según hora, lugar y motivo.
 - **S** · Propón dos lugares y acuerda una alternativa con otra persona.
 - **R** · Encuentra dos cambios en un par de avisos.
@@ -424,6 +453,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · ever, never been, try–tried, take–taken, once, abroad
 - **Repaso** · go–went, last weekend, market
 - **Forma y estructuras** · have/has + participio para experiencias; ever/never; distingue pasado y participio.
+- **Práctica guiada** · Clasifica tarjetas de participios y reúne experiencias en un vacío de información con modelo.
 - **L** · Identifica quién ha probado cuáles dos actividades.
 - **S** · Haz dos preguntas sobre experiencias y responde una sobre ti.
 - **R** · Clasifica tres afirmaciones de un perfil según si se vivieron o siguen pendientes.
@@ -435,6 +465,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · museum, last year, first time, ticket, photo
 - **Repaso** · ever, once, yesterday
 - **Forma y estructuras** · El presente perfecto abre el tema de una experiencia; el pasado simple aporta fechas terminadas y detalles.
+- **Práctica guiada** · Marca datos fechados en dos cronologías y úsalos en una entrevista de seguimiento.
 - **L** · Asocia dos experiencias con detalles fechados.
 - **S** · Pregunta por una experiencia y después cuándo ocurrió y qué pasó.
 - **R** · Marca la referencia temporal en dos perfiles.
@@ -446,6 +477,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · already, just, yet, pack, passport, bring–brought
 - **Repaso** · ticket, change, plan
 - **Forma y estructuras** · Presente perfecto para acciones completadas relevantes ahora; already/yet/just en afirmación, pregunta y negación.
+- **Práctica guiada** · Clasifica preparativos de audio en listos y pendientes y actualiza una lista compartida.
 - **L** · Clasifica cuatro elementos en listos y pendientes.
 - **S** · Confirma dos preparativos y asigna una tarea pendiente.
 - **R** · Concilia una lista de equipaje con un mensaje breve.
@@ -463,6 +495,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · fast, cheap, accessible, subway, ramp, fare
 - **Repaso** · bus stop, entrance, available
 - **Forma y estructuras** · Comparativos: -er, more, better y than; énfasis en el contraste.
+- **Práctica guiada** · Anota diferencias de costo y acceso en fichas de rutas e intercambia una recomendación con dos criterios.
 - **L** · Recupera dos contrastes entre rutas en una recomendación oral.
 - **S** · Compara dos opciones por costo y accesibilidad.
 - **R** · Lee detalles de costo y acceso en dos fichas de ruta.
@@ -474,6 +507,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · shortest, cheapest, most convenient, enough, too far
 - **Repaso** · fare, ramp, accessible
 - **Forma y estructuras** · Superlativos y too/enough con distancia, costo y accesibilidad.
+- **Práctica guiada** · Ordena tres anuncios según fichas de restricciones y explica el orden a otra persona.
 - **L** · Identifica el costo más alto y el más bajo y una opción inadecuada.
 - **S** · Ordena tres opciones y explica por qué descartas una.
 - **R** · Identifica cuál de tres anuncios cumple un límite de costo y acceso.
@@ -485,6 +519,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · out of service, elevator, transfer, on time, restriction
 - **Repaso** · ramp, backup, left
 - **Forma y estructuras** · because frente a so; propósito breve con to; imperativos para indicaciones.
+- **Práctica guiada** · Sigue un anuncio y plano y da a otra persona una ruta con un obstáculo fuera de servicio.
 - **L** · Identifica una interrupción y dos indicaciones actualizadas.
 - **S** · Explica tu elección de ruta y orienta a alguien en dos pasos.
 - **R** · Usa un aviso y un mapa para descartar una opción.
@@ -496,6 +531,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · job, volunteer, shift, team, customer, experience
 - **Repaso** · study, available, first time
 - **Forma y estructuras** · would like to + verbo; because; ejemplo en pasado simple que sustenta un motivo.
+- **Práctica guiada** · Asocia ejemplos de experiencia con tareas y ensaya una entrevista con otra pregunta de seguimiento.
 - **L** · Identifica un rol, una limitación de horario y una pregunta de entrevista.
 - **S** · Expresa interés, da un ejemplo pasado y pregunta por un turno.
 - **R** · Encuentra las tareas y el horario en un anuncio breve.
@@ -513,6 +549,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · community center, spot, equipment, restroom, front desk
 - **Repaso** · accessible, entrance, open
 - **Forma y estructuras** · there is/are, Is there…? y How many…?; repaso de contables e incontables.
+- **Práctica guiada** · Asocia descripciones de instalaciones con un directorio y plantea un vacío de información en recepción.
 - **L** · Recupera qué salas tienen dos recursos indicados.
 - **S** · Pregunta por disponibilidad y recomienda una sala adecuada.
 - **R** · Ubica horarios y detalles de acceso en un directorio.
@@ -524,6 +561,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · have to, photo ID, sign up, attend, requirement
 - **Repaso** · spell, available, equipment
 - **Forma y estructuras** · have to / don't have to / can / can't para obligación, opción, permiso y prohibición.
+- **Práctica guiada** · Clasifica datos obligatorios y optativos en un formulario y simula deletreo y confirmación.
 - **L** · Clasifica tres reglas orales de inscripción por su carácter.
 - **S** · Aclara un requisito y deletrea el nombre elegido de la persona inscrita.
 - **R** · Encuentra dos requisitos y un elemento opcional en un formulario.
@@ -541,6 +579,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · booking, appointment, fee, refund, reschedule
 - **Repaso** · sign up, spot, on time
 - **Forma y estructuras** · Could I…? / I'd like to…; pronombres de objeto it/them; referencia a la reservación existente.
+- **Práctica guiada** · Compara condiciones, ordena una llamada modelo y usa otro conjunto de horarios disponibles.
 - **L** · Recupera hora anterior, hora nueva y costo de una llamada.
 - **S** · Pide un cambio, pregunta el costo y confirma el nuevo horario.
 - **R** · Encuentra una opción elegible y una restricción en las condiciones.
@@ -552,6 +591,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · schedule clash, move up, due, be booked
 - **Repaso** · appointment, meeting point, later
 - **Forma y estructuras** · Progresivo para compromisos futuros acordados; contrasta intenciones con going to y presente de horarios.
+- **Práctica guiada** · Distingue tipos de planes en dos calendarios y negocia un cambio que conserve un compromiso fijo.
 - **L** · Distingue un compromiso confirmado de una intención y recupera el horario acordado.
 - **S** · Resuelve dos compromisos que coinciden y confirma cuál cambió.
 - **R** · Compara dos entradas de calendario e identifica una alternativa viable.
@@ -563,6 +603,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · invite, reply, confirm, unfortunately, works for me
 - **Repaso** · appointment, venue, later
 - **Forma y estructuras** · Apertura y cierre de mensajes breves; because/so y pronombres de objeto para cohesión.
+- **Práctica guiada** · Asocia respuestas e invitaciones y reescribe una respuesta inflexible con una opción viable.
 - **L** · Identifica quién puede asistir y qué queda por confirmar.
 - **S** · Transmite el cambio de disponibilidad de otra persona y propón una hora.
 - **R** · Asocia dos respuestas con la invitación y la restricción adecuadas.
@@ -574,6 +615,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · wrong item, receipt, exchange
 - **Repaso** · refund, confirm, requirement, out of service
 - **Forma y estructuras** · Repaso de preguntas, pronombres, pasado y futuro; sin gramática nueva obligatoria.
+- **Práctica guiada** · Usa un recibo anotado y una llamada de práctica y retira las pistas para otra devolución.
 - **L** · Identifica el problema y el siguiente paso en dos llamadas breves.
 - **S** · Completa una devolución con una aclaración y un siguiente paso acordado.
 - **R** · Usa un recibo y una política para identificar una solución válida.
@@ -591,6 +633,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · service suspended, delay, replacement service, platform, update
 - **Repaso** · transfer, on time, backup
 - **Forma y estructuras** · Patrón de avisos en pasiva presente; presente simple de horarios; anuncios con elipsis.
+- **Práctica guiada** · Anota alerta y horario de estación y transmite los datos necesarios para una persona que viaja.
 - **L** · Extrae motivo, alcance y un siguiente paso de un anuncio de estación.
 - **S** · Comunica a otra persona el trayecto afectado y qué hacer.
 - **R** · Concilia una alerta y un horario normal con dos datos coincidentes.
@@ -602,6 +645,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · in case, alternative, miss, make it, allow time
 - **Repaso** · delay, platform, appointment
 - **Forma y estructuras** · Presente en subordinadas temporales o condicionales con if/when y will en la principal; distingue causa, tiempo y condición.
+- **Práctica guiada** · Asocia condiciones con resultados posibles y negocia cuándo usar cada alternativa.
 - **L** · Identifica qué condición activa cada una de dos alternativas.
 - **S** · Negocia dos planes e indica qué activa cada uno.
 - **R** · Distingue un horario confirmado de una condición posible en dos avisos.
@@ -613,6 +657,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · could you tell me, connection, estimate, as far as I know
 - **Repaso** · replacement service, platform, allow time
 - **Forma y estructuras** · Preguntas indirectas con orden afirmativo; reformulación para confirmar.
+- **Práctica guiada** · Reconstruye preguntas indirectas e inicia una llamada con un dato que solo tiene la otra persona.
 - **L** · Identifica un dato confirmado y uno pendiente en una llamada.
 - **S** · Haz dos preguntas indirectas y confirma el plan en tus propias palabras.
 - **R** · Contrasta salida y accesibilidad en dos fuentes.
@@ -630,6 +675,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · exhibit, workshop, audience, feature, suitable
 - **Repaso** · museum, photo, accessible
 - **Forma y estructuras** · Relativas especificativas con who/that/which; relación con personas o cosas concretas.
+- **Práctica guiada** · Asocia descripciones recortadas de un folleto y usa relativas en un intercambio para descubrir la opción.
 - **L** · Asocia dos descripciones orales con las exhibiciones adecuadas.
 - **S** · Describe dos actividades para que otra persona identifique cuál es cuál.
 - **R** · Usa un folleto para asociar a dos visitantes con actividades distintas.
@@ -641,6 +687,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · recommend, worth, prefer, interactive, highlight
 - **Repaso** · exhibit, suitable, experience
 - **Forma y estructuras** · recommend + sustantivo/-ing; should/could; estructuras de motivo y ejemplo.
+- **Práctica guiada** · Compara dos perfiles de público y ensaya recomendaciones con preguntas de seguimiento.
 - **L** · Identifica una recomendación y dos motivos en una reseña breve.
 - **S** · Recomienda una actividad con dos motivos y responde una pregunta adicional.
 - **R** · Distingue una opinión de un dato práctico en una reseña.
@@ -652,6 +699,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · tradeoff, point, agree, however, priority
 - **Repaso** · prefer, recommend, audience
 - **Forma y estructuras** · Acuerdo y desacuerdo cortés; motivo y concesión con but/however; relativas explicativas opcionales con comas.
+- **Práctica guiada** · Anota prioridades de cada voz y celebra una reunión breve con preferencias opuestas.
 - **L** · Identifica una prioridad por hablante y la decisión final.
 - **S** · Reconoce otra postura, explica la tuya y acuerda una opción.
 - **R** · Distingue una descripción necesaria de un dato entre comas.
@@ -669,6 +717,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · unpack, leak, notice, report, while
 - **Repaso** · happen, arrive, yesterday
 - **Forma y estructuras** · Pasado progresivo de fondo con when/while y pasado simple para hechos que interrumpen.
+- **Práctica guiada** · Anota contexto e interrupción en una cronología y reconstruye un incidente desde notas parciales.
 - **L** · Recupera contexto, incidente y secuencia en un relato.
 - **S** · Explica qué estaba ocurriendo y qué lo interrumpió.
 - **R** · Ubica tres detalles del incidente en una cronología.
@@ -680,6 +729,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · available room, replacement, resolve, inconvenience, alternative arrangement
 - **Repaso** · refund, report, unfortunately
 - **Forma y estructuras** · Would it be possible to…?; uso atenuador de could y un motivo; propuestas condicionales con if.
+- **Práctica guiada** · Asocia soluciones con restricciones y representa una solicitud con contrapropuesta guiada antes de otro intercambio.
 - **L** · Identifica dos soluciones ofrecidas y una restricción.
 - **S** · Pide una solución, responde una contrapropuesta y acuerda una acción.
 - **R** · Identifica qué condiciones se aplican a un problema concreto.
@@ -691,6 +741,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · follow-up, reference, pending, resolved, appreciate
 - **Repaso** · replacement, confirm, fee
 - **Forma y estructuras** · Seguimiento cortés y referencia cohesiva con this/it; cronología factual y compromisos.
+- **Práctica guiada** · Extrae compromisos de un mensaje de voz y revisa un borrador sin responsable o plazo.
 - **L** · Recupera quién prometió qué y para cuándo a partir de un mensaje de voz.
 - **S** · Resume el acuerdo y comprueba un punto sin resolver.
 - **R** · Compara un reclamo anterior con su respuesta.
@@ -708,6 +759,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · unless, exception, gate, shaded, proceed
 - **Repaso** · entrance, ramp, forecast
 - **Forma y estructuras** · if/unless e imperativos; verifica las condiciones mediante casos contrastantes.
+- **Práctica guiada** · Clasifica casos generales y excepciones y aplica la regla a otros dos perfiles de visita.
 - **L** · Asocia a dos personas con rutas según una excepción.
 - **S** · Explica una regla y da una excepción válida para una visita.
 - **R** · Encuentra la ruta predeterminada y la excepción en una política breve.
@@ -719,6 +771,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · tell, remind, meet up, instructions, bring along
 - **Repaso** · gate, exception, equipment
 - **Forma y estructuras** · tell/ask/remind + persona + infinitivo con to; don't frente a not to en instrucciones transmitidas.
+- **Práctica guiada** · Reconstruye instrucciones transmitidas y comunica un cambio a quien tiene la versión anterior.
 - **L** · Identifica acción, persona y prohibición en una explicación oral.
 - **S** · Transmite dos instrucciones y una prohibición a una persona ausente.
 - **R** · Sigue referencias internas para saber qué debe hacer otro grupo.
@@ -730,6 +783,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · in other words, check in, applies to, gathering point
 - **Repaso** · instructions, shaded, requirement
 - **Forma y estructuras** · Secuencia y reformulación; conserva condición y hora al simplificar la forma.
+- **Práctica guiada** · Compara explicaciones para dos públicos y simplifica el lenguaje sin perder cambio ni excepción.
 - **L** · Extrae cuatro datos esenciales de una explicación con un cambio.
 - **S** · Reformula el plan para dos públicos y comprueba la comprensión.
 - **R** · Concilia el cambio de regla de un aviso con el boletín original.
@@ -747,6 +801,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · headache, symptom, since, for, get better
 - **Repaso** · yesterday, tired, last night
 - **Forma y estructuras** · Presente perfecto simple con since/for para estados vigentes; How long…?
+- **Práctica guiada** · Asocia expresiones con since/for a cronologías y pregunta y responde sobre duración con fichas.
 - **L** · Identifica inicio y duración en dos relatos breves.
 - **S** · Explica cuándo empezó un problema y cuánto ha durado.
 - **R** · Identifica cuál de dos cronologías coincide con una nota.
@@ -758,6 +813,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · cough, sleep poorly, recently, on and off, improve
 - **Repaso** · symptom, since, for
 - **Forma y estructuras** · Presente perfecto progresivo para actividad en curso o repetida; contrasta estado y resultado terminado.
+- **Práctica guiada** · Compara un registro continuo con una nota de hecho terminado y explica qué sigue ocurriendo.
 - **L** · Recupera frecuencia, duración y último cambio de un relato.
 - **S** · Describe un patrón continuo y distínguelo de un hecho terminado.
 - **R** · Compara un registro de síntomas o mantenimiento con un resumen oral.
@@ -769,6 +825,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · follow-up appointment, check with, monitor, just to make sure
 - **Repaso** · front desk, instructions, appointment
 - **Forma y estructuras** · Should I…? y confirmación explícita; instrucción transmitida y duración.
+- **Práctica guiada** · Marca datos importantes en un audio y practica reformulación y confirmación precisa.
 - **L** · Recupera horario, materiales y una condición de seguimiento.
 - **S** · Repite dos instrucciones con tus propias palabras y confirma una condición.
 - **R** · Compara instrucciones escritas con un aviso de cambio.
@@ -786,6 +843,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · permission, consent, flash, post online, private
 - **Repaso** · photo, workshop, audience
 - **Forma y estructuras** · Can/Could/May I…?; registro formal e informal; reconoce una negativa.
+- **Práctica guiada** · Clasifica peticiones por registro y ensaya respuestas a un permiso con límites.
 - **L** · Identifica dos condiciones asociadas con un permiso.
 - **S** · Pide permiso, confirma su alcance y responde con calma a una negativa.
 - **R** · Distingue una prohibición de una solicitud en reglas publicadas.
@@ -797,6 +855,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · would rather, by choice, wait until, avoid, comfortable
 - **Repaso** · private, alternative, priority
 - **Forma y estructuras** · would rather + forma base y prefer + sustantivo/-ing; justificación cortés.
+- **Práctica guiada** · Contrasta would rather y prefer en turnos modelo y negocia con fichas de preferencias incompatibles.
 - **L** · Distingue la preferencia de cada hablante y la alternativa acordada.
 - **S** · Expresa una preferencia, da un motivo y ofrece una alternativa aceptable.
 - **R** · Encuentra la opción que respeta dos preferencias y las reglas.
@@ -814,6 +873,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · overview, progress, milestone, obstacle, outstanding
 - **Repaso** · pending, report, priority
 - **Forma y estructuras** · Agrupa la información por tema; usa because/however y oraciones temáticas claras.
+- **Práctica guiada** · Usa una cuadrícula temática al escuchar varias voces y redacta un resumen desde palabras clave.
 - **L** · Identifica el mensaje principal y dos hitos en una actualización con varias voces.
 - **S** · Da una actualización de un minuto y aclara un obstáculo cuando te lo pidan.
 - **R** · Separa decisiones de detalles de contexto en una actualización extensa.
@@ -825,6 +885,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · handover, draft, folder, approval, remains
 - **Repaso** · confirm, private, pending
 - **Forma y estructuras** · Cadenas de referencia y first/next/finally; repaso de instrucciones transmitidas y condiciones.
+- **Práctica guiada** · Compara dos versiones de un tablero y practica comunicar qué falta y quién se encarga.
 - **L** · Extrae tareas terminadas, pendientes y bloqueadas de una entrega.
 - **S** · Da un informe ordenado y responde dos aclaraciones.
 - **R** · Asocia el estado del proyecto con la versión correcta de un plan.
@@ -836,6 +897,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · constraint, revised plan, misunderstanding
 - **Repaso** · approval, priority, exception
 - **Forma y estructuras** · Repaso de relato, condiciones futuras, preguntas indirectas y negociación cortés.
+- **Práctica guiada** · Ensaya una reunión de cambio con una situación conocida y resuelve fuentes contradictorias en otra.
 - **L** · Identifica un dato en conflicto y la perspectiva del hablante en dos grabaciones.
 - **S** · Negocia una revisión del plan y explica la decisión a una persona ausente.
 - **R** · Concilia un aviso de cambio con un correo e identifica una pregunta abierta.
@@ -853,6 +915,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · gust, exposed, advisory, likely, expected, closure
 - **Repaso** · forecast, delay, estimate
 - **Forma y estructuras** · may/might/could frente a likely y hechos confirmados; énfasis y postura del hablante.
+- **Práctica guiada** · Etiqueta probabilidades y datos confirmados en boletines fechados y practica informar con modales calibrados.
 - **L** · Distingue dos probabilidades y un cierre confirmado en un boletín.
 - **S** · Explica tres afirmaciones de riesgo con el grado de certeza adecuado.
 - **R** · Concilia dos boletines por fecha y grado de certeza.
@@ -864,6 +927,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · shelter, route closure, whereas, even if
 - **Repaso** · exposed, priority, alternative, tradeoff
 - **Forma y estructuras** · although/even if/whereas; primer frente a segundo condicional, con If I were…; enseña en dos momentos.
+- **Práctica guiada** · Ordena riesgos y beneficios en dos fuentes y responde a una objeción modelo antes de improvisar.
 - **L** · Identifica una concesión y el punto que limita en una discusión.
 - **S** · Defiende una opción, reconoce una ventaja de la otra y responde una objeción.
 - **R** · Compara dos rutas según criterios de seguridad y accesibilidad.
@@ -875,6 +939,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · postpone, contingency, reassess, threshold
 - **Repaso** · closure, advisory, shelter, in case
 - **Forma y estructuras** · Recomendación condicional y umbral de decisión; progresión temática de evidencia a acción.
+- **Práctica guiada** · Compara restricciones en una cuadrícula y revisa una recomendación cuando cambie un dato.
 - **L** · Resume los argumentos a favor y en contra a partir de un informe nuevo.
 - **S** · Llega a una decisión grupal y justifica cuándo revisarla.
 - **R** · Concilia un mapa, una alerta vigente y restricciones del grupo.
@@ -892,6 +957,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · lookout, wrapper, evidence, by the time, beforehand
 - **Repaso** · first, report, notice
 - **Forma y estructuras** · Pasado perfecto para hechos anteriores; elige cuándo basta el pasado cronológico.
+- **Práctica guiada** · Ordena hechos entrelazados de dos relatos y explica la cronología a otra persona.
 - **L** · Infiere la secuencia de tres observaciones en una entrevista.
 - **S** · Explica qué ya había ocurrido y qué sigue sin saberse.
 - **R** · Reconstruye una cronología con un registro y una nota de testigo.
@@ -903,6 +969,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · according to, observed, reported that, claimed, noted
 - **Repaso** · evidence, report, as far as I know
 - **Forma y estructuras** · Estilo indirecto en enunciados y preguntas; cambios de pronombres y referencias temporales, con retroceso verbal según el contexto.
+- **Práctica guiada** · Etiqueta afirmaciones por fuente y carácter directo y reformula con el verbo declarativo adecuado.
 - **L** · Comunica dos posturas y conserva cuál proviene de observación directa.
 - **S** · Informa a otra persona y responde qué fuente sustenta dos afirmaciones.
 - **R** · Rastrea dos afirmaciones atribuidas hasta su fuente y fecha.
@@ -914,6 +981,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · baseline, method, sample, preliminary, trend
 - **Repaso** · observed, evidence, reported that
 - **Forma y estructuras** · Marcadores de ejemplos, digresiones y regreso al argumento principal; toma de notas por afirmación y fuente.
+- **Práctica guiada** · Usa una plantilla de notas para una explicación de práctica y compara resúmenes con su afirmación central.
 - **L** · Esquematiza una charla de varios minutos y vincula dos ejemplos con las afirmaciones.
 - **S** · Explica una afirmación de la charla y verifica la interpretación de otra persona.
 - **R** · Ubica método, hallazgo y matiz en un texto público extenso.
@@ -925,6 +993,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · signage, trial, indicator, outcome, measurable
 - **Repaso** · threshold, evidence, observed
 - **Forma y estructuras** · Afirmaciones prudentes con might help, would enable y lenguaje de resultados medibles.
+- **Práctica guiada** · Compara indicadores propuestos y redacta una revisión que haga medible un resultado.
 - **L** · Identifica una propuesta, una objeción y una medida de éxito en una explicación.
 - **S** · Propón un cambio, responde una objeción y acuerda cómo probarlo.
 - **R** · Separa observaciones de cambios propuestos en dos registros.
@@ -942,6 +1011,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · provided that, deadline, take over, sign-in sheet, accountable
 - **Repaso** · constraint, pending, approval
 - **Forma y estructuras** · provided that/as long as; by frente a until; responsable y dependencia explícitos.
+- **Práctica guiada** · Representa una negociación con fichas de horarios distintos y confirma por escrito una dependencia.
 - **L** · Recupera dos asignaciones, una condición y un plazo de una reunión.
 - **S** · Negocia dos asignaciones y resuelve una dependencia con responsables identificados.
 - **R** · Identifica un choque de horarios al comparar dos documentos del equipo.
@@ -953,6 +1023,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · minutes, action item, submit, approve, circulate
 - **Repaso** · deadline, sign-in sheet, take over
 - **Forma y estructuras** · Activa frente a pasiva presente, pasada y futura; elige cuándo indicar al responsable.
+- **Práctica guiada** · Compara informes activos y pasivos y edita un acta para recuperar responsables omitidos.
 - **L** · Distingue una acción acordada de una decisión pendiente en una reunión.
 - **S** · Resume una decisión y aclara quién se encarga de una acción sin responsable.
 - **R** · Compara un borrador de acta con un reparto de personal y señala una omisión.
@@ -964,6 +1035,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · take the floor, invite input, elaborate, clarify, propose an amendment
 - **Repaso** · workshop, priority, minutes
 - **Forma y estructuras** · Preguntas abiertas; toma de turnos e interrupción cortés; preguntas con coletilla para confirmar acuerdos.
+- **Práctica guiada** · Anota señales para tomar la palabra y facilita una reunión breve con una enmienda.
 - **L** · Infiere en qué momento dos participantes dudan o señalan desacuerdo.
 - **S** · Invita a participar a alguien que ha hablado poco, aclara su postura y confirma una enmienda.
 - **R** · Distingue propuestas, objeciones y aprobaciones en apuntes de conversación.
@@ -975,6 +1047,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · common ground, compromise, workload, equitable, revised terms
 - **Repaso** · priority, provided that, action item
 - **Forma y estructuras** · Reformula posturas con neutralidad; formulación concesiva y contrapropuestas condicionales.
+- **Práctica guiada** · Reformula propuestas opuestas, verifícalas con quienes las hicieron y prueba un acuerdo equitativo.
 - **L** · Identifica dos posturas, una inquietud implícita y un punto de acuerdo.
 - **S** · Resume ambas posturas, evalúa un acuerdo intermedio y confirma la decisión.
 - **R** · Compara propuestas frente a límites de tiempo, acceso y carga de trabajo.
@@ -992,6 +1065,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · timestamp, log entry, corroborate, reliability, discrepancy
 - **Repaso** · claimed, according to, evidence
 - **Forma y estructuras** · Marcadores de fuente, verbos de postura, actually/currently y presente perfecto pasivo para afirmaciones sin confirmar.
+- **Práctica guiada** · Clasifica afirmaciones por fuerza de evidencia y compáralas con un registro con hora.
 - **L** · Distingue hechos afirmados, inferencias y posturas en dos relatos.
 - **S** · Cuestiona una inferencia con cortesía y pregunta qué la corroboraría.
 - **R** · Identifica una afirmación contradictoria y un límite de cada fuente.
@@ -1003,6 +1077,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · consistent with, in contrast, supported by, unresolved, account
 - **Repaso** · reported that, discrepancy, corroborate
 - **Forma y estructuras** · Conectores de contraste y atenuación; organiza por tema y atribuye cada postura.
+- **Práctica guiada** · Esquematiza afirmaciones comunes y opuestas por tema antes de sintetizar para otra persona.
 - **L** · Identifica una afirmación compartida y dos desacuerdos entre grabaciones.
 - **S** · Resume ambos relatos y responde una pregunta sobre la incertidumbre.
 - **R** · Cruza dos textos con un registro de evidencia.
@@ -1014,6 +1089,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · editorial, framing, emphasis, imply, perspective
 - **Repaso** · account, claimed, reliability
 - **Forma y estructuras** · Lenguaje valorativo, verbos declarativos y énfasis; reconoce elipsis y postura implícita en contexto.
+- **Práctica guiada** · Anota señales en un editorial y un texto de divulgación y discute otra interpretación plausible.
 - **L** · Infiere la postura de dos voces a partir de palabras y énfasis, e indica una señal de cada una.
 - **S** · Explica cómo el encuadre cambia la interpretación y responde a otra lectura.
 - **R** · Compara un editorial firmado y un texto informativo según propósito y supuestos.
@@ -1025,6 +1101,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · counterargument, inference, sufficient, outweigh, plausible
 - **Repaso** · corroborate, consistent with, tradeoff
 - **Forma y estructuras** · Afirmación, evidencia y razonamiento; concesión y refutación; could have/might have para alternativas pasadas plausibles.
+- **Práctica guiada** · Esquematiza una postura y refutación con tarjetas de evidencia y revisa tras una objeción.
 - **L** · Esquematiza afirmación, evidencia y refutación en una charla breve.
 - **S** · Presenta una afirmación matizada y responde un contraargumento con evidencia.
 - **R** · Evalúa la pertinencia de dos evidencias para afirmaciones opuestas.
@@ -1042,6 +1119,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · protocol, landing, authorization, only after, on hold
 - **Repaso** · restriction, advisory, proceed
 - **Forma y estructuras** · must/may/should en activa y pasiva; only after/until y alcance de excepciones.
+- **Práctica guiada** · Marca alcance y excepciones en un protocolo de práctica y decide con datos que cambian.
 - **L** · Recupera un requisito, una excepción y una condición pendiente.
 - **S** · Explica a una persona participante qué se permite y qué requiere confirmación.
 - **R** · Usa dos apartados de un protocolo para decidir si una acción está autorizada.
@@ -1053,6 +1131,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · field team, clear the route, given that, authorize, defer
 - **Repaso** · on hold, unresolved, contingency
 - **Forma y estructuras** · Estructura de fuente a decisión y pasiva con modal; conserva la incertidumbre al responder preguntas.
+- **Práctica guiada** · Usa un esquema de evidencia a decisión y responde a una pregunta que cuestione la recomendación.
 - **L** · Identifica una observación de campo que cambió y una restricción que sigue vigente.
 - **S** · Da un informe, recomienda una acción y responde dos inquietudes.
 - **R** · Concilia una actualización de campo con el protocolo escrito.
@@ -1070,6 +1149,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · findings, limitation, recommendation, implications
 - **Repaso** · outcome, evidence, action item
 - **Forma y estructuras** · Encabezados de informe y referencia cohesiva; distingue método, hallazgo, inferencia y recomendación.
+- **Práctica guiada** · Compara estructuras de informes y presenta un hallazgo antes de redactar otro informe con fuentes distintas.
 - **L** · Identifica dos hallazgos y una limitación en un informe estructurado.
 - **S** · Presenta tu informe y responde una objeción sobre la evidencia.
 - **R** · Extrae y compara hallazgos de dos informes breves.
@@ -1081,6 +1161,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · in hindsight, would have, missed opportunity, preventable, consequence
 - **Repaso** · limitation, plausible, inference
 - **Forma y estructuras** · Contrafactual pasado if + pasado perfecto / would have; could have para alternativas posibles.
+- **Práctica guiada** · Separa hechos y explicaciones alternativas en un análisis y revisa una conclusión sin respaldo.
 - **L** · Distingue resultados establecidos de dos alternativas contrafactuales.
 - **S** · Analiza un desenlace alternativo plausible y explica qué sigue incierto.
 - **R** · Identifica supuestos y consecuencias en dos relatos retrospectivos.
@@ -1092,6 +1173,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · executive summary, stakeholder, plain language, takeaway, actionable
 - **Repaso** · findings, limitation, recommendation
 - **Forma y estructuras** · Cambios de registro y síntesis; conserva evidencia e incertidumbre en un informe formal y una explicación informal.
+- **Práctica guiada** · Compara el registro de dos resúmenes modelo y reformula un hallazgo para otro público.
 - **L** · Compara dos informes orales por público, tono y detalle omitido.
 - **S** · Explica el mismo hallazgo a un compañero y a quien decide, y aclara una inquietud.
 - **R** · Identifica qué detalles de un informe debe conservar un texto público.
@@ -1103,6 +1185,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **Nuevo** · viable, substantiate, revise in light of
 - **Repaso** · counterargument, corroborate, recommendation, equitable
 - **Forma y estructuras** · Repaso de argumentación, síntesis, concesión, registro y razonamiento contrafactual.
+- **Práctica guiada** · Ensaya discusión estructurada y escritura con fuentes por separado y combínalas en otro ámbito.
 - **L** · Recupera de forma independiente postura, argumento y evidencia de dos grabaciones nuevas.
 - **S** · Defiende y revisa una propuesta en un intercambio espontáneo y media un desacuerdo.
 - **R** · Compara dos textos nuevos por sus supuestos, implicaciones y evidencia.
