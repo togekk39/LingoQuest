@@ -1,5 +1,6 @@
 import type { ChapterPack } from '@lingoquest/course-pack';
 import type { Page } from '@playwright/test';
+import { chapterReaderSections } from '../curriculum/chapter-reader-sections';
 import { click, enterApp, exact, expect, readyOfflineShell, state, test } from './helpers';
 
 async function savedChapters(page: Page) {
@@ -244,4 +245,38 @@ test('opening a destination downloads its lessons and media when needed', async 
   expect(networkGuard.attempted.filter((url) => url === downloaded.url())).toHaveLength(
     transferCount,
   );
+});
+
+test('early chapter cards render dialogue, teaching, question and open model in the audited order', async ({
+  page,
+}) => {
+  await enterApp(page);
+  await page.getByRole('tab', exact('Mapa')).click();
+  const headings = chapterReaderSections.map(({ heading }) => heading);
+  for (const [id, label, model] of [
+    [
+      'mexico',
+      '2. Ciudad de México',
+      'I buy fruit at nine. My brother buys bread at ten. You can come with me at nine.',
+    ],
+    [
+      'colombia',
+      '3. Cartagena',
+      'I’d like two egg arepas and some water to go, please. Do you have orange juice?',
+    ],
+    [
+      'peru',
+      '4. Cusco',
+      'Yesterday I went to a fair. I saw Ana, and then I bought fruit. What time did Tomás arrive?',
+    ],
+  ]) {
+    await click(page, label);
+    await click(page, 'Abrir capítulo');
+    const card = page.getByTestId('chapter-lesson-' + id);
+    await expect(card).toBeVisible();
+    const sectionLabels = headings.map((heading) => card.getByText(heading, { exact: true }));
+    await expect(sectionLabels.reduce((all, label) => all.or(label))).toHaveText(headings);
+    await expect(card.getByText(model, { exact: true })).toBeVisible();
+    await click(page, 'Cerrar y volver');
+  }
 });

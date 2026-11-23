@@ -18,6 +18,8 @@ The route is the recommended sequence. Start at Pre-A1 without prior English, or
 
 The Council of Europe's Companion Volume grounds the pathway in reception, production, interaction and mediation. The stop labels serve as course levels. Each lesson specifies an observable outcome in each of four language skills. Band exits sample several descriptor scales and report a profile by skill. [CEFR Companion Volume, chapters 2–3](https://rm.coe.int/cefr-companion-volume-with-new-descriptors-2020/16809ea0d4) · [Council of Europe descriptors](https://www.coe.int/en/web/common-european-framework-reference-languages/cefr-descriptors)
 
+This is the initial core outline. Commission longer input, feedback-bearing work and independent parallel tasks inside its units before making claims about an implemented B2 pathway. The vocabulary plan gives lexical growth, text and audio ranges and a workload budget. The matrix links each band to existing material, planned tasks, production gaps and pilot evidence. [Vocabulary & Language Coverage Plan](vocabulary-coverage-plan.md) · [CEFR Coverage Matrix](cefr-coverage-matrix.md)
+
 ## How to use each lesson specification
 
 - The unit supplies the stop, story scene and a distinct transfer setting. The **S** or **W** goal gives the communication task in that scene. The outcome across the four goals is the lesson objective. A learner can do the same lesson in Study using its scene brief.

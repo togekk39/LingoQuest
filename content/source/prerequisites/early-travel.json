@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "targets": [
+    {
+      "id": "grammar.present.does-base",
+      "kind": "grammar",
+      "descriptionEs": "Pregunta en presente simple con does, sujeto en tercera persona singular y verbo base."
+    },
+    {
+      "id": "pattern.polite-order",
+      "kind": "pattern",
+      "descriptionEs": "Petición cortés en un local de comida, distinta de expresar un gusto general.",
+      "forms": ["I'd like"]
+    },
+    {
+      "id": "lex.see.vision",
+      "kind": "lexical",
+      "lemma": "see",
+      "senseEs": "Ver a alguien o algo con los ojos.",
+      "forms": ["see", "saw", "seen"]
+    },
+    {
+      "id": "grammar.past.irregular-affirmative",
+      "kind": "grammar",
+      "descriptionEs": "Usar el pasado irregular en una afirmación sobre un hecho terminado."
+    },
+    {
+      "id": "lex.main-entrance.access",
+      "kind": "lexical",
+      "lemma": "main entrance",
+      "senseEs": "Lugar principal por el que se entra.",
+      "forms": ["main entrance"]
+    }
+  ],
+  "lessons": [
+    {
+      "id": "lq-mexico-routines.routine-ask",
+      "chapterId": "mexico",
+      "stages": [
+        {
+          "id": "chapter-preview",
+          "type": "context",
+          "supports": [
+            {
+              "use": "gloss",
+              "target": { "id": "grammar.present.does-base" },
+              "reasonEs": "La traducción de «Does she go every day?» anticipa el sentido de la pregunta."
+            }
+          ]
+        },
+        {
+          "id": "teach-does",
+          "type": "teach",
+          "teaches": [{ "id": "grammar.present.does-base" }],
+          "instructionEs": "Después de does con she, usa go, la forma base. Compara She goes con Does she go?",
+          "exampleEn": "Does she go on Sundays?"
+        },
+        {
+          "id": "market-routine-question",
+          "type": "exercise",
+          "requires": [{ "id": "grammar.present.does-base" }]
+        }
+      ],
+      "paths": [
+        {
+          "id": "story",
+          "requiresLessons": [],
+          "stages": ["chapter-preview", "teach-does", "market-routine-question"]
+        },
+        {
+          "id": "study",
+          "requiresLessons": [],
+          "stages": ["teach-does", "market-routine-question"]
+        }
+      ]
+    },
+    {
+      "id": "lq-cartagena-food.order",
+      "chapterId": "colombia",
+      "stages": [
+        {
+          "id": "chapter-preview",
+          "type": "context",
+          "supports": [
+            {
+              "use": "gloss",
+              "target": { "id": "pattern.polite-order", "form": "I’d like" },
+              "reasonEs": "El diálogo traduce la petición de Mateo. Aquí solo se presenta como contexto."
+            }
+          ]
+        },
+        {
+          "id": "teach-order",
+          "type": "teach",
+          "teaches": [{ "id": "pattern.polite-order", "form": "I'd like" }],
+          "instructionEs": "Usa I’d like para pedir algo ahora. I like expresa un gusto general. Practica la petición con otra bebida.",
+          "exampleEn": "I'd like some water, please."
+        },
+        {
+          "id": "order-a-replacement",
+          "type": "exercise",
+          "requires": [{ "id": "pattern.polite-order", "form": "I’d like" }]
+        },
+        {
+          "id": "check-an-ingredient",
+          "type": "exercise",
+          "requires": [{ "id": "grammar.present.does-base" }]
+        }
+      ],
+      "paths": [
+        {
+          "id": "story",
+          "requiresLessons": [],
+          "stages": ["chapter-preview", "teach-order", "order-a-replacement"]
+        },
+        { "id": "study", "requiresLessons": [], "stages": ["teach-order", "order-a-replacement"] },
+        {
+          "id": "study-with-review",
+          "requiresLessons": ["lq-mexico-routines.routine-ask"],
+          "stages": ["teach-order", "order-a-replacement", "check-an-ingredient"]
+        }
+      ]
+    },
+    {
+      "id": "lq-cusco-past.past-irreg",
+      "chapterId": "peru",
+      "stages": [
+        {
+          "id": "chapter-preview",
+          "type": "context",
+          "supports": [
+            {
+              "use": "gloss",
+              "target": { "id": "lex.see.vision", "form": "see" },
+              "reasonEs": "El diálogo traduce la pregunta con did y la forma base see."
+            }
+          ]
+        },
+        {
+          "id": "teach-past",
+          "type": "teach",
+          "teaches": [{ "id": "grammar.past.irregular-affirmative" }],
+          "instructionEs": "Usa la forma irregular de un verbo para contar un hecho terminado. Por ejemplo, el pasado de buy es bought.",
+          "exampleEn": "I bought fruit yesterday."
+        },
+        {
+          "id": "teach-saw",
+          "type": "teach",
+          "teaches": [
+            { "id": "lex.see.vision", "form": "see" },
+            { "id": "lex.see.vision", "form": "saw" }
+          ],
+          "instructionEs": "Para contar que viste a alguien, cambia see a saw. Practica con una persona distinta.",
+          "exampleEn": "I saw Ana at the market."
+        },
+        {
+          "id": "retell-sighting",
+          "type": "exercise",
+          "requires": [
+            { "id": "lex.see.vision", "form": "saw" },
+            { "id": "grammar.past.irregular-affirmative" }
+          ],
+          "supports": [
+            {
+              "use": "inferable",
+              "target": { "id": "lex.main-entrance.access", "form": "main entrance" },
+              "reasonEs": "Un plano indica la entrada. La ubicación es un detalle opcional que queda fuera de la calificación."
+            }
+          ]
+        }
+      ],
+      "paths": [
+        {
+          "id": "story",
+          "requiresLessons": [],
+          "stages": ["chapter-preview", "teach-past", "teach-saw", "retell-sighting"]
+        },
+        {
+          "id": "study",
+          "requiresLessons": [],
+          "stages": ["teach-past", "teach-saw", "retell-sighting"]
+        }
+      ]
+    }
+  ]
+}

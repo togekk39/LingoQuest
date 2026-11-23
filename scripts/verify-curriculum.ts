@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import {
   chapterCatalogSchema,
   parseChapterPack,
@@ -20,6 +20,11 @@ import {
   travelLesson,
   travelPracticeSteps,
 } from '../packages/offline-engine/src/travel-content';
+import {
+  checkPrerequisites,
+  prerequisiteFileSchema,
+  type CurriculumLesson,
+} from '../packages/course-pack/src/prerequisites';
 import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
 
 const root = new URL('../', import.meta.url);
@@ -356,6 +361,40 @@ async function verifyPublishedContent(inventory: boolean) {
     });
 }
 
+async function verifyPrerequisiteAnnotations(plan: ReturnType<typeof readPlan>) {
+  const directory = new URL('content/source/prerequisites/', root);
+  const names = (await readdir(directory)).filter((name) => name.endsWith('.json')).sort();
+  assert.ok(names.length, 'No prerequisite annotations / Faltan anotaciones de requisitos');
+  const files = await Promise.all(
+    names.map(async (name) => {
+      const data = await readFile(new URL(name, directory), 'utf8');
+      try {
+        return prerequisiteFileSchema.parse(JSON.parse(data));
+      } catch (error) {
+        throw new Error('content/source/prerequisites/' + name + '\n' + String(error));
+      }
+    }),
+  );
+  const curriculum = new Map<string, CurriculumLesson>();
+  for (const unit of plan.units) {
+    for (const id of unit.lessonIds)
+      curriculum.set(id, { chapterId: unit.stop, order: curriculum.size });
+  }
+  const issues = checkPrerequisites(files, curriculum);
+  if (issues.length) throw new Error(issues.join('\n'));
+  const annotated = files.flatMap((file) => file.lessons);
+  assert.ok(annotated.length, 'No annotated lessons / Faltan lecciones anotadas');
+  console.log(
+    'Prerequisites checked / Requisitos verificados: ' +
+      annotated.length +
+      '/' +
+      plan.lessons.size +
+      ' annotated lessons/lecciones anotadas, ' +
+      annotated.reduce((count, lesson) => count + lesson.paths.length, 0) +
+      ' paths/rutas.',
+  );
+}
+
 async function main() {
   const [english, spanish] = await Promise.all([
     read('docs/curriculum/curriculum-master-plan.md'),
@@ -367,7 +406,21 @@ async function main() {
     plan,
     'Plan structure differs by locale / La estructura del plan difiere por idioma',
   );
-  await verifyPublishedContent(process.argv.includes('--inventory'));
+  const inventory = process.argv.includes('--inventory');
+  if (inventory) {
+    const focalEntries = Object.fromEntries(
+      bands.map((band) => [
+        band,
+        plan.units
+          .filter((unit) => unit.band === band)
+          .flatMap((unit) => unit.lessonIds)
+          .reduce((total, id) => total + plan.lessons.get(id)!.newWords.length, 0),
+      ]),
+    );
+    console.log('Planned focal entries / Entradas clave previstas:', focalEntries);
+  }
+  await verifyPrerequisiteAnnotations(plan);
+  await verifyPublishedContent(inventory);
   console.log(
     'Curriculum verified / Currículo verificado: ' +
       plan.units.length +

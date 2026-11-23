@@ -18,6 +18,8 @@ La ruta ofrece la secuencia recomendada. Se puede empezar en Pre-A1 sin conocimi
 
 El volumen complementario del Consejo de Europa orienta la ruta hacia la recepción, la producción, la interacción y la mediación. Las etiquetas de las paradas indican niveles del currículo. Cada lección define un resultado observable en cada una de cuatro habilidades. Las salidas de nivel toman muestras de varias escalas de descriptores y muestran un perfil por habilidad. [Volumen complementario, capítulos 2–3](https://rm.coe.int/cefr-companion-volume-with-new-descriptors-2020/16809ea0d4) · [Versiones, incluida la traducción al español](https://www.coe.int/en/web/common-european-framework-reference-languages/cefr-companion-volume-and-its-language-versions)
 
+Esta es la estructura central inicial. Encarga insumos más extensos, actividades con retroalimentación y tareas paralelas independientes dentro de las unidades antes de afirmar que existe un recorrido B2 implementado. El plan de vocabulario define crecimiento léxico, extensión de textos y audios y carga. La matriz vincula cada nivel con material existente, tareas previstas, brechas y evidencia de pilotos. [Plan de vocabulario](vocabulary-coverage-plan.es-419.md) · [Matriz de cobertura](cefr-coverage-matrix.es-419.md)
+
 ## Cómo usar las especificaciones
 
 - La unidad define la parada, la escena y un contexto distinto de transferencia. La meta **S** o **W** indica la tarea comunicativa de la escena. El objetivo de la lección reúne los resultados de las cuatro metas. Se puede cursar la misma lección en Estudio mediante una ficha breve de la escena.
