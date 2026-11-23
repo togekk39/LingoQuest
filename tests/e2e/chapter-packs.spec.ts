@@ -54,12 +54,19 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
 
   await page.goto('/');
   const backdrop = page.getByTestId('chapter-transfer-backdrop');
+  const artwork = page.getByTestId('chapter-transfer-artwork').locator('img');
   const progress = page.getByRole('progressbar', exact('Descarga del capítulo'));
   await expect(page.getByRole('heading', exact('La primera postal'))).toBeVisible();
   expect(await backdrop.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 740 });
+  await expect(artwork).toHaveAttribute('src', /\/atlas-portrait\./);
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
   await expect(page.getByText('Descargando capítulo…', { exact: true })).toBeVisible();
   await expect(page.getByText('50 %', { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 740, height: 390 });
+  await expect(artwork).toHaveAttribute('src', /\/atlas\./);
+  await expect(progress).toHaveAttribute('aria-valuenow', '50');
+  await page.setViewportSize({ width: 390, height: 740 });
+  await expect(artwork).toHaveAttribute('src', /\/atlas-portrait\./);
   await page.evaluate(() => window.dispatchEvent(new Event('finish-home-transfer')));
   const adventure = page.getByRole('button', exact('Comenzar mi aventura'));
   await expect(adventure).toBeVisible();
@@ -107,6 +114,10 @@ test('continuing to chapter two keeps chapter one until the new pack is verified
     y: 0,
     ...page.viewportSize(),
   });
+  const artwork = page.getByTestId('chapter-transfer-artwork').locator('img');
+  await expect(artwork).toHaveAttribute('src', /\/writing\./);
+  await page.setViewportSize({ width: 390, height: 740 });
+  await expect(artwork).toHaveAttribute('src', /\/writing-portrait\./);
   await expect(page.getByRole('alert')).toContainText('La descarga del capítulo está incompleta');
   expect(await savedChapters(page)).toContain('home');
   expect(await savedChapters(page)).not.toContain('mexico');

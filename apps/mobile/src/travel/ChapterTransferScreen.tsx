@@ -1,8 +1,17 @@
 import React from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { ArrowLeft, Download, RotateCw, TriangleAlert } from 'lucide-react-native';
 import atlas from '../../assets/journal/atlas.jpg';
+import atlasPortrait from '../../assets/journal/atlas-portrait.jpg';
 import writing from '../../assets/journal/writing.jpg';
+import writingPortrait from '../../assets/journal/writing-portrait.jpg';
 import { JournalLeaf, PaperGrain } from '../Journal';
 import { useTheme } from '../theme';
 import { Button, Label, ProgressBar } from '../ui';
@@ -11,6 +20,11 @@ export type ChapterTransferFailure = { title: string; detail: string };
 
 export function ChapterTransferBackdrop({ failed }: { failed: boolean }) {
   const { colors, mode } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const portrait = height > width;
+  const shortPortrait = portrait && width < 360 && height < 670;
+  const portraitArtwork = failed ? writingPortrait : atlasPortrait;
+  const landscapeArtwork = failed ? writing : atlas;
   return (
     <View
       testID="chapter-transfer-backdrop"
@@ -18,7 +32,20 @@ export function ChapterTransferBackdrop({ failed }: { failed: boolean }) {
       aria-hidden
       style={StyleSheet.absoluteFill}
     >
-      <Image source={failed ? writing : atlas} resizeMode="cover" style={styles.backdropImage} />
+      {portrait && (
+        <Image
+          source={portraitArtwork}
+          resizeMode="cover"
+          blurRadius={28}
+          style={styles.backdropImage}
+        />
+      )}
+      <Image
+        testID="chapter-transfer-artwork"
+        source={portrait ? portraitArtwork : landscapeArtwork}
+        resizeMode={portrait ? 'contain' : 'cover'}
+        style={[styles.backdropImage, shortPortrait && styles.shortPortraitArtwork]}
+      />
       <View
         style={[
           StyleSheet.absoluteFill,
@@ -43,6 +70,8 @@ export function ChapterTransferScreen({
   onBack: () => void;
 }) {
   const { colors, tone } = useTheme();
+  const { width } = useWindowDimensions();
+  const compact = width < 360;
   const status =
     percent === undefined
       ? 'Preparando descarga…'
@@ -51,13 +80,20 @@ export function ChapterTransferScreen({
         : 'Descargando capítulo…';
 
   return (
-    <JournalLeaf compact kind="notebook" style={[styles.card, { borderColor: colors.line }]}>
+    <JournalLeaf
+      compact
+      kind="notebook"
+      style={[styles.card, compact && styles.compactCard, { borderColor: colors.line }]}
+    >
       <PaperGrain />
       <View style={styles.eyebrow}>
         <Download size={15} color={colors.accent} />
         <Text style={[styles.section, { color: colors.accent }]}>Recursos sin conexión</Text>
       </View>
-      <Text accessibilityRole="header" style={[styles.title, { color: colors.ink }]}>
+      <Text
+        accessibilityRole="header"
+        style={[styles.title, compact && styles.compactTitle, { color: colors.ink }]}
+      >
         {title}
       </Text>
       {error ? (
@@ -102,7 +138,8 @@ export function ChapterTransferScreen({
                 <ActivityIndicator accessible={false} color={colors.teal} />
               ) : (
                 <Text aria-hidden style={[styles.percent, { color: colors.teal }]}>
-                  {percent} %
+                  {percent}
+                  {'\u00a0'}%
                 </Text>
               )}
             </View>
@@ -124,7 +161,8 @@ export function ChapterTransferScreen({
 }
 
 const styles = StyleSheet.create({
-  backdropImage: { width: '100%', height: '100%' },
+  backdropImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  shortPortraitArtwork: { height: '84%' },
   card: {
     alignSelf: 'center',
     width: '100%',
@@ -134,6 +172,7 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
   },
+  compactCard: { padding: 14, gap: 9 },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   section: {
     flexShrink: 1,
@@ -143,6 +182,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   title: { fontFamily: 'LoraBold', fontSize: 30 },
+  compactTitle: { fontSize: 25 },
   panel: { gap: 9, padding: 12, borderWidth: 1, borderRadius: 8 },
   progressHeader: {
     flexDirection: 'row',
