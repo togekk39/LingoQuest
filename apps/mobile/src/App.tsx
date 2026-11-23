@@ -38,7 +38,11 @@ import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
 import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
 import { ChapterPackView } from './travel/ChapterPackView';
-import { ChapterTransferScreen, type ChapterTransferFailure } from './travel/ChapterTransferScreen';
+import {
+  ChapterTransferBackdrop,
+  ChapterTransferScreen,
+  type ChapterTransferFailure,
+} from './travel/ChapterTransferScreen';
 import {
   ChapterDownloadError,
   downloadChapter,
@@ -596,9 +600,11 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     storySession.current++;
     setStory(null);
   }
+  const shellBackground = chapterTransfer ? `${C.white}EB` : C.white;
+  const shellSurface = { backgroundColor: shellBackground };
   const nav = (
-    <View style={desktop ? s.desktopNav : s.mobileNav}>
-      {!desktop && <PaperEdge edge="top" tint={C.white} />}
+    <View style={desktop ? s.desktopNav : [s.mobileNav, shellSurface]}>
+      {!desktop && <PaperEdge edge="top" tint={shellBackground} />}
       {tabs.map(({ id, icon: Icon }) => (
         <Pressable
           key={id}
@@ -629,11 +635,15 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   );
   return (
     <SafeAreaView style={s.safe}>
-      <PaperGrain />
+      {chapterTransfer ? (
+        <ChapterTransferBackdrop failed={!!chapterTransfer.error} />
+      ) : (
+        <PaperGrain />
+      )}
       <View style={s.layout}>
         {desktop && (
-          <View style={s.sidebar}>
-            <PaperEdge edge="right" tint={C.white} />
+          <View style={[s.sidebar, shellSurface]}>
+            <PaperEdge edge="right" tint={shellBackground} />
             <View style={s.sidebarBrand}>
               <JournalBrand />
             </View>
@@ -645,8 +655,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={s.topbar}>
-            <PaperEdge edge="bottom" tint={C.white} />
+          <View style={[s.topbar, shellSurface]}>
+            <PaperEdge edge="bottom" tint={shellBackground} />
             {desktop ? (
               <Text style={[s.sectionLabel, { color: C.accent }]}>{tab}</Text>
             ) : (
@@ -1004,7 +1014,6 @@ function useStyles() {
       width: 218,
       paddingHorizontal: 16,
       paddingBottom: 18,
-      backgroundColor: C.white,
       zIndex: 1,
     },
     sidebarBrand: {
@@ -1030,7 +1039,6 @@ function useStyles() {
       flexDirection: 'row',
       padding: 4,
       gap: 3,
-      backgroundColor: C.white,
       zIndex: 1,
     },
     mobileTab: {
@@ -1055,7 +1063,6 @@ function useStyles() {
     },
     topbar: {
       minHeight: 61,
-      backgroundColor: C.white,
       zIndex: 1,
       paddingHorizontal: 14,
       paddingVertical: 6,
@@ -1067,7 +1074,7 @@ function useStyles() {
     },
     iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     content: { flexGrow: 1, width: '100%', maxWidth: 1350, alignSelf: 'center' },
-    transferContent: { justifyContent: 'center' },
+    transferContent: { justifyContent: 'flex-end' },
     loading: { gap: 14, minHeight: 170, alignItems: 'center', justifyContent: 'center' },
     notice: { padding: 10, color: C.ink, backgroundColor: C.mint, fontFamily: 'Manrope' },
     shade: {
