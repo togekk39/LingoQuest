@@ -33,14 +33,20 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
       if (new URL(response.url).pathname !== '/chapter-packs/2/home.json') return response;
       const bytes = new Uint8Array(await response.arrayBuffer());
       const middle = Math.ceil(bytes.length / 2);
+      const nextChunk = middle + 25_000;
       return new Response(
         new ReadableStream({
           start(controller) {
             controller.enqueue(bytes.subarray(0, middle));
             window.addEventListener(
+              'advance-home-transfer',
+              () => controller.enqueue(bytes.subarray(middle, nextChunk)),
+              { once: true },
+            );
+            window.addEventListener(
               'finish-home-transfer',
               () => {
-                controller.enqueue(bytes.subarray(middle));
+                controller.enqueue(bytes.subarray(nextChunk));
                 controller.close();
               },
               { once: true },
@@ -62,9 +68,15 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
   await expect(page.getByText('Descargando capítulo…', { exact: true })).toBeVisible();
   await expect(page.getByText('50 %', { exact: true })).toBeVisible();
+  await expect(page.getByText('2.6 MB de 5.2 MB', { exact: true })).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('advance-home-transfer')));
+  const size = page.getByText('2.63 MB de 5.2 MB', { exact: true });
+  await expect(size).toBeVisible();
+  await expect(progress).toHaveAttribute('aria-valuenow', '50');
   await page.setViewportSize({ width: 740, height: 390 });
   await expect(artwork).toHaveAttribute('src', /\/atlas\./);
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
+  await expect(size).toBeVisible();
   await page.setViewportSize({ width: 390, height: 740 });
   await expect(artwork).toHaveAttribute('src', /\/atlas-portrait\./);
   await page.evaluate(() => window.dispatchEvent(new Event('finish-home-transfer')));

@@ -13,10 +13,19 @@ import atlasPortrait from '../../assets/journal/atlas-portrait.jpg';
 import writing from '../../assets/journal/writing.jpg';
 import writingPortrait from '../../assets/journal/writing-portrait.jpg';
 import { JournalLeaf, PaperGrain } from '../Journal';
+import type { ChapterDownloadProgress } from '../lib/chapterPacks';
 import { useTheme } from '../theme';
 import { Button, Label, ProgressBar } from '../ui';
 
 export type ChapterTransferFailure = { title: string; detail: string };
+
+const sizeFormat = new Intl.NumberFormat('es-419', { maximumFractionDigits: 2 });
+
+function formatFileSize(bytes: number) {
+  if (bytes >= 1_000_000) return `${sizeFormat.format(bytes / 1_000_000)} MB`;
+  if (bytes >= 1_000) return `${sizeFormat.format(bytes / 1_000)} kB`;
+  return `${bytes} B`;
+}
 
 export function ChapterTransferBackdrop({ failed }: { failed: boolean }) {
   const { colors, mode } = useTheme();
@@ -58,13 +67,13 @@ export function ChapterTransferBackdrop({ failed }: { failed: boolean }) {
 
 export function ChapterTransferScreen({
   title,
-  percent,
+  progress,
   error,
   onRetry,
   onBack,
 }: {
   title: string;
-  percent?: number;
+  progress?: ChapterDownloadProgress;
   error?: ChapterTransferFailure;
   onRetry: () => void;
   onBack: () => void;
@@ -72,6 +81,7 @@ export function ChapterTransferScreen({
   const { colors, tone } = useTheme();
   const { width } = useWindowDimensions();
   const compact = width < 360;
+  const percent = progress && Math.floor((progress.receivedBytes / progress.totalBytes) * 100);
   const status =
     percent === undefined
       ? 'Preparando descarga…'
@@ -143,12 +153,17 @@ export function ChapterTransferScreen({
                 </Text>
               )}
             </View>
-            {percent !== undefined && (
-              <ProgressBar
-                value={percent / 100}
-                height={8}
-                accessibilityLabel="Descarga del capítulo"
-              />
+            {progress && percent !== undefined && (
+              <>
+                <ProgressBar
+                  value={percent / 100}
+                  height={8}
+                  accessibilityLabel="Descarga del capítulo"
+                />
+                <Text style={[styles.size, { color: colors.teal }]}>
+                  {formatFileSize(progress.receivedBytes)} de {formatFileSize(progress.totalBytes)}
+                </Text>
+              </>
             )}
           </View>
           <Label style={styles.detail}>
@@ -193,6 +208,7 @@ const styles = StyleSheet.create({
   errorTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   status: { flexShrink: 1, fontFamily: 'ManropeBold', fontSize: 15 },
   percent: { fontFamily: 'ManropeBold', fontSize: 20, fontVariant: ['tabular-nums'] },
+  size: { fontFamily: 'Manrope', fontSize: 12, fontVariant: ['tabular-nums'], textAlign: 'right' },
   detail: { fontFamily: 'Manrope', fontSize: 13, lineHeight: 21 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 });

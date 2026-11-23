@@ -50,6 +50,7 @@ import {
   getCurrentChapter,
   getInstalledChapter,
   secondChapter,
+  type ChapterDownloadProgress,
 } from './lib/chapterPacks';
 import {
   applyDownloadedContent,
@@ -80,7 +81,7 @@ type AfterOrigin = (journey: TravelState) => Promise<void> | void;
 type ChapterTransfer = {
   id: string;
   open: boolean;
-  percent?: number;
+  progress?: ChapterDownloadProgress;
   error?: ChapterTransferFailure;
 };
 
@@ -150,7 +151,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       const pack =
         installed && (id !== firstChapter.id || installed.story?.runtime)
           ? installed
-          : await downloadChapter(id, (percent) => setChapterTransfer({ id, open, percent }));
+          : await downloadChapter(id, (progress) => setChapterTransfer({ id, open, progress }));
       if (id === firstChapter.id && !pack.story?.runtime)
         throw new ChapterDownloadError('La aventura todavía no está disponible. Vuelve más tarde.');
 
@@ -695,7 +696,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                     ? chapter.title
                     : (route.find(({ id }) => id === chapterTransfer.id)?.name ?? 'Capítulo')
                 }
-                percent={chapterTransfer.percent}
+                progress={chapterTransfer.progress}
                 error={chapterTransfer.error}
                 onRetry={() => void prepareChapter(chapterTransfer.id, chapterTransfer.open)}
                 onBack={() => setChapterTransfer(undefined)}

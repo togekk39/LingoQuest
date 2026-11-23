@@ -24,10 +24,11 @@ const destinations = new Map(route.map((destination) => [destination.id, destina
 export const [firstChapter, secondChapter] = route;
 export class ChapterDownloadError extends Error {}
 
-type ProgressListener = (percent: number) => void;
+export type ChapterDownloadProgress = { receivedBytes: number; totalBytes: number };
+type ProgressListener = (progress: ChapterDownloadProgress) => void;
 type Download = {
   operation: Promise<ChapterPack>;
-  percent?: number;
+  progress?: ChapterDownloadProgress;
   listeners: Set<ProgressListener>;
 };
 const downloads = new Map<string, Download>();
@@ -83,7 +84,7 @@ async function fetchChapterFile(
   path: string,
   maxBytes: number,
   expectedBytes?: number,
-  onProgress?: ProgressListener,
+  onBytesReceived?: (receivedBytes: number) => void,
 ) {
   const url = baseUrl + path;
   const controller = new AbortController();
@@ -110,8 +111,6 @@ async function fetchChapterFile(
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let length = 0;
-    let percent = 0;
-    onProgress?.(percent);
     try {
       for (;;) {
         const item = await reader.read();
@@ -120,10 +119,7 @@ async function fetchChapterFile(
         if (length > maxBytes)
           throw new ChapterDownloadError('El archivo del capítulo supera el tamaño permitido.');
         chunks.push(item.value);
-        if (expectedBytes && onProgress) {
-          const next = Math.floor((length / expectedBytes) * 100);
-          if (next !== percent) onProgress((percent = next));
-        }
+        onBytesReceived?.(length);
       }
     } finally {
       await reader.cancel().catch(() => {});
@@ -164,11 +160,13 @@ async function fetchChapter(id: string, onProgress: ProgressListener) {
   if (!entry) throw new ChapterDownloadError('Este capítulo no está disponible para descargar.');
   const installed = await getInstalledChapter(id);
   if (installed && installed.revision >= entry.revision) return installed;
+  const totalBytes = entry.sizeBytes;
+  onProgress({ receivedBytes: 0, totalBytes });
   const bytes = await fetchChapterFile(
     `${entry.revision}/${id}.json`,
-    entry.sizeBytes,
-    entry.sizeBytes,
-    onProgress,
+    totalBytes,
+    totalBytes,
+    (receivedBytes) => onProgress({ receivedBytes, totalBytes }),
   );
   if (sha256Hex(bytes) !== entry.sha256)
     throw new ChapterDownloadError('La descarga del capítulo está dañada.');
@@ -194,9 +192,9 @@ export function downloadChapter(id: string, onProgress?: ProgressListener): Prom
     const listeners = new Set<ProgressListener>();
     const transfer: Download = {
       listeners,
-      operation: fetchChapter(id, (percent) => {
-        transfer.percent = percent;
-        for (const listener of listeners) listener(percent);
+      operation: fetchChapter(id, (progress) => {
+        transfer.progress = progress;
+        for (const listener of listeners) listener(progress);
       }).finally(() => downloads.delete(id)),
     };
     download = transfer;
@@ -204,7 +202,7 @@ export function downloadChapter(id: string, onProgress?: ProgressListener): Prom
   }
   if (onProgress) {
     download.listeners.add(onProgress);
-    if (download.percent !== undefined) onProgress(download.percent);
+    if (download.progress) onProgress(download.progress);
   }
   return download.operation;
 }
