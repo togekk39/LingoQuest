@@ -38,7 +38,9 @@ import { getRaw } from './lib/storage';
 import { saveTextFile } from './lib/localFiles';
 import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
 import { ChapterPackView } from './travel/ChapterPackView';
+import { ChapterTransferView } from './travel/ChapterTransferView';
 import {
+  ChapterPackError,
   downloadChapter,
   firstChapter,
   getCurrentChapter,
@@ -133,6 +135,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const prepareChapter = useCallback(async (id: string, open: boolean) => {
     if (transferring.current) return;
     transferring.current = true;
+    scroll.current?.scrollTo({ y: 0, animated: false });
     setChapterTransfer({ id, open });
     try {
       const installed = await getInstalledChapter(id);
@@ -141,7 +144,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           ? installed
           : await downloadChapter(id, (percent) => setChapterTransfer({ id, open, percent }));
       if (id === firstChapter.id && !pack.story?.runtime)
-        throw new Error('La aventura todavía no está disponible. Inténtalo de nuevo más tarde.');
+        throw new ChapterPackError('La aventura todavía no está disponible. Inténtalo más tarde.');
 
       const ready = await applyDownloadedContent(pack);
       if (open && id === secondChapter.id) {
@@ -166,9 +169,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         id,
         open,
         error:
-          failure instanceof Error
+          failure instanceof ChapterPackError
             ? failure.message
-            : 'No pudimos preparar el capítulo. Inténtalo de nuevo.',
+            : 'Vuelve a intentarlo. Si el problema sigue, comprueba que tengas espacio libre en el dispositivo.',
       });
     } finally {
       transferring.current = false;
@@ -664,30 +667,18 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
             contentContainerStyle={[s.content, { padding: desktop ? 31 : 15 }]}
           >
             {chapterTransfer ? (
-              <JournalLeaf style={{ gap: 12 }}>
-                <Heading>
-                  {chapterTransfer.id === firstChapter.id
+              <ChapterTransferView
+                title={
+                  chapterTransfer.id === firstChapter.id
                     ? chapter.title
-                    : route.find(({ id }) => id === chapterTransfer.id)?.name}
-                </Heading>
-                {chapterTransfer.error ? (
-                  <>
-                    <Text accessibilityRole="alert" style={{ color: C.red }}>
-                      {chapterTransfer.error}
-                    </Text>
-                    <Button
-                      onPress={() => void prepareChapter(chapterTransfer.id, chapterTransfer.open)}
-                    >
-                      Reintentar
-                    </Button>
-                    <Button variant="ghost" onPress={() => setChapterTransfer(undefined)}>
-                      Volver
-                    </Button>
-                  </>
-                ) : (
-                  <ChapterProgress percent={chapterTransfer.percent} />
-                )}
-              </JournalLeaf>
+                    : (route.find(({ id }) => id === chapterTransfer.id)?.name ?? 'Capítulo')
+                }
+                firstChapter={chapterTransfer.id === firstChapter.id}
+                percent={chapterTransfer.percent}
+                error={chapterTransfer.error}
+                onRetry={() => void prepareChapter(chapterTransfer.id, chapterTransfer.open)}
+                onBack={() => setChapterTransfer(undefined)}
+              />
             ) : loading ? (
               <View style={s.loading}>
                 <ActivityIndicator color={C.accent} />
@@ -873,36 +864,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       {settingsSheet}
       {nameSheet}
     </SafeAreaView>
-  );
-}
-
-function ChapterProgress({ percent }: { percent?: number }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ gap: 8 }}>
-      <Text accessibilityLiveRegion="polite" style={{ color: colors.teal }}>
-        {percent === undefined
-          ? 'Preparando descarga…'
-          : percent === 100
-            ? 'Guardando capítulo…'
-            : `Descargando capítulo… ${percent} %`}
-      </Text>
-      {percent === undefined ? (
-        <ActivityIndicator color={colors.teal} />
-      ) : (
-        <View
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel="Descarga del capítulo"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-          style={{ height: 8, borderRadius: 4, backgroundColor: colors.mint, overflow: 'hidden' }}
-        >
-          <View style={{ width: `${percent}%`, height: '100%', backgroundColor: colors.teal }} />
-        </View>
-      )}
-    </View>
   );
 }
 

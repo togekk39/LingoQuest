@@ -31,6 +31,8 @@ type Download = {
 const downloads = new Map<string, Download>();
 let lastRead: { text: string; pack: ChapterPack } | undefined;
 
+export class ChapterPackError extends Error {}
+
 function parseStored(id: string, text: string | null) {
   if (text === null) return null;
   if (lastRead?.pack.chapterId === id && lastRead.text === text) return lastRead.pack;
@@ -67,12 +69,12 @@ async function saveChapter(id: string, text: string, pack: ChapterPack) {
   let installed = pack;
   const destination = destinations.get(id);
   if (pack.unit?.id !== destination?.unitId)
-    throw new Error('El contenido del paquete no corresponde a este capítulo.');
+    throw new ChapterPackError('El contenido del paquete no corresponde a este capítulo.');
   const committed = await writeChapterPack(id, text, (previous) => {
     const current = parseStored(id, previous);
     if (!current || current.revision < pack.revision) return true;
     if (current.revision === pack.revision && current.sha256 !== pack.sha256)
-      throw new Error('Ya tienes un paquete diferente con esta versión.');
+      throw new ChapterPackError('Ya tienes un paquete diferente con esta versión.');
     installed = current;
     return false;
   });
@@ -105,12 +107,14 @@ async function fetchChapterFile(
             headers: { ...options.headers, 'Cache-Control': 'no-cache' },
           });
     } catch {
-      throw new Error('No pudimos descargar el capítulo. Revisa tu conexión e inténtalo de nuevo.');
+      throw new ChapterPackError('Revisa tu conexión a internet y vuelve a intentarlo.');
     }
     if (!response.ok || !response.body)
-      throw new Error('La descarga del capítulo no está disponible en este momento.');
+      throw new ChapterPackError(
+        'El paquete no está disponible en este momento. Inténtalo más tarde.',
+      );
     if (Number(response.headers.get('content-length')) > maxBytes)
-      throw new Error('El archivo del capítulo supera el tamaño permitido.');
+      throw new ChapterPackError('El archivo del capítulo supera el tamaño permitido.');
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let length = 0;
@@ -118,11 +122,15 @@ async function fetchChapterFile(
     onProgress?.(percent);
     try {
       for (;;) {
-        const item = await reader.read();
+        const item = await reader.read().catch(() => {
+          throw new ChapterPackError(
+            'La conexión se interrumpió. Revisa tu conexión y vuelve a intentarlo.',
+          );
+        });
         if (item.done) break;
         length += item.value.length;
         if (length > maxBytes)
-          throw new Error('El archivo del capítulo supera el tamaño permitido.');
+          throw new ChapterPackError('El archivo del capítulo supera el tamaño permitido.');
         chunks.push(item.value);
         if (expectedBytes && onProgress) {
           const next = Math.floor((length / expectedBytes) * 100);
@@ -133,7 +141,7 @@ async function fetchChapterFile(
       await reader.cancel().catch(() => {});
     }
     if (expectedBytes !== undefined && length !== expectedBytes)
-      throw new Error('La descarga del capítulo está incompleta. Inténtalo de nuevo.');
+      throw new ChapterPackError('La descarga del capítulo está incompleta. Inténtalo de nuevo.');
     const bytes = new Uint8Array(length);
     let offset = 0;
     for (const chunk of chunks) {
@@ -143,7 +151,9 @@ async function fetchChapterFile(
     return bytes;
   } catch (error) {
     if (controller.signal.aborted)
-      throw new Error('La descarga tardó demasiado. Inténtalo de nuevo.');
+      throw new ChapterPackError(
+        'La descarga tardó demasiado. Vuelve a intentarlo con una conexión estable.',
+      );
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -151,18 +161,18 @@ async function fetchChapterFile(
 }
 
 async function fetchChapter(id: string, onProgress: ProgressListener) {
-  if (!destinations.has(id)) throw new Error('No encontramos este capítulo.');
+  if (!destinations.has(id)) throw new ChapterPackError('No encontramos este capítulo.');
   const source = await fetchChapterFile('catalog.json', MAX_CHAPTER_CATALOG_BYTES);
   let value: unknown;
   try {
     value = JSON.parse(new TextDecoder().decode(source));
   } catch {
-    throw new Error('No pudimos leer el catálogo de capítulos. Inténtalo de nuevo.');
+    throw new ChapterPackError('No pudimos leer el catálogo de capítulos. Inténtalo de nuevo.');
   }
   const catalog = chapterCatalogSchema.safeParse(value);
-  if (!catalog.success) throw new Error('El catálogo de capítulos no es compatible.');
+  if (!catalog.success) throw new ChapterPackError('El catálogo de capítulos no es compatible.');
   const entry = catalog.data.chapters[id];
-  if (!entry) throw new Error('Este capítulo no está disponible para descargar.');
+  if (!entry) throw new ChapterPackError('Este capítulo no está disponible para descargar.');
   const installed = await getInstalledChapter(id);
   if (installed && installed.revision >= entry.revision) return installed;
   const bytes = await fetchChapterFile(
@@ -172,11 +182,16 @@ async function fetchChapter(id: string, onProgress: ProgressListener) {
     onProgress,
   );
   if (sha256Hex(bytes) !== entry.sha256)
-    throw new Error('La descarga del capítulo está dañada. Inténtalo de nuevo.');
+    throw new ChapterPackError('La descarga del capítulo está dañada. Inténtalo de nuevo.');
   const text = new TextDecoder().decode(bytes);
-  const pack = parseChapterPack(text, id);
+  let pack: ChapterPack;
+  try {
+    pack = parseChapterPack(text, id);
+  } catch {
+    throw new ChapterPackError('El paquete del capítulo no es compatible. Inténtalo más tarde.');
+  }
   if (pack.revision !== entry.revision)
-    throw new Error('El archivo del capítulo no coincide con el catálogo publicado.');
+    throw new ChapterPackError('El archivo del capítulo no coincide con el catálogo publicado.');
   return saveChapter(id, text, pack);
 }
 

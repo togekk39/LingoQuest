@@ -1,6 +1,6 @@
 import type { ChapterPack } from '@lingoquest/course-pack';
 import type { Page } from '@playwright/test';
-import { click, enterApp, exact, expect, readyOfflineShell, state, test } from './helpers';
+import { capture, click, enterApp, exact, expect, readyOfflineShell, state, test } from './helpers';
 
 async function savedChapters(page: Page) {
   return page.evaluate(
@@ -24,6 +24,7 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
   context,
   networkGuard,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     localStorage.setItem('lq_setting:onboarded', 'true');
     const fetchFile = window.fetch.bind(window);
@@ -54,7 +55,10 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
   await page.goto('/');
   const progress = page.getByRole('progressbar', exact('Descarga del capítulo'));
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
-  await expect(page.getByText('Descargando capítulo… 50 %')).toBeVisible();
+  await expect(page.getByRole('heading', exact('La primera postal'))).toBeVisible();
+  await expect(page.getByText('Descargando capítulo…', { exact: true })).toBeVisible();
+  await expect(page.getByText('50 %', { exact: true })).toBeVisible();
+  await capture(page, 'chapter-transfer-progress');
   await page.evaluate(() => window.dispatchEvent(new Event('finish-home-transfer')));
   const adventure = page.getByRole('button', exact('Comenzar mi aventura'));
   await expect(adventure).toBeVisible();
@@ -76,6 +80,7 @@ test('continuing to chapter two keeps chapter one until the new pack is verified
   context,
   networkGuard,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await enterApp(page);
   await page.evaluate(() => {
     const key = 'lq_offline_state_v1';
@@ -95,7 +100,11 @@ test('continuing to chapter two keeps chapter one until the new pack is verified
     request.fulfill({ body: '{"incomplete":true}', contentType: 'application/json' }),
   );
   await click(page, 'Continuar a Ciudad de México');
-  await expect(page.getByRole('alert')).toContainText('La descarga del capítulo está incompleta');
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('No pudimos preparar el capítulo');
+  await expect(alert).toContainText('La descarga del capítulo está incompleta');
+  await expect(page.getByRole('button', exact('Volver'))).toBeVisible();
+  await capture(page, 'chapter-transfer-error');
   expect(await savedChapters(page)).toContain('home');
   expect(await savedChapters(page)).not.toContain('mexico');
 
@@ -164,7 +173,7 @@ test('opening a destination downloads its lessons and media when needed', async 
   });
   expect(cachedPacks).toBe(0);
   await openLondon();
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Revisa tu conexión a internet');
 
   await context.setOffline(false);
   const transfer = page.waitForResponse((response) =>
