@@ -1,6 +1,7 @@
 import type { Translation } from '@lingoquest/contracts';
 import type { CourseExercise, CourseLesson } from './index';
 import type { LearningTarget } from './travel-learning';
+import { homeChapterDetails } from './travel-route';
 
 export interface TravelVocabulary {
   term: string;
@@ -173,14 +174,8 @@ function adjacentLocation(subjects: string[], reference: string) {
 }
 
 export const chapter: TravelChapter = {
-  id: 'home',
+  ...homeChapterDetails,
   revision: 3,
-  title: 'La primera postal',
-  stamp: 'Primer encuentro',
-  postcard: 'Una postal para el camino',
-  message:
-    'Hoy di indicaciones en inglés en mi propio barrio. A veces un viaje empieza cuando te animas a hablar con alguien.',
-  collectible: 'La postal de Sam',
   missions: [
     {
       id: 'hello',

@@ -1,11 +1,27 @@
 import { sha256Hex } from '@lingoquest/course-pack';
 import { Directory, File, Paths } from 'expo-file-system';
-import { compareAndPutRaw, getRaw } from './storage';
+import { compareAndPutRaw, getRaw, putRawAndRemove } from './storage';
 
 const keyPrefix = 'lq_chapter_pack:';
+const currentChapterKey = 'lq_current_chapter';
 
 export function readChapterPack(chapterId: string) {
   return getRaw(keyPrefix + chapterId);
+}
+
+export function readCurrentChapter() {
+  return getRaw(currentChapterKey);
+}
+
+export async function replaceCurrentChapter(previousId: string, nextId: string) {
+  const directories = [
+    new Directory(Paths.cache, 'chapter-media-v2', previousId),
+    new Directory(Paths.cache, 'chapter-media'),
+  ];
+  for (const directory of directories) {
+    if (directory.exists) directory.delete();
+  }
+  await putRawAndRemove(currentChapterKey, nextId, keyPrefix + previousId);
 }
 
 export async function writeChapterPack(
@@ -28,11 +44,11 @@ const extensions = new Map([
   ['image/webp', 'webp'],
 ]);
 
-export async function chapterMediaUri(mimeType: string, dataBase64: string) {
+export async function chapterMediaUri(chapterId: string, mimeType: string, dataBase64: string) {
   const extension = extensions.get(mimeType);
   if (!extension) throw new Error('Este formato de archivo no es compatible.');
 
-  const directory = new Directory(Paths.cache, 'chapter-media');
+  const directory = new Directory(Paths.cache, 'chapter-media-v2', chapterId);
   directory.create({ idempotent: true, intermediates: true });
   const name = `${sha256Hex(dataBase64)}.${extension}`;
   const file = new File(directory, name);

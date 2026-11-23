@@ -2,9 +2,9 @@
 
 [Español (Latinoamérica)](CHAPTER_PACKS.es-419.md)
 
-Select a destination in **Mapa** and choose **Descargar capítulo**. The pack contains scenario lessons, illustrations, and English MP3s. It also includes the corresponding A1–A2 course unit at stops 1–8 and the original adventure resources at the first stop. **Abrir capítulo descargado** reads the saved pack, including after restarting offline. **Importar archivo del capítulo** installs a compatible JSON file from the device.
+On first launch, the app downloads **La primera postal** and shows its progress. After the first chapter, **Continuar a Ciudad de México** opens chapter 2. The app downloads and verifies the new pack before removing the first chapter's saved resources. It keeps your missions, stamp, and journal. If the transfer fails, **Reintentar** tries again with the first pack still available.
 
-**Buscar actualización** reads the latest catalog for the selected chapter. Downloads and imports validate the pack before replacing it. The previous revision stays available if a download or installation fails. Chapter packs use IndexedDB on Web and SQLite on Android. Android opens the chapter catalog on first launch. Install revision 2 or later of **La primera postal** to open the adventure, placement, and travel practice. The first eight destination packs supply their individual A1–A2 units. The Web version also provides the starter adventure and original course from the app shell. Learner progress and backups use their existing local storage and IDs.
+Select a destination in **Mapa** and choose **Abrir capítulo** to use its saved pack or download it automatically. Packs contain lessons, illustrations, and English audio. The first eight packs also supply their corresponding A1–A2 units. Packs use IndexedDB on Web and SQLite on Android. The Web app shell also provides the starter adventure and original course. Learner progress and backups use their existing local storage and IDs.
 
 ## Author and publish a content update
 
@@ -16,6 +16,6 @@ Select a destination in **Mapa** and choose **Descargar capítulo**. The pack co
    npm run packs:chapters -- --verify
    ```
 
-3. Publish the new revision file and then the catalog from `apps/mobile/public/chapter-packs/`. Keep paths such as `2/toronto.json` immutable. Serve `catalog.json` with cache revalidation. The Web app requests `/chapter-packs/` from its current origin. Android reads the same directory on the LingoQuest repository’s `main` branch through GitHub Raw. Publishing this directory updates the downloadable lessons without a new Web build or Android APK. The numbered JSON files can also be distributed for offline import.
+3. Publish the new revision file and then the catalog from `apps/mobile/public/chapter-packs/`. Keep paths such as `2/toronto.json` immutable. Serve `catalog.json` with cache revalidation. The Web app requests `/chapter-packs/` from its current origin. Android reads the same directory on the LingoQuest repository’s `main` branch through GitHub Raw. Publishing this directory makes the latest revision available to new downloads. Installed packs are reused offline.
 
-The catalog keeps a revision, byte size, and file SHA-256 for every destination. Each file has its own schema version and content checksum for offline import. Keep `schemaVersion` at `1` for compatible changes, including new lessons, replacement art, and additional audio. App changes are needed when using a new package schema or adding destinations to the map.
+The catalog keeps a revision, byte size, and file SHA-256 for every destination. Each file also has its own schema version and content checksum. Keep `schemaVersion` at `1` for compatible changes, including new lessons, replacement art, and additional audio. App changes are needed when using a new package schema or adding destinations to the map.

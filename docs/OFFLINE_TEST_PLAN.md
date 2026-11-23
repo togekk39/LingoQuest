@@ -6,7 +6,7 @@ Follow the [verification record](VERIFICATION.md) for automated results and limi
 
 ## Android first launch
 
-Install with no local data and open the APK in airplane mode. Verify the chapter catalog and import controls open. Download or import **La primera postal** revision 2 or later, then restart offline and open the adventure, placement, and course.
+Install with no local data and launch the APK while connected. Verify that **La primera postal** downloads automatically and shows its progress. Restart in airplane mode and open the adventure, placement, and course. After earning the first stamp, choose **Continuar a Ciudad de México** in airplane mode. Verify that the app offers **Reintentar** and the first chapter still opens. Reconnect and retry. Verify that chapter 2 opens, the first pack is removed, and the passport and journal entry are still available after an offline restart.
 
 ## Welcome and starting mission
 
@@ -22,7 +22,7 @@ Install with no local data and open the APK in airplane mode. Verify the chapter
 4. Listen to Sam with the bundled audio, try opening the transcript, and type the next indication from its audio. Try the audio comparison after recognition and the microphone-free skip. Check that the alternative leaves speaking ability unassessed. Finish the chapter and check that the passport, postcard, and journal persist with one stamp.
 5. Open **Repaso rápido**, save part of a response, and return to the same step of your journey. Reopen the review and finish the response. After a full day, revisit **Repasar**, finish a due exercise without help, and check the delayed-recall evidence in **Mis habilidades**.
 6. From **Aprender**, open the grammar handbook and compare two patterns. Open **Cursos A1–A2** in airplane mode, consult a reference, and resume an old lesson from a draft.
-7. Choose your place of origin from the map. Check the 20 stops and the destination at Ushuaia and Antarctica. Check that every stop offers a chapter download.
+7. Choose your place of origin from the map. Check the 20 stops and the destination at Ushuaia and Antarctica. Check that **Abrir capítulo** at each stop opens the chapter and downloads the pack if needed.
 
 ## Challenges, backups, and native checks
 

@@ -6,7 +6,7 @@ import {
 } from '@lingoquest/offline-engine';
 import { parseCoursePack, type ChapterPack } from '@lingoquest/course-pack';
 import { applyHomeImages } from '../travel/illustrations.native';
-import { getInstalledChapter } from './chapterPacks';
+import { firstChapter, getInstalledChapter, retireFirstChapter } from './chapterPacks';
 import { getRaw } from './storage';
 
 const emptyCourse: CourseData = {
@@ -70,7 +70,7 @@ async function activate(pack: ChapterPack) {
       placement,
       challenges,
     } as unknown as HomeContent;
-    await applyHomeImages(pack.images);
+    await applyHomeImages(pack.chapterId, pack.images);
     installHomeContent(home);
     courseActivities = originalCourse === emptyCourse ? course : originalCourse;
     homeReady = true;
@@ -83,6 +83,22 @@ async function activate(pack: ChapterPack) {
 
 export function applyDownloadedContent(pack: ChapterPack) {
   const operation = activationTail.then(() => activate(pack));
+  activationTail = operation.catch(() => {});
+  return operation;
+}
+
+export function discardFirstChapterContent() {
+  const operation = activationTail.then(async () => {
+    await retireFirstChapter();
+    installedUnits.delete(firstChapter.id);
+    activated.delete(firstChapter.id);
+    installHomeContent();
+    await applyHomeImages(firstChapter.id, {});
+    courseActivities = originalCourse;
+    refreshCourse();
+    homeReady = false;
+    return homeReady;
+  });
   activationTail = operation.catch(() => {});
   return operation;
 }

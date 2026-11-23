@@ -1,4 +1,5 @@
 const storeName = 'packs';
+const currentChapterKey = '@current';
 let database: Promise<IDBDatabase> | undefined;
 
 function openDatabase() {
@@ -33,6 +34,22 @@ export async function readChapterPack(chapterId: string): Promise<string | null>
   });
 }
 
+export function readCurrentChapter() {
+  return readChapterPack(currentChapterKey);
+}
+
+export async function replaceCurrentChapter(previousId: string, nextId: string) {
+  const db = await openDatabase();
+  return new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    store.put(nextId, currentChapterKey);
+    store.delete(previousId);
+    transaction.oncomplete = () => resolve();
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
 export async function writeChapterPack(
   chapterId: string,
   text: string,
@@ -61,6 +78,6 @@ export async function writeChapterPack(
   });
 }
 
-export async function chapterMediaUri(mimeType: string, dataBase64: string) {
+export async function chapterMediaUri(_chapterId: string, mimeType: string, dataBase64: string) {
   return `data:${mimeType};base64,${dataBase64}`;
 }

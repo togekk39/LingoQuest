@@ -3,21 +3,32 @@ import { Platform } from 'react-native';
 import { route } from '@lingoquest/offline-engine';
 import {
   MAX_CHAPTER_CATALOG_BYTES,
-  MAX_CHAPTER_PACK_BYTES,
   chapterCatalogSchema,
   parseChapterPack,
   sha256Hex,
   type ChapterPack,
 } from '@lingoquest/course-pack';
-import { chapterMediaUri, readChapterPack, writeChapterPack } from './chapterStorage';
-import { pickTextFile } from './localFiles';
+import {
+  chapterMediaUri,
+  readChapterPack,
+  readCurrentChapter,
+  replaceCurrentChapter,
+  writeChapterPack,
+} from './chapterStorage';
 
 const web = Platform.OS === 'web';
 const baseUrl = web
   ? '/chapter-packs/'
   : 'https://raw.githubusercontent.com/togekk39/LingoQuest/main/apps/mobile/public/chapter-packs/';
 const destinations = new Map(route.map((destination) => [destination.id, destination]));
-const downloads = new Map<string, Promise<ChapterPack>>();
+export const [firstChapter, secondChapter] = route;
+type ProgressListener = (percent: number) => void;
+type Download = {
+  operation: Promise<ChapterPack>;
+  percent?: number;
+  listeners: Set<ProgressListener>;
+};
+const downloads = new Map<string, Download>();
 let lastRead: { text: string; pack: ChapterPack } | undefined;
 
 function parseStored(id: string, text: string | null) {
@@ -37,6 +48,21 @@ export async function getInstalledChapter(id: string) {
   return parseStored(id, await readChapterPack(id));
 }
 
+export async function getCurrentChapter() {
+  return (await readCurrentChapter()) === secondChapter.id ? secondChapter : firstChapter;
+}
+
+export async function retireFirstChapter() {
+  await downloads.get(firstChapter.id)?.operation.catch(() => {});
+  if (
+    (await readCurrentChapter()) === secondChapter.id &&
+    !(await readChapterPack(firstChapter.id))
+  )
+    return;
+  await replaceCurrentChapter(firstChapter.id, secondChapter.id);
+  if (lastRead?.pack.chapterId === firstChapter.id) lastRead = undefined;
+}
+
 async function saveChapter(id: string, text: string, pack: ChapterPack) {
   let installed = pack;
   const destination = destinations.get(id);
@@ -54,7 +80,12 @@ async function saveChapter(id: string, text: string, pack: ChapterPack) {
   return installed;
 }
 
-async function fetchChapterFile(path: string, maxBytes: number, expectedBytes?: number) {
+async function fetchChapterFile(
+  path: string,
+  maxBytes: number,
+  expectedBytes?: number,
+  onProgress?: ProgressListener,
+) {
   const url = baseUrl + path;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
@@ -83,6 +114,8 @@ async function fetchChapterFile(path: string, maxBytes: number, expectedBytes?: 
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let length = 0;
+    let percent = 0;
+    onProgress?.(percent);
     try {
       for (;;) {
         const item = await reader.read();
@@ -91,6 +124,10 @@ async function fetchChapterFile(path: string, maxBytes: number, expectedBytes?: 
         if (length > maxBytes)
           throw new Error('El archivo del capítulo supera el tamaño permitido.');
         chunks.push(item.value);
+        if (expectedBytes && onProgress) {
+          const next = Math.floor((length / expectedBytes) * 100);
+          if (next !== percent) onProgress((percent = next));
+        }
       }
     } finally {
       await reader.cancel().catch(() => {});
@@ -113,45 +150,55 @@ async function fetchChapterFile(path: string, maxBytes: number, expectedBytes?: 
   }
 }
 
-export function downloadChapter(id: string): Promise<ChapterPack> {
-  const pending = downloads.get(id);
-  if (pending) return pending;
-  const operation = (async () => {
-    if (!destinations.has(id)) throw new Error('No encontramos este capítulo.');
-    const source = await fetchChapterFile('catalog.json', MAX_CHAPTER_CATALOG_BYTES);
-    let value: unknown;
-    try {
-      value = JSON.parse(new TextDecoder().decode(source));
-    } catch {
-      throw new Error('No pudimos leer el catálogo de capítulos. Inténtalo de nuevo.');
-    }
-    const catalog = chapterCatalogSchema.safeParse(value);
-    if (!catalog.success) throw new Error('El catálogo de capítulos no es compatible.');
-    const entry = catalog.data.chapters[id];
-    if (!entry) throw new Error('Este capítulo no está disponible para descargar.');
-    const installed = await getInstalledChapter(id);
-    if (installed && installed.revision >= entry.revision) return installed;
-    const bytes = await fetchChapterFile(
-      `${entry.revision}/${id}.json`,
-      entry.sizeBytes,
-      entry.sizeBytes,
-    );
-    if (sha256Hex(bytes) !== entry.sha256)
-      throw new Error('La descarga del capítulo está dañada. Inténtalo de nuevo.');
-    const text = new TextDecoder().decode(bytes);
-    const pack = parseChapterPack(text, id);
-    if (pack.revision !== entry.revision)
-      throw new Error('El archivo del capítulo no coincide con el catálogo publicado.');
-    return saveChapter(id, text, pack);
-  })().finally(() => downloads.delete(id));
-  downloads.set(id, operation);
-  return operation;
+async function fetchChapter(id: string, onProgress: ProgressListener) {
+  if (!destinations.has(id)) throw new Error('No encontramos este capítulo.');
+  const source = await fetchChapterFile('catalog.json', MAX_CHAPTER_CATALOG_BYTES);
+  let value: unknown;
+  try {
+    value = JSON.parse(new TextDecoder().decode(source));
+  } catch {
+    throw new Error('No pudimos leer el catálogo de capítulos. Inténtalo de nuevo.');
+  }
+  const catalog = chapterCatalogSchema.safeParse(value);
+  if (!catalog.success) throw new Error('El catálogo de capítulos no es compatible.');
+  const entry = catalog.data.chapters[id];
+  if (!entry) throw new Error('Este capítulo no está disponible para descargar.');
+  const installed = await getInstalledChapter(id);
+  if (installed && installed.revision >= entry.revision) return installed;
+  const bytes = await fetchChapterFile(
+    `${entry.revision}/${id}.json`,
+    entry.sizeBytes,
+    entry.sizeBytes,
+    onProgress,
+  );
+  if (sha256Hex(bytes) !== entry.sha256)
+    throw new Error('La descarga del capítulo está dañada. Inténtalo de nuevo.');
+  const text = new TextDecoder().decode(bytes);
+  const pack = parseChapterPack(text, id);
+  if (pack.revision !== entry.revision)
+    throw new Error('El archivo del capítulo no coincide con el catálogo publicado.');
+  return saveChapter(id, text, pack);
 }
 
-export async function importChapterFile(id: string) {
-  if (!destinations.has(id)) throw new Error('No encontramos este capítulo.');
-  const text = await pickTextFile('Archivo del capítulo', MAX_CHAPTER_PACK_BYTES);
-  return text === null ? null : saveChapter(id, text, parseChapterPack(text, id));
+export function downloadChapter(id: string, onProgress?: ProgressListener): Promise<ChapterPack> {
+  let download = downloads.get(id);
+  if (!download) {
+    const listeners = new Set<ProgressListener>();
+    const transfer: Download = {
+      listeners,
+      operation: fetchChapter(id, (percent) => {
+        transfer.percent = percent;
+        for (const listener of listeners) listener(percent);
+      }).finally(() => downloads.delete(id)),
+    };
+    download = transfer;
+    downloads.set(id, download);
+  }
+  if (onProgress) {
+    download.listeners.add(onProgress);
+    if (download.percent !== undefined) onProgress(download.percent);
+  }
+  return download.operation;
 }
 
 export function chapterForUnit(unitId: string) {
@@ -161,5 +208,5 @@ export function chapterForUnit(unitId: string) {
 export async function getChapterAudio(id: string, phrase: string) {
   const pack = await getInstalledChapter(id);
   const media = pack && Object.hasOwn(pack.audio, phrase) ? pack.audio[phrase] : undefined;
-  return media ? chapterMediaUri(media.mimeType, media.dataBase64) : undefined;
+  return media ? chapterMediaUri(id, media.mimeType, media.dataBase64) : undefined;
 }

@@ -44,9 +44,19 @@ export interface Destination {
   unitId?: string;
 }
 
+export const homeChapterDetails = {
+  id: 'home',
+  title: 'La primera postal',
+  stamp: 'Primer encuentro',
+  postcard: 'Una postal para el camino',
+  message:
+    'Hoy di indicaciones en inglés en mi propio barrio. A veces un viaje empieza cuando te animas a hablar con alguien.',
+  collectible: 'La postal de Sam',
+};
+
 export const route: Destination[] = [
   {
-    id: 'home',
+    id: homeChapterDetails.id,
     name: 'Mi lugar de origen',
     location: 'Latinoamérica y el Caribe',
     continent: 'América del Norte',

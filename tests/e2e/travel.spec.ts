@@ -6,6 +6,7 @@ import {
   readyOfflineShell,
   finishVocabulary,
   finishGreetingPractice,
+  labelFirstChapterAudio,
   state,
   answerTravelChoice,
   answerTravelReorder,
@@ -53,8 +54,13 @@ test.describe('origin picker on a small touch screen', () => {
 test('an offline traveler can choose an origin, resume a draft and its feedback, and earn one stamp', async ({
   page,
   context,
+  request,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await labelFirstChapterAudio(page, request, {
+    'line-4': 'Where is the bus stop?',
+    'line-7': 'It’s next to the park.',
+  });
   await page.addInitScript(() => {
     if (window.speechSynthesis) window.speechSynthesis.getVoices = () => [];
   });
@@ -125,17 +131,15 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
     HTMLMediaElement.prototype.play = function () {
       const result = play.call(this);
       void result
-        .then(() => {
-          document.body.dataset.played = this.currentSrc;
+        .then(async () => {
+          document.body.dataset.played = (await window.chapterAudioLabel(this.currentSrc)) ?? '';
         })
         .catch(() => {});
       return result;
     };
   });
   await click('Escuchar a Sam');
-  await expect
-    .poll(() => page.evaluate(() => document.body.dataset.played))
-    .toMatch(/line-4.*\.mp3/);
+  await expect.poll(() => page.evaluate(() => document.body.dataset.played)).toBe('line-4');
   await click('Leer la transcripción');
   await expect(page.getByText('Where is the bus stop?', { exact: true })).toBeVisible();
   await answerTravelChoice(page, 'travel_bus_listen', 'La parada de bus');
@@ -143,9 +147,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   const dictation = page.getByTestId('exercise-travel_bus_dictation');
   await expect(dictation).toBeVisible();
   await click('Escuchar la indicación');
-  await expect
-    .poll(() => page.evaluate(() => document.body.dataset.played))
-    .toMatch(/line-7.*\.mp3/);
+  await expect.poll(() => page.evaluate(() => document.body.dataset.played)).toBe('line-7');
   await capture(page, '03-offline-dictation');
   await answerTravelText(page, 'travel_bus_dictation', 'It’s next to the park.');
   await answerTravelText(page, 'travel_bus_ask', 'Where is the bus stop?');

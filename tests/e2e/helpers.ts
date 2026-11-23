@@ -1,6 +1,13 @@
 import { mkdirSync } from 'node:fs';
+import type { ChapterCatalog, ChapterPack } from '@lingoquest/course-pack';
 import type { TravelLearningState, TravelState } from '@lingoquest/offline-engine';
-import { expect, test as base, type BrowserContext, type Page } from '@playwright/test';
+import {
+  expect,
+  test as base,
+  type APIRequestContext,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 
 export interface LocalState {
   user: { name: string; goalMinutes: number; reducedMotion: boolean };
@@ -149,6 +156,48 @@ export async function readyOfflineShell(page: Page, context: BrowserContext) {
   });
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
   await context.setOffline(true);
+}
+
+declare global {
+  interface Window {
+    chapterAudioLabel: (uri: string) => Promise<string | undefined>;
+  }
+}
+
+export async function labelFirstChapterAudio(
+  page: Page,
+  request: APIRequestContext,
+  phrases: Record<string, string>,
+) {
+  const catalog: ChapterCatalog = await (await request.get('/chapter-packs/catalog.json')).json();
+  const path = `/chapter-packs/${catalog.chapters.home.revision}/home.json`;
+  const { audio }: ChapterPack = await (await request.get(path)).json();
+  const sources = Object.fromEntries(
+    Object.entries(phrases).map(([label, phrase]) => {
+      const clip = audio[phrase];
+      return [`data:${clip.mimeType};base64,${clip.dataBase64}`, label];
+    }),
+  );
+  await page.addInitScript((sources) => {
+    const labels = new Map<string, Promise<string | undefined>>();
+    const createObjectURL = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = (media) => {
+      const uri = createObjectURL(media);
+      if (media instanceof Blob && media.type === 'audio/mpeg') {
+        labels.set(
+          uri,
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(sources[String(reader.result)]);
+            reader.onerror = () => resolve(undefined);
+            reader.readAsDataURL(media);
+          }),
+        );
+      }
+      return uri;
+    };
+    window.chapterAudioLabel = async (uri) => labels.get(uri) ?? sources[uri];
+  }, sources);
 }
 
 export async function capture(page: Page, name: string) {
