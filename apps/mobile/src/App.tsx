@@ -39,11 +39,18 @@ import { saveTextFile } from './lib/localFiles';
 import { CountryPicker, Passport, TravelHome, TravelRoute } from './travel/TravelHome';
 import { ChapterPackView } from './travel/ChapterPackView';
 import {
+  ChapterTransferBackdrop,
+  ChapterTransferScreen,
+  type ChapterTransferFailure,
+} from './travel/ChapterTransferScreen';
+import {
+  ChapterDownloadError,
   downloadChapter,
   firstChapter,
   getCurrentChapter,
   getInstalledChapter,
   secondChapter,
+  type ChapterDownloadProgress,
 } from './lib/chapterPacks';
 import {
   applyDownloadedContent,
@@ -71,7 +78,12 @@ type Tab = (typeof tabs)[number]['id'];
 type Flow = 'placement' | 'speech' | 'reviews' | 'skills' | 'quick' | 'grammar' | 'textbook';
 type WelcomeChoice = 'adventure' | 'placement' | 'explore';
 type AfterOrigin = (journey: TravelState) => Promise<void> | void;
-type ChapterTransfer = { id: string; open: boolean; percent?: number; error?: string };
+type ChapterTransfer = {
+  id: string;
+  open: boolean;
+  progress?: ChapterDownloadProgress;
+  error?: ChapterTransferFailure;
+};
 
 export default function App() {
   const [reducedMotion, setReducedMotion] = useState(true);
@@ -139,9 +151,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       const pack =
         installed && (id !== firstChapter.id || installed.story?.runtime)
           ? installed
-          : await downloadChapter(id, (percent) => setChapterTransfer({ id, open, percent }));
+          : await downloadChapter(id, (progress) => setChapterTransfer({ id, open, progress }));
       if (id === firstChapter.id && !pack.story?.runtime)
-        throw new Error('La aventura todavía no está disponible. Inténtalo de nuevo más tarde.');
+        throw new ChapterDownloadError('La aventura todavía no está disponible. Vuelve más tarde.');
 
       const ready = await applyDownloadedContent(pack);
       if (open && id === secondChapter.id) {
@@ -166,9 +178,12 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         id,
         open,
         error:
-          failure instanceof Error
-            ? failure.message
-            : 'No pudimos preparar el capítulo. Inténtalo de nuevo.',
+          failure instanceof ChapterDownloadError
+            ? { title: 'No se pudo descargar', detail: failure.message }
+            : {
+                title: 'No se pudo preparar el capítulo',
+                detail: 'Ocurrió un problema al guardar o abrir los recursos en este dispositivo.',
+              },
       });
     } finally {
       transferring.current = false;
@@ -586,9 +601,11 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     storySession.current++;
     setStory(null);
   }
+  const shellBackground = chapterTransfer ? `${C.white}EB` : C.white;
+  const shellSurface = { backgroundColor: shellBackground };
   const nav = (
-    <View style={desktop ? s.desktopNav : s.mobileNav}>
-      {!desktop && <PaperEdge edge="top" tint={C.white} />}
+    <View style={desktop ? s.desktopNav : [s.mobileNav, shellSurface]}>
+      {!desktop && <PaperEdge edge="top" tint={shellBackground} />}
       {tabs.map(({ id, icon: Icon }) => (
         <Pressable
           key={id}
@@ -619,11 +636,15 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   );
   return (
     <SafeAreaView style={s.safe}>
-      <PaperGrain />
+      {chapterTransfer ? (
+        <ChapterTransferBackdrop failed={!!chapterTransfer.error} />
+      ) : (
+        <PaperGrain />
+      )}
       <View style={s.layout}>
         {desktop && (
-          <View style={s.sidebar}>
-            <PaperEdge edge="right" tint={C.white} />
+          <View style={[s.sidebar, shellSurface]}>
+            <PaperEdge edge="right" tint={shellBackground} />
             <View style={s.sidebarBrand}>
               <JournalBrand />
             </View>
@@ -635,8 +656,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={s.topbar}>
-            <PaperEdge edge="bottom" tint={C.white} />
+          <View style={[s.topbar, shellSurface]}>
+            <PaperEdge edge="bottom" tint={shellBackground} />
             {desktop ? (
               <Text style={[s.sectionLabel, { color: C.accent }]}>{tab}</Text>
             ) : (
@@ -659,35 +680,27 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
             </View>
           </View>
           <ScrollView
+            key={chapterTransfer ? 'chapter-transfer' : 'content'}
             ref={scroll}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[s.content, { padding: desktop ? 31 : 15 }]}
+            contentContainerStyle={[
+              s.content,
+              { padding: desktop ? 31 : 15 },
+              chapterTransfer && s.transferContent,
+            ]}
           >
             {chapterTransfer ? (
-              <JournalLeaf style={{ gap: 12 }}>
-                <Heading>
-                  {chapterTransfer.id === firstChapter.id
+              <ChapterTransferScreen
+                title={
+                  chapterTransfer.id === firstChapter.id
                     ? chapter.title
-                    : route.find(({ id }) => id === chapterTransfer.id)?.name}
-                </Heading>
-                {chapterTransfer.error ? (
-                  <>
-                    <Text accessibilityRole="alert" style={{ color: C.red }}>
-                      {chapterTransfer.error}
-                    </Text>
-                    <Button
-                      onPress={() => void prepareChapter(chapterTransfer.id, chapterTransfer.open)}
-                    >
-                      Reintentar
-                    </Button>
-                    <Button variant="ghost" onPress={() => setChapterTransfer(undefined)}>
-                      Volver
-                    </Button>
-                  </>
-                ) : (
-                  <ChapterProgress percent={chapterTransfer.percent} />
-                )}
-              </JournalLeaf>
+                    : (route.find(({ id }) => id === chapterTransfer.id)?.name ?? 'Capítulo')
+                }
+                progress={chapterTransfer.progress}
+                error={chapterTransfer.error}
+                onRetry={() => void prepareChapter(chapterTransfer.id, chapterTransfer.open)}
+                onBack={() => setChapterTransfer(undefined)}
+              />
             ) : loading ? (
               <View style={s.loading}>
                 <ActivityIndicator color={C.accent} />
@@ -876,36 +889,6 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   );
 }
 
-function ChapterProgress({ percent }: { percent?: number }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ gap: 8 }}>
-      <Text accessibilityLiveRegion="polite" style={{ color: colors.teal }}>
-        {percent === undefined
-          ? 'Preparando descarga…'
-          : percent === 100
-            ? 'Guardando capítulo…'
-            : `Descargando capítulo… ${percent} %`}
-      </Text>
-      {percent === undefined ? (
-        <ActivityIndicator color={colors.teal} />
-      ) : (
-        <View
-          accessible
-          accessibilityRole="progressbar"
-          accessibilityLabel="Descarga del capítulo"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-          style={{ height: 8, borderRadius: 4, backgroundColor: colors.mint, overflow: 'hidden' }}
-        >
-          <View style={{ width: `${percent}%`, height: '100%', backgroundColor: colors.teal }} />
-        </View>
-      )}
-    </View>
-  );
-}
-
 function Sheet({
   visible,
   close,
@@ -1032,7 +1015,6 @@ function useStyles() {
       width: 218,
       paddingHorizontal: 16,
       paddingBottom: 18,
-      backgroundColor: C.white,
       zIndex: 1,
     },
     sidebarBrand: {
@@ -1058,7 +1040,6 @@ function useStyles() {
       flexDirection: 'row',
       padding: 4,
       gap: 3,
-      backgroundColor: C.white,
       zIndex: 1,
     },
     mobileTab: {
@@ -1083,7 +1064,6 @@ function useStyles() {
     },
     topbar: {
       minHeight: 61,
-      backgroundColor: C.white,
       zIndex: 1,
       paddingHorizontal: 14,
       paddingVertical: 6,
@@ -1095,6 +1075,7 @@ function useStyles() {
     },
     iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     content: { flexGrow: 1, width: '100%', maxWidth: 1350, alignSelf: 'center' },
+    transferContent: { justifyContent: 'flex-end' },
     loading: { gap: 14, minHeight: 170, alignItems: 'center', justifyContent: 'center' },
     notice: { padding: 10, color: C.ink, backgroundColor: C.mint, fontFamily: 'Manrope' },
     shade: {

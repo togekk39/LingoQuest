@@ -24,6 +24,7 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
   context,
   networkGuard,
 }) => {
+  await page.setViewportSize({ width: 390, height: 740 });
   await page.addInitScript(() => {
     localStorage.setItem('lq_setting:onboarded', 'true');
     const fetchFile = window.fetch.bind(window);
@@ -32,14 +33,20 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
       if (new URL(response.url).pathname !== '/chapter-packs/2/home.json') return response;
       const bytes = new Uint8Array(await response.arrayBuffer());
       const middle = Math.ceil(bytes.length / 2);
+      const nextChunk = middle + 25_000;
       return new Response(
         new ReadableStream({
           start(controller) {
             controller.enqueue(bytes.subarray(0, middle));
             window.addEventListener(
+              'advance-home-transfer',
+              () => controller.enqueue(bytes.subarray(middle, nextChunk)),
+              { once: true },
+            );
+            window.addEventListener(
               'finish-home-transfer',
               () => {
-                controller.enqueue(bytes.subarray(middle));
+                controller.enqueue(bytes.subarray(nextChunk));
                 controller.close();
               },
               { once: true },
@@ -52,12 +59,30 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
   });
 
   await page.goto('/');
+  const backdrop = page.getByTestId('chapter-transfer-backdrop');
+  const artwork = page.getByTestId('chapter-transfer-artwork').locator('img');
   const progress = page.getByRole('progressbar', exact('Descarga del capítulo'));
+  await expect(page.getByRole('heading', exact('La primera postal'))).toBeVisible();
+  expect(await backdrop.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 740 });
+  await expect(artwork).toHaveAttribute('src', /\/atlas-portrait\./);
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
-  await expect(page.getByText('Descargando capítulo… 50 %')).toBeVisible();
+  await expect(page.getByText('Descargando capítulo…', { exact: true })).toBeVisible();
+  await expect(page.getByText('50 %', { exact: true })).toBeVisible();
+  await expect(page.getByText('2.6 MB de 5.2 MB', { exact: true })).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('advance-home-transfer')));
+  const size = page.getByText('2.63 MB de 5.2 MB', { exact: true });
+  await expect(size).toBeVisible();
+  await expect(progress).toHaveAttribute('aria-valuenow', '50');
+  await page.setViewportSize({ width: 740, height: 390 });
+  await expect(artwork).toHaveAttribute('src', /\/atlas\./);
+  await expect(progress).toHaveAttribute('aria-valuenow', '50');
+  await expect(size).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 740 });
+  await expect(artwork).toHaveAttribute('src', /\/atlas-portrait\./);
   await page.evaluate(() => window.dispatchEvent(new Event('finish-home-transfer')));
   const adventure = page.getByRole('button', exact('Comenzar mi aventura'));
   await expect(adventure).toBeVisible();
+  await expect(backdrop).toHaveCount(0);
   expect(await savedChapters(page)).toContain('home');
 
   await readyOfflineShell(page, context);
@@ -95,6 +120,16 @@ test('continuing to chapter two keeps chapter one until the new pack is verified
     request.fulfill({ body: '{"incomplete":true}', contentType: 'application/json' }),
   );
   await click(page, 'Continuar a Ciudad de México');
+  await expect(page.getByRole('heading', exact('No se pudo descargar'))).toBeVisible();
+  expect(await page.getByTestId('chapter-transfer-backdrop').boundingBox()).toEqual({
+    x: 0,
+    y: 0,
+    ...page.viewportSize(),
+  });
+  const artwork = page.getByTestId('chapter-transfer-artwork').locator('img');
+  await expect(artwork).toHaveAttribute('src', /\/writing\./);
+  await page.setViewportSize({ width: 390, height: 740 });
+  await expect(artwork).toHaveAttribute('src', /\/writing-portrait\./);
   await expect(page.getByRole('alert')).toContainText('La descarga del capítulo está incompleta');
   expect(await savedChapters(page)).toContain('home');
   expect(await savedChapters(page)).not.toContain('mexico');
@@ -164,7 +199,11 @@ test('opening a destination downloads its lessons and media when needed', async 
   });
   expect(cachedPacks).toBe(0);
   await openLondon();
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Revisa tu conexión a internet');
+  await click(page, 'Volver');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await openLondon();
+  await expect(page.getByRole('alert')).toContainText('Revisa tu conexión a internet');
 
   await context.setOffline(false);
   const transfer = page.waitForResponse((response) =>
