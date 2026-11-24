@@ -2,10 +2,12 @@ import { fetch as nativeFetch } from 'expo/fetch';
 import { Platform } from 'react-native';
 import { route } from '@lingoquest/offline-engine';
 import {
+  CHAPTER_CATALOG_FILE,
   MAX_CHAPTER_CATALOG_BYTES,
   chapterCatalogSchema,
   parseChapterPack,
   sha256Hex,
+  type ChapterCatalog,
   type ChapterPack,
 } from '@lingoquest/course-pack';
 import {
@@ -17,12 +19,14 @@ import {
 } from './chapterStorage';
 
 const web = Platform.OS === 'web';
+const previewRef = process.env.EXPO_PUBLIC_CHAPTER_PACK_REF;
+const chapterPackRef = previewRef && /^[a-f0-9]{40}$/.test(previewRef) ? previewRef : 'main';
 const baseUrl = web
   ? '/chapter-packs/'
-  : 'https://raw.githubusercontent.com/togekk39/LingoQuest/main/apps/mobile/public/chapter-packs/';
+  : `https://raw.githubusercontent.com/togekk39/LingoQuest/${chapterPackRef}/apps/mobile/public/chapter-packs/`;
 const destinations = new Map(route.map((destination) => [destination.id, destination]));
 export const [firstChapter, secondChapter] = route;
-const currentHomeRevision = 5;
+const minimumPackRevision = 6;
 export class ChapterDownloadError extends Error {}
 
 export type ChapterDownloadProgress = { receivedBytes: number; totalBytes: number };
@@ -58,13 +62,6 @@ export async function getCurrentChapter() {
 
 export function setCurrentChapter(id: string) {
   return writeCurrentChapter(id);
-}
-
-export async function refreshInstalledHomeChapter() {
-  const installed = await getInstalledChapter(firstChapter.id);
-  if (installed?.story?.runtime && installed.revision < currentHomeRevision) {
-    await downloadChapter(firstChapter.id);
-  }
 }
 
 async function saveChapter(id: string, text: string, pack: ChapterPack) {
@@ -144,10 +141,8 @@ async function fetchChapterFile(
   }
 }
 
-async function fetchChapter(id: string, onProgress: ProgressListener) {
-  const destination = destinations.get(id);
-  if (!destination) throw new ChapterDownloadError('No encontramos este capítulo.');
-  const source = await fetchChapterFile('catalog.json', MAX_CHAPTER_CATALOG_BYTES);
+async function fetchCatalog() {
+  const source = await fetchChapterFile(CHAPTER_CATALOG_FILE, MAX_CHAPTER_CATALOG_BYTES);
   let value: unknown;
   try {
     value = JSON.parse(new TextDecoder().decode(source));
@@ -157,7 +152,13 @@ async function fetchChapter(id: string, onProgress: ProgressListener) {
   const catalog = chapterCatalogSchema.safeParse(value);
   if (!catalog.success)
     throw new ChapterDownloadError('El catálogo de capítulos no es compatible.');
-  const entry = catalog.data.chapters[id];
+  return catalog.data;
+}
+
+async function fetchChapter(id: string, onProgress: ProgressListener, catalog?: ChapterCatalog) {
+  const destination = destinations.get(id);
+  if (!destination) throw new ChapterDownloadError('No encontramos este capítulo.');
+  const entry = (catalog ?? (await fetchCatalog())).chapters[id];
   if (!entry) throw new ChapterDownloadError('Este capítulo no está disponible para descargar.');
   const installed = await getInstalledChapter(id);
   if (installed && installed.revision >= entry.revision) return installed;
@@ -187,16 +188,24 @@ async function fetchChapter(id: string, onProgress: ProgressListener) {
   return saveChapter(id, text, pack);
 }
 
-export function downloadChapter(id: string, onProgress?: ProgressListener): Promise<ChapterPack> {
+export function downloadChapter(
+  id: string,
+  onProgress?: ProgressListener,
+  catalog?: ChapterCatalog,
+): Promise<ChapterPack> {
   let download = downloads.get(id);
   if (!download) {
     const listeners = new Set<ProgressListener>();
     const transfer: Download = {
       listeners,
-      operation: fetchChapter(id, (progress) => {
-        transfer.progress = progress;
-        for (const listener of listeners) listener(progress);
-      }).finally(() => downloads.delete(id)),
+      operation: fetchChapter(
+        id,
+        (progress) => {
+          transfer.progress = progress;
+          for (const listener of listeners) listener(progress);
+        },
+        catalog,
+      ).finally(() => downloads.delete(id)),
     };
     download = transfer;
     downloads.set(id, download);
@@ -206,6 +215,21 @@ export function downloadChapter(id: string, onProgress?: ProgressListener): Prom
     if (download.progress) onProgress(download.progress);
   }
   return download.operation;
+}
+
+export async function refreshInstalledChapters() {
+  const outdated = new Map<string, number>();
+  for (const { id } of route) {
+    const pack = await getInstalledChapter(id);
+    if (pack && pack.revision < minimumPackRevision) outdated.set(id, pack.revision);
+  }
+  if (!outdated.size) return;
+
+  const catalog = await fetchCatalog();
+  for (const [id, revision] of outdated) {
+    if ((catalog.chapters[id]?.revision ?? 0) <= revision) continue;
+    await downloadChapter(id, undefined, catalog).catch(() => {});
+  }
 }
 
 export function chapterForUnit(unitId: string) {

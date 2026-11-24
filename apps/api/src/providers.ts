@@ -1,4 +1,9 @@
-import type { Answer } from '@lingoquest/contracts';
+import {
+  judgeAnswer,
+  normalizeAnswerText,
+  type Answer,
+  type AnswerOutcome,
+} from '@lingoquest/contracts';
 import type { PrivateExercise } from './content.ts';
 
 export interface ChallengeClock {
@@ -11,33 +16,15 @@ export class SystemClock implements ChallengeClock {
 }
 export interface GradingService {
   grade(exercise: PrivateExercise, answer: Answer): boolean;
+  judge?(exercise: PrivateExercise, answer: Answer): AnswerOutcome;
 }
-export const normalize = (v: string): string =>
-  v
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[’‘]/g, "'")
-    .replace(/[.,!?;:]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+export const normalize = normalizeAnswerText;
 export class DeterministicGradingService implements GradingService {
   grade(exercise: PrivateExercise, answer: Answer): boolean {
-    if (exercise.type === 'matching') {
-      const pairs = exercise.matchingPairs ?? [];
-      return (
-        pairs.length > 0 &&
-        answer.matches !== undefined &&
-        Object.keys(answer.matches).length === pairs.length &&
-        pairs.every((pair) => answer.matches?.[pair.id] === pair.id)
-      );
-    }
-    if (answer.optionId !== undefined)
-      return (
-        exercise.correctOptionId === answer.optionId ||
-        exercise.acceptedAnswers.some((a) => a === answer.optionId)
-      );
-    const text = answer.text ?? answer.tokens?.join(' ') ?? '';
-    return exercise.acceptedAnswers.some((a) => normalize(a) === normalize(text));
+    return this.judge(exercise, answer) === 'target';
+  }
+  judge(exercise: PrivateExercise, answer: Answer): AnswerOutcome {
+    return judgeAnswer(exercise, answer);
   }
 }
 export interface SpeechAssessmentProvider {

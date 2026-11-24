@@ -6,8 +6,7 @@ export { travelChallengePools } from './home-content';
 export const HOME_TRAVEL_TRACK = 'home_journey';
 export const availableTravelRanks = 3;
 export function travelChallengeItems(type: keyof typeof travelChallengePools, level: number) {
-  const pool = travelChallengePools[type];
-  return pool.slice(Math.max(0, level - availableTravelRanks), level + 2);
+  return travelChallengePools[type].filter((item) => !item.ungradable).slice(0, level + 2);
 }
 
 const ranks = [

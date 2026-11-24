@@ -16,7 +16,7 @@ import {
   test,
 } from './helpers';
 
-const catalogUrl = '/chapter-packs/catalog.json';
+const catalogUrl = '/chapter-packs/catalog-v2.json';
 
 async function savedChapters(page: Page) {
   return page.evaluate(
@@ -144,6 +144,7 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
 test('chapter two verifies its pack and keeps the first adventure, study and due review offline', async ({
   page,
   context,
+  request,
   networkGuard,
 }) => {
   const start = Date.UTC(2026, 10, 19, 17);
@@ -168,7 +169,8 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   await click(page, 'Abrir pasaporte');
   const before = await state(page);
 
-  const packUrl = '**/chapter-packs/1/mexico.json';
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const packUrl = `**/chapter-packs/${catalog.chapters.mexico.revision}/mexico.json`;
   await context.route(packUrl, (request) =>
     request.fulfill({ body: '{"incomplete":true}', contentType: 'application/json' }),
   );
@@ -396,36 +398,87 @@ test('opening a destination downloads its lessons and media when needed', async 
   );
 });
 
-test('early chapter cards render dialogue, teaching, question and open model in the audited order', async ({
+test('early chapter cards render dialogue, teaching, question and optional model in the audited order', async ({
   page,
+  request,
 }) => {
   await enterApp(page);
   await page.getByRole('tab', exact('Mapa')).click();
   const headings = chapterReaderSections.map(({ heading }) => heading);
-  for (const [id, label, model] of [
-    [
-      'mexico',
-      '2. Ciudad de México',
-      'I buy fruit at nine. My brother buys bread at ten. You can come with me at nine.',
-    ],
-    [
-      'colombia',
-      '3. Cartagena',
-      'I’d like two egg arepas and some water to go, please. Do you have orange juice?',
-    ],
-    [
-      'peru',
-      '4. Cusco',
-      'Yesterday I went to a fair. I saw Ana, and then I bought fruit. What time did Tomás arrive?',
-    ],
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  for (const [id, label] of [
+    ['mexico', '2. Ciudad de México'],
+    ['colombia', '3. Cartagena'],
+    ['peru', '4. Cusco'],
   ]) {
+    const packPath = `/chapter-packs/${catalog.chapters[id].revision}/${id}.json`;
+    const { lesson }: ChapterPack = await (await request.get(packPath)).json();
     await click(page, label);
     await click(page, 'Abrir capítulo');
     const card = page.getByTestId('chapter-lesson-' + id);
     await expect(card).toBeVisible();
     const sectionLabels = headings.map((heading) => card.getByText(heading, { exact: true }));
     await expect(sectionLabels.reduce((all, label) => all.or(label))).toHaveText(headings);
-    await expect(card.getByText(model, { exact: true })).toBeVisible();
+    const model = card.getByText(lesson.model.en, { exact: true });
+    await expect(model).toHaveCount(0);
+    await card.getByRole('button', exact('Ver un modelo')).click();
+    await expect(model).toBeVisible();
     await click(page, 'Cerrar y volver');
   }
+});
+
+test('Salvador offers a fresh offline listening question with an optional translation', async ({
+  page,
+  context,
+  request,
+}) => {
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const path = `/chapter-packs/${catalog.chapters.brazil.revision}/brazil.json`;
+  const { lesson }: ChapterPack = await (await request.get(path)).json();
+  const { listening, options, answerIndex } = lesson.question;
+  expect(listening).toBeDefined();
+  if (!listening) throw new Error('Listening item missing from the chapter');
+
+  await page.addInitScript(() => {
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      this.addEventListener(
+        'playing',
+        () => {
+          document.body.dataset.salvadorAudio = this.currentSrc;
+        },
+        { once: true },
+      );
+      return play.call(this);
+    };
+  });
+  await enterApp(page);
+  async function openSalvador() {
+    await page.getByRole('tab', exact('Mapa')).click();
+    await click(page, '5. Salvador');
+    await click(page, 'Abrir capítulo');
+  }
+  await openSalvador();
+  const card = page.getByTestId('chapter-lesson-brazil');
+  await expect(card).toBeVisible();
+  await readyOfflineShell(page, context);
+  await page.reload();
+  await openSalvador();
+  await expect(card).toBeVisible();
+
+  const headings = chapterReaderSections.map(({ heading }) => heading);
+  const sectionLabels = headings.map((heading) => card.getByText(heading, { exact: true }));
+  await expect(sectionLabels.reduce((all, label) => all.or(label))).toHaveText(headings);
+  await expect(card.getByText(listening.en, { exact: true })).toHaveCount(0);
+  await click(page, 'Escuchar el mensaje');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-salvador-audio',
+    /^(?:blob:|data:audio)/,
+  );
+  await card.getByRole('radio', exact(options[answerIndex])).click();
+  await click(page, 'Comprobar respuesta');
+  await expect(card.getByText(/^¡Muy bien!/)).toBeVisible();
+  await click(page, 'Ver la transcripción');
+  await expect(card.getByText(listening.en, { exact: true })).toBeVisible();
+  await expect(card.getByText(listening.es, { exact: true })).toBeVisible();
 });

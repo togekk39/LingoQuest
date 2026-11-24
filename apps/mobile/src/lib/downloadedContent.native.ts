@@ -7,6 +7,7 @@ import {
 import { parseCoursePack, type ChapterPack } from '@lingoquest/course-pack';
 import { applyHomeImages } from '../travel/illustrations.native';
 import { getInstalledChapter } from './chapterPacks';
+import { isPreviousBuiltInCourse } from './previousCourse';
 import { getRaw } from './storage';
 
 const emptyCourse: CourseData = {
@@ -21,6 +22,7 @@ const emptyCourse: CourseData = {
 
 const installedUnits = new Map<string, NonNullable<ChapterPack['unit']>>();
 let originalCourse: CourseData = emptyCourse;
+let keepImportedActivities = false;
 let courseActivities: Omit<CourseData, 'units' | 'lessons'> = emptyCourse;
 let activeCourse: CourseData = emptyCourse;
 let homeReady = false;
@@ -72,7 +74,7 @@ async function activate(pack: ChapterPack) {
     } as unknown as HomeContent;
     await applyHomeImages(pack.chapterId, pack.images);
     installHomeContent(home);
-    courseActivities = originalCourse === emptyCourse ? course : originalCourse;
+    courseActivities = keepImportedActivities ? originalCourse : course;
     homeReady = true;
   }
   if (unit) installedUnits.set(pack.chapterId, unit);
@@ -90,7 +92,11 @@ export function applyDownloadedContent(pack: ChapterPack) {
 export async function restoreDownloadedContent() {
   try {
     const saved = await getRaw('lq_installed_course_pack_v1');
-    if (saved) originalCourse = courseActivities = parseCoursePack(saved).payload;
+    if (saved) {
+      const imported = parseCoursePack(saved);
+      originalCourse = courseActivities = imported.payload;
+      keepImportedActivities = !isPreviousBuiltInCourse(imported.manifest.sha256);
+    }
   } catch {
     originalCourse = courseActivities = emptyCourse;
   }

@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { answerSchema, type AttemptInput, type AttemptResult } from '@lingoquest/contracts';
+import {
+  answerOutcomeSchema,
+  answerSchema,
+  type AttemptInput,
+  type AttemptResult,
+} from '@lingoquest/contracts';
 import { travelPlacementSchema } from './travel-placement';
 import { chapter, travelLesson } from './home-content';
 import {
@@ -22,6 +27,7 @@ export const draftAnswerSchema = z
 export const savedResultSchema = z
   .object({
     correct: z.boolean(),
+    outcome: answerOutcomeSchema.optional(),
     communicationOnly: z.literal(true).optional(),
     identityMismatch: z.literal(true).optional(),
     feedbackEs: z.string().max(5000),

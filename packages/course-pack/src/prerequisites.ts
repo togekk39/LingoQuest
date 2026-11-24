@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const id = z.string().regex(/^[a-z][a-z0-9.-]*$/);
+const id = z.string().regex(/^[a-z][a-z0-9._-]*$/);
 const text = z.string().trim().min(1);
 const reference = z.object({ id, form: text.optional() }).strict();
 const context = z
@@ -42,6 +42,7 @@ const stage = z.discriminatedUnion('type', [
     .object({
       id,
       type: z.literal('exercise'),
+      mode: z.enum(['guided', 'independent', 'self-check']).optional(),
       requires: z.array(reference).min(1),
       supports: z.array(context).optional(),
     })
@@ -69,7 +70,7 @@ export const prerequisiteFileSchema = z
   })
   .strict();
 
-type PrerequisiteFile = z.infer<typeof prerequisiteFileSchema>;
+export type PrerequisiteFile = z.infer<typeof prerequisiteFileSchema>;
 type Reference = z.infer<typeof reference>;
 type Lesson = PrerequisiteFile['lessons'][number];
 

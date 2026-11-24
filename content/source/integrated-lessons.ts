@@ -7,11 +7,28 @@ export type Word = readonly [
   exampleEs: string,
   partOfSpeech?: string,
 ];
-export type Task =
+type ProductionTask =
   | { type: 'cloze'; prompt: string; sentence: string; answers: string[]; reason: string }
-  | { type: 'reorder'; prompt: string; answer: string; reason: string }
+  | { type: 'reorder'; prompt: string; answer: string; alternatives?: string[]; reason: string }
   | { type: 'correction'; prompt: string; sentence: string; answers: string[]; reason: string }
-  | { type: 'short_text'; prompt: string; answers: string[]; reason: string; recall?: boolean };
+  | {
+      type: 'short_text';
+      prompt: string;
+      answers: string[];
+      reason: string;
+      recall?: boolean;
+      introduction?: { greetingRequired: boolean; model: string };
+    };
+export type Task =
+  | (ProductionTask & { communicationOnly?: { answers: string[]; feedbackEs: string } })
+  | {
+      type: 'single_choice';
+      passage: string;
+      prompt: string;
+      options: string[];
+      correctIndex: number;
+      reason: string;
+    };
 export interface LessonAuthoring {
   title: string;
   goal: string;
@@ -32,10 +49,16 @@ const fill = (sentence: string, answers: string[], reason: string): Task => ({
   answers,
   reason,
 });
-const build = (answer: string, reason: string): Task => ({
+export const build = (
+  answer: string,
+  reason: string,
+  alternatives?: string[],
+  prompt = 'Ordena las palabras para expresar la idea.',
+): Task => ({
   type: 'reorder',
-  prompt: 'Ordena las palabras para expresar la idea.',
+  prompt,
   answer,
+  alternatives,
   reason,
 });
 const write = (prompt: string, answers: string[], reason: string): Task => ({
@@ -51,13 +74,31 @@ const recall = (prompt: string, answer: string, reason: string): Task => ({
   reason,
   recall: true,
 });
-const fix = (sentence: string, answer: string, reason: string): Task => ({
+export const fix = (
+  sentence: string,
+  answer: string,
+  reason: string,
+  {
+    prompt = 'Corrige la oración. Escríbela completa.',
+    alternatives = [],
+  }: {
+    prompt?: string;
+    alternatives?: string[];
+  } = {},
+): Task => ({
   type: 'correction',
-  prompt: 'Corrige la oración. Escríbela completa.',
+  prompt,
   sentence,
-  answers: [answer],
+  answers: [answer, ...alternatives],
   reason,
 });
+export const read = (
+  passage: string,
+  prompt: string,
+  options: string[],
+  correctIndex: number,
+  reason: string,
+): Task => ({ type: 'single_choice', passage, prompt, options, correctIndex, reason });
 export const authoredUnits: {
   title: string;
   description: string;
@@ -71,7 +112,7 @@ export const authoredUnits: {
     lessons: [
       {
         title: 'Me presento',
-        goal: 'Saludar y decir quién eres con I am; reconocer a otra persona con You are.',
+        goal: 'Saludar, presentarte con tu nombre y reconocer a otra persona con You are.',
         scene:
           'Llegas a un encuentro de vecinos. Vas a saludar y presentarte con dos frases cortas. Ana y Luis son nombres de personas; no necesitas traducirlos.',
         words: [
@@ -86,34 +127,43 @@ export const authoredUnits: {
         ],
         recycle: [],
         skill: 'grammar.be_i_you',
-        rule: 'I significa yo. Para decir quién eres, combina I + am + tu nombre: I am Ana. Am expresa soy con I. You significa tú y lleva are: You are Luis. En inglés no omitas I o you. My friend significa mi amigo o amiga. Aprenderemos a decir “mi nombre es” después; aquí basta I am.',
+        rule: 'Para presentarte, di I am y tu nombre: I am Ana. I’m Ana significa lo mismo. El apóstrofo marca la forma corta, muy común al hablar. También puedes decir My name is Ana, que significa «Me llamo Ana». Con you, usa are: You are Luis o You’re Luis. En estas oraciones, incluye I o you aunque en español puedas omitir yo o tú.',
         forms: [
           ['am', 'soy (con I)'],
-          ['are', 'eres; son (con you)'],
+          ['are', 'eres; es; son (con you)'],
+          ["I'm", 'forma corta de I am'],
+          ["you're", 'forma corta de you are'],
+          ['my name is', 'me llamo; mi nombre es'],
+          ["my name's", 'forma corta de my name is'],
         ],
         examples: [
           ['I am Ana.', 'Soy Ana.'],
           ['You are my friend.', 'Tú eres mi amigo o amiga.'],
+          ["Hi, I'm Luis.", 'Hola, soy Luis.'],
         ],
         dialogue: [
           ['Ana', 'Hello. I am Ana.', 'Hola. Soy Ana.'],
-          ['Luis', 'Hi. I am Luis.', 'Hola. Soy Luis.'],
+          ['Luis', "Hi, I'm Luis.", 'Hola, soy Luis.'],
           ['Ana', 'Goodbye, Luis.', 'Adiós, Luis.'],
           ['Luis', 'Goodbye, Ana.', 'Adiós, Ana.'],
         ],
         tasks: [
-          fill('I ____ Ana.', ['am'], 'I se combina con am para decir soy.'),
-          fill('You ____ Luis.', ['are'], 'You se combina con are. Luis es un nombre de persona.'),
+          fill('I ____ Ana. (Soy Ana)', ['am'], 'I se combina con am para decir soy.'),
+          fill('You ____ Luis. (Eres Luis)', ['are'], 'You se combina con are para decir eres.'),
           recall(
             'Sin opciones, escribe la palabra inglesa que significa «hola» (la forma de cinco letras).',
             'hello',
             'Hello es un saludo; hi también saluda, pero tiene dos letras.',
           ),
-          write(
-            'Preséntate como Ana: saluda con Hello o Hi y di «Soy Ana».',
-            ['Hello. I am Ana.', 'Hi. I am Ana.', 'Hello, I am Ana.', 'Hi, I am Ana.'],
-            'Un saludo y I am Ana forman una presentación breve. Puedes usar tu propio nombre al practicar la voz.',
-          ),
+          {
+            type: 'short_text',
+            prompt:
+              'Saluda con Hello o Hi y preséntate con I am, I’m o My name is. Usa tu nombre o elige uno para practicar.',
+            answers: ['Hello. I am Ana.'],
+            reason:
+              'Primero saluda. Después combina I am, I’m o My name is con el nombre que elegiste.',
+            introduction: { greetingRequired: true, model: 'Hello. I am [tu nombre].' },
+          },
         ],
       },
       {
@@ -131,12 +181,14 @@ export const authoredUnits: {
         ],
         recycle: ['my', 'friend'],
         skill: 'grammar.be_he_she',
-        rule: 'He significa él y she significa ella. Ambos llevan is: He is my brother. Is aquí significa es. Para una ocupación usa a antes de una palabra que empieza con sonido consonante: a teacher, a student. My indica mi y no cambia según el género.',
+        rule: 'He significa él y she significa ella. Usa is con los dos: He is my brother. Al hablar también se usa He’s o She’s. Para mencionar una profesión o un rol en singular, usa a si la palabra siguiente empieza con sonido consonante: a teacher, a student. My significa mi con cualquier género.',
         forms: [
           ['he', 'él'],
           ['she', 'ella'],
-          ['is', 'es; está'],
+          ['is', 'es (en estas presentaciones)'],
           ['a', 'un; una'],
+          ["he's", 'forma corta de he is'],
+          ["she's", 'forma corta de she is'],
         ],
         examples: [
           ['She is my sister.', 'Ella es mi hermana.'],
@@ -145,11 +197,16 @@ export const authoredUnits: {
         dialogue: [
           ['Ana', 'He is my brother.', 'Él es mi hermano.'],
           ['Luis', 'Hello. I am Luis.', 'Hola. Soy Luis.'],
-          ['Ana', 'She is my mother. She is a teacher.', 'Ella es mi mamá. Es docente.'],
+          ['Ana', "She's my mother. She's a teacher.", 'Ella es mi mamá. Es docente.'],
         ],
         tasks: [
-          fill('She ____ my mother.', ['is'], 'She lleva is.'),
-          build('He is my father.', 'He is presenta a un hombre; my father significa mi papá.'),
+          fill('She ____ my mother. (Ella es mi mamá)', ['is'], 'She lleva is.'),
+          build(
+            'He is my father.',
+            'He is presenta a un hombre. My father significa mi papá.',
+            undefined,
+            'Ordena las palabras para decir «Él es mi papá».',
+          ),
           recall(
             'Recuerda la palabra inglesa para «hermana».',
             'sister',
@@ -160,13 +217,20 @@ export const authoredUnits: {
             ['He is my brother.'],
             'He + is + my brother presenta a tu hermano.',
           ),
+          read(
+            'She is my sister. She is a teacher. He is my brother. He is a student.',
+            'Lee la nota de Ana. ¿Quién es estudiante?',
+            ['Su hermana', 'Su hermano', 'Su mamá'],
+            1,
+            'Ana escribe He is my brother. He is a student. Las dos oraciones con he hablan de su hermano.',
+          ),
         ],
       },
       {
         title: 'Personas y cosas',
-        goal: 'Describir una cosa con it is y varias personas con they are.',
+        goal: 'Describir un objeto con it is y decir cómo se sienten varias personas con they are.',
         scene:
-          'Ordenas una mesa con tu familia. Hablas de un objeto y de cómo se sienten las personas.',
+          'Estás con tu familia. Una persona comenta cómo es su teléfono y cómo se sienten sus papás.',
         words: [
           ['book', 'libro', 'It is a book.', 'Es un libro.'],
           ['phone', 'teléfono', 'It is my phone.', 'Es mi teléfono.'],
@@ -177,11 +241,16 @@ export const authoredUnits: {
         ],
         recycle: ['student', 'friend'],
         skill: 'grammar.be_it_they',
-        rule: 'It se usa para una cosa y lleva is. They se usa para varias personas o cosas y lleva are. Una descripción va después de be: They are happy. Antes de un sustantivo, el adjetivo va primero: a small house. El adjetivo no agrega una s para el plural.',
+        rule: 'Usa it is para describir una cosa y they are para describir varias personas o cosas. También puedes decir it’s y they’re. El adjetivo va después de is o are (They are happy) o antes del sustantivo (a small house). El adjetivo conserva su forma en plural: happy significa feliz o felices.',
         forms: [
-          ['it', 'eso; pronombre para una cosa'],
+          ['it', 'pronombre para una cosa ya identificada; en español a veces se omite'],
           ['they', 'ellos; ellas'],
           ['and', 'y'],
+          ['a', 'un; una'],
+          ['is', 'es o está, según la descripción'],
+          ['are', 'son o están, según la descripción'],
+          ["it's", 'forma corta de it is'],
+          ["they're", 'forma corta de they are'],
         ],
         examples: [
           ['It is a good book.', 'Es un buen libro.'],
@@ -189,69 +258,79 @@ export const authoredUnits: {
         ],
         dialogue: [
           ['Luis', 'It is my phone.', 'Es mi teléfono.'],
-          ['Ana', 'It is small.', 'Es pequeño.'],
-          [
-            'Luis',
-            'They are my mother and my father. They are happy.',
-            'Ellos son mi mamá y mi papá. Están felices.',
-          ],
+          ['Ana', "It's small.", 'Es pequeño.'],
+          ['Luis', 'My mother and father are happy.', 'Mi mamá y mi papá están felices.'],
         ],
         tasks: [
-          fill('It ____ a book.', ['is'], 'Una cosa: it is.'),
-          build('They are happy.', 'Varias personas: they are. Happy no cambia.'),
+          fill('It ____ a book. (Es un libro)', ['is'], 'Una cosa: it is.'),
+          build(
+            'They are happy.',
+            'Con they, usa are. Happy no cambia.',
+            undefined,
+            'Ordena las palabras para decir «Están felices».',
+          ),
           write(
-            'Describe el objeto: «Es una casa pequeña».',
+            'Ya están hablando de la casa. Dile a tu amiga «Es una casa pequeña». Usa it.',
             ['It is a small house.'],
             'Small va antes de house: a small house.',
           ),
         ],
       },
       {
-        title: '¿Quién eres?',
-        goal: 'Preguntar quién es alguien y de dónde es usando be.',
+        title: '¿Cómo te llamas?',
+        goal: 'Preguntar el nombre o el lugar de origen de alguien usando be.',
         scene:
           'Conoces a otra persona en una reunión. Usas preguntas breves y respondes con tu nombre u origen.',
         words: [
-          ['who', 'quién', 'Who are you?', '¿Quién eres?', 'palabra interrogativa'],
-          [
-            'what',
-            'qué; cuál',
-            'What is your name?',
-            '¿Cuál es tu nombre?',
-            'palabra interrogativa',
-          ],
+          ['who', 'quién', 'Who is she?', '¿Quién es ella?', 'palabra interrogativa'],
+          ['what', 'qué; cuál', 'What is your name?', '¿Cómo te llamas?', 'palabra interrogativa'],
           ['where', 'dónde', 'Where are you from?', '¿De dónde eres?', 'palabra interrogativa'],
           ['from', 'de (origen)', 'I am from Peru.', 'Soy de Perú.', 'preposición'],
-          ['yes', 'sí', 'Yes, I am.', 'Sí.', 'respuesta'],
-          ['no', 'no', 'No, I am not.', 'No.', 'respuesta'],
+          ['yes', 'sí', 'Yes, I am.', 'Sí, lo soy.', 'respuesta'],
+          ['no', 'no', 'No, I am not.', 'No, no lo soy.', 'respuesta'],
         ],
-        recycle: ['name', 'student'],
+        recycle: ['name', 'student', 'you'],
         skill: 'grammar.be_questions',
-        rule: 'En una pregunta, coloca am, is o are antes de la persona: Are you a student? Who are you? pregunta quién eres. Where are you from? pregunta de dónde eres. Responde Yes, I am o No, I am not. Not añade la negación. My name is Ana significa mi nombre es Ana; name es singular y lleva is.',
+        rule: 'En Are you a student?, are va antes de you. Con una palabra interrogativa, colócala primero: Where are you from? Para pedir el nombre en una presentación, usa What is your name? Responde My name is Ana. A una pregunta de sí o no puedes responder Yes, I am o No, I’m not. En la respuesta afirmativa breve, usa I am completo.',
         forms: [
+          ['are', 'forma de be que acompaña a you'],
+          ['is', 'forma de be que acompaña a name en singular'],
+          ['a student', 'estudiante; en inglés se usa a aquí'],
           ['not', 'no (negación)'],
           ['your', 'tu; tus; su (de usted o ustedes)'],
+          ["what's", 'forma corta de what is'],
+          ['I am from', 'soy de (para indicar origen)'],
         ],
         examples: [
           ['Where are you from?', '¿De dónde eres?'],
           ['My name is Ana.', 'Mi nombre es Ana.'],
+          ['Are you a student?', '¿Eres estudiante?'],
         ],
         dialogue: [
-          ['Luis', 'Hello. What is your name?', 'Hola. ¿Cuál es tu nombre?'],
-          ['Ana', 'My name is Ana. I am from Peru.', 'Mi nombre es Ana. Soy de Perú.'],
+          ['Luis', "Hi! What's your name?", '¡Hola! ¿Cómo te llamas?'],
+          ['Ana', "I'm Ana. I'm from Peru.", 'Soy Ana. Soy de Perú.'],
           ['Luis', 'Are you a student?', '¿Eres estudiante?'],
           ['Ana', 'Yes, I am.', 'Sí.'],
         ],
         tasks: [
-          fill('Where ____ you from?', ['are'], 'You lleva are; en preguntas va antes de you.'),
-          build('Are you a student?', 'Pregunta con are + you.'),
+          fill(
+            'Where ____ you from? (¿De dónde eres?)',
+            ['are'],
+            'You lleva are. En esta pregunta, are va antes de you.',
+          ),
+          build(
+            'Are you a student?',
+            'En la pregunta, are va antes de you.',
+            undefined,
+            'Ordena las palabras para preguntar «¿Eres estudiante?».',
+          ),
           recall(
             'Escribe la palabra inglesa para preguntar «dónde».',
             'where',
             'Where pregunta por un lugar.',
           ),
           write(
-            'Responde «Soy de Perú». Usa Peru sin tilde en inglés.',
+            'En la reunión te preguntan de dónde eres. Responde «Soy de Perú». Escribe Peru sin tilde.',
             ['I am from Peru.'],
             'I am from + lugar expresa tu origen.',
           ),
@@ -266,7 +345,7 @@ export const authoredUnits: {
     lessons: [
       {
         title: 'Así es mi día',
-        goal: 'Contar dos hábitos con I y un verbo en presente.',
+        goal: 'Contar tus hábitos con I y reconocer hábitos en un mensaje breve.',
         scene: 'Conversas sobre lo que haces en un día normal, no solo en este instante.',
         words: [
           ['work', 'trabajar', 'I work.', 'Trabajo.', 'verbo'],
@@ -286,7 +365,7 @@ export const authoredUnits: {
         ],
         recycle: ['I', 'you'],
         skill: 'grammar.routine_base',
-        rule: 'Para un hábito con I o you usa el verbo sin am ni are: I work, You study. Every day indica todos los días. In significa en: I live in Peru. La palabra English lleva mayúscula.',
+        rule: 'Para contar un hábito con I o you, pon el verbo en su forma básica después del pronombre: I work, You study. En esas oraciones, el verbo de la acción va sin am o are. Every day, en dos palabras, significa todos los días. Escribe English con mayúscula.',
         forms: [['in', 'en']],
         examples: [
           ['I study English every day.', 'Estudio inglés todos los días.'],
@@ -298,13 +377,28 @@ export const authoredUnits: {
           ['Ana', 'I drink water.', 'Tomo agua.'],
         ],
         tasks: [
-          fill('I ____ English.', ['study'], 'I + study expresa un hábito; no necesita am.'),
-          build('I drink water every day.', 'I drink + lo que tomas + every day.'),
+          fill(
+            'I ____ English. (estudiar)',
+            ['study'],
+            'Para decir «estudio», usa I study. La forma study va después de I.',
+          ),
+          build(
+            'I drink water every day.',
+            'Every day puede aparecer al principio o al final de la oración.',
+            ['Every day I drink water.'],
+          ),
           recall('Escribe el verbo inglés que significa «trabajar».', 'work', 'Work es trabajar.'),
           write(
             'Cuenta tu hábito: «Estudio inglés todos los días».',
             ['I study English every day.', 'Every day I study English.'],
             'Usa I study y every day para expresar el hábito.',
+          ),
+          read(
+            'I live in Peru. I work every day. I study English. I drink water.',
+            'Lee el mensaje de Rosa. ¿Qué dice que hace todos los días?',
+            ['Estudia inglés', 'Toma agua', 'Trabaja'],
+            2,
+            'Rosa escribe I work every day. Habla de estudiar y de tomar agua sin decir que lo hace todos los días.',
           ),
         ],
       },
@@ -320,9 +414,9 @@ export const authoredUnits: {
           ['at home', 'en casa', 'He works at home.', 'Él trabaja en casa.', 'expresión'],
           ['together', 'juntos; juntas', 'They eat together.', 'Comen juntos.', 'adverbio'],
         ],
-        recycle: ['mother', 'study'],
+        recycle: ['mother', 'study', 'book'],
         skill: 'grammar.routine_third_person',
-        rule: 'Con he, she o el nombre de una persona, el verbo suele agregar -s: work → works, cook → cooks, read → reads. Study cambia a studies. Con I, you o they conserva la forma base. Solo practicamos estas formas; no necesitas memorizar todas las terminaciones hoy.',
+        rule: 'Para un hábito, he (él), she (ella) y expresiones para una sola persona como my father (mi papá) suelen llevar el verbo con -s: work → works, cook → cooks, read → reads. En study, cambia la y por -ies: studies. Con I, you o they, usa la forma base.',
         forms: [
           ['works', 'trabaja'],
           ['studies', 'estudia'],
@@ -332,6 +426,9 @@ export const authoredUnits: {
           ['cooks', 'cocina'],
           ['reads', 'lee'],
           ['eats', 'come'],
+          ['my father', 'mi papá'],
+          ['English', 'inglés'],
+          ['a book', 'un libro'],
         ],
         examples: [
           ['She cooks dinner.', 'Ella prepara la cena.'],
@@ -343,11 +440,18 @@ export const authoredUnits: {
           ['Ana', 'They eat together.', 'Comen juntos.'],
         ],
         tasks: [
-          fill('She ____ dinner. (cocinar)', ['cooks'], 'Con she agrega -s: cooks.'),
-          build('He reads a book at home.', 'He lleva reads; at home indica dónde.'),
-          fix('She study English.', 'She studies English.', 'Study cambia a studies con she.'),
+          fill('She ____ dinner. (verbo cook: cocinar)', ['cooks'], 'Con she agrega -s: cooks.'),
+          build(
+            'He reads a book at home.',
+            'Con he, read cambia a reads. At home indica dónde y puede ir al principio o al final.',
+            ['At home he reads a book.'],
+          ),
+          fix('She study English.', 'She studies English.', 'Study cambia a studies con she.', {
+            prompt:
+              'Corrige el verbo para hablar de un hábito en presente. Escribe la oración completa.',
+          }),
           write(
-            'Di «Mi papá prepara la cena».',
+            'Cuenta un hábito de tu papá: «Mi papá prepara la cena». Usa father y el verbo cook.',
             ['My father cooks dinner.'],
             'My father es una persona: cooks.',
           ),
@@ -377,13 +481,17 @@ export const authoredUnits: {
             'expresión de tiempo',
           ],
         ],
-        recycle: ['drink', 'at home'],
+        recycle: ['drink', 'at home', 'eat', 'work', 'water'],
         skill: 'grammar.frequency',
-        rule: 'Always, usually, sometimes y never suelen ir entre la persona y el verbo: I usually walk. Con she o he se conserva la -s: She always reads. Never ya significa nunca; no agregues otra negación.',
-        forms: [['the', 'el; la; los; las']],
+        rule: 'Always, usually, sometimes y never suelen ir antes de un verbo de acción: I usually walk. Con she o he, el verbo conserva la -s: She always reads. Usually y sometimes también pueden encabezar la oración. Never ya significa nunca. Di I never work, sin agregar not.',
+        forms: [
+          ['the', 'el; la; los; las'],
+          ['she eats', 'ella come'],
+        ],
         examples: [
           ['I usually study at night.', 'Normalmente estudio por la noche.'],
           ['She always drinks water.', 'Ella siempre toma agua.'],
+          ['Usually she eats at home.', 'Por lo general, come en casa.'],
         ],
         dialogue: [
           ['Luis', 'I usually study at night.', 'Normalmente estudio por la noche.'],
@@ -396,14 +504,18 @@ export const authoredUnits: {
             ['always'],
             'Always significa siempre y va antes de drink.',
           ),
-          build('She usually eats at home.', 'Usually va antes de eats.'),
+          build(
+            'She usually eats at home.',
+            'Usually puede ir antes de eats o al principio de esta oración.',
+            ['Usually she eats at home.'],
+          ),
           recall(
-            'Recuerda la expresión inglesa para «a veces».',
+            'Escribe la palabra de esta lección que significa «a veces».',
             'sometimes',
             'Sometimes expresa que algo ocurre algunas veces.',
           ),
           write(
-            'Di «Nunca trabajo por la noche».',
+            'Tu amiga quiere saber si trabajas de noche. Contesta «Nunca trabajo por la noche» con never.',
             ['I never work at night.'],
             'Never va antes de work y ya expresa negación.',
           ),
@@ -454,9 +566,9 @@ export const authoredUnits: {
           ],
           ['at noon', 'al mediodía', 'I eat at noon.', 'Como al mediodía.', 'expresión de tiempo'],
         ],
-        recycle: ['every day', 'dinner'],
+        recycle: ['every day', 'dinner', 'eat', 'at home'],
         skill: 'grammar.routine_time',
-        rule: 'Usa at para una hora o el mediodía: at six, at eight, at noon. Puedes poner el momento al final: I eat at noon. Get up y have breakfast funcionan como expresiones completas. Con he o she cambian a gets up y has breakfast.',
+        rule: 'Para una hora o el mediodía, usa at: at six, at eight, at noon. Puedes indicar la hora al final (I eat at noon) o al principio (At noon, I eat). Get up significa levantarse. Para decir que una persona desayuna, usa has breakfast con he o she: She has breakfast at eight.',
         forms: [
           ['at', 'a; en (hora o lugar)'],
           ['gets up', 'se levanta'],
@@ -467,6 +579,7 @@ export const authoredUnits: {
         examples: [
           ['I get up at six.', 'Me levanto a las seis.'],
           ['She has breakfast at eight.', 'Ella desayuna a las ocho.'],
+          ['At noon, I eat.', 'Al mediodía, como.'],
         ],
         dialogue: [
           [
@@ -478,12 +591,25 @@ export const authoredUnits: {
           ['Ana', 'I go home after work.', 'Voy a casa después del trabajo.'],
         ],
         tasks: [
-          fill('I get up ____ six.', ['at'], 'At conecta un hábito con una hora.'),
-          build('She has breakfast at eight.', 'Con she la expresión es has breakfast.'),
+          fill(
+            'I get up ____ six. (Me levanto a las seis)',
+            ['at'],
+            'At conecta un hábito con una hora.',
+          ),
+          build(
+            'She has breakfast at eight.',
+            'Con she, usa has breakfast. La hora puede ir al principio o al final.',
+            ['At eight she has breakfast.'],
+          ),
           write(
-            'Cuenta dos momentos: «Me levanto a las seis. Como al mediodía».',
-            ['I get up at six. I eat at noon.'],
-            'Dos oraciones breves pueden organizar tu día con claridad.',
+            'Cuenta dos momentos: «Me levanto a las seis. Como al mediodía». Usa get up y eat. Puedes empezar cada oración con la hora o ponerla al final.',
+            [
+              'I get up at six. I eat at noon.',
+              'At six, I get up. I eat at noon.',
+              'I get up at six. At noon, I eat.',
+              'At six, I get up. At noon, I eat.',
+            ],
+            'At six marca la hora de levantarte. At noon indica que comes al mediodía.',
           ),
         ],
       },
@@ -508,11 +634,14 @@ export const authoredUnits: {
         ],
         recycle: ['you', 'dinner'],
         skill: 'grammar.do_questions',
-        rule: 'Para preguntar por un hábito o gusto usa Do + you + verbo. Con he o she usa Does + persona + verbo base: Does she like tea? Does ya marca la tercera persona; like no lleva -s en esa pregunta.',
+        rule: 'Para preguntar por un gusto, usa Do you like...? Con he, she o una persona como your sister (tu hermana), usa Does + persona + like: Does she like tea? En la pregunta, like va sin -s. Puedes responder Yes, I do o Yes, she does, según de quién estés hablando.',
         forms: [
-          ['do', 'auxiliar de pregunta con I/you/they'],
+          ['do', 'auxiliar con I, you, we o they'],
           ['does', 'auxiliar de pregunta con he/she/it'],
           ['likes', 'le gusta'],
+          ['Yes, I do.', 'Sí. (al responder sobre ti)'],
+          ['Yes, she does.', 'Sí. (al responder sobre ella)'],
+          ['he', 'él'],
         ],
         examples: [
           ['Do you like coffee?', '¿Te gusta el café?'],
@@ -525,20 +654,31 @@ export const authoredUnits: {
           ['Luis', 'Yes, she does.', 'Sí.'],
         ],
         tasks: [
-          fill('____ you like rice?', ['Do'], 'You requiere Do para preguntar por gustos.'),
-          build('Does she like music?', 'Does + she + like; like va en forma base.'),
-          fix('Does he likes fruit?', 'Does he like fruit?', 'Después de does usa like.'),
+          fill(
+            '____ you like rice? (¿Te gusta el arroz?)',
+            ['Do'],
+            'You requiere do para preguntar por gustos.',
+          ),
+          build(
+            'Does she like music?',
+            'Empieza con Does she. Like va en forma base.',
+            undefined,
+            'Ordena las palabras para preguntar «¿A ella le gusta la música?».',
+          ),
+          fix('Does he likes fruit?', 'Does he like fruit?', 'Después de does usa like.', {
+            prompt: 'Corrige el verbo después de he. Escribe la pregunta completa.',
+          }),
           write(
-            'Pregunta «¿Te gusta el té?».',
+            'Planean qué servir. Pregúntale a tu amiga «¿Te gusta el té?». Usa Do you like.',
             ['Do you like tea?'],
             'Do you like + cosa pregunta por un gusto.',
           ),
         ],
       },
       {
-        title: 'Lo que prefiero',
-        goal: 'Expresar un gusto o hábito negativo con do not y does not.',
-        scene: 'Eliges algo para comer y explicas tus preferencias sin tener que justificarlas.',
+        title: 'Lo que quiero pedir',
+        goal: 'Decir qué quieres o qué evitas, y reconocer una manera cortés de pedir una bebida.',
+        scene: 'Eliges algo para tomar. Puedes decir qué no tomas y pedir otra bebida.',
         words: [
           ['milk', 'leche', 'I do not drink milk.', 'No tomo leche.'],
           ['bread', 'pan', 'She likes bread.', 'A ella le gusta el pan.'],
@@ -547,32 +687,55 @@ export const authoredUnits: {
           ['want', 'querer', 'I want water.', 'Quiero agua.', 'verbo'],
           ['today', 'hoy', 'I do not work today.', 'Hoy no trabajo.', 'expresión de tiempo'],
         ],
-        recycle: ['like', 'drink'],
+        recycle: ['like', 'drink', 'coffee', 'tea', 'eat'],
         skill: 'grammar.dont',
-        rule: 'Para negar con I o you, usa do not antes del verbo: I do not eat meat. Con she o he usa does not y el verbo base: She does not drink milk. Las formas cortas don’t y doesn’t expresan lo mismo.',
+        rule: 'Para negar con I o you, usa do not o don’t antes del verbo: I don’t eat meat. Con she o he, usa does not o doesn’t y el verbo base: She doesn’t drink milk. Para pedir una bebida con cortesía, aprende esta expresión completa: I’d like tea, please significa «Quisiera té, por favor».',
         forms: [
           ['do not', 'no (con I/you/they)'],
           ['does not', 'no (con he/she/it)'],
           ["don't", 'do not, forma corta'],
           ["doesn't", 'does not, forma corta'],
+          ["I'd like", 'quisiera; me gustaría (para pedir algo)'],
+          ['please', 'por favor'],
         ],
         examples: [
           ['I do not eat meat.', 'No como carne.'],
           ['She does not drink milk.', 'Ella no toma leche.'],
+          ["I'd like tea, please.", 'Quisiera té, por favor.'],
         ],
         dialogue: [
           ['Luis', 'Do you want milk?', '¿Quieres leche?'],
-          ['Ana', 'No. I do not drink milk. I want juice.', 'No. No tomo leche. Quiero jugo.'],
-          ['Luis', 'I do not want juice today. I want water.', 'Hoy no quiero jugo. Quiero agua.'],
+          [
+            'Ana',
+            "No, I don't drink milk. I'd like juice, please.",
+            'No, no tomo leche. Quisiera jugo, por favor.',
+          ],
+          ['Luis', 'I want water.', 'Yo quiero agua.'],
         ],
         tasks: [
-          fill('She ____ not drink milk.', ['does'], 'Con she usa does not + verbo base.'),
-          build('I do not eat meat.', 'Do not va antes de eat.'),
+          fill(
+            'She ____ not drink milk. (Ella no toma leche)',
+            ['does'],
+            'Con she usa does not y el verbo base.',
+          ),
+          build(
+            'I do not eat meat.',
+            'Do not va antes de eat.',
+            undefined,
+            'Ordena las palabras para decir «No como carne».',
+          ),
           recall('Escribe la palabra inglesa para «jugo».', 'juice', 'Juice significa jugo.'),
           write(
-            'Di «No quiero café».',
+            'Ya te ofrecieron café. Di «No quiero café» con do not o don’t y el verbo want.',
             ['I do not want coffee.', "I don't want coffee."],
             'Ambas formas, do not y don’t, sirven para negar.',
+          ),
+          read(
+            "I don't want coffee. I don't drink milk. I'd like tea, please.",
+            'Lees un pedido para la mesa. ¿Qué bebida debes llevar?',
+            ['Leche', 'Té', 'Café'],
+            1,
+            'En I’d like tea, please, I’d like introduce lo que la persona pide: té.',
           ),
         ],
       },
@@ -581,23 +744,31 @@ export const authoredUnits: {
         goal: 'Pedir y ofrecer ayuda con can.',
         scene: 'No entiendes una indicación y pides a otra persona que hable más despacio.',
         words: [
-          ['help', 'ayudar; ayuda', 'Can you help?', '¿Puedes ayudar?'],
+          ['help', 'ayudar', 'Can you help me?', '¿Puedes ayudarme?', 'verbo'],
           ['speak', 'hablar', 'I can speak English.', 'Puedo hablar inglés.', 'verbo'],
           ['slowly', 'despacio', 'Can you speak slowly?', '¿Puedes hablar despacio?', 'adverbio'],
-          ['please', 'por favor', 'Help, please.', 'Ayuda, por favor.', 'cortesía'],
+          [
+            'please',
+            'por favor',
+            'Can you help me, please?',
+            '¿Puedes ayudarme, por favor?',
+            'cortesía',
+          ],
           ['understand', 'entender', 'I understand.', 'Entiendo.', 'verbo'],
           ['repeat', 'repetir', 'Can you repeat?', '¿Puedes repetir?', 'verbo'],
         ],
         recycle: ['English', 'you'],
         skill: 'grammar.can',
-        rule: 'Can expresa poder o saber hacer algo. No cambia con he o she y lleva el verbo base: She can help. Para pedir ayuda, cambia el orden: Can you help? Can you repeat, please? es una petición cortés. Cannot y can’t expresan no poder.',
+        rule: 'Para pedirle algo a alguien, usa Can you + verbo: Can you help me? (¿Puedes ayudarme?). En una afirmación, pon can después de la persona: I can help. El verbo siguiente va en forma base: She can help. Para negar, usa cannot o can’t.',
         forms: [
           ['can', 'poder; saber hacer'],
           ['cannot', 'no poder'],
           ["can't", 'cannot, forma corta'],
+          ['me', 'me; a mí'],
         ],
         examples: [
           ['Can you speak slowly, please?', '¿Puedes hablar despacio, por favor?'],
+          ['Can you help me, please?', '¿Puedes ayudarme, por favor?'],
           ['I can help.', 'Puedo ayudar.'],
         ],
         dialogue: [
@@ -607,18 +778,36 @@ export const authoredUnits: {
         ],
         tasks: [
           fill('Can you ____ slowly? (hablar)', ['speak'], 'Can lleva el verbo base speak.'),
-          build('Can you help, please?', 'Can antes de you forma la petición.'),
-          write(
-            'Pide «¿Puedes repetir, por favor?».',
-            ['Can you repeat, please?', 'Can you please repeat?'],
-            'Puedes poner please al final o antes de repeat.',
+          build(
+            'Can you help, please?',
+            'Can va antes de you. En esta pregunta, please puede ir al principio, antes de help o al final.',
+            ['Can you please help?', 'Please can you help?'],
+            'Ordena las palabras para pedir ayuda con can y please.',
           ),
+          {
+            type: 'short_text',
+            prompt:
+              'No entendiste la indicación. Pide «¿Puedes repetir, por favor?». Practica la petición con can y repeat.',
+            answers: [
+              'Can you repeat, please?',
+              'Can you please repeat?',
+              'Please, can you repeat?',
+            ],
+            reason:
+              'Para pedir con can, empieza con Can you o coloca please antes. También puedes poner please antes de repeat o al final.',
+            communicationOnly: {
+              answers: ['Could you repeat, please?', 'Could you please repeat?', 'Please repeat.'],
+              feedbackEs:
+                'Tu petición se entiende. Para practicar esta lección, vuelve a escribirla con Can you y repeat.',
+            },
+          },
         ],
       },
       {
         title: 'En mi barrio',
-        goal: 'Decir que hay un lugar cerca y preguntar por él.',
-        scene: 'Buscas servicios de tu barrio y preguntas si hay un lugar cercano.',
+        goal: 'Preguntar si hay un lugar cerca y entender una indicación corta para llegar.',
+        scene:
+          'Buscas una parada de autobús. Preguntas si hay una cerca y entiendes los primeros pasos para llegar.',
         words: [
           ['park', 'parque', 'There is a park.', 'Hay un parque.'],
           ['store', 'tienda', 'There is a store.', 'Hay una tienda.'],
@@ -635,24 +824,53 @@ export const authoredUnits: {
         ],
         recycle: ['house', 'small'],
         skill: 'grammar.there_is',
-        rule: 'There is significa hay para una cosa o lugar: There is a park. Aquí usamos la expresión completa para presentar un solo lugar. Para preguntar cambia el orden: Is there a bank? Usamos a antes de un lugar singular.',
-        forms: [['there', 'parte de there is = hay']],
+        rule: 'Para decir que hay un lugar, usa There is a o There’s a: There is a park. Para preguntar si existe, usa Is there a bank? Si sabes que el lugar existe y quieres ubicarlo, pregunta Where is the bus stop? (¿Dónde está la parada de autobús?). Para entender las indicaciones, aprende Go straight (Sigue derecho) y Turn left (Gira a la izquierda).',
+        forms: [
+          ['there is', 'hay (con una cosa o un lugar)'],
+          ["there's", 'forma corta de there is'],
+          ['Is there ...?', '¿Hay ...?'],
+          ['Where is the bus stop?', '¿Dónde está la parada de autobús?'],
+          ['a', 'un; una al mencionar un lugar por primera vez'],
+          ['my', 'mi'],
+          ['Go straight.', 'Sigue derecho.'],
+          ['Turn left.', 'Gira a la izquierda.'],
+          ['turn right', 'girar a la derecha'],
+        ],
         examples: [
           ['There is a park near my house.', 'Hay un parque cerca de mi casa.'],
           ['Is there a bank here?', '¿Hay un banco aquí?'],
+          ['Where is the bus stop?', '¿Dónde está la parada de autobús?'],
         ],
         dialogue: [
-          ['Luis', 'Is there a store here?', '¿Hay una tienda aquí?'],
-          ['Ana', 'Yes. There is a store near my house.', 'Sí. Hay una tienda cerca de mi casa.'],
+          ['Luis', 'Is there a bus stop here?', '¿Hay una parada de autobús por aquí?'],
+          ['Ana', "Yes. There's a bus stop near the bank.", 'Sí. Hay una parada cerca del banco.'],
+          ['Luis', 'Where is the bank?', '¿Dónde está el banco?'],
+          ['Ana', 'Go straight. Turn left.', 'Sigue derecho. Gira a la izquierda.'],
           ['Luis', 'Thank you.', 'Gracias.'],
         ],
         tasks: [
-          fill('There ____ a bank here.', ['is'], 'There is expresa hay para un lugar singular.'),
-          build('Is there a bus stop here?', 'Is there pregunta si hay algo.'),
+          fill(
+            'There ____ a bank here. (Hay un banco aquí)',
+            ['is'],
+            'There is expresa hay con un lugar singular.',
+          ),
+          build(
+            'Is there a bus stop here?',
+            'Is there sirve para preguntar si hay algo. Here indica el lugar.',
+            undefined,
+            'Ordena las palabras para preguntar «¿Hay una parada de autobús aquí?». Empieza con Is there.',
+          ),
           write(
-            'Di «Hay un parque cerca de mi casa».',
+            'Una vecina busca un espacio al aire libre. Dile «Hay un parque cerca de mi casa». Usa there is o there’s.',
             ['There is a park near my house.'],
             'There is + a park presenta el lugar; near indica cercanía.',
+          ),
+          read(
+            'Turn left. Go straight. There is a park near the bus stop.',
+            'Te dejaron estas indicaciones. ¿Qué haces primero?',
+            ['Giras a la izquierda', 'Sigues derecho', 'Giras a la derecha'],
+            0,
+            'Turn left significa que gires a la izquierda. Go straight es la segunda indicación.',
           ),
         ],
       },
@@ -695,27 +913,43 @@ export const authoredUnits: {
         ],
         recycle: ['at home', 'happy'],
         skill: 'grammar.past_be',
-        rule: 'Para hablar de un momento pasado, am e is cambian a was. Are cambia a were: I was at home; You were at work. Yesterday y last night indican momentos terminados.',
+        rule: 'Para decir cómo o dónde estaba alguien, usa was con I, he, she o it y were con you, we o they. Yesterday significa ayer y last night significa anoche. La pregunta Where were you yesterday? significa «¿Dónde estuviste ayer?».',
         forms: [
-          ['was', 'era; estaba; fui; estuve'],
-          ['were', 'eras; estabas; eran; estaban'],
+          ['was', 'estaba o estuve (con I, he, she o it, según el contexto)'],
+          ['were', 'estabas, estuviste, estaban o estuvieron (con you o they, según el contexto)'],
+          ['Where were you yesterday?', '¿Dónde estuviste ayer?'],
         ],
         examples: [
           ['I was at home yesterday.', 'Ayer estaba en casa.'],
           ['They were tired last night.', 'Anoche estaban cansados.'],
         ],
         dialogue: [
-          ['Ana', 'I was at work yesterday.', 'Ayer estaba en el trabajo.'],
-          ['Luis', 'I was at home. I was tired.', 'Estaba en casa. Estaba cansado.'],
-          ['Ana', 'You were busy.', 'Estabas ocupado.'],
+          ['Ana', 'Where were you yesterday?', '¿Dónde estuviste ayer?'],
+          ['Luis', 'I was at home. I was tired.', 'Estuve en casa. Estaba cansado.'],
+          ['Ana', 'I was at work. I was busy.', 'Estuve en el trabajo. Estaba ocupada.'],
         ],
         tasks: [
-          fill('I ____ at home yesterday.', ['was'], 'El pasado de am con I es was.'),
-          build('They were happy yesterday.', 'They usa were en el pasado.'),
+          fill(
+            'I ____ at home yesterday. (Ayer estaba en casa)',
+            ['was'],
+            'Con I, usa was para decir estaba.',
+          ),
+          build(
+            'They were happy yesterday.',
+            'Con they, usa were. Yesterday puede ir al principio o al final.',
+            ['Yesterday they were happy.'],
+          ),
           write(
-            'Di «Anoche estaba cansado». Usa I.',
+            'Explica cómo te sentías «Anoche estaba cansado». Usa I, tired y last night.',
             ['I was tired last night.', 'Last night I was tired.'],
             'I was tired describe cómo te sentías en un momento terminado.',
+          ),
+          read(
+            'Ana was at work yesterday. Luis was at home. They were tired last night.',
+            'Lee lo que pasó ayer. ¿Quién estaba en casa?',
+            ['Ana', 'Ana y Luis', 'Luis'],
+            2,
+            'El texto dice Luis was at home. Were describe cómo se sentían los dos anoche.',
           ),
         ],
       },
@@ -726,7 +960,7 @@ export const authoredUnits: {
         words: [
           ['visit', 'visitar', 'I visited my mother.', 'Visité a mi mamá.', 'verbo'],
           ['clean', 'limpiar', 'I cleaned my house.', 'Limpié mi casa.', 'verbo'],
-          ['finish', 'terminar', 'I finished work.', 'Terminé el trabajo.', 'verbo'],
+          ['finish', 'terminar', 'I finished work.', 'Terminé de trabajar.', 'verbo'],
           ['call', 'llamar', 'She called my sister.', 'Ella llamó a mi hermana.', 'verbo'],
           [
             'last week',
@@ -737,11 +971,12 @@ export const authoredUnits: {
           ],
           ['room', 'habitación', 'I cleaned my room.', 'Limpié mi habitación.'],
         ],
-        recycle: ['work', 'yesterday'],
+        recycle: ['work', 'yesterday', 'mother', 'sister'],
         skill: 'grammar.past_regular',
-        rule: 'Muchos verbos forman el pasado agregando -ed: work → worked, clean → cleaned. Visit cambia a visited; finish a finished; call a called. La forma no cambia con I, he o they. Study cambia a studied. Aprende cada forma junto con la acción.',
+        rule: 'Para una acción terminada, agrega -ed a muchos verbos: work → worked, clean → cleaned, visit → visited. La forma es la misma con I, he o they. En study, cambia la y por -ied: studied. Escucha los ejemplos. La terminación agrega una sílaba en visited, pero no en cleaned.',
         forms: [
           ['worked', 'trabajé; trabajó'],
+          ['he', 'él'],
           ['visited', 'visité; visitó'],
           ['cleaned', 'limpié; limpió'],
           ['finished', 'terminé; terminó'],
@@ -753,24 +988,32 @@ export const authoredUnits: {
           ['She visited my mother last week.', 'Ella visitó a mi mamá la semana pasada.'],
         ],
         dialogue: [
-          ['Luis', 'I finished work. I called my mother.', 'Terminé el trabajo. Llamé a mi mamá.'],
+          ['Luis', 'I finished work. I called my mother.', 'Terminé de trabajar. Llamé a mi mamá.'],
           ['Ana', 'I cleaned my room yesterday.', 'Ayer limpié mi habitación.'],
           ['Luis', 'I visited my sister last week.', 'Visité a mi hermana la semana pasada.'],
         ],
         tasks: [
           fill(
-            'I ____ my room yesterday. (limpiar)',
+            'I ____ my room yesterday. (verbo clean: limpiar)',
             ['cleaned'],
             'Clean forma el pasado con -ed: cleaned.',
           ),
-          build('She visited my mother last week.', 'Visited no cambia con she.'),
+          build(
+            'She visited my mother last week.',
+            'Visited no cambia con she. Last week puede ir al principio o al final.',
+            ['Last week she visited my mother.'],
+          ),
           fix(
             'He work yesterday.',
             'He worked yesterday.',
             'Yesterday sitúa work en el pasado: worked.',
+            {
+              prompt:
+                'Corrige work para contar lo que él sí hizo ayer. Escribe la oración completa.',
+            },
           ),
           write(
-            'Di «Llamé a mi hermana ayer».',
+            'En un mensaje, cuenta «Llamé a mi hermana ayer». Usa call y yesterday.',
             ['I called my sister yesterday.', 'Yesterday I called my sister.'],
             'Called expresa una llamada terminada.',
           ),
@@ -778,7 +1021,7 @@ export const authoredUnits: {
       },
       {
         title: 'Mi salida al mercado',
-        goal: 'Contar una salida con went, ate y bought.',
+        goal: 'Contar cómo te moviste y qué hiciste con went, took, ate y bought.',
         scene: 'Cuentas una visita al mercado y lo que comiste o compraste.',
         words: [
           ['go', 'ir', 'I went to the market.', 'Fui al mercado.', 'verbo'],
@@ -793,9 +1036,9 @@ export const authoredUnits: {
           ['bus', 'autobús', 'I took the bus.', 'Tomé el autobús.'],
           ['take', 'tomar; llevar', 'I took the bus.', 'Tomé el autobús.', 'verbo'],
         ],
-        recycle: ['fruit', 'eat'],
+        recycle: ['fruit', 'eat', 'yesterday', 'at home'],
         skill: 'grammar.past_irregular',
-        rule: 'Algunos verbos tienen una forma especial en pasado. Aprende estas parejas: go → went, buy → bought, eat → ate, take → took. No agregues -ed. To indica hacia un lugar: to the market.',
+        rule: 'Algunos verbos cambian de forma en el pasado: go → went, buy → bought, eat → ate, take → took. Aprende cada pareja con una idea: went to the market, bought fruit, ate lunch, took the bus. Usa estas formas sin agregar -ed.',
         forms: [
           ['went', 'fui; fue'],
           ['bought', 'compré; compró'],
@@ -806,6 +1049,7 @@ export const authoredUnits: {
         examples: [
           ['I went to the market yesterday.', 'Ayer fui al mercado.'],
           ['She bought fruit.', 'Ella compró fruta.'],
+          ['I took the bus.', 'Tomé el autobús.'],
         ],
         dialogue: [
           ['Ana', 'I went to the market yesterday.', 'Ayer fui al mercado.'],
@@ -813,17 +1057,37 @@ export const authoredUnits: {
           ['Ana', 'I ate lunch at home.', 'Almorcé en casa.'],
         ],
         tasks: [
-          fill('I ____ fruit yesterday. (comprar)', ['bought'], 'El pasado de buy es bought.'),
-          build('She went to the market.', 'Went es el pasado de go.'),
+          fill(
+            'I ____ fruit yesterday. (verbo buy: comprar)',
+            ['bought'],
+            'El pasado de buy es bought.',
+          ),
+          build(
+            'She went to the market.',
+            'Went es el pasado de go. To the market indica adónde fue.',
+            undefined,
+            'Ordena las palabras para decir «Ella fue al mercado». Empieza con She.',
+          ),
           recall(
-            'Recuerda la palabra inglesa para «mercado».',
+            'Escribe la palabra inglesa de esta lección para «mercado».',
             'market',
             'Market significa mercado.',
           ),
           write(
-            'Cuenta «Ayer tomé el autobús».',
+            'Tu amiga pregunta cómo te moviste. Cuenta «Ayer tomé el autobús». Usa take en pasado.',
             ['I took the bus yesterday.', 'Yesterday I took the bus.'],
             'Usa took para una acción de take terminada.',
+          ),
+          read(
+            'I took the bus. I went to the market. I bought fruit. I ate lunch at home.',
+            'Lee el mensaje de Luis. ¿Qué hizo en el mercado y qué hizo en casa?',
+            [
+              'Almorzó en el mercado y compró fruta en casa',
+              'Compró fruta en el mercado y almorzó en casa',
+              'Tomó el autobús en casa y almorzó en el mercado',
+            ],
+            1,
+            'I bought fruit aparece después de la ida al mercado. I ate lunch at home indica dónde almorzó.',
           ),
         ],
       },
@@ -850,19 +1114,22 @@ export const authoredUnits: {
           ['stay', 'quedarse', 'I stayed at home.', 'Me quedé en casa.', 'verbo'],
           ['with', 'con', 'I stayed with my sister.', 'Me quedé con mi hermana.', 'preposición'],
         ],
-        recycle: ['go', 'yesterday'],
+        recycle: ['go', 'yesterday', 'market', 'work', 'go home'],
         skill: 'grammar.did',
-        rule: 'Did + persona + verbo base pregunta por el pasado: Did you go? Para negar usa did not + verbo base: I did not go. Did ya expresa pasado, así que no uses went después de did. Didn’t es la forma corta de did not.',
+        rule: 'Para preguntar sobre una acción pasada, usa Did + persona + verbo base: Did you go? Para decir que no sucedió, usa did not o didn’t antes del verbo base: I didn’t go. Did ya marca el pasado. Usa go en estas preguntas y negaciones, y went para afirmar: I went home.',
         forms: [
           ['did', 'auxiliar de pregunta en pasado'],
           ['did not', 'no (en pasado)'],
           ["didn't", 'did not, forma corta'],
+          ['to the market', 'al mercado'],
+          ['she', 'ella'],
           ['watched', 'vi; vio'],
           ['stayed', 'me quedé; se quedó'],
         ],
         examples: [
           ['Did you watch a movie last weekend?', '¿Viste una película el fin de semana pasado?'],
           ['I did not go to work.', 'No fui al trabajo.'],
+          ['I went home.', 'Me fui a casa.'],
         ],
         dialogue: [
           ['Luis', 'Did you work last weekend?', '¿Trabajaste el fin de semana pasado?'],
@@ -871,11 +1138,17 @@ export const authoredUnits: {
         ],
         tasks: [
           fill('Did you ____ to the market? (ir)', ['go'], 'Después de did usa go, no went.'),
-          build('I did not work yesterday.', 'Did not va antes del verbo base work.'),
-          fix('Did she went home?', 'Did she go home?', 'Did ya expresa pasado; usa go.'),
+          build(
+            'I did not work yesterday.',
+            'Did not va antes de work. Yesterday puede ir al principio o al final.',
+            ['Yesterday I did not work.'],
+          ),
+          fix('Did she went home?', 'Did she go home?', 'Did ya expresa pasado; usa go.', {
+            prompt: 'Corrige el verbo después de she. Escribe la pregunta completa.',
+          }),
           write(
-            'Pregunta «¿Viste una película ayer?».',
-            ['Did you watch a movie yesterday?'],
+            'Para seguir la conversación, pregunta «¿Viste una película ayer?». Usa watch.',
+            ['Did you watch a movie yesterday?', 'Yesterday, did you watch a movie?'],
             'Did + you + watch forma la pregunta sobre ayer.',
           ),
         ],
@@ -908,22 +1181,27 @@ export const authoredUnits: {
         ],
         recycle: ['study', 'English'],
         skill: 'grammar.continuous_i',
-        rule: 'Para una acción en curso usa I am + verbo en -ing. Study cambia a studying; learn a learning. Write pierde la e final: writing. I study every day es un hábito; I am studying now ocurre ahora.',
+        rule: 'Para una acción en curso usa I am + verbo en -ing. I’m significa lo mismo que I am. Study cambia a studying y learn a learning. Write pierde la e final: writing. Compara «I study every day» (estudio todos los días) con «I’m studying now» (estoy estudiando ahora). Right now enfatiza que ocurre en este mismo momento.',
         forms: [
           ['studying', 'estudiando'],
           ['learning', 'aprendiendo'],
           ['writing', 'escribiendo'],
           ['listening', 'escuchando'],
           ['working', 'trabajando'],
+          ["I'm", 'I am, forma corta'],
         ],
         examples: [
-          ['I am learning English now.', 'Estoy aprendiendo inglés ahora.'],
+          ["I'm learning English now.", 'Estoy aprendiendo inglés ahora.'],
           ['I am writing a message.', 'Estoy escribiendo un mensaje.'],
+          ['I study every day.', 'Estudio todos los días.'],
         ],
         dialogue: [
-          ['Ana', 'I am writing a message.', 'Estoy escribiendo un mensaje.'],
-          ['Luis', 'I am studying English right now.', 'Estoy estudiando inglés ahora mismo.'],
-          ['Ana', 'I am learning English.', 'Estoy aprendiendo inglés.'],
+          ['Ana', "I'm writing a message in English.", 'Estoy escribiendo un mensaje en inglés.'],
+          [
+            'Luis',
+            "I'm studying English right now, too.",
+            'Yo también estoy estudiando inglés ahora mismo.',
+          ],
         ],
         tasks: [
           fill(
@@ -933,14 +1211,30 @@ export const authoredUnits: {
           ),
           build('I am writing a message.', 'Write cambia a writing después de am.'),
           recall(
-            'Recuerda la palabra inglesa para «mensaje».',
+            'Recuerda el sustantivo de esta lección para «mensaje», como en I am writing a ____. Escribe solo la palabra.',
             'message',
             'Message es un mensaje.',
           ),
           write(
-            'Di «Estoy aprendiendo inglés ahora».',
-            ['I am learning English now.', 'Now I am learning English.'],
+            'En un mensaje de voz, cuentas qué haces: «Estoy aprendiendo inglés ahora». Usa learn.',
+            [
+              'I am learning English now.',
+              'Now I am learning English.',
+              'I am learning English right now.',
+              'Right now I am learning English.',
+            ],
             'I am learning expresa una acción que ocurre ahora.',
+          ),
+          read(
+            "I study every day. Right now, I'm writing a message in English.",
+            '¿Qué está haciendo la persona en este momento?',
+            [
+              'Está escribiendo un mensaje en inglés.',
+              'Está escuchando un mensaje.',
+              'Está trabajando.',
+            ],
+            0,
+            'Right now y I’m writing señalan la acción en curso. I study every day habla de un hábito.',
           ),
         ],
       },
@@ -964,31 +1258,48 @@ export const authoredUnits: {
         ],
         recycle: ['cook', 'dinner'],
         skill: 'grammar.continuous_others',
-        rule: 'Usa is con he o she y are con they, más el verbo en -ing: She is cooking; They are eating. Make pierde la e: making. El verbo en -ing no lleva otra -s. On significa sobre una superficie.',
+        rule: 'Primero identifica quién hace la acción. Usa is con he o she y are con they, seguido de -ing. She’s y they’re son las formas cortas en «She’s cooking» y «They’re eating». Make pierde la e (making). La marca de persona queda en is o are, así que el verbo en -ing no lleva -s.',
         forms: [
           ['cooking', 'cocinando'],
           ['washing', 'lavando'],
           ['making', 'haciendo; preparando'],
           ['eating', 'comiendo'],
           ['on', 'sobre; en'],
+          ["she's", 'she is, forma corta en she’s cooking'],
+          ["he's", 'he is, forma corta en he’s washing'],
+          ["they're", 'they are, forma corta'],
         ],
         examples: [
           ['She is making a salad.', 'Ella está preparando una ensalada.'],
           ['They are eating dinner.', 'Están cenando.'],
         ],
         dialogue: [
-          ['Luis', 'My mother is making a salad.', 'Mi mamá está preparando una ensalada.'],
+          ['Luis', 'My mom is making a salad.', 'Mi mamá está preparando una ensalada.'],
           ['Ana', 'My brother is washing a cup.', 'Mi hermano está lavando una taza.'],
-          ['Luis', 'They are in the kitchen.', 'Están en la cocina.'],
+          ['Luis', "They're both in the kitchen.", 'Los dos están en la cocina.'],
         ],
         tasks: [
           fill('She ____ cooking dinner now.', ['is'], 'She lleva is antes del verbo en -ing.'),
-          build('They are eating in the kitchen.', 'They requiere are + eating.'),
-          fix('He are washing a cup.', 'He is washing a cup.', 'He lleva is, no are.'),
+          build(
+            'They are eating in the kitchen.',
+            'They requiere are + eating.',
+            ['In the kitchen they are eating.'],
+            'Ordena las palabras para afirmar «Están comiendo en la cocina».',
+          ),
+          fix('He are washing a cup.', 'He is washing a cup.', 'He lleva is, no are.', {
+            prompt: 'Cambia are para que concuerde con he y escribe la oración completa.',
+          }),
           write(
-            'Di «Ella está preparando una ensalada».',
-            ['She is making a salad.'],
+            'Alguien te pregunta por ella. Usa make para decir «Ella está preparando una ensalada».',
+            ['She is making a salad.', 'She is making salad.'],
             'She + is + making describe lo que hace ella ahora.',
+          ),
+          read(
+            "Ana is washing a cup. Luis is making dinner. They're in the kitchen.",
+            '¿Qué está haciendo Luis?',
+            ['Está lavando una taza.', 'Está preparando la cena.', 'Está comiendo una ensalada.'],
+            1,
+            'Luis is making dinner significa que Luis está preparando la cena.',
           ),
         ],
       },
@@ -1007,21 +1318,25 @@ export const authoredUnits: {
             'adverbio',
           ],
           ['inside', 'adentro', 'I am resting inside.', 'Estoy descansando adentro.', 'adverbio'],
-          ['rain', 'llover; lluvia', 'It is raining.', 'Está lloviendo.', 'verbo'],
+          ['rain', 'llover', 'It is raining.', 'Está lloviendo.', 'verbo'],
           ['sunny', 'soleado', 'It is sunny today.', 'Hoy está soleado.', 'adjetivo'],
         ],
         recycle: ['work', 'now'],
         skill: 'grammar.continuous_negative',
-        rule: 'Para negar una acción en curso, coloca not después de am, is o are: I am not working. La acción sigue en -ing. It is raining significa está lloviendo; el it aparece aunque en español no digamos un sujeto.',
+        rule: 'Para negar una acción en curso, pon not después de am, is o are y conserva el verbo en -ing. «I’m not working» es la forma corta de «I am not working». «It isn’t raining» y «It’s not raining» significan «It is not raining». En inglés usamos it para hablar del clima, aunque en español no digamos un sujeto.',
         forms: [
           ['resting', 'descansando'],
           ['waiting', 'esperando'],
           ['raining', 'lloviendo'],
           ["isn't", 'is not, forma corta'],
+          ["aren't", 'are not, forma corta'],
+          ["it's", 'it is, forma corta en it’s not raining'],
+          ["I'm not", 'I am not, forma corta'],
         ],
         examples: [
           ['I am not working now.', 'No estoy trabajando ahora.'],
-          ['She is not waiting outside.', 'Ella no está esperando afuera.'],
+          ["She isn't waiting outside.", 'Ella no está esperando afuera.'],
+          ["It's not raining.", 'No está lloviendo.'],
         ],
         dialogue: [
           [
@@ -1036,14 +1351,28 @@ export const authoredUnits: {
           fill('I am ____ working now. (no)', ['not'], 'Not va después de am.'),
           build('She is not waiting outside.', 'Is not + waiting niega la acción en curso.'),
           recall(
-            'Recuerda la palabra inglesa para «afuera».',
+            'Escribe el adverbio de esta lección que significa «afuera» y es lo contrario de inside.',
             'outside',
             'Outside significa afuera.',
           ),
-          write(
-            'Di «No está lloviendo».',
-            ['It is not raining.', "It isn't raining."],
-            'It is not raining niega la lluvia en este momento.',
+          {
+            type: 'short_text',
+            prompt:
+              'Al mirar por la ventana, di «No está lloviendo». Usa it + be + not y el verbo rain en -ing.',
+            answers: ['It is not raining.'],
+            reason: 'It is not raining niega la lluvia en este momento.',
+            communicationOnly: {
+              answers: ['There is no rain right now.'],
+              feedbackEs:
+                'Tu mensaje dice que no llueve. Para practicar una acción en curso, usa it + is not + raining.',
+            },
+          },
+          read(
+            "I'm not waiting outside. I'm resting inside. It isn't raining now.",
+            '¿Dónde está descansando la persona?',
+            ['Afuera.', 'En el trabajo.', 'Adentro.'],
+            2,
+            'Inside significa adentro. La primera oración dice dónde no está la persona.',
           ),
         ],
       },
@@ -1083,9 +1412,9 @@ export const authoredUnits: {
             'adverbio',
           ],
         ],
-        recycle: ['where', 'phone'],
+        recycle: ['where', 'phone', 'sister'],
         skill: 'grammar.continuous_questions',
-        rule: 'Para preguntar, coloca am, is o are antes de la persona: Are you working? Con what pregunta qué hace: What are you doing? Sit duplica la t en sitting. Look for significa buscar y conserva for en looking for.',
+        rule: 'En una pregunta de sí o no, mueve am, is o are antes del sujeto: «You are working» → «Are you working?». Para preguntar por una acción, pon what al inicio: «What are you doing?». Aquí doing viene de do (hacer). Sit duplica la t (sitting) y look for conserva for (looking for).',
         forms: [
           ['looking for', 'buscando'],
           ['talking', 'hablando'],
@@ -1095,7 +1424,8 @@ export const authoredUnits: {
         ],
         examples: [
           ['What are you doing?', '¿Qué estás haciendo?'],
-          ['Is she talking to your brother?', '¿Ella está hablando con tu hermano?'],
+          ['Is she talking to your brother?', '¿Está hablando con tu hermano?'],
+          ['Are you looking for your phone?', '¿Estás buscando tu teléfono?'],
         ],
         dialogue: [
           ['Luis', 'What are you doing?', '¿Qué estás haciendo?'],
@@ -1105,12 +1435,26 @@ export const authoredUnits: {
         ],
         tasks: [
           fill('What ____ you doing?', ['are'], 'You requiere are antes de doing.'),
-          build('Is she sitting over there?', 'Is + she + sitting forma la pregunta.'),
-          fix('What you are doing?', 'What are you doing?', 'En preguntas are va antes de you.'),
+          build(
+            'Is she sitting over there?',
+            'Is + she + sitting forma la pregunta.',
+            undefined,
+            'Ordena las palabras para preguntar si ella está sentada allá.',
+          ),
+          fix('What you are doing?', 'What are you doing?', 'En preguntas are va antes de you.', {
+            prompt: 'Conserva what al inicio y cambia de lugar are. Escribe la pregunta completa.',
+          }),
           write(
             'Pregunta «¿Estás buscando tu teléfono?».',
             ['Are you looking for your phone?'],
             'Are you + looking for pregunta por la búsqueda que ocurre ahora.',
+          ),
+          read(
+            'Luis: Are you looking for your phone? Ana: No. I am talking to my sister. She is sitting over there.',
+            '¿Qué está haciendo Ana?',
+            ['Está hablando con su hermana.', 'Está buscando su teléfono.', 'Está sentada allá.'],
+            0,
+            'Ana dice I am talking to my sister. She is sitting se refiere a su hermana.',
           ),
         ],
       },
@@ -1143,23 +1487,29 @@ export const authoredUnits: {
           ],
           ['ticket', 'boleto', 'I am going to buy a ticket.', 'Voy a comprar un boleto.'],
           ['family', 'familia', 'I am going to visit my family.', 'Voy a visitar a mi familia.'],
-          ['plan', 'plan', 'It is my plan.', 'Es mi plan.'],
+          ['plan', 'plan', 'My plan is to travel tomorrow.', 'Mi plan es viajar mañana.'],
         ],
         recycle: ['visit', 'buy'],
         skill: 'grammar.going_to',
-        rule: 'Para un plan decidido usa am/is/are + going to + verbo base: I am going to travel. Aquí going to es una expresión para el futuro; no es necesario estar caminando. Con we, que significa nosotros o nosotras, usa are.',
+        rule: 'Para hablar de un plan que ya decidiste, elige am, is o are según quién lo hará. Luego agrega going to y el verbo base: «I’m going to travel tomorrow». En este patrón, el plan es travel, no going. Con we usa are: «We’re going to buy two tickets».',
         forms: [
           ['going to', 'ir a (plan futuro)'],
           ['we', 'nosotros; nosotras'],
+          ["we're", 'we are, forma corta'],
+          ['tickets', 'boletos'],
         ],
         examples: [
-          ['I am going to visit my family tomorrow.', 'Voy a visitar a mi familia mañana.'],
-          ['We are going to buy a ticket.', 'Vamos a comprar un boleto.'],
+          ["I'm going to visit my family tomorrow.", 'Voy a visitar a mi familia mañana.'],
+          ["We're going to buy two tickets.", 'Vamos a comprar dos boletos.'],
+          ['She is going to travel next week.', 'Ella va a viajar la próxima semana.'],
         ],
         dialogue: [
-          ['Ana', 'I am going to visit my family tomorrow.', 'Voy a visitar a mi familia mañana.'],
-          ['Luis', 'I am going to travel next week.', 'Voy a viajar la próxima semana.'],
-          ['Ana', 'We are going to buy a ticket.', 'Vamos a comprar un boleto.'],
+          ['Ana', "I'm going to visit my family tomorrow.", 'Voy a visitar a mi familia mañana.'],
+          [
+            'Luis',
+            "I'm going to buy a ticket tomorrow. I'm going to travel next week.",
+            'Voy a comprar un boleto mañana. Voy a viajar la próxima semana.',
+          ],
         ],
         tasks: [
           fill(
@@ -1167,12 +1517,21 @@ export const authoredUnits: {
             ['visit'],
             'Going to lleva el verbo base visit.',
           ),
-          build('She is going to travel tomorrow.', 'Con she usa is going to + travel.'),
+          build('She is going to travel tomorrow.', 'Con she usa is going to + travel.', [
+            'Tomorrow she is going to travel.',
+          ]),
           recall('Recuerda la palabra inglesa para «boleto».', 'ticket', 'Ticket es un boleto.'),
           write(
-            'Cuenta «Voy a visitar a mi familia mañana».',
+            'En un mensaje, cuenta «Voy a visitar a mi familia mañana». Usa be going to + visit.',
             ['I am going to visit my family tomorrow.', 'Tomorrow I am going to visit my family.'],
             'Going to expresa tu plan decidido.',
+          ),
+          read(
+            "I'm going to buy a ticket tomorrow. I'm going to visit my family next week.",
+            '¿Cuál de los planes es para mañana?',
+            ['Visitar a su familia.', 'Comprar un boleto.', 'Comprar dos boletos.'],
+            1,
+            'Voy a comprar un boleto mañana es I’m going to buy a ticket tomorrow.',
           ),
         ],
       },
@@ -1224,27 +1583,44 @@ export const authoredUnits: {
             'expresión',
           ],
         ],
-        recycle: ['park', 'tomorrow'],
+        recycle: ['park', 'tomorrow', 'visit', 'family'],
         skill: 'grammar.going_to_questions',
-        rule: 'En preguntas sobre planes, am/is/are va antes de la persona: Are you going to travel? When pregunta cuándo: When are we going to meet? La parte going to + verbo base se conserva.',
+        rule: 'Para convertir un plan en una pregunta de sí o no, mueve am, is o are antes del sujeto: «You are going to travel» → «Are you going to travel?». Para pedir la hora o el día, empieza con when: «When are we going to meet?». Going to y el verbo base siguen juntos.',
         forms: [['by', 'en; por (medio de transporte)']],
         examples: [
-          ['When are we going to meet?', '¿Cuándo vamos a encontrarnos?'],
+          ['When are we going to meet?', '¿Cuándo nos vamos a encontrar?'],
           ['Are you going to travel by bus?', '¿Vas a viajar en autobús?'],
+          ['Is she going to travel by train?', '¿Va a viajar en tren?'],
         ],
         dialogue: [
-          ['Luis', 'When are we going to meet?', '¿Cuándo vamos a encontrarnos?'],
-          ['Ana', 'We are going to meet at two.', 'Vamos a encontrarnos a las dos.'],
-          ['Luis', 'Are you going to go to the park by bus?', '¿Vas a ir al parque en autobús?'],
+          ['Luis', 'When are we going to meet?', '¿Cuándo nos vamos a encontrar?'],
+          ['Ana', 'We’re going to meet at two.', 'Nos vamos a encontrar a las dos.'],
+          [
+            'Luis',
+            'Are you going to take the bus to the park?',
+            '¿Vas a tomar el autobús para ir al parque?',
+          ],
           ['Ana', 'Yes, I am.', 'Sí.'],
         ],
         tasks: [
           fill('When ____ we going to meet?', ['are'], 'We usa are antes de going to.'),
-          build('Are you going to travel by train?', 'Are you abre la pregunta sobre el plan.'),
+          build(
+            'Are you going to travel by train?',
+            'Are you abre la pregunta sobre el plan.',
+            undefined,
+            'Ordena las palabras para preguntar si la otra persona va a viajar en tren.',
+          ),
           write(
-            'Pregunta «¿Cuándo vas a visitar a tu familia?».',
+            'Coordina una visita. Usa be going to + visit para preguntar «¿Cuándo vas a visitar a tu familia?».',
             ['When are you going to visit your family?'],
             'When + are you going to pregunta por el momento del plan.',
+          ),
+          read(
+            'Luis: When are we going to meet? Ana: We are going to meet at two. I am going to travel by train next Saturday.',
+            '¿Qué responde Ana a la pregunta sobre el encuentro?',
+            ['Va a viajar en tren.', 'Va a viajar el sábado.', 'Se van a encontrar a las dos.'],
+            2,
+            'When pide un momento. La respuesta a cuándo se van a encontrar es at two.',
           ),
         ],
       },
@@ -1258,36 +1634,51 @@ export const authoredUnits: {
           ['open', 'abrir', 'I will open the door.', 'Abriré la puerta.', 'verbo'],
           ['door', 'puerta', 'The door is small.', 'La puerta es pequeña.'],
           ['later', 'más tarde', 'I will call later.', 'Llamaré más tarde.', 'expresión de tiempo'],
-          ['thanks', 'gracias (informal)', 'Thanks, Ana.', 'Gracias, Ana.', 'cortesía'],
+          ['thanks', 'gracias (forma breve)', 'Thanks, Ana.', 'Gracias, Ana.', 'cortesía'],
         ],
         recycle: ['help', 'call'],
         skill: 'grammar.will',
-        rule: 'Will + verbo base sirve para ofrecer ayuda o decidir en el momento: I will help. Will no cambia con he o she. I’ll es la forma corta de I will. Una promesa no es una certeza sobre lo que pasará; aquí practicas cómo ofrecerte.',
+        rule: 'Para ofrecerte a hacer algo en el momento, usa I will + verbo base. Si alguien necesita ayuda, puedes decir «I’ll carry your bag». I’ll es la forma corta de I will. Will no cambia con el sujeto y el verbo que sigue tampoco lleva -s: «She will open the door».',
         forms: [
           ['will', 'auxiliar de futuro u ofrecimiento'],
           ["I'll", 'I will, forma corta'],
         ],
         examples: [
-          ['I will carry your bag.', 'Llevaré tu bolso.'],
+          ["I'll carry your bag.", 'Yo llevo tu bolso.'],
           ['She will open the door.', 'Ella abrirá la puerta.'],
         ],
         dialogue: [
-          ['Ana', 'Can you help, please?', '¿Puedes ayudar, por favor?'],
-          ['Luis', 'I will carry your bag.', 'Llevaré tu bolso.'],
-          ['Ana', 'Thanks. I will open the door.', 'Gracias. Abriré la puerta.'],
+          ['Ana', 'Can you help me, please?', '¿Me puedes ayudar, por favor?'],
+          ['Luis', "Sure. I'll carry your bag.", 'Claro. Yo llevo tu bolso.'],
+          ['Ana', "Thanks. I'll open the door.", 'Gracias. Yo abro la puerta.'],
         ],
         tasks: [
           fill('She will ____ the door. (abrir)', ['open'], 'Después de will usa open sin -s.'),
-          build('I will call you later.', 'Will + call expresa la decisión.'),
+          build('I will call you later.', 'Will + call expresa la decisión.', [
+            'Later I will call you.',
+          ]),
           recall(
             'Recuerda el verbo inglés que significa «abrir».',
             'open',
             'Open significa abrir.',
           ),
-          write(
-            'Ofrece «Llevaré tu bolso».',
-            ['I will carry your bag.', "I'll carry your bag."],
-            'Will o I’ll + carry expresa un ofrecimiento.',
+          {
+            type: 'short_text',
+            prompt: 'Ofrece llevar el bolso de otra persona. Usa I will o I’ll con carry.',
+            answers: ['I will carry your bag.', 'I will carry your bag for you.'],
+            reason: 'Will o I’ll + carry expresa un ofrecimiento.',
+            communicationOnly: {
+              answers: ['I can carry your bag.', 'I can carry your bag for you.'],
+              feedbackEs:
+                'Con can se entiende tu ofrecimiento. Para practicar una decisión en el momento, prueba con I’ll.',
+            },
+          },
+          read(
+            "Ana: I will open the door. Luis: I'll carry your bag. I will call you later.",
+            '¿Qué se ofrece a hacer Luis además de llamar más tarde?',
+            ['Llevar el bolso.', 'Abrir la puerta.', 'Comprar un bolso.'],
+            0,
+            'Luis se ofrece a llevar el bolso cuando dice I’ll carry your bag.',
           ),
         ],
       },
@@ -1300,7 +1691,13 @@ export const authoredUnits: {
           ['cancel', 'cancelar', 'I will not cancel.', 'No cancelaré.', 'verbo'],
           ['arrive', 'llegar', 'I will arrive later.', 'Llegaré más tarde.', 'verbo'],
           ['early', 'temprano', 'I will not arrive early.', 'No llegaré temprano.', 'adverbio'],
-          ['late', 'tarde; con retraso', 'I will not be late.', 'No llegaré tarde.', 'adjetivo'],
+          [
+            'late',
+            'tarde; con retraso',
+            'I will not be late.',
+            'No llegaré tarde.',
+            'adjetivo o adverbio',
+          ],
           [
             'this time',
             'esta vez',
@@ -1311,7 +1708,7 @@ export const authoredUnits: {
         ],
         recycle: ['travel', 'later'],
         skill: 'grammar.will_negative',
-        rule: 'Will not + verbo base niega una decisión o predicción futura: I will not cancel. Won’t significa lo mismo. Para describir cómo estarás, usa be después de will: I will not be late. Be es la forma base de am/is/are.',
+        rule: 'Para decir que algo no pasará, usa will not o won’t y después el verbo base. «I’ll cancel» significa que sí vas a cancelar. «I won’t cancel» significa que no. Si dices cómo estarás, usa be, la forma base de am/is/are: «I won’t be late».',
         forms: [
           ['will not', 'no (futuro)'],
           ["won't", 'will not, forma corta'],
@@ -1319,13 +1716,18 @@ export const authoredUnits: {
           ['this', 'este; esta'],
         ],
         examples: [
-          ['I will not arrive early.', 'No llegaré temprano.'],
+          ["I won't arrive early.", 'No llegaré temprano.'],
           ['I will not cancel the trip.', 'No cancelaré el viaje.'],
+          ["I won't be late.", 'No llegaré tarde.'],
         ],
         dialogue: [
-          ['Luis', 'I will not arrive early this time.', 'Esta vez no llegaré temprano.'],
-          ['Ana', 'I will wait at the bus stop.', 'Esperaré en la parada de autobús.'],
-          ['Luis', 'Thanks. I will not cancel the trip.', 'Gracias. No cancelaré el viaje.'],
+          ['Luis', "I won't arrive early this time.", 'Esta vez no llegaré temprano.'],
+          [
+            'Ana',
+            "That's OK. I'll wait at the bus stop.",
+            'Está bien. Esperaré en la parada de autobús.',
+          ],
+          ['Luis', "Thanks. I won't be late.", 'Gracias. No llegaré tarde.'],
         ],
         tasks: [
           fill('I will ____ cancel the trip. (no)', ['not'], 'Not va después de will.'),
@@ -1334,11 +1736,26 @@ export const authoredUnits: {
             'He will not is late.',
             'He will not be late.',
             'Will not requiere be, la forma base de is.',
+            {
+              prompt:
+                'Cambia is por la forma que va después de will not. Escribe la oración completa.',
+            },
           ),
           write(
-            'Escribe «No cancelaré el viaje».',
+            'Envía un aviso: «No cancelaré el viaje». Usa will not o won’t.',
             ['I will not cancel the trip.', "I won't cancel the trip."],
             'Will not y won’t expresan la misma negación futura.',
+          ),
+          read(
+            "I won't cancel the trip. I will travel by bus this time. I won't arrive early.",
+            '¿Qué cambio confirma la persona que viaja?',
+            [
+              'Va a cancelar el viaje.',
+              'Esta vez va a viajar en autobús.',
+              'Va a llegar temprano.',
+            ],
+            1,
+            'I will travel by bus se afirma. Won’t niega la cancelación y la llegada temprana.',
           ),
         ],
       },

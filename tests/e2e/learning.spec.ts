@@ -57,7 +57,7 @@ test('placement from the welcome evaluates travel listening and jumps to the rec
   await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill("I'm Luz.");
   await click(page, 'Siguiente pregunta');
   await click(page, 'Escuchar a Sam');
-  await page.getByRole('radio', exact('La parada de bus.')).click();
+  await page.getByRole('radio', exact('La parada de autobús.')).click();
   await click(page, 'Siguiente pregunta');
   for (const word of ['It’s', 'next', 'to', 'the', 'park'])
     await click(page, `Agregar palabra: ${word}`);

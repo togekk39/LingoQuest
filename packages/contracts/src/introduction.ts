@@ -1,15 +1,20 @@
-import type { LearningError } from './travel-learning';
+import type { LearningError } from './index.ts';
 
 const greetingStart =
   /^(?:(?:hi|hello|hey)(?: there)?|good (?:morning|afternoon|evening))(?=$|[ ,.!?])/i;
-const namePattern = /^\p{L}\p{M}*(?:[ '-]?\p{L}\p{M}*)*$/u;
-const nonNameWords = /^(?:i|my|you|your|am|is|are|was|were|called|here|very|from)$/u;
+const namePart = /^(?:(?:\p{L}\p{M}*\.)+\p{L}?|\p{L}\p{M}*(?:['-]?\p{L}\p{M}*)*)$/u;
+const nonNameWords = /^(?:my|you|your|am|is|are|was|were|called|here|very|from)$/u;
 const nonNameStarts =
-  /^(?:not|a|an|the|at|in|on|with|fine|good|okay|ok|happy|ready|tired|doing|looking|going|waiting|trying|learning|working|visiting|sorry|glad|excited|hungry|thirsty|lost|sick|busy|uh|um|er|ah)$/u;
+  /^(?:not|a|an|the|at|in|on|with|fine|good|okay|ok|happy|ready|tired|doing|looking|going|waiting|trying|learning|working|visiting|eating|drinking|reading|studying|traveling|calling|listening|speaking|sitting|standing|sorry|glad|excited|hungry|thirsty|lost|sick|busy|uh|um|er|ah)$/u;
 
 function isName(value: string | undefined): boolean {
-  const spelling = value?.replace(/[’‘]/g, "'").replace(/[‐‑]/g, '-');
-  if (!spelling || spelling.length > 120 || !namePattern.test(spelling)) return false;
+  const spelling = value?.replace(/[’‘ʼ]/g, "'").replace(/[‐‑]/g, '-');
+  if (
+    !spelling ||
+    spelling.length > 120 ||
+    !spelling.split(' ').every((part) => namePart.test(part))
+  )
+    return false;
   const words = spelling.toLowerCase().split(' ');
   return !nonNameStarts.test(words[0]) && !words.some((word) => nonNameWords.test(word));
 }
@@ -17,7 +22,7 @@ function isName(value: string | undefined): boolean {
 export function readIntroduction(value: string, spoken = false) {
   const text = value
     .normalize('NFKC')
-    .replace(/[’‘]/g, "'")
+    .replace(/[’‘ʼ]/g, "'")
     .replace(/[‐‑]/g, '-')
     .replace(/\s+/g, ' ')
     .trim();
@@ -31,12 +36,13 @@ export function readIntroduction(value: string, spoken = false) {
   const target = body.match(/^(?:i am|i'm|my name is|my name's)(?: |$)(.*)$/i);
   const alternative =
     body.match(/^(?:you can call me|i am called|i'm called) (.+)$/i) ?? body.match(/^(.+) here$/i);
-  const name = [alternative?.[1], target?.[1]].find(isName);
-  const form = name ? (name === alternative?.[1] ? 'alternative' : 'target') : undefined;
+  const candidate = alternative?.[1] ?? target?.[1];
+  const name = isName(candidate) ? candidate : candidate?.replace(/\.+$/, '');
+  const form = isName(name) ? (alternative ? 'alternative' : 'target') : undefined;
   return {
     greeting: !!greeting,
     form,
-    name,
+    name: form ? name : undefined,
     startsTarget: !!target,
     error: form ? undefined : introductionError(body.toLowerCase()),
   };
@@ -69,8 +75,9 @@ export function matchesIntroductionName(actual: string, expected: string, spoken
     const normalized = name
       .normalize('NFKC')
       .toLowerCase()
-      .replace(/[’‘]/g, "'")
+      .replace(/[’‘ʼ]/g, "'")
       .replace(/[‐‑]/g, '-')
+      .replace(/((?:^| )\p{L}\p{M}*)\.(?= |$)/gu, '$1')
       .trim()
       .replace(/\s+/g, ' ');
     return spoken ? normalized.normalize('NFD').replace(/[\p{M} '-]/gu, '') : normalized;

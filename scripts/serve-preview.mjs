@@ -44,7 +44,9 @@ createServer(async (req, res) => {
     res.writeHead(200, {
       'Content-Type': types[extname(target)] ?? 'application/octet-stream',
       'Cache-Control':
-        extname(target) === '.html' || path === '/sw.js' || path === '/chapter-packs/catalog.json'
+        extname(target) === '.html' ||
+        path === '/sw.js' ||
+        /^\/chapter-packs\/catalog(?:-v\d+)?\.json$/.test(path)
           ? 'no-cache'
           : 'public, max-age=31536000, immutable',
       'X-Content-Type-Options': 'nosniff',

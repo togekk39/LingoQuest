@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import {
+  CHAPTER_CATALOG_FILE,
   chapterCatalogSchema,
   parseChapterPack,
   parseCoursePack,
   sha256Hex,
   utf8Bytes,
+  type ChapterPack,
   type ChapterLessonSource,
 } from '@lingoquest/course-pack';
 import { route } from '@lingoquest/offline-engine';
@@ -25,7 +27,9 @@ import {
   prerequisiteFileSchema,
   type CurriculumLesson,
 } from '../packages/course-pack/src/prerequisites';
+import { verifyReleaseAudit } from './audit-release-items';
 import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
+import { inspectPublishedPrerequisites } from './published-prerequisites';
 
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
@@ -248,7 +252,7 @@ async function verifyPublishedContent(inventory: boolean) {
   );
 
   const chapterRoot = 'apps/mobile/public/chapter-packs/';
-  const catalog = chapterCatalogSchema.parse(JSON.parse(await read(chapterRoot + 'catalog.json')));
+  const catalog = chapterCatalogSchema.parse(JSON.parse(await read(chapterRoot + CHAPTER_CATALOG_FILE)));
   const authored: Record<string, ChapterLessonSource> = {
     ...westernChapterLessons,
     ...easternChapterLessons,
@@ -288,10 +292,12 @@ async function verifyPublishedContent(inventory: boolean) {
     }
   }
 
+  const activeChapters = new Map<string, ChapterPack>();
   for (const { id, unitId } of route) {
     const entry = catalog.chapters[id];
     const bytes = await read(chapterRoot + entry.revision + '/' + id + '.json');
     const pack = parseChapterPack(bytes, id);
+    activeChapters.set(id, pack);
     assert.equal(sha256Hex(bytes), entry.sha256, id);
     assert.equal(utf8Bytes(bytes).length, entry.sizeBytes, id);
     assert.equal(pack.revision, entry.revision, id);
@@ -347,6 +353,22 @@ async function verifyPublishedContent(inventory: boolean) {
         Object.keys(pack.audio).length,
       );
   }
+  await verifyReleaseAudit(bundled.payload, activeChapters);
+  const prerequisiteCoverage = inspectPublishedPrerequisites({
+    chapters: authored,
+    lessons: units.flatMap((unit) => unit.lessons.map(({ id }) => lessons[id])),
+    missions: chapter.missions,
+    encounters: chapterStory.encounters,
+    dialogues: chapterStory.dialogues,
+    reviewSteps: travelPracticeSteps,
+    reviewStarter: travelLesson.exercises[0],
+  });
+  assert.deepEqual(
+    prerequisiteCoverage.issues,
+    [],
+    'Published paths / Rutas publicadas:\n' + prerequisiteCoverage.issues.join('\n'),
+  );
+  console.log('Published prerequisites / Requisitos publicados:', prerequisiteCoverage.statistics);
   if (inventory)
     console.log({
       homeMissions: chapter.missions.map((mission) => ({

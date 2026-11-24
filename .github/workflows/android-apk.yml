@@ -53,6 +53,8 @@ jobs:
       - run: npm run check
       - run: npm test
       - name: Build standalone preview APK
+        env:
+          EXPO_PUBLIC_CHAPTER_PACK_REF: ${{ github.event_name == 'push' && github.sha || '' }}
         run: node scripts/build-apk.mjs 2>&1 | tee apk-build.log
       - name: Test native English voice configuration
         working-directory: apps/mobile/android
@@ -74,7 +76,7 @@ jobs:
           {
             echo '## LingoQuest standalone APK'
             echo 'Download the artifact on this run, extract the ZIP, and install the .apk on an ARM Android 7+ device.'
-            echo 'The release variant embeds the offline course, Hermes bundle and fonts; no Metro server or Expo account is needed.'
+            echo 'The release variant embeds the offline shell, Hermes bundle and fonts. Chapter content downloads on first use and stays available offline.'
             echo '**Signing:** public template preview certificate. This is an installable testing build, not a private-key Play Store release.'
             echo 'SHA-256 and version/commit metadata are included beside the APK. Artifacts are kept for 30 days.'
           } >> "$GITHUB_STEP_SUMMARY"

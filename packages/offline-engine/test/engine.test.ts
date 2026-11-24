@@ -8,7 +8,9 @@ import {
   type CourseData,
   type OfflineState,
   type CourseExercise,
+  type LessonCheckpoint,
   type LocalStore,
+  type QuickReviewState,
 } from '../src/index.ts';
 import {
   units,
@@ -19,7 +21,14 @@ import {
   missions,
   speechDrills,
 } from '../../../apps/api/src/content.ts';
-import type { Progress, RunView, AttemptResult } from '@lingoquest/contracts';
+import {
+  challengeQuestionCount,
+  challengeRequiredUnit,
+  selectChallengeQuestions,
+  type Progress,
+  type RunView,
+  type AttemptResult,
+} from '@lingoquest/contracts';
 const source: CourseData = {
   units,
   lessons,
@@ -164,6 +173,68 @@ test('local progress survives engine restart and content updates with stable ide
   const p = await restarted.initialize();
   assert.equal(p.xp, 25);
   assert.deepEqual(p.completedLessons, ['u01_l01']);
+});
+test('an in-progress lesson resumes appended practice once and retains progress', async () => {
+  const { engine, store, content } = fixture();
+  const lessonId = 'u01_l02';
+  const previousContent = structuredClone(source);
+  const previousLesson = previousContent.lessons[lessonId];
+  const practice = previousLesson.stages!.findIndex(({ type }) => type === 'practice');
+  const speaking = previousLesson.stages!.findIndex(({ type }) => type === 'speaking');
+  const addedExercise = previousLesson.exercises.pop()!;
+  assert.equal(addedExercise.id, 'u01_l02_practice_5');
+  previousLesson.stages![practice].exerciseIds!.pop();
+  content(previousContent);
+
+  await solve(engine, 'u01_l01', true);
+  for (const exercise of previousLesson.exercises) {
+    await engine.request('/v1/attempts', {
+      clientAttemptId: `previous-${exercise.id}`,
+      lessonId,
+      exerciseId: exercise.id,
+      answer: correct(exercise),
+    });
+  }
+  const path = `/v1/lessons/${lessonId}/checkpoint`;
+  const saved: LessonCheckpoint = {
+    activityId: 'original-activity',
+    eventId: 'original-event',
+    stage: speaking,
+    vocabulary: 0,
+    exercise: -1,
+    answer: {},
+    hint: false,
+    help: false,
+    xp: 5,
+    weak: [previousLesson.exercises[0].id],
+    reviewAt: null,
+  };
+  await engine.request(path, saved);
+  assert.deepEqual((await engine.request<{ saved: LessonCheckpoint }>(path)).saved, saved);
+  const priorState: OfflineState = JSON.parse((await store.getItem(OFFLINE_STATE_KEY))!);
+
+  content(source);
+  const resumed = await engine.request<{ saved: LessonCheckpoint }>(path);
+  assert.equal(resumed.saved.stage, practice);
+  assert.equal(resumed.saved.exercise, previousLesson.stages![practice].exerciseIds!.length);
+  assert.equal(resumed.saved.activityId, saved.activityId);
+  assert.notEqual(resumed.saved.eventId, saved.eventId);
+  assert.equal(resumed.saved.xp, saved.xp);
+  assert.deepEqual(resumed.saved.weak, saved.weak);
+  assert.deepEqual(await engine.request(path), resumed);
+  const resumedState: OfflineState = JSON.parse((await store.getItem(OFFLINE_STATE_KEY))!);
+  assert.deepEqual(resumedState.completedLessons, priorState.completedLessons);
+  assert.deepEqual(resumedState.attempts, priorState.attempts);
+  assert.deepEqual(resumedState.mastery, priorState.mastery);
+
+  await engine.request('/v1/attempts', {
+    clientAttemptId: resumed.saved.eventId,
+    lessonId,
+    exerciseId: addedExercise.id,
+    answer: correct(addedExercise),
+  });
+  await engine.request(`/v1/lessons/${lessonId}/complete`, {});
+  assert.deepEqual((await engine.initialize()).completedLessons, ['u01_l01', lessonId]);
 });
 test('related units keep standard track locked until all taught prerequisites are completed', async () => {
   const { engine } = fixture();
@@ -570,6 +641,58 @@ test('challenge pools exclude questions linked to unfinished lessons', async () 
   });
   const state = JSON.parse(f.store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
   assert.ok(state.runs[run.runId].items.every((e) => e.id !== 'unlearned-future-question'));
+});
+
+test('every challenge mode uses distinct content across 13 ranks and reaches every authored item', () => {
+  for (const type of ['grammar_rush', 'cloze_battle', 'reading_quest'] as const) {
+    const pool = challengePools[type];
+    const rankSignatures = new Set<string>();
+    const reachable = new Set<string>();
+    for (let rank = 1; rank <= 13; rank++) {
+      const lastUnit = challengeRequiredUnit(challengePools.grammar_rush, rank);
+      const taught = new Set(units.slice(0, Number(lastUnit.slice(1))).flatMap((unit) => unit.lessons.map(({ id }) => id)));
+      const selection = selectChallengeQuestions(pool, type, rank, (item) =>
+        item.requiredLessonIds!.every((id) => taught.has(id)),
+      );
+      assert.equal(selection.length, challengeQuestionCount(type), `${type}, rank ${rank}`);
+      rankSignatures.add(selection.map(({ id }) => id).sort().join(','));
+      for (const item of selection) reachable.add(item.id);
+    }
+    assert.equal(rankSignatures.size, 13, `${type} changes from rank to rank`);
+    assert.equal(reachable.size, pool.length, `${type} reaches every authored question`);
+  }
+});
+
+test('course quick review teaches its starter word before assessment and reuses visited material', async () => {
+  const { engine } = fixture();
+  const path = '/v1/reviews/quick?source=course';
+  const starter = await engine.request<QuickReviewState>(path);
+  assert.equal(starter.starter, true);
+  assert.match(starter.exercise.promptEs, /«hello» significa «hola»/i);
+  const question = lessons[starter.lessonId].exercises.find(({ id }) => id === starter.exerciseId)!;
+  await engine.request(path, { action: 'answer', token: starter.token, answer: correct(question) });
+  const review = await engine.request<{ reviews: { exercises: { id: string }[] }[] }>(
+    '/v1/reviews/today?source=course&all=true',
+  );
+  assert.deepEqual(review.reviews.flatMap(({ exercises }) => exercises.map(({ id }) => id)), [question.id]);
+});
+
+test('course placement recommends A2 only after evidence on later material', async () => {
+  const { engine } = fixture();
+  const answers = placementQuestions.map((question) => ({
+    exerciseId: question.id,
+    answer: question.type === 'reorder'
+      ? { tokens: question.acceptedAnswers[0]!.replace(/[.?!]$/, '').split(' ') }
+      : correct(question),
+  }));
+  const assess = (responses: typeof answers) =>
+    engine.request<{ level: string; correct: number }>('/v1/placement', { answers: responses });
+  assert.equal((await assess(answers.slice(0, 1))).level, 'A1');
+  const onlyEarlier = answers.map((entry, index) => index < 9 ? entry : { ...entry, answer: wrong(placementQuestions[index]) });
+  assert.equal((await assess(onlyEarlier)).level, 'A1');
+  const result = await assess(answers);
+  assert.equal(result.correct, 12);
+  assert.equal(result.level, 'A2');
 });
 
 test('previous development state stays untouched until a deliberate reset; previous backups are rejected clearly', async () => {

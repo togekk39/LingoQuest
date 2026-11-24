@@ -17,9 +17,12 @@ export const westernChapterLessons = {
       { en: 'next to', es: 'al lado de' },
       { en: 'park', es: 'parque' },
       { en: 'a blue bag', es: 'una mochila azul' },
+      { en: 'Excuse me.', es: 'Disculpa.' },
+      { en: 'Can you help me?', es: '¿Me puedes ayudar?' },
+      { en: 'I need help.', es: 'Necesito ayuda.' },
     ],
     grammarEs:
-      'Di «I am Luz» para presentarte. Con «my name», usa «is» («My name is Luz»). Pregunta por un lugar con «Where is…?» e indica su ubicación con «It’s next to…».',
+      'Di «I am Luz» o «I’m Luz» para presentarte. Con «my name», usa «is»: «My name is Luz». Para pedir ayuda, empieza con «Excuse me. Can you help me?». Si necesitas ayuda de inmediato, di «I need help». Pregunta por un lugar con «Where is…?» y responde con «It’s next to…» para ubicarlo al lado de otro lugar. «It’s» significa «it is».',
     question: {
       promptEs: '¿Dónde queda la parada que busca Sam?',
       options: ['Al lado de la mesa de bienvenida', 'Al lado del parque', 'Dentro del parque'],
@@ -27,10 +30,10 @@ export const westernChapterLessons = {
       feedbackEs: 'Luz dice «It’s next to the park». «Next to» indica que está al lado.',
     },
     practiceEs:
-      'Saluda a Sam con tu nombre. Dile que la parada está al lado del parque. Usa el modelo de Luz y cambia su nombre por el tuyo.',
+      'Practica en dos turnos. Primero, pídele ayuda a Luz y pregúntale dónde está la parada. Después, saluda a Sam con tu nombre y dile que la parada está al lado del parque.',
     model: {
-      en: 'Hi! My name is Luz. The bus stop is next to the park.',
-      es: '¡Hola! Me llamo Luz. La parada del bus está al lado del parque.',
+      en: 'Excuse me. Can you help me? Where is the bus stop? Hi! My name is Alex. The bus stop is next to the park.',
+      es: 'Disculpa. ¿Me puedes ayudar? ¿Dónde está la parada del bus? ¡Hola! Me llamo Alex. La parada del bus está al lado del parque.',
     },
   },
   mexico: {
@@ -64,21 +67,25 @@ export const westernChapterLessons = {
       { en: 'every day', es: 'todos los días' },
       { en: 'on Saturdays', es: 'los sábados' },
       { en: 'at eight', es: 'a las ocho' },
+      { en: 'go to the market', es: 'ir al mercado' },
+      { en: 'buy fruit', es: 'comprar fruta' },
+      { en: 'buy bread', es: 'comprar pan' },
+      { en: 'come with me', es: 'venir conmigo' },
     ],
     grammarEs:
-      'En presente simple, usa «I go» con «I» y «she goes» con «she». En preguntas, «Does she go?» lleva «go» sin la terminación de «goes». Usa «at» para indicar la hora.',
+      'Para hablar de rutinas, compara «I go» con «she goes» y «I buy» con «he buys». Para preguntar, usa «do» con «I», «you», «we» o «they» y «does» con «he», «she» o «it». Luego va el sujeto y el verbo base: «What time do you go?» y «What time does she go?». Practica cambiando «you» por «she» en la primera pregunta. Usa «at» con una hora y «on» con un día: «at eight», «on Saturdays».',
     question: {
       promptEs: '¿Con quién puede ir Eva al mercado mañana y a qué hora?',
       options: ['Con Inés a las ocho', 'Con la hermana de Inés a las ocho', 'Con Inés a las diez'],
       answerIndex: 0,
       feedbackEs:
-        'La hermana sale a las diez los sábados. Inés invita a Eva a ir con ella a las ocho.',
+        'La hermana de Inés va al mercado a las diez los sábados. Para mañana, Inés invita a Eva a ir con ella a las ocho.',
     },
     practiceEs:
-      'Escribe o di un mensaje para una visitante. Tú compras fruta a las nueve y tu hermano compra pan a las diez. Invítala a acompañarte.',
+      'Escribe o di un mensaje para una visitante. Tú compras fruta a las nueve y tu hermano compra pan a las diez. Pregúntale a qué hora va al mercado e invítala a acompañarte.',
     model: {
-      en: 'I buy fruit at nine. My brother buys bread at ten. You can come with me at nine.',
-      es: 'Compro fruta a las nueve. Mi hermano compra pan a las diez. Puedes venir conmigo a las nueve.',
+      en: 'I buy fruit at nine. My brother buys bread at ten. What time do you go to the market? You can come with me at nine.',
+      es: 'Compro fruta a las nueve. Mi hermano compra pan a las diez. ¿A qué hora vas al mercado? Puedes venir conmigo a las nueve.',
     },
   },
   colombia: {
@@ -103,7 +110,7 @@ export const westernChapterLessons = {
       },
       {
         speaker: 'June',
-        en: 'I’d like an egg arepa and a lemonade, to go.',
+        en: 'I’d like an egg arepa and a lemonade to go.',
         es: 'Quisiera una arepa de huevo y una limonada para llevar.',
       },
       {
@@ -118,9 +125,10 @@ export const westernChapterLessons = {
       { en: 'some water', es: 'un poco de agua' },
       { en: 'a lemonade', es: 'una limonada' },
       { en: 'to go', es: 'para llevar' },
+      { en: 'orange juice', es: 'jugo de naranja' },
     ],
     grammarEs:
-      '«I like» expresa un gusto. «I’d like» sirve para pedir. Para una sola unidad, usa «a» antes de un sonido consonante («a lemonade») y «an» antes de un sonido vocal («an egg arepa»). Usa «some» para una cantidad no especificada («some water»).',
+      '«I like» expresa un gusto. «I’d like» sirve para pedir algo ahora. «I’d» es la forma corta de «I would». Añade «please» para ser amable y «to go» para pedir algo para llevar. Para una unidad, usa «a» antes de un sonido consonante («a lemonade») y «an» antes de un sonido vocal («an egg arepa»). Usa un número y el plural para dos o más («two egg arepas») y «some» para una cantidad no especificada («some water»). Para preguntar si tienen algo, usa «Do you have…?».',
     question: {
       promptEs: '¿Qué pidió June?',
       options: [
@@ -130,10 +138,10 @@ export const westernChapterLessons = {
       ],
       answerIndex: 2,
       feedbackEs:
-        'June dice «I’d like an egg arepa and a lemonade, to go». Las dos arepas son de Mateo.',
+        'June dice «I’d like an egg arepa and a lemonade to go». Las otras dos arepas son de Mateo.',
     },
     practiceEs:
-      'El local ya no tiene limonada. Pide dos arepas de huevo y agua para llevar. Luego pregunta si hay jugo de naranja.',
+      'El local ya no tiene limonada. Pide dos arepas de huevo y agua para llevar. Usa la forma cortés que empieza con «I’d» y pregunta si hay jugo de naranja.',
     model: {
       en: 'I’d like two egg arepas and some water to go, please. Do you have orange juice?',
       es: 'Quisiera dos arepas de huevo y agua para llevar, por favor. ¿Tienen jugo de naranja?',
@@ -168,11 +176,17 @@ export const westernChapterLessons = {
       { en: 'yesterday', es: 'ayer' },
       { en: 'first', es: 'primero' },
       { en: 'then', es: 'después' },
-      { en: 'bought', es: 'compró, compré' },
+      { en: 'go → went', es: 'ir → fui, fue' },
+      { en: 'buy → bought', es: 'comprar → compré, compró' },
+      { en: 'meet → met', es: 'encontrarse con alguien → me encontré, se encontró' },
+      { en: 'see → saw', es: 'ver → vi, vio' },
       { en: 'main entrance', es: 'entrada principal' },
+      { en: 'a fair', es: 'una feria' },
+      { en: 'fruit', es: 'fruta' },
+      { en: 'arrive', es: 'llegar' },
     ],
     grammarEs:
-      'Cuenta hechos terminados con el pasado del verbo («I bought bread»). Usa la forma base después de «did» y «didn’t» («Did you buy bread?», «I didn’t buy bread»).',
+      'Para contar lo que pasó ayer, usa el pasado. Algunos verbos cambian de forma: «go» pasa a «went», «buy» a «bought», «meet» a «met» y «see» a «saw». Compara «I saw Ana» con «Did you see Ana?» y «I didn’t see Ana». Después de «did» o «didn’t» va el verbo base, sin la forma de pasado. Para preguntar por la hora, empieza con «What time did…?».',
     question: {
       promptEs: '¿Qué hizo Diego antes de encontrarse con Ana?',
       options: ['Llamó a Tomás', 'Compró pan', 'Se reunió con Tomás en el café'],
@@ -180,7 +194,7 @@ export const westernChapterLessons = {
       feedbackEs: 'Diego dice «First, I bought bread. Then I met Ana». Primero compró pan.',
     },
     practiceEs:
-      'Cuenta que ayer fuiste a una feria, viste a Ana y después compraste fruta. Pregunta a qué hora llegó Tomás.',
+      'Cuenta que ayer fuiste a una feria, viste a Ana y después compraste fruta. Usa las tres formas de pasado de la lista. Pregunta a qué hora llegó Tomás con «What time did…?».',
     model: {
       en: 'Yesterday I went to a fair. I saw Ana, and then I bought fruit. What time did Tomás arrive?',
       es: 'Ayer fui a una feria. Vi a Ana y después compré fruta. ¿A qué hora llegó Tomás?',
@@ -213,25 +227,31 @@ export const westernChapterLessons = {
       { en: 'stir the soup', es: 'revolver la sopa' },
       { en: 'cut the bread', es: 'cortar el pan' },
       { en: 'bowl', es: 'tazón' },
+      { en: 'put the bowls on the table', es: 'poner los tazones en la mesa' },
+      { en: 'then', es: 'luego, después' },
     ],
     grammarEs:
-      'Usa el presente simple para hábitos («Jo usually sets the table»). Para una acción en curso, combina «am», «is» o «are» con la forma en «-ing» («Jo is washing the vegetables»).',
+      'Usa el presente simple para hábitos («Jo usually sets the table»). Para una acción en curso, usa «am», «is» o «are» y la forma en «-ing»: «I’m washing», «she’s stirring», «we’re cutting». En «stirring» y «cutting» se duplica la última consonante de «stir» y «cut». Para ordenar tareas, usa «first» para lo primero y «then» para lo siguiente.',
     question: {
-      promptEs: '¿Qué está haciendo Rafa y qué hará Alex después de cortar el pan?',
+      promptEs: 'Escucha el mensaje. ¿Quién está lavando las verduras y qué está haciendo Jo?',
+      listening: {
+        en: 'Jo is cutting the bread. Rafa is stirring the soup. Alex is washing the vegetables.',
+        es: 'Jo está cortando el pan. Rafa está revolviendo la sopa. Alex está lavando las verduras.',
+      },
       options: [
-        'Rafa corta el pan y Alex pone los tazones',
-        'Rafa lava las verduras y Alex revuelve la sopa',
-        'Rafa revuelve la sopa y Alex pone los tazones',
+        'Jo lava las verduras y Alex corta el pan',
+        'Rafa lava las verduras y Jo revuelve la sopa',
+        'Alex lava las verduras y Jo corta el pan',
       ],
       answerIndex: 2,
       feedbackEs:
-        'Jo dice que Rafa está revolviendo la sopa. «Then» señala la segunda tarea de Alex, poner los tazones en la mesa.',
+        'Escuchas «Alex is washing the vegetables» y «Jo is cutting the bread». En este mensaje se cambiaron las tareas de Jo y Alex.',
     },
     practiceEs:
-      'Preparan un juego de mesa. Di que hoy estás ordenando las cartas y que Jo está contando las fichas. Indica que después deben poner las fichas en la mesa.',
+      'En otra cocina, tú sueles cortar el pan, pero hoy estás revolviendo la sopa. Jo está cortando el pan. Cuéntale a alguien qué hace cada persona y luego pídele que ponga los tazones en la mesa.',
     model: {
-      en: 'I’m sorting the cards and Jo is counting the pieces. Then, let’s put the pieces on the table.',
-      es: 'Estoy ordenando las cartas y Jo está contando las fichas. Después, pongamos las fichas en la mesa.',
+      en: 'I usually cut the bread, but today I’m stirring the soup. Jo is cutting the bread. Then put the bowls on the table, please.',
+      es: 'Normalmente corto el pan, pero hoy estoy revolviendo la sopa. Jo está cortando el pan. Después pon los tazones en la mesa, por favor.',
     },
   },
   chile: {
@@ -240,7 +260,7 @@ export const westernChapterLessons = {
     dialogue: [
       {
         speaker: 'Sol',
-        en: 'We’re going to meet by the water at four.',
+        en: 'We’re going to meet by the waterfront at four.',
         es: 'Vamos a reunirnos junto al mar a las cuatro.',
       },
       {
@@ -260,14 +280,15 @@ export const westernChapterLessons = {
       },
     ],
     vocabulary: [
-      { en: 'by the water', es: 'junto al agua' },
+      { en: 'by the waterfront', es: 'junto al mar, en este caso' },
       { en: 'forecast', es: 'pronóstico' },
       { en: 'until six', es: 'hasta las seis' },
       { en: 'inside', es: 'dentro de' },
       { en: 'text the group', es: 'mandarle un mensaje al grupo' },
+      { en: 'library', es: 'biblioteca' },
     ],
     grammarEs:
-      'Usa «be going to» para un plan ya acordado («We’re going to meet at four»). Usa «will» para una oferta o decisión que haces en el momento («I’ll text the group»). «I’ll» es la forma corta de «I will».',
+      'Para un plan ya acordado, usa «be going to» más el verbo base: «We’re going to meet at four». También se usa para una predicción basada en lo que sabes: «It’s going to rain». Para proponer un cambio, di «Let’s» y el verbo base: «Let’s meet inside». Para ofrecer ayuda en el momento, di «I’ll» y el verbo base: «I’ll text the group». «I’ll» es la forma corta de «I will».',
     question: {
       promptEs: '¿Dónde y a qué hora se reunirán al final?',
       options: [
@@ -280,10 +301,10 @@ export const westernChapterLessons = {
         'El pronóstico cambia el lugar de la reunión. Las seis es la hora de cierre. La reunión sigue a las cuatro.',
     },
     practiceEs:
-      'Iban a reunirse en un parque a las cinco. Propón verse en la biblioteca a las cinco y ofrece avisar al grupo.',
+      'El grupo planea reunirse en un parque a las cinco, pero va a llover. Explica el plan original con «going to». Propón verse en la biblioteca a las cinco y ofrece avisar al grupo.',
     model: {
-      en: 'Let’s meet in the library at five. I’ll text the group.',
-      es: 'Reunámonos en la biblioteca a las cinco. Le mandaré un mensaje al grupo.',
+      en: 'We’re going to meet in the park at five, but it’s going to rain. Let’s meet at the library at five instead. I’ll text the group.',
+      es: 'Vamos a reunirnos en el parque a las cinco, pero va a llover. Mejor reunámonos en la biblioteca a las cinco. Le mandaré un mensaje al grupo.',
     },
   },
   miami: {
@@ -317,9 +338,13 @@ export const westernChapterLessons = {
       { en: 'just', es: 'acabar de, en «I’ve just packed»' },
       { en: 'yet', es: 'ya en preguntas, todavía en negativas' },
       { en: 'pack my bag', es: 'preparar mi maleta' },
+      { en: 'take → took → taken', es: 'formas de «tomar» un medio de transporte' },
+      { en: 'buy → bought → bought', es: 'formas de «comprar»' },
+      { en: 'bring → brought → brought', es: 'formas de «traer»' },
+      { en: 'blanket', es: 'manta' },
     ],
     grammarEs:
-      'Pregunta por una experiencia sin fecha con «Have you ever…?». Si dices cuándo sucedió, usa el pasado simple («I took it last June»). Con «have» y un participio, «already» marca algo que ya hiciste, «just» algo reciente y «yet» algo pendiente en una pregunta o negativa.',
+      'Forma el presente perfecto con «have» o «has» y un participio. En «take → took → taken», «took» es el pasado y «taken» el participio. Pregunta por una experiencia sin fecha con «Have you ever taken…?». Para ubicarla en un período terminado, usa pasado simple: «I took it last June». En una lista de preparativos, pon «already» o «just» antes del participio («I’ve already bought…», «I’ve just packed…»). Pon «yet» al final de preguntas y negativas («Have you printed them yet?», «I haven’t printed them yet»).',
     question: {
       promptEs: '¿Qué falta hacer con los boletos?',
       options: ['Comprarlos', 'Guardarlos en el teléfono', 'Imprimirlos'],
@@ -328,7 +353,7 @@ export const westernChapterLessons = {
         'Nico ya compró los boletos y los tiene en su teléfono. «I haven’t printed them yet» indica que aún no los imprimió.',
     },
     practiceEs:
-      'Organizan un día de campo. Di que ya compraste la comida y que acabas de guardar el agua. Pregunta a tu compañera si ya trajo una manta.',
+      'Organizan un día de campo. Di que ya compraste la comida con «already» y que acabas de guardar el agua con «just». Pregunta a tu compañera si ya trajo una manta con «yet».',
     model: {
       en: 'I’ve already bought the food and I’ve just packed the water. Have you brought a blanket yet?',
       es: 'Ya compré la comida y acabo de guardar el agua. ¿Ya trajiste una manta?',
@@ -346,7 +371,7 @@ export const westernChapterLessons = {
       {
         speaker: 'Jo',
         en: 'Is there an elevator at the subway station near the office?',
-        es: '¿Hay elevador en la estación del metro cerca de la oficina?',
+        es: '¿Hay un elevador en la estación de metro que queda cerca de la oficina?',
       },
       {
         speaker: 'Riley',
@@ -380,7 +405,7 @@ export const westernChapterLessons = {
         'El metro tarda menos, pero el elevador no funciona. La rampa del bus le permite viajar sin usar escaleras.',
     },
     practiceEs:
-      'Avisa a la oficina que tomarás el bus. Di que es más lento que el metro y explica cuándo saldrás para llegar a tiempo.',
+      'Avisa a la oficina que tomarás el bus. Di que es más lento que el metro. Elige una hora de salida y presenta esa decisión como una consecuencia con «so».',
     model: {
       en: 'I’ll take the bus. It’s slower than the subway, so I’ll leave at eight to get to the interview on time.',
       es: 'Tomaré el bus. Es más lento que el metro, así que saldré a las ocho para llegar a tiempo a la entrevista.',
@@ -388,8 +413,7 @@ export const westernChapterLessons = {
   },
   toronto: {
     title: 'Inscripción en el centro comunitario',
-    objectiveEs:
-      'Solicita un lugar y confirma qué debes llevar, qué puedes llevar y qué no hace falta.',
+    objectiveEs: 'Solicita un lugar, deletrea tu apellido y confirma qué debes llevar.',
     dialogue: [
       {
         speaker: 'Cruz',
@@ -423,9 +447,17 @@ export const westernChapterLessons = {
       { en: 'assist', es: 'ayudar' },
       { en: 'fill out a form', es: 'llenar un formulario' },
       { en: 'photo ID', es: 'identificación con foto' },
+      { en: 'How do you spell your last name?', es: '¿Cómo se deletrea tu apellido?' },
+      { en: 'A, B, C, D, E, F, G.', es: 'Letras de la A a la G.' },
+      { en: 'H, I, J, K, L, M, N.', es: 'Letras de la H a la N.' },
+      { en: 'O, P, Q, R, S, T, U.', es: 'Letras de la O a la U.' },
+      { en: 'V, W, X, Y, Z.', es: 'Letras de la V a la Z.' },
+      { en: 'space, hyphen, apostrophe', es: 'espacio, guion, apóstrofo' },
+      { en: 'accent mark', es: 'acento escrito' },
+      { en: 'N with a tilde', es: 'Ñ, una N con virgulilla' },
     ],
     grammarEs:
-      '«Have to» indica una obligación. «Don’t have to» significa que no es obligatorio. «Can» indica permiso. Para asistir a una clase, usa «attend». «Assist» significa ayudar.',
+      '«Have to» indica una obligación. «Don’t have to» significa que algo es opcional y «can» indica permiso. «Attend» significa asistir a una clase y «assist» significa ayudar. Si te preguntan «How do you spell your last name?», di «That’s…» y nombra cada letra. Escucha el alfabeto y practica dejando una pausa entre letras. En Estados Unidos, Z suena «zee». En Canadá también puedes oír «zed». En un apellido como «de la Cruz», di «space» entre palabras. Para un guion o apóstrofo, di «hyphen» o «apostrophe». Puedes indicar un acento escrito con «with an accent mark» y la letra ñ con «N with a tilde».',
     question: {
       promptEs: '¿Qué tiene que llevar Cruz a la clase?',
       options: ['Un cuaderno', 'Una identificación con foto', 'Una foto sin identificación'],
@@ -434,7 +466,7 @@ export const westernChapterLessons = {
         'Debe llenar el formulario y llevar una identificación con foto. Puede llevar un cuaderno si quiere.',
     },
     practiceEs:
-      'Solicita un cupo en la clase del viernes. Da y deletrea tu apellido. Pregunta si tienes que llevar una identificación con foto.',
+      'Solicita un cupo en la clase del viernes. Di tu apellido y deletrea cada parte en voz alta con el alfabeto de la lista. Incluye los espacios o signos que correspondan. Luego pregunta si tienes que llevar una identificación con foto.',
     model: {
       en: 'Is there a spot in the Friday class? My last name is Cruz. That’s C, R, U, Z. Do I have to bring a photo ID?',
       es: '¿Hay cupo en la clase del viernes? Mi apellido es Cruz. Se escribe C, R, U, Z. ¿Tengo que llevar una identificación con foto?',
@@ -479,7 +511,7 @@ export const westernChapterLessons = {
       { en: 'turn left', es: 'girar a la izquierda' },
     ],
     grammarEs:
-      'Con «if» expresa una condición («If I take the bus, I’ll be late»). Con «when» indica una acción futura que esperas que ocurra («I’ll text when I get there»). Usa presente simple en la parte que comienza con «if» o «when».',
+      'Para un resultado futuro que depende de algo, usa «if» + presente simple y «will» en el resultado: «If I take the bus, I’ll be late». Con «when» das por hecho que algo pasará: «I’ll text when I get there». Usa «when I get there» para el momento de llegada. Practica con dos rutas: «If I take the bus, I’ll be late. If I walk, I’ll get there on time».',
     question: {
       promptEs: '¿Qué recorrido le permite a Ellis llegar antes de su entrevista?',
       options: [
@@ -492,10 +524,10 @@ export const westernChapterLessons = {
         'La entrevista empieza a las nueve y cuarenta y cinco. A pie llega a las nueve y cuarenta, diez minutos antes que el bus.',
     },
     practiceEs:
-      'Escribe a la oficina para avisar que el metro está suspendido y que irás a pie. Di que llegarás a las nueve y cuarenta si sales ahora.',
+      'Escribe a la oficina para avisar que el metro está suspendido y que irás a pie. Usa «if» para decir a qué hora llegarás si sales ahora. Usa «when» para explicar en qué momento enviarás otro mensaje.',
     model: {
-      en: 'The subway service is suspended, so I’ll walk. If I leave now, I’ll arrive at nine forty.',
-      es: 'El servicio de metro está suspendido, así que iré a pie. Si salgo ahora, llegaré a las nueve y cuarenta.',
+      en: 'Subway service is suspended, so I’ll walk. If I leave now, I’ll arrive at nine forty. I’ll text when I get there.',
+      es: 'Se suspendió el servicio de metro, así que iré a pie. Si salgo ahora, llegaré a las nueve y cuarenta. Les mandaré un mensaje cuando llegue.',
     },
   },
 } satisfies Record<string, ChapterLessonSource>;

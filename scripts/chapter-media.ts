@@ -93,6 +93,7 @@ function speechText(phrase: string) {
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
     .replace(/[–—]/g, ', ')
+    .replace(/\s*→\s*/g, ', ')
     .trim();
 }
 

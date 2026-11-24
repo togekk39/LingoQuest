@@ -1,4 +1,4 @@
-import type { LessonAuthoring, Task } from './integrated-lessons.ts';
+import { build, fix, read, type LessonAuthoring, type Task } from './integrated-lessons.ts';
 
 // Original situations authored for this course; no external text or media.
 const fill = (
@@ -13,12 +13,6 @@ const fill = (
   answers,
   reason,
 });
-const build = (answer: string, reason: string): Task => ({
-  type: 'reorder',
-  prompt: 'Ordena las palabras para expresar la idea.',
-  answer,
-  reason,
-});
 const write = (prompt: string, answers: string[], reason: string): Task => ({
   type: 'short_text',
   prompt,
@@ -31,13 +25,6 @@ const recall = (prompt: string, answer: string, reason: string): Task => ({
   answers: [answer],
   reason,
   recall: true,
-});
-const fix = (sentence: string, answer: string, reason: string): Task => ({
-  type: 'correction',
-  prompt: 'Corrige la oración. Escríbela completa.',
-  sentence,
-  answers: [answer],
-  reason,
 });
 
 export const advancedUnits: {
@@ -57,13 +44,7 @@ export const advancedUnits: {
         scene:
           'Compartes experiencias de comida y viajes. Aquí interesa si algo ha ocurrido en tu vida, sin dar una fecha.',
         words: [
-          [
-            'try',
-            'probar; intentar',
-            'I have tried this food.',
-            'He probado esta comida.',
-            'verbo',
-          ],
+          ['try', 'probar (comida)', 'I have tried this food.', 'He probado esta comida.', 'verbo'],
           ['food', 'comida', 'She has tried this food.', 'Ella ha probado esta comida.'],
           ['city', 'ciudad', 'I have been to this city.', 'He estado en esta ciudad.'],
           ['beach', 'playa', 'I have been to the beach.', 'He estado en la playa.'],
@@ -82,34 +63,40 @@ export const advancedUnits: {
             'adverbio',
           ],
         ],
-        recycle: ['rice', 'go'],
+        recycle: ['rice', 'go', 'sister'],
         skill: 'grammar.perfect_experiences',
-        rule: 'Para contar una experiencia sin decir cuándo, usa have con I/you/they y has con he/she, seguido de un participio. Hoy aprende been (estado; visitado) y tried (probado). I have been to the beach expresa una visita en algún momento. No lo combines aquí con yesterday: ese momento terminado necesita pasado simple.',
+        rule: 'Para decir si algo ha ocurrido en tu vida, usa have con I, you, we y they, o has con he, she e it. Después agrega el participio: try → tried (probado) y be → been (estado). En «I’ve tried this food», I’ve significa I have. En «She has been to the beach twice», has been to habla de visitas y twice cuenta cuántas. Para decir cuándo ocurrió esa visita, usa el pasado simple: «I went to the beach yesterday».',
         forms: [
           ['have', 'auxiliar: he; has; hemos; han'],
           ['has', 'auxiliar con he/she: ha'],
-          ['been', 'participio de be: estado; visitado'],
+          ['been', 'participio de be: estado'],
+          ['been to', 'haber estado en un lugar o haberlo visitado, junto con have o has'],
           ['tried', 'participio de try: probado'],
           ['this', 'este; esta'],
+          ["I've", 'I have, forma corta'],
+          ['too', 'también, al final de la oración'],
         ],
         examples: [
-          ['I have tried this food.', 'He probado esta comida.'],
+          ["I've tried this food.", 'He probado esta comida.'],
           ['She has been to the beach twice.', 'Ella ha estado en la playa dos veces.'],
+          ['I went to the beach yesterday.', 'Fui a la playa ayer.'],
         ],
         dialogue: [
-          ['Ana', 'I have been to this city once.', 'He estado en esta ciudad una vez.'],
-          ['Luis', 'I have tried this food.', 'He probado esta comida.'],
-          [
-            'Ana',
-            'My sister has tried this food twice.',
-            'Mi hermana ha probado esta comida dos veces.',
-          ],
+          ['Ana', "I've been to this city once before.", 'Ya he estado una vez en esta ciudad.'],
+          ['Luis', "I've tried this rice before.", 'Ya he probado este arroz.'],
+          ['Ana', 'My sister has tried it, too.', 'Mi hermana también lo ha probado.'],
         ],
         tasks: [
-          fill('She ____ tried this food.', ['has'], 'She lleva has antes del participio tried.'),
+          fill(
+            'She ____ tried this food.',
+            ['has'],
+            'She lleva has antes del participio tried.',
+            'Completa la experiencia con have o has.',
+          ),
           build(
             'I have been to the beach once.',
             'Have + been expresa la experiencia; once indica una vez.',
+            ['I have once been to the beach.'],
           ),
           recall(
             'Recuerda la palabra inglesa para «comida».',
@@ -117,9 +104,16 @@ export const advancedUnits: {
             'Food significa comida en general.',
           ),
           write(
-            'Di «He probado esta comida».',
+            'Cuenta que has probado esta comida. Usa have + el participio de try.',
             ['I have tried this food.'],
             'Con I usa have y el participio tried; no añadas una fecha.',
+          ),
+          read(
+            "I've been to the beach once. My sister has been to the beach twice. She has tried this food, too.",
+            '¿Quién ha visitado la playa dos veces?',
+            ['La hermana de la persona que habla.', 'La persona que habla.', 'Las dos personas.'],
+            0,
+            'My sister has been to the beach twice expresa que la hermana la visitó dos veces.',
           ),
         ],
       },
@@ -168,48 +162,66 @@ export const advancedUnits: {
         ],
         recycle: ['city', 'once'],
         skill: 'grammar.perfect_questions',
-        rule: 'Para preguntar por una experiencia coloca Have o Has antes de la persona: Have you ever been abroad? Ever significa alguna vez y va antes del participio. Una respuesta breve es Yes, I have. Travel tiene el participio regular traveled, con una sola l en inglés estadounidense.',
+        rule: 'En una pregunta de experiencia, mueve have o has al inicio: «You have traveled by train» → «Have you traveled by train?». Si quieres saber si la persona lo ha hecho alguna vez, pon ever antes del participio: «Have you ever traveled by train?». Usa el mismo auxiliar para responder: «Yes, I have» o «No, I haven’t». En inglés estadounidense, traveled se escribe con una sola l.',
         forms: [
           ['traveled', 'viajado (participio de travel)'],
           ['by', 'en; por (medio de transporte)'],
+          ["haven't", 'have not, forma corta'],
         ],
         examples: [
           ['Have you ever traveled by train?', '¿Alguna vez has viajado en tren?'],
-          ['Has she ever been to this museum?', '¿Alguna vez ha estado ella en este museo?'],
+          ['Has she ever been to this museum?', '¿Alguna vez ha visitado este museo?'],
+          ["No, I haven't.", 'No.'],
         ],
         dialogue: [
           ['Luis', 'Have you ever been abroad?', '¿Alguna vez has estado en el extranjero?'],
-          ['Ana', 'Yes, I have. I have traveled by train.', 'Sí. He viajado en tren.'],
+          ['Ana', 'Yes, I have.', 'Sí.'],
           ['Luis', 'Have you ever been to this museum?', '¿Alguna vez has estado en este museo?'],
-          ['Ana', 'Yes, I have been to this museum before.', 'Sí, he estado en este museo antes.'],
+          ['Ana', "No, I haven't.", 'No.'],
         ],
         tasks: [
           fill(
             '____ you ever been to this museum?',
             ['Have'],
             'Con you la pregunta empieza con Have.',
+            'Completa la pregunta con have o has.',
           ),
           build(
             'Has she ever traveled by train?',
             'Has + she + ever + traveled forma la pregunta.',
+            undefined,
+            'Ordena las palabras para preguntar si ella ha viajado alguna vez en tren. Pon ever antes del participio.',
           ),
           recall(
-            'Recuerda la palabra para «alguna vez» en estas preguntas.',
+            'Escribe la palabra que va antes de been en Have you ____ been abroad? y significa «alguna vez».',
             'ever',
             'Ever pregunta si algo ocurrió en algún momento.',
           ),
-          write(
-            'Pregunta «¿Alguna vez has estado en el extranjero?».',
-            ['Have you ever been abroad?'],
-            'Have you ever + been pregunta por la experiencia.',
+          {
+            type: 'short_text',
+            prompt:
+              'Pregunta si la otra persona ha estado en el extranjero. Usa Have you ever + been.',
+            answers: ['Have you ever been abroad?', 'Have you ever been abroad before?'],
+            reason: 'Have you ever + been pregunta por la experiencia.',
+            communicationOnly: {
+              answers: ['Have you been abroad?', 'Have you been abroad before?'],
+              feedbackEs:
+                'Tu pregunta se entiende. Para practicar la forma de esta lección, agrega ever antes de been.',
+            },
+          },
+          read(
+            "Luis: Have you ever been abroad? Ana: No, I haven't. Luis: Have you ever traveled by train? Ana: Yes, I have.",
+            '¿Qué experiencia dice Ana que sí tiene?',
+            ['Estar en el extranjero.', 'Visitar un museo.', 'Viajar en tren.'],
+            2,
+            'Yes, I have responde a Have you ever traveled by train? La pregunta sobre el extranjero recibió un no.',
           ),
         ],
       },
       {
         title: 'Todavía no',
         goal: 'Expresar que algo aún no ha ocurrido con have not + participio + yet.',
-        scene:
-          'Preparas un viaje con calma. Dices qué preparativos todavía faltan, sin convertirlo en una carrera.',
+        scene: 'Antes de un viaje, comparas lo que ya tienes listo con lo que aún falta por hacer.',
         words: [
           [
             'yet',
@@ -248,25 +260,30 @@ export const advancedUnits: {
         ],
         recycle: ['buy', 'travel'],
         skill: 'grammar.perfect_yet',
-        rule: 'Para decir que algo todavía no ha ocurrido, coloca not después de have o has y yet al final: I have not packed my bag yet. Packed es el participio regular de pack. Bought sirve como pasado y como participio de buy. Haven’t y hasn’t son formas cortas de have not y has not.',
+        rule: 'Para decir que un preparativo está pendiente, pon not después de have o has y normalmente deja yet al final. Compara «I’ve packed my bag» (ya preparé mi bolso) con «I haven’t packed my bag yet» (todavía no lo he preparado). Packed es el participio regular de pack. Bought es el participio irregular de buy. Con he o she usa hasn’t: «She hasn’t bought her ticket yet».',
         forms: [
           ['packed', 'preparado; empacado'],
           ['bought', 'comprado (participio de buy)'],
           ["haven't", 'have not, forma corta'],
           ["hasn't", 'has not, forma corta'],
           ['her', 'su; de ella'],
+          ['still', 'todavía; aún, en still haven’t'],
         ],
         examples: [
-          ['I have not bought my ticket yet.', 'Todavía no he comprado mi boleto.'],
+          ["I haven't bought my ticket yet.", 'Todavía no he comprado mi boleto.'],
           ['She has not packed her suitcase yet.', 'Ella todavía no ha preparado su maleta.'],
+          ["I've packed my bag.", 'Ya preparé mi bolso.'],
         ],
         dialogue: [
-          ['Ana', 'I have not packed my bag yet.', 'Todavía no he preparado mi bolso.'],
-          ['Luis', 'I have not bought my ticket yet.', 'Todavía no he comprado mi boleto.'],
           [
             'Ana',
-            'My passport is here. I have packed my suitcase.',
-            'Mi pasaporte está aquí. He preparado mi maleta.',
+            "I have my passport, but I haven't packed my bag yet.",
+            'Tengo mi pasaporte, pero todavía no he preparado mi bolso.',
+          ],
+          [
+            'Luis',
+            "I've packed my suitcase. I haven't bought my ticket yet.",
+            'Ya preparé mi maleta. Todavía no he comprado mi boleto.',
           ],
         ],
         tasks: [
@@ -276,16 +293,35 @@ export const advancedUnits: {
             'Not va después de have para negar.',
             'Completa la negación con la palabra que significa «no».',
           ),
-          build('She has not packed her suitcase yet.', 'Has not + packed; yet va al final.'),
+          build(
+            'She has not packed her suitcase yet.',
+            'Has not niega la acción y yet indica que todavía queda pendiente.',
+            ['She has not yet packed her suitcase.'],
+            'Ordena las palabras para decir que ella todavía no ha preparado su maleta.',
+          ),
           recall(
             'Recuerda la palabra inglesa para «pasaporte».',
             'passport',
             'Passport significa pasaporte.',
           ),
-          write(
-            'Di «Todavía no he comprado mi boleto».',
-            ['I have not bought my ticket yet.', "I haven't bought my ticket yet."],
-            'Usa have not o haven’t, después bought y al final yet.',
+          {
+            type: 'short_text',
+            prompt:
+              'Avisa que aún no has comprado tu boleto. Usa have not o haven’t con bought y yet.',
+            answers: ['I have not bought my ticket yet.', 'I have not yet bought my ticket.'],
+            reason: 'Bought va con have not o haven’t. Yet puede ir al final o después de not.',
+            communicationOnly: {
+              answers: ['I still have not bought my ticket.'],
+              feedbackEs:
+                'Con still se entiende que falta comprar el boleto. Agrega yet en lugar de still para practicar la estructura de esta lección.',
+            },
+          },
+          read(
+            "Ana has bought her ticket. She hasn't packed her suitcase yet. Her passport is here.",
+            '¿Qué paso tiene pendiente Ana?',
+            ['Comprar el boleto.', 'Preparar su maleta.', 'Buscar el pasaporte.'],
+            1,
+            'Hasn’t packed … yet indica que la maleta aún no está lista. Has bought indica que compró el boleto.',
           ),
         ],
       },
@@ -302,7 +338,7 @@ export const advancedUnits: {
             'Fui a la playa el año pasado.',
             'expresión de tiempo',
           ],
-          ['trip', 'viaje', 'The trip was good.', 'El viaje estuvo bien.'],
+          ['trip', 'viaje', 'The trip was good.', 'El viaje salió bien.'],
           [
             'first time',
             'primera vez',
@@ -315,7 +351,7 @@ export const advancedUnits: {
             'beautiful',
             'bonito; hermoso',
             'The beach was beautiful.',
-            'La playa estaba hermosa.',
+            'La playa estaba muy bonita.',
             'adjetivo',
           ],
           [
@@ -325,17 +361,20 @@ export const advancedUnits: {
             'Ayer comí en este restaurante.',
           ],
         ],
-        recycle: ['beach', 'yesterday'],
+        recycle: ['beach', 'yesterday', 'before'],
         skill: 'grammar.past_vs_perfect',
-        rule: 'Have been o have tried cuenta una experiencia sin fecha: I have been to the beach. Si dices cuándo, usa pasado simple: I went to the beach last year. Yesterday, last week y last year son momentos terminados. No uses have been en la misma oración que yesterday para este significado.',
+        rule: 'Primero pregunta si la experiencia ha ocurrido: «Have you ever been to the beach?». Responde «Yes, I have». Para contar la fecha de esa visita, pasa al pasado simple: «I went to the beach last year». Yesterday, last week y last year fijan un momento que terminó. Si ubicas la visita en ese momento, usa went en vez de have been to.',
         forms: [
           ['have been', 'he estado; experiencia sin fecha'],
           ['went', 'fui; acción pasada terminada'],
           ['been', 'estado; participio para una experiencia'],
+          ['took a photo', 'tomé una foto'],
+          ['ate', 'comí; pasado de eat'],
         ],
         examples: [
-          ['I have been to this restaurant.', 'He estado en este restaurante.'],
+          ["I've been to this restaurant.", 'He estado en este restaurante.'],
           ['I ate at this restaurant yesterday.', 'Ayer comí en este restaurante.'],
+          ['I went to the beach last year.', 'Fui a la playa el año pasado.'],
         ],
         dialogue: [
           ['Luis', 'Have you ever been to the beach?', '¿Alguna vez has estado en la playa?'],
@@ -344,11 +383,7 @@ export const advancedUnits: {
             'Yes, I have. I went to the beach last year.',
             'Sí. Fui a la playa el año pasado.',
           ],
-          [
-            'Luis',
-            'I took a photo yesterday. The beach was beautiful.',
-            'Ayer tomé una foto. La playa estaba hermosa.',
-          ],
+          ['Luis', 'I went yesterday. I took a photo.', 'Yo fui ayer. Tomé una foto.'],
         ],
         tasks: [
           fill(
@@ -365,11 +400,23 @@ export const advancedUnits: {
             'I have been to the beach yesterday.',
             'I went to the beach yesterday.',
             'Con yesterday usa went, no have been.',
+            {
+              prompt:
+                'Conserva yesterday y el lugar. Cambia have been por el pasado de go. Escribe la oración completa.',
+              alternatives: ['Yesterday I went to the beach.'],
+            },
           ),
           write(
-            'Cuenta el momento: «Fui a la playa el año pasado».',
+            'Responde cuándo fuiste a la playa: «Fui a la playa el año pasado». Usa go en pasado simple.',
             ['I went to the beach last year.', 'Last year I went to the beach.'],
             'Last year es un momento terminado: usa pasado simple.',
+          ),
+          read(
+            "Ana: I've been to this restaurant before. Luis: I ate at this restaurant yesterday. Ana: I went to the beach yesterday.",
+            '¿Quién dice que comió en este restaurante ayer?',
+            ['Ana.', 'Luis.', 'Los dos.'],
+            1,
+            'Luis dice I ate at that restaurant yesterday. Ana sí conoce el restaurante, pero ayer fue a la playa.',
           ),
         ],
       },
@@ -384,7 +431,7 @@ export const advancedUnits: {
         title: 'Una petición amable',
         goal: 'Pedir algo de manera cortés con I would like + nombre de lo que necesitas.',
         scene:
-          'Llegas a un hotel o pides algo en un restaurante. Una petición breve puede ser amable y clara.',
+          'Pides agua y la cuenta en un restaurante. También puedes usar la misma fórmula para pedir un asiento en un avión.',
         words: [
           [
             'would like',
@@ -431,7 +478,7 @@ export const advancedUnits: {
         ],
         recycle: ['please', 'room'],
         skill: 'grammar.would_like',
-        rule: 'I would like significa quisiera y permite pedir con cortesía. Hoy úsalo con una cosa: I would like the menu, please. No agregues -s después de would. I’d like es la forma corta de I would like. Usa an antes de un sonido vocal: an aisle seat; la s de aisle no se pronuncia.',
+        rule: 'Para pedir una cosa con cortesía, usa I would like o I’d like y después lo que pides: «I’d like the menu, please». The menu se refiere al menú del lugar. A glass of water pide un vaso, y an aisle seat pide un asiento junto al pasillo. Usa an porque aisle empieza con sonido de vocal y su s es muda.',
         forms: [
           ['would', 'auxiliar de una petición con would like'],
           ["I'd like", 'I would like, forma corta'],
@@ -439,16 +486,18 @@ export const advancedUnits: {
           ['have', 'tener (con una cosa)'],
         ],
         examples: [
-          ['I would like a glass of water, please.', 'Quisiera un vaso de agua, por favor.'],
+          ["I'd like a glass of water, please.", 'Quisiera un vaso de agua, por favor.'],
           ['I would like an aisle seat.', 'Quisiera un asiento junto al pasillo.'],
+          ["I'd like the check, please.", 'Quisiera la cuenta, por favor.'],
         ],
         dialogue: [
-          ['Ana', 'Hello. I have a reservation.', 'Hola. Tengo una reserva.'],
-          ['Luis', 'A small room?', '¿Una habitación pequeña?'],
+          ['Luis', 'Hello. Do you have a reservation?', 'Hola. ¿Tiene una reserva?'],
+          ['Ana', 'Yes, I do.', 'Sí.'],
+          ['Luis', 'This is your table.', 'Esta es su mesa.'],
           [
             'Ana',
-            'Yes. I would like a small room, please.',
-            'Sí. Quisiera una habitación pequeña, por favor.',
+            "I'd like the menu and a glass of water, please.",
+            'Quisiera el menú y un vaso de agua, por favor.',
           ],
         ],
         tasks: [
@@ -458,28 +507,64 @@ export const advancedUnits: {
             'Would like expresa una petición cortés.',
             'Completa la expresión para pedir «quisiera».',
           ),
-          build('I would like the check, please.', 'Would like + the check pide la cuenta.'),
-          recall(
-            'Recuerda la palabra para «cuenta» en un restaurante de Estados Unidos.',
-            'check',
-            'Check es la cuenta en este contexto.',
+          build(
+            'I would like the check, please.',
+            'Would like + the check pide la cuenta. Please puede ir al inicio o al final.',
+            ['Please, I would like the check.'],
           ),
-          write(
-            'Pide «Quisiera el menú, por favor».',
-            ['I would like the menu, please.', "I'd like the menu, please."],
-            'Puedes usar I would like o I’d like para la petición.',
+          {
+            type: 'short_text',
+            prompt:
+              'Escribe solo el sustantivo en inglés estadounidense que practicamos para pedir la «cuenta» en un restaurante.',
+            answers: ['check'],
+            reason: 'Check es la cuenta en este contexto.',
+            recall: true,
+            communicationOnly: {
+              answers: ['bill'],
+              feedbackEs:
+                'Bill también se entiende como «cuenta». En esta lección practicamos check, una forma común en Estados Unidos.',
+            },
+          },
+          {
+            type: 'short_text',
+            prompt:
+              'Pide el menú con cortesía. Practica I would like o I’d like seguido de the menu. Incluye please.',
+            answers: ['I would like the menu, please.', 'Please, I would like the menu.'],
+            reason: 'I would like o I’d like + the menu permite pedirlo con cortesía.',
+            communicationOnly: {
+              answers: [
+                'Can I have the menu, please?',
+                'May I have the menu, please?',
+                'The menu, please.',
+              ],
+              feedbackEs:
+                'Pediste el menú con cortesía. Para practicar esta lección, usa I’d like antes de the menu.',
+            },
+          },
+          read(
+            "Ana: I'd like a window seat, please. Luis: I'd like an aisle seat. Ana: I'd like a glass of water, too.",
+            'Además del agua, ¿qué pide Ana?',
+            ['Un asiento junto al pasillo.', 'Un asiento junto a la ventana.', 'La cuenta.'],
+            1,
+            'Window seat es un asiento junto a la ventana. El asiento junto al pasillo lo pide Luis.',
           ),
         ],
       },
       {
         title: 'Encuentro el camino',
-        goal: 'Dar dos indicaciones breves con el verbo en forma base.',
+        goal: 'Preguntar por un lugar y dar indicaciones breves con el verbo en forma base.',
         scene:
           'Ayudas a una persona a llegar a un banco cercano. Lees o dices una indicación por paso.',
         words: [
           ['turn', 'girar; dar vuelta', 'Turn left.', 'Gira a la izquierda.', 'verbo'],
-          ['left', 'izquierda', 'Turn left at the corner.', 'Gira a la izquierda en la esquina.'],
-          ['right', 'derecha', 'Turn right.', 'Gira a la derecha.'],
+          [
+            'left',
+            'a la izquierda',
+            'Turn left at the corner.',
+            'Gira a la izquierda en la esquina.',
+            'adverbio de dirección',
+          ],
+          ['right', 'a la derecha', 'Turn right.', 'Gira a la derecha.', 'adverbio de dirección'],
           ['go straight', 'seguir derecho', 'Go straight.', 'Sigue derecho.', 'expresión verbal'],
           ['street', 'calle', 'The bank is on this street.', 'El banco está en esta calle.'],
           ['corner', 'esquina', 'Turn right at the corner.', 'Gira a la derecha en la esquina.'],
@@ -500,24 +585,27 @@ export const advancedUnits: {
         ],
         recycle: ['bank', 'store'],
         skill: 'grammar.imperatives',
-        rule: 'Para dar una indicación directa usa el verbo base sin you: Turn left. Go straight. Puedes agregar please para pedirlo con amabilidad. Da primero una acción y luego otra. At the corner indica en la esquina; next to indica al lado de.',
-        forms: [['straight', 'derecho; sin girar']],
+        rule: 'Para preguntar por un lugar, usa «Where is the bank?». Para dar una indicación, empieza con el verbo base y omite el sujeto you: «Go straight» (sigue derecho) o «Turn left» (gira a la izquierda). Usa then para indicar el paso siguiente. At the corner indica dónde girar y next to indica que dos lugares están uno al lado del otro.',
+        forms: [
+          ['straight', 'derecho; sin girar'],
+          ['then', 'luego; después'],
+        ],
         examples: [
           [
-            'Go straight. Turn left at the corner.',
-            'Sigue derecho. Gira a la izquierda en la esquina.',
+            'Go straight. Then turn left at the corner.',
+            'Sigue derecho. Luego gira a la izquierda en la esquina.',
           ],
           ['Turn right, please.', 'Gira a la derecha, por favor.'],
         ],
         dialogue: [
-          ['Luis', 'Where is the bank?', '¿Dónde está el banco?'],
+          ['Luis', 'Excuse me. Where is the bank?', 'Disculpa. ¿Dónde está el banco?'],
           [
             'Ana',
-            'Go straight. Turn left at the corner.',
-            'Sigue derecho. Gira a la izquierda en la esquina.',
+            'Go straight. Then turn left at the corner.',
+            'Sigue derecho. Luego gira a la izquierda en la esquina.',
           ],
-          ['Luis', 'The bank is next to the store?', '¿El banco está junto a la tienda?'],
-          ['Ana', 'Yes. It is on this street.', 'Sí. Está en esta calle.'],
+          ['Luis', 'Is the bank next to the store?', '¿El banco está junto a la tienda?'],
+          ['Ana', "Yes, it's next to the store.", 'Sí, está junto a la tienda.'],
         ],
         tasks: [
           fill(
@@ -526,24 +614,36 @@ export const advancedUnits: {
             'Turn inicia una indicación; no hace falta you.',
             'Completa con el verbo que significa «girar».',
           ),
-          build('Go straight. Turn right.', 'Primero sigue derecho y después gira a la derecha.'),
+          build(
+            'Go straight. Turn right.',
+            'Primero sigue derecho y después gira a la derecha.',
+            undefined,
+            'Ordena las palabras para indicar primero que siga derecho y luego que gire a la derecha.',
+          ),
           recall(
-            'Recuerda la palabra inglesa para «esquina».',
+            'Recuerda la palabra de esta lección para la «esquina» de una calle.',
             'corner',
             'Corner significa esquina.',
           ),
           write(
-            'Da esta indicación: «Gira a la izquierda, por favor».',
+            'Dile a alguien «Gira a la izquierda, por favor». Usa turn y please.',
             ['Turn left, please.', 'Please turn left.'],
             'Una indicación usa turn en forma base; please puede ir al inicio o al final.',
+          ),
+          read(
+            'Go straight. Then turn right at the corner. The bank is next to the store.',
+            '¿Qué debes hacer al llegar a la esquina?',
+            ['Seguir derecho.', 'Girar a la izquierda.', 'Girar a la derecha.'],
+            2,
+            'Turn right at the corner indica que debes girar a la derecha en la esquina.',
           ),
         ],
       },
       {
         title: 'Elijo cómo viajar',
-        goal: 'Comparar dos opciones con un adjetivo corto + er + than.',
+        goal: 'Comparar dos opciones de transporte con un adjetivo en -er seguido de than.',
         scene:
-          'Comparas dos opciones de transporte. Más barato o más rápido depende de la situación, no de una regla fija sobre los transportes.',
+          'En la terminal, comparas el precio de dos boletos y la rapidez de dos opciones de transporte.',
         words: [
           [
             'cheap',
@@ -578,11 +678,12 @@ export const advancedUnits: {
         ],
         recycle: ['bus', 'ticket'],
         skill: 'grammar.comparatives',
-        rule: 'Para comparar con estos adjetivos cortos agrega -er: cheap → cheaper, fast → faster, slow → slower. Usa than antes de la segunda opción: This ticket is cheaper than that ticket. Por ahora practica solo estas tres formas. This indica este; that indica ese.',
+        rule: 'Para estas tres palabras, agrega -er: cheap → cheaper, fast → faster, slow → slower. Nombra primero lo que describes y luego la otra opción con than: «This ticket is cheaper than that ticket». This apunta a este boleto y that al otro. Si ya se sabe que hablas de boletos, puedes decir that one en vez de that ticket.',
         forms: [
           ['cheaper', 'más barato; más barata'],
           ['faster', 'más rápido; más rápida'],
           ['slower', 'más lento; más lenta'],
+          ['that one', 'ese; esa (en lugar del sustantivo ya mencionado)'],
         ],
         examples: [
           ['This ticket is cheaper than that ticket.', 'Este boleto es más barato que ese boleto.'],
@@ -592,15 +693,15 @@ export const advancedUnits: {
           ['Ana', 'This ticket is cheap.', 'Este boleto es barato.'],
           [
             'Luis',
-            'That ticket is cheaper. This train is faster than that bus.',
-            'Ese boleto es más barato. Este tren es más rápido que ese autobús.',
+            'That one is cheaper. The train is faster than the bus.',
+            'Ese es más barato. El tren es más rápido que el autobús.',
           ],
           ['Ana', 'I would like that ticket, please.', 'Quisiera ese boleto, por favor.'],
         ],
         tasks: [
           {
             type: 'cloze',
-            prompt: 'Completa con la forma que significa «más rápido».',
+            prompt: 'Completa con el comparativo de fast («rápido»).',
             sentence: 'This bus is ____ than that bus.',
             answers: ['faster'],
             reason: 'Fast cambia a faster para comparar.',
@@ -608,16 +709,42 @@ export const advancedUnits: {
           build(
             'This ticket is cheaper than that ticket.',
             'Cheaper expresa más barato; than presenta la otra opción.',
+            undefined,
+            'Ordena las palabras para decir «Este boleto es más barato que ese boleto».',
           ),
-          recall(
-            'Recuerda la palabra inglesa para «opción».',
-            'option',
-            'Option significa opción.',
-          ),
-          write(
-            'Compara: «Este autobús es más lento que ese tren».',
-            ['This bus is slower than that train.'],
-            'Slow cambia a slower; usa than antes de that train.',
+          {
+            type: 'short_text',
+            prompt: 'Recuerda el sustantivo de esta lección que significa «opción».',
+            answers: ['option'],
+            reason: 'Option significa opción.',
+            recall: true,
+            communicationOnly: {
+              answers: ['choice'],
+              feedbackEs:
+                'Choice también puede significar «opción». Recuerda el sustantivo que viste en esta lección: option.',
+            },
+          },
+          {
+            type: 'short_text',
+            prompt:
+              'Compara este autobús con ese tren. Usa slow para decir que el autobús es más lento.',
+            answers: ['This bus is slower than that train.'],
+            reason: 'Slow cambia a slower. Usa than antes de la segunda opción.',
+            communicationOnly: {
+              answers: [
+                'That train is faster than this bus.',
+                'This bus is not as fast as that train.',
+              ],
+              feedbackEs:
+                'Tu comparación comunica lo mismo. Aquí practica slow con el final -er: slower than.',
+            },
+          },
+          read(
+            'The bus is cheaper than the train. The train is faster than the bus. The taxi is slower than the train.',
+            'La persona tiene prisa y puede pagar cualquier opción. ¿Cuál es la más rápida?',
+            ['El tren.', 'El autobús.', 'El taxi.'],
+            0,
+            'El tren es faster than the bus, y el taxi es slower than the train. El tren es más rápido que ambos.',
           ),
         ],
       },
@@ -643,26 +770,32 @@ export const advancedUnits: {
         ],
         recycle: ['help', 'work'],
         skill: 'grammar.because',
-        rule: 'Because une una idea con su razón: I would like this job because I like this team. Después de because usa una oración con persona y verbo. No confundas because (porque) con una pregunta. Want to learn significa querer aprender; to conecta want con otro verbo.',
+        rule: 'Usa because para explicar un motivo. En «I’d like this job because I want to help customers», la primera parte dice qué quieres y la segunda dice por qué. Después de because va una idea completa, como «I want to help customers». También puedes empezar con la razón: «Because I want to help customers, I’d like this job».',
         forms: [
           ['want to learn', 'querer aprender'],
           ['learn', 'aprender'],
           ['have experience', 'tener experiencia'],
+          ['customers', 'clientes'],
+          ['why', 'por qué (en una pregunta)'],
         ],
         examples: [
           [
-            'I would like this job because I like this team.',
-            'Quisiera este empleo porque me gusta este equipo.',
+            "I'd like this job because I want to help customers.",
+            'Quisiera este empleo porque quiero ayudar a los clientes.',
           ],
           ['I study English because I want to learn.', 'Estudio inglés porque quiero aprender.'],
+          [
+            "Because I want to help customers, I'd like this job.",
+            'Como quiero ayudar a los clientes, quisiera este empleo.',
+          ],
         ],
         dialogue: [
           ['Luis', 'Hello. I am Luis. I have experience.', 'Hola. Soy Luis. Tengo experiencia.'],
-          ['Ana', 'Can you help a customer?', '¿Puedes ayudar a un cliente?'],
+          ['Ana', 'Why would you like this job?', '¿Por qué te gustaría este empleo?'],
           [
             'Luis',
-            'Yes. I would like this job because I like this team.',
-            'Sí. Quisiera este empleo porque me gusta este equipo.',
+            "I'd like this job because I want to help customers.",
+            'Quisiera este empleo porque quiero ayudar a los clientes.',
           ],
         ],
         tasks: [
@@ -674,13 +807,29 @@ export const advancedUnits: {
           ),
           build(
             'I would like this job because I like this team.',
-            'Primero expresa lo que buscas y después da la razón con because.',
+            'Because introduce la razón. Puedes decirla al inicio o al final.',
+            ['Because I like this team, I would like this job.'],
+            'Ordena las palabras para decir que quieres este empleo porque te gusta este equipo.',
           ),
           recall('Recuerda la palabra inglesa para «equipo».', 'team', 'Team significa equipo.'),
           write(
-            'Da esta razón: «Estudio inglés porque quiero aprender».',
-            ['I study English because I want to learn.'],
+            'Te preguntan por qué estudias inglés. Usa because y expresa «Estudio inglés porque quiero aprender».',
+            [
+              'I study English because I want to learn.',
+              'Because I want to learn, I study English.',
+            ],
             'Después de because la razón es una oración completa: I want to learn.',
+          ),
+          read(
+            'Ana: I am available. I would like this job because I like this team. Luis: I study English because I want to help customers.',
+            '¿Por qué estudia inglés Luis?',
+            [
+              'Para conseguir ese empleo.',
+              'Porque le gusta el equipo.',
+              'Para ayudar a los clientes.',
+            ],
+            2,
+            'Luis explica su motivo después de because: I want to help customers.',
           ),
         ],
       },

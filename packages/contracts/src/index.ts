@@ -1,4 +1,21 @@
 import { z } from 'zod';
+export {
+  challengeQuestionCount,
+  challengeRequiredUnit,
+  selectChallengeQuestions,
+} from './challenge-selection.ts';
+export {
+  equivalentAnswerText,
+  judgeAnswer,
+  normalizeAnswerText,
+  type AnswerKey,
+} from './answer-grading.ts';
+export {
+  matchesIntroductionName,
+  meetsIntroduction,
+  playerIntroductionName,
+  readIntroduction,
+} from './introduction.ts';
 
 export const answerSchema = z
   .object({
@@ -158,6 +175,21 @@ export interface User {
   motivation: 'travel' | 'work' | 'life';
   reducedMotion: boolean;
 }
+
+export function suggestPlacementLevel(
+  questions: readonly Pick<PublicExercise, 'id' | 'difficulty'>[],
+  answered: number,
+  correct: ReadonlySet<string>,
+): 'A1' | 'A2' {
+  const later = questions.filter((question) => question.difficulty >= 6);
+  return answered === questions.length &&
+    later.length > 0 &&
+    correct.size >= Math.ceil(questions.length * 0.75) &&
+    later.filter((question) => correct.has(question.id)).length >= Math.ceil(later.length * 2 / 3)
+    ? 'A2'
+    : 'A1';
+}
+
 export interface Mastery {
   skillId: string;
   targetId?: string;
@@ -190,6 +222,7 @@ export interface Progress {
 }
 export interface AttemptResult {
   correct: boolean;
+  outcome?: AnswerOutcome;
   communicationOnly?: true;
   identityMismatch?: true;
   feedbackEs: string;
@@ -197,6 +230,20 @@ export interface AttemptResult {
   errorType?: LearningError;
   xpAwarded: number;
   pending: false;
+}
+export const answerOutcomeSchema = z.enum([
+  'target',
+  'communication_only',
+  'incorrect',
+  'ungradable',
+]);
+export type AnswerOutcome = z.infer<typeof answerOutcomeSchema>;
+export interface RunAnswerFeedback {
+  questionId: string;
+  correct: boolean;
+  outcome?: AnswerOutcome;
+  feedbackEs: string;
+  acceptedAnswer: string;
 }
 export type ChallengeStatus = 'active' | 'passed' | 'failed' | 'abandoned';
 export interface RunView {
@@ -218,5 +265,5 @@ export interface RunView {
   reason?: string;
   question: PublicExercise | null;
   questionPosition: number;
-  feedback?: { questionId: string; correct: boolean; feedbackEs: string; acceptedAnswer: string }[];
+  feedback?: RunAnswerFeedback[];
 }

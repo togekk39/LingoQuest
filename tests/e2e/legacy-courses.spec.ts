@@ -63,6 +63,7 @@ test('the bundled A1–A2 course opens offline, resumes an exercise, and finishe
     await click(page, `Significado: ${meaning}`);
   }
   await checkLessonAnswer(page, 'Continuar');
+  await expect(page.getByTestId('lesson-stage-grammar')).toContainText('I’m Ana');
   await click(page, 'Leer la conversación');
   await click(page, 'Vamos a practicar');
   const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
@@ -70,7 +71,11 @@ test('the bundled A1–A2 course opens offline, resumes an exercise, and finishe
     await input.fill(answer);
     await checkLessonAnswer(page, 'Siguiente ejercicio');
   }
-  await input.fill('Hello, I am Ana.');
+  await input.fill('Hi! I are María-José de la Cruz.');
+  await click(page, 'Comprobar respuesta');
+  await expect(page.getByTestId('answer-feedback')).toContainText('Buen intento');
+  await click(page, 'Intentar otra vez');
+  await input.fill('hi! I’m María-José de la Cruz.');
   await checkLessonAnswer(page, 'Continuar');
   await click(page, 'Ahora no puedo hablar');
   await expect(page.getByTestId('lesson-stage-recap')).toBeVisible();

@@ -10,6 +10,7 @@ import { chapterMediaUri } from '../lib/chapterStorage';
 import { useTheme } from '../theme';
 import { Button, Heading, Label } from '../ui';
 import { useClipPlayer } from './useClipPlayer';
+import { chapterReaderSections } from './chapterReaderSections';
 
 type SpokenPhrase = { en: string; es: string; speaker?: string };
 type PlayPhrase = (phrase: string) => void;
@@ -117,6 +118,33 @@ export function ChapterPackView({
     setLessonIndex(index);
   }
 
+  function renderSections(card: ChapterPack['lesson']) {
+    const sections = {
+      dialogue: card.dialogue.map(renderLine),
+      vocabulary: card.vocabulary.map(renderLine),
+      grammar: <Label>{card.grammarEs}</Label>,
+      question: (
+        <ChapterQuestion
+          question={card.question}
+          listeningPlaying={playing === card.question.listening?.en}
+          onPlay={(phrase) => void play(phrase)}
+        />
+      ),
+      practice: (
+        <>
+          <Label>{card.practiceEs}</Label>
+          <ChapterPracticeModel model={renderLine(card.model, 0)} />
+        </>
+      ),
+    };
+    return chapterReaderSections.map(({ id, heading }) => (
+      <JournalLeaf key={`${chapterId}-${lessonIndex}-${id}`} kind="notebook" style={sectionLayout}>
+        <Heading style={{ fontSize: 23 }}>{heading}</Heading>
+        {sections[id]}
+      </JournalLeaf>
+    ));
+  }
+
   return (
     <FlowFrame
       title={lesson?.title ?? 'Capítulo descargado'}
@@ -170,24 +198,7 @@ export function ChapterPackView({
               Explorar aventura de este capítulo
             </Button>
           )}
-          <JournalLeaf kind="notebook" style={sectionLayout}>
-            <Heading style={{ fontSize: 23 }}>Escucha la conversación</Heading>
-            {lesson.dialogue.map(renderLine)}
-          </JournalLeaf>
-          <JournalLeaf kind="notebook" style={sectionLayout}>
-            <Heading style={{ fontSize: 23 }}>Palabras y expresiones</Heading>
-            {lesson.vocabulary.map(renderLine)}
-          </JournalLeaf>
-          <JournalLeaf kind="notebook" style={sectionLayout}>
-            <Heading style={{ fontSize: 23 }}>Gramática en contexto</Heading>
-            <Label>{lesson.grammarEs}</Label>
-          </JournalLeaf>
-          <ChapterQuestion key={`${chapterId}-${lessonIndex}`} question={lesson.question} />
-          <JournalLeaf kind="notebook" style={sectionLayout}>
-            <Heading style={{ fontSize: 23 }}>Practica por tu cuenta</Heading>
-            <Label>{lesson.practiceEs}</Label>
-            {renderLine(lesson.model, 0)}
-          </JournalLeaf>
+          {renderSections(lesson)}
           {pack.unit && (
             <ChapterUnit
               key={pack.unit.id}
@@ -246,16 +257,59 @@ function ChapterPhrase({
   );
 }
 
-function ChapterQuestion({ question }: { question: ChapterPack['lesson']['question'] }) {
+function ChapterPracticeModel({ model }: { model: React.ReactNode }) {
+  const [showModel, setShowModel] = useState(false);
+  return (
+    <>
+      <Button variant="ghost" onPress={() => setShowModel((visible) => !visible)}>
+        {showModel ? 'Ocultar el modelo' : 'Ver un modelo'}
+      </Button>
+      {showModel && model}
+    </>
+  );
+}
+
+function ChapterQuestion({
+  question,
+  listeningPlaying,
+  onPlay,
+}: {
+  question: ChapterPack['lesson']['question'];
+  listeningPlaying: boolean;
+  onPlay: PlayPhrase;
+}) {
   const { colors } = useTheme();
   const f = useFeatureStyles();
   const [selected, setSelected] = useState<number>();
   const [submitted, setSubmitted] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
   const correct = selected === question.answerIndex;
+  const listening = question.listening;
   return (
-    <JournalLeaf kind="notebook" style={sectionLayout}>
-      <Heading style={{ fontSize: 23 }}>Comprueba tu comprensión</Heading>
+    <>
       <Label>{question.promptEs}</Label>
+      {listening && (
+        <>
+          <Button
+            icon={listeningPlaying ? Square : Volume2}
+            variant="secondary"
+            onPress={() => onPlay(listening.en)}
+          >
+            {listeningPlaying ? 'Detener el mensaje' : 'Escuchar el mensaje'}
+          </Button>
+          <Button variant="ghost" onPress={() => setShowTranscript((visible) => !visible)}>
+            {showTranscript ? 'Ocultar la transcripción' : 'Ver la transcripción'}
+          </Button>
+          {showTranscript && (
+            <View style={sectionLayout}>
+              <Text accessibilityLanguage="en-US" style={f.cardTitle}>
+                {listening.en}
+              </Text>
+              <Text style={f.quiet}>{listening.es}</Text>
+            </View>
+          )}
+        </>
+      )}
       <View accessibilityRole="radiogroup" style={{ gap: 8 }}>
         {question.options.map((option, index) => (
           <Pressable
@@ -296,7 +350,7 @@ function ChapterQuestion({ question }: { question: ChapterPack['lesson']['questi
           {correct ? '¡Muy bien!' : 'Intenta de nuevo.'} {question.feedbackEs}
         </Text>
       )}
-    </JournalLeaf>
+    </>
   );
 }
 

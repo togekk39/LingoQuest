@@ -10,10 +10,16 @@ import { z, ZodError } from 'zod';
 import {
   answerSchema,
   attemptSchema,
+  challengeQuestionCount,
+  challengeRequiredUnit,
   credentialsSchema,
   profileSchema,
   runSchema,
+  selectChallengeQuestions,
+  suggestPlacementLevel,
   submissionSchema,
+  type Answer,
+  type AnswerOutcome,
   type AttemptInput,
   type AttemptResult,
   type Progress,
@@ -63,8 +69,8 @@ const dayMs = 86_400_000;
 const trackConfigs = [
   {
     id: 'present_simple',
-    titleEs: 'Daily routines',
-    descriptionEs: 'Pon en práctica el presente simple y la tercera persona.',
+    titleEs: 'Retos del viajero',
+    descriptionEs: 'Pon a prueba lo aprendido al viajar, coordinar planes y resolver imprevistos.',
     requiredUnitId: 'u02',
     defaultType: 'grammar_rush',
   },
@@ -124,10 +130,15 @@ export function getProgress(s: StoredState, now: number): Progress {
     challengeProgress: s.challengeProgress,
   };
 }
-function trackUnlocked(state: StoredState, trackId: string): boolean {
-  const config = trackConfigs.find((t) => t.id === trackId);
-  const required = units.find((u) => u.id === config?.requiredUnitId)?.lessons ?? [];
-  return required.length > 0 && required.every((l) => state.completedLessons.includes(l.id));
+function requiredChallengeLessons(unitId: string) {
+  const index = units.findIndex((unit) => unit.id === unitId);
+  return index < 0 ? [] : units.slice(0, index + 1).flatMap((unit) => unit.lessons);
+}
+function trackUnlocked(state: StoredState, unitId: string): boolean {
+  const required = requiredChallengeLessons(unitId);
+  return (
+    required.length > 0 && required.every((lesson) => state.completedLessons.includes(lesson.id))
+  );
 }
 export function timeBudget(type: string, level: number, items: PrivateExercise[]): number {
   const rule = challengeLevels[level - 1];
@@ -145,11 +156,17 @@ export function timeBudget(type: string, level: number, items: PrivateExercise[]
     Math.ceil(((words / 130) * 60 + items.length * 20) * rule.cloze_clock_multiplier),
   );
 }
-function selectQuestions(type: keyof typeof challengePools, level: number): PrivateExercise[] {
-  const count = type === 'grammar_rush' ? 10 : type === 'cloze_battle' ? 5 : 4;
-  return [...challengePools[type]]
-    .sort((a, b) => Math.abs(a.difficulty - level) - Math.abs(b.difficulty - level))
-    .slice(0, count);
+function selectQuestions(type: keyof typeof challengePools, level: number, state: StoredState) {
+  const completed = new Set(state.completedLessons);
+  return selectChallengeQuestions(
+    challengePools[type],
+    type,
+    level,
+    (item) =>
+      !item.ungradable &&
+      !!item.requiredLessonIds?.length &&
+      item.requiredLessonIds.every((id) => completed.has(id)),
+  );
 }
 function finishRun(state: StoredState, run: StoredRun, now: number): void {
   if (run.status !== 'active') return;
@@ -213,6 +230,7 @@ function runView(run: StoredRun, now: number): RunView {
   };
 }
 function exerciseAnswer(e: PrivateExercise): string {
+  if (e.introduction) return e.introduction.model;
   const accepted = e.acceptedAnswers.find((a) => a !== e.correctOptionId);
   return (
     accepted ??
@@ -242,6 +260,8 @@ export async function buildServer(options: ServerOptions = {}) {
   const clock = options.clock ?? new SystemClock();
   const grading = options.grading ?? new DeterministicGradingService();
   const feedback = options.feedback ?? new AuthoredFeedbackProvider();
+  const judge = (exercise: PrivateExercise, answer: Answer): AnswerOutcome =>
+    grading.judge?.(exercise, answer) ?? (grading.grade(exercise, answer) ? 'target' : 'incorrect');
   const speech = options.speech ?? new NeutralSpeechProvider();
   const origins = process.env.CORS_ORIGINS?.split(',').filter(Boolean);
   await app.register(cors, { origin: origins ?? true, credentials: false });
@@ -303,13 +323,30 @@ export async function buildServer(options: ServerOptions = {}) {
     const lesson = lessons[parsed.lessonId];
     const e = lesson?.exercises.find((e) => e.id === parsed.exerciseId);
     if (!lesson || !e) throw new ApiError(404, 'No encontramos este ejercicio.', 'NOT_FOUND');
-    const correct = grading.grade(e, parsed.answer);
+    const outcome = judge(e, parsed.answer);
+    const correct = outcome === 'target';
     const now = clock.now();
     const date = today(now);
     state.visitedExercises[lesson.id] ??= [];
     if (!state.visitedExercises[lesson.id]!.includes(e.id))
       state.visitedExercises[lesson.id]!.push(e.id);
     if (!state.learningDays.includes(date)) state.learningDays.push(date);
+    if (outcome === 'communication_only' || outcome === 'ungradable') {
+      const communicates = outcome === 'communication_only';
+      const result: AttemptResult = {
+        correct: false,
+        outcome,
+        ...(communicates ? { communicationOnly: true, acceptedAnswer: exerciseAnswer(e) } : {}),
+        feedbackEs: communicates
+          ? (e.communicationOnly?.feedbackEs ??
+            'Se entiende tu respuesta. Practica la forma indicada.')
+          : (e.ungradable?.feedbackEs ?? 'Faltan datos para evaluar esta respuesta.'),
+        xpAwarded: 0,
+        pending: false,
+      };
+      state.attempts[parsed.clientAttemptId] = { fingerprint: fp, result };
+      return result;
+    }
     let mastery = state.mastery.find((m) => m.skillId === e.skillId);
     if (!mastery) {
       mastery = {
@@ -366,6 +403,7 @@ export async function buildServer(options: ServerOptions = {}) {
     }
     const result: AttemptResult = {
       correct,
+      outcome,
       feedbackEs: feedback.explain(e, correct),
       acceptedAnswer: exerciseAnswer(e),
       xpAwarded,
@@ -531,20 +569,25 @@ export async function buildServer(options: ServerOptions = {}) {
       .filter((m) => req.query.all === 'true' || Date.parse(m.nextReviewAt) <= now)
       .sort((a, b) => a.value - b.value)
       .map((m) => {
-        const lesson = Object.values(lessons).find((l) =>
-          l.exercises.some((e) => e.skillId === m.skillId),
-        );
+        const related = Object.values(lessons)
+          .map((lesson) => ({
+            id: lesson.id,
+            exercises: lesson.exercises.filter(
+              (exercise) =>
+                !exercise.ungradable &&
+                exercise.skillId === m.skillId &&
+                (state.completedLessons.includes(lesson.id) ||
+                  state.visitedExercises[lesson.id]?.includes(exercise.id)),
+            ),
+          }))
+          .find(({ exercises }) => exercises.length > 0);
         return {
           skillId: m.skillId,
           mastery: m.value,
           dueAt: m.nextReviewAt,
           due: Date.parse(m.nextReviewAt) <= now,
-          lessonId: lesson?.id,
-          exercises:
-            lesson?.exercises
-              .filter((e) => e.skillId === m.skillId)
-              .slice(0, 3)
-              .map(publicExercise) ?? [],
+          lessonId: related?.id,
+          exercises: related?.exercises.slice(0, 3).map(publicExercise) ?? [],
         };
       });
     return { reviews, total: reviews.length };
@@ -576,19 +619,19 @@ export async function buildServer(options: ServerOptions = {}) {
       })
       .strict()
       .parse(req.body);
-    let correct = 0;
+    const correct = new Set<string>();
     const ids = new Set<string>();
     for (const a of body.answers) {
       if (ids.has(a.exerciseId)) throw new ApiError(400, 'Responde una vez a cada pregunta.');
       ids.add(a.exerciseId);
       const e = placementQuestions.find((e) => e.id === a.exerciseId);
       if (!e) throw new ApiError(400, 'Pregunta de diagnóstico inválida.');
-      if (grading.grade(e, a.answer)) correct++;
+      if (grading.grade(e, a.answer)) correct.add(e.id);
     }
-    const level = correct / body.answers.length >= 0.75 ? 'A2' : 'A1';
+    const level = suggestPlacementLevel(placementQuestions, body.answers.length, correct);
     return {
       level,
-      correct,
+      correct: correct.size,
       total: body.answers.length,
       feedbackEs:
         'Este diagnóstico es orientativo. Puedes explorar las lecciones a tu ritmo; no es una certificación.',
@@ -603,10 +646,10 @@ export async function buildServer(options: ServerOptions = {}) {
     const state = stateFor(req);
     return {
       tracks: trackConfigs.map((t) => {
-        const required = units.find((u) => u.id === t.requiredUnitId)?.lessons ?? [];
+        const required = requiredChallengeLessons(t.requiredUnitId);
         return {
           ...t,
-          unlocked: trackUnlocked(state, t.id),
+          unlocked: t.id === 'present_simple' && trackUnlocked(state, t.requiredUnitId),
           completedLessons: required.filter((l) => state.completedLessons.includes(l.id)).length,
           requiredLessons: required.length,
           published: false,
@@ -636,14 +679,18 @@ export async function buildServer(options: ServerOptions = {}) {
         (p) => p.trackId === req.params.id && p.type === type && p.mode === 'practice',
       );
       return {
-        levels: challengeLevels.map((l) => ({
-          level: l.level,
-          nameEs: l.name_es,
-          hearts: l.hearts,
-          seconds: timeBudget(type, l.level, selectQuestions(type, l.level)),
-          unlocked: true,
-          bestScore: progress?.bestScores[String(l.level)] ?? 0,
-        })),
+        levels: challengeLevels.map((l) => {
+          const unlockUnit = challengeRequiredUnit(challengePools.grammar_rush, l.level);
+          return {
+            level: l.level,
+            nameEs: l.name_es,
+            hearts: l.hearts,
+            seconds: timeBudget(type, l.level, selectQuestions(type, l.level, state)),
+            unlocked: req.params.id === 'present_simple' && trackUnlocked(state, unlockUnit),
+            unlockUnit,
+            bestScore: progress?.bestScores[String(l.level)] ?? 0,
+          };
+        }),
         practiceOnly: true,
       };
     },
@@ -673,17 +720,21 @@ export async function buildServer(options: ServerOptions = {}) {
       if (input.trackId !== 'present_simple')
         throw new ApiError(
           503,
-          'Este tema todavía está en preparación. Puedes practicar Daily routines.',
+          'Este tema todavía está en preparación. Puedes practicar Retos del viajero.',
           'CONTENT_UNAVAILABLE',
         );
-      const pool = challengePools[input.type];
-      const count = input.type === 'grammar_rush' ? 10 : input.type === 'cloze_battle' ? 5 : 4;
-      if (pool.length < count)
+      const requiredUnit = challengeRequiredUnit(challengePools.grammar_rush, input.level);
+      if (!trackUnlocked(state, requiredUnit))
+        throw new ApiError(
+          403,
+          'Completa las lecciones relacionadas antes de iniciar este desafío opcional.',
+          'CHALLENGE_LOCKED',
+        );
+      const questions = selectQuestions(input.type, input.level, state);
+      if (questions.length < challengeQuestionCount(input.type))
         throw new ApiError(503, 'Todavía estamos preparando este tema.', 'CONTENT_UNAVAILABLE');
       // A snapshot, not a live reference: later content changes cannot alter a run's keys.
-      const selected = JSON.parse(
-        JSON.stringify(selectQuestions(input.type, input.level)),
-      ) as PrivateExercise[];
+      const selected = JSON.parse(JSON.stringify(questions)) as PrivateExercise[];
       const now = clock.now();
       const config = challengeLevels[input.level - 1]!;
       const id = crypto.randomUUID();
@@ -744,14 +795,22 @@ export async function buildServer(options: ServerOptions = {}) {
           'QUESTION_ORDER',
         );
       const e = run.items[run.position]!;
-      const correct = grading.grade(e, input.answer);
+      const outcome = judge(e, input.answer);
+      const correct = outcome === 'target';
       if (correct) run.correctCount++;
-      else run.hearts = Math.max(0, run.hearts - 1);
+      else if (outcome !== 'ungradable') run.hearts = Math.max(0, run.hearts - 1);
       run.answers.push({
         questionId: e.id,
         correct,
-        feedbackEs: e.feedbackEs,
-        acceptedAnswer: exerciseAnswer(e),
+        outcome,
+        feedbackEs:
+          outcome === 'communication_only'
+            ? (e.communicationOnly?.feedbackEs ??
+              'Se entiende tu respuesta. Practica la forma indicada.')
+            : outcome === 'ungradable'
+              ? (e.ungradable?.feedbackEs ?? 'Faltan datos para evaluar esta respuesta.')
+              : e.feedbackEs,
+        acceptedAnswer: outcome === 'ungradable' ? '' : exerciseAnswer(e),
       });
       run.position++;
       finishRun(state, run, now);

@@ -7,8 +7,8 @@ export const easternChapterLessons = {
     dialogue: [
       {
         speaker: 'Nina',
-        en: 'I like art that tells me something about everyday life. Which exhibit would you recommend?',
-        es: 'Me gusta el arte que me cuenta algo sobre la vida cotidiana. ¿Qué exposición me recomendarías?',
+        en: 'I like art that shows what everyday life is like. Which exhibit would you recommend?',
+        es: 'Me gusta el arte que muestra cómo es la vida cotidiana. ¿Qué exposición me recomendarías?',
       },
       {
         speaker: 'Alex',
@@ -31,9 +31,11 @@ export const easternChapterLessons = {
       { en: 'sculpture', es: 'escultura' },
       { en: 'everyday life', es: 'vida cotidiana' },
       { en: 'recommend', es: 'recomendar' },
+      { en: 'art market', es: 'mercado de arte' },
+      { en: 'local artists', es: 'artistas locales' },
     ],
     grammarEs:
-      'Usa who para describir personas, como en artists who work with wood. Usa that para especificar qué tipo de cosa, como en art that tells a story. Para añadir un detalle sobre algo ya identificado, separa la frase con which mediante una coma. Con because, explica por qué lo recomiendas.',
+      'En «artists who work with wood», «who» aclara de qué artistas hablamos. En «art that tells a story», «that» aclara qué tipo de arte. Esos datos identifican lo que quieres decir y van sin coma. Compara «an exhibit that shows old photos» con «the photo exhibit, which shows what Paris looked like years ago». En el segundo caso, ya sabemos cuál es la exposición y añadimos un dato con coma y «which». Para recomendar, prueba «I’d recommend… because…».',
     question: {
       promptEs: '¿Por qué Alex recomienda empezar por las fotos?',
       options: [
@@ -46,10 +48,10 @@ export const easternChapterLessons = {
         'Alex dice que en las fotos puedes ver cómo vivía la gente y que muestran el París de hace cien años.',
     },
     practiceEs:
-      'Un amigo prefiere pasear al aire libre y quiere conocer a artistas locales. Recomiéndale un mercado de arte de fin de semana. Describe a quién puede conocer y explica por qué le gustaría el paseo. Díselo o escríbelo en inglés.',
+      'Un amigo disfruta los paseos al aire libre y quiere conocer a artistas locales. Recomiéndale un mercado de arte de fin de semana. Explica tu recomendación con «because» y usa «who» para decir a qué artistas puede conocer.',
     model: {
       en: 'I would recommend the weekend art market because you like being outdoors. You can meet artists who live in the neighborhood.',
-      es: 'Te recomendaría el mercado de arte de fin de semana porque te gusta estar al aire libre. Puedes conocer a artistas que viven en el barrio.',
+      es: 'Te recomendaría el mercado de arte de fin de semana porque te gusta estar al aire libre. Ahí puedes conocer artistas que viven en el barrio.',
     },
   },
   rome: {
@@ -60,7 +62,7 @@ export const easternChapterLessons = {
       {
         speaker: 'Maya',
         en: 'I was unpacking when water started dripping from the ceiling. Could you take a look?',
-        es: 'Estaba deshaciendo la maleta cuando empezó a gotear agua del techo. ¿Podría venir a revisar?',
+        es: 'Estaba sacando cosas de la maleta cuando empezó a gotear agua del techo. ¿Podría venir a revisar?',
       },
       {
         speaker: 'Luca',
@@ -79,7 +81,7 @@ export const easternChapterLessons = {
       },
     ],
     vocabulary: [
-      { en: 'unpack', es: 'deshacer la maleta' },
+      { en: 'unpack', es: 'sacar las cosas de la maleta' },
       { en: 'ceiling', es: 'techo' },
       { en: 'drip', es: 'gotear' },
       { en: 'repair', es: 'reparación' },
@@ -87,7 +89,7 @@ export const easternChapterLessons = {
     grammarEs:
       'Usa was o were más un verbo en -ing para la acción de fondo y pasado simple para el hecho que la interrumpe. Combínalos con when, como en I was unpacking when water started dripping. Usa Could you…? o Would it be possible to…? para pedir una solución con cortesía.',
     question: {
-      promptEs: '¿Qué solución acepta ofrecer Luca al final?',
+      promptEs: '¿Qué solución ofrece Luca al final?',
       options: [
         'Reparar el techo en veinte minutos.',
         'Pedirle a Maya que vuelva en una hora.',
@@ -95,7 +97,7 @@ export const easternChapterLessons = {
       ],
       answerIndex: 2,
       feedbackEs:
-        'Luca primero ofrece enviar a alguien a reparar el techo. Al final dice que hay otra habitación lista y puede dar la llave de inmediato.',
+        'Luca puede mandar a alguien a revisar la gotera, pero eso llevaría tiempo. Al final le ofrece a Maya una llave para cambiarse de habitación de inmediato.',
     },
     practiceEs:
       'Estabas revisando tus boletos cuando notaste que los asientos de tu tren no estaban juntos. Explícale qué pasó a la persona de la ventanilla y pregunta con cortesía si puede cambiar uno de los asientos.',
@@ -111,7 +113,7 @@ export const easternChapterLessons = {
     dialogue: [
       {
         speaker: 'Salma',
-        en: 'It’s very hot, so we’ll meet at the shaded north gate at two, instead of the main entrance.',
+        en: 'It’s very hot, so we’ll meet at the shaded north gate at two instead of the main entrance.',
         es: 'Hace mucho calor, así que nos reuniremos en la entrada norte, donde hay sombra, a las dos, en vez de la entrada principal.',
       },
       {
@@ -122,7 +124,7 @@ export const easternChapterLessons = {
       {
         speaker: 'Salma',
         en: 'Yes, unless they need the ramp at the main entrance. If they use the ramp, a guide will meet them inside.',
-        es: 'Sí, a menos que necesiten la rampa de la entrada principal. Si usan la rampa, una guía los recibirá adentro.',
+        es: 'Sí, a menos que necesiten la rampa de la entrada principal. Si usan la rampa, una guía estará adentro para recibirlos.',
       },
       {
         speaker: 'Jules',
@@ -137,7 +139,7 @@ export const easternChapterLessons = {
       { en: 'meeting point', es: 'punto de encuentro' },
     ],
     grammarEs:
-      'Con unless, indica una excepción, como en Go to the north gate unless you need the ramp. Con if, explica el resultado cuando se cumple una condición, como en If you use the ramp, a guide will meet you. Para transmitir una instrucción, usa tell seguido de la persona y to más el verbo.',
+      '«Unless» equivale a «a menos que»: «Go to the north gate unless you need the ramp». La regla se aplica cuando no necesitas la rampa. Con «if» das la instrucción para el otro caso: «If you use the ramp, a guide will meet you». Usa presente simple después de «if» y «unless» en este tipo de aviso. Para pasarlo a otra persona, usa «tell» + persona + «to» + verbo: «Tell the group to wait inside».',
     question: {
       promptEs: '¿Qué debe hacer alguien que necesita la rampa?',
       options: [
@@ -189,7 +191,7 @@ export const easternChapterLessons = {
       { en: 'check in', es: 'registrarse al llegar' },
     ],
     grammarEs:
-      'Usa since con el momento en que empezó algo, como since Tuesday, y for con la duración, como for two days. Con I’ve had y I’ve been coughing puedes describir síntomas que siguen presentes. Para verificar una instrucción, repítela con tus palabras en una pregunta con Should I…?',
+      'Usa «since» con el momento de inicio («since Tuesday») y «for» con la duración («for two days»). Para un estado que sigue, usa «have» + participio: «I’ve had a sore throat». Para una acción que ha continuado o se ha repetido, puedes usar «have been» + verbo en «-ing»: «I’ve been coughing». Para verificar una instrucción, repítela con tus palabras y «Should I…?».',
     question: {
       promptEs: '¿Qué confirma Noah antes de terminar la cita?',
       options: [
@@ -215,8 +217,8 @@ export const easternChapterLessons = {
     dialogue: [
       {
         speaker: 'Eva',
-        en: 'May I take a photo of the paper display for my travel journal?',
-        es: '¿Puedo tomar una foto de la exhibición de papel para mi diario de viaje?',
+        en: 'May I take a photo of the origami display for my travel journal?',
+        es: '¿Puedo tomar una foto de la exhibición de origami para mi diario de viaje?',
       },
       {
         speaker: 'Haru',
@@ -230,7 +232,7 @@ export const easternChapterLessons = {
       },
       {
         speaker: 'Haru',
-        en: 'Of course. The display will still be open, and it’s usually quieter then.',
+        en: 'Of course. The exhibit will still be open, and there are usually fewer people then.',
         es: 'Claro. La exhibición seguirá abierta y normalmente hay menos gente a esa hora.',
       },
     ],
@@ -251,7 +253,7 @@ export const easternChapterLessons = {
       ],
       answerIndex: 2,
       feedbackEs:
-        'Haru permite tomar la foto si Eva desactiva el flash y mantiene fuera de la imagen a las demás personas.',
+        'Haru permite tomar la foto si Eva desactiva el flash y se asegura de que no salga nadie más en la imagen.',
     },
     practiceEs:
       'En otro taller, pregunta si puedes grabar las instrucciones de la persona que lo dirige. Te dicen que está permitido grabarlas, pero no puedes grabar al resto del grupo. Expresa tu preferencia y propone esperar hasta después del taller.',
@@ -272,8 +274,8 @@ export const easternChapterLessons = {
       },
       {
         speaker: 'Guide',
-        en: 'Here’s the latest advisory. Gusts could reach the headland by eleven, and the exposed trail has been closed.',
-        es: 'Este es el aviso más reciente. Las ráfagas podrían llegar al promontorio para las once y el sendero expuesto al viento ya cerró.',
+        en: 'Here’s the latest advisory. Gusts could hit the headland as early as eleven, and the exposed trail is closed.',
+        es: 'Este es el aviso más reciente. Podría haber ráfagas en el promontorio desde las once y el sendero expuesto al viento está cerrado.',
       },
       {
         speaker: 'Linh',
@@ -306,10 +308,10 @@ export const easternChapterLessons = {
         'El pronóstico habla de chubascos después del mediodía. El aviso posterior añade la posibilidad de ráfagas desde antes y confirma que el sendero expuesto cerró.',
     },
     practiceEs:
-      'Planeabas caminar por la orilla de un río. Un aviso dice que el agua podría subir por la tarde y recomienda un sendero más alto. Justifica el cambio aunque el cielo esté despejado. Indica en qué caso aplazarías la salida.',
+      'Planeabas caminar por la orilla de un río. Un aviso dice que el agua podría subir por la tarde y recomienda un sendero más alto. Justifica el cambio con «although» y explica qué harás si también cierran el sendero más alto.',
     model: {
-      en: 'Although the sky is clear, the river could rise this afternoon, so I’d take the higher trail. If the next advisory closes that trail too, I’d postpone the walk.',
-      es: 'Aunque el cielo está despejado, el río podría subir esta tarde, así que tomaría el sendero más alto. Si el próximo aviso también cierra ese sendero, aplazaría la caminata.',
+      en: 'Although the sky is clear, the river could rise this afternoon, so I’ll take the higher trail. If that trail closes too, I’ll postpone the walk.',
+      es: 'Aunque el cielo está despejado, el río podría subir esta tarde, así que tomaré el sendero más alto. Si también cierran ese sendero, aplazaré la caminata.',
     },
   },
   'new-zealand': {
@@ -320,12 +322,12 @@ export const easternChapterLessons = {
       {
         speaker: 'Riley',
         en: 'Our field notes show three sets of footprints beyond the rope. I didn’t see who left them.',
-        es: 'Nuestras notas de campo registran tres rastros de huellas más allá de la cuerda. No vi quién los dejó.',
+        es: 'En las notas anotamos tres grupos de huellas del otro lado de la cuerda. No vi quién dejó las huellas.',
       },
       {
         speaker: 'Mere',
         en: 'I noticed that the sign was hard to see from the new path. A visitor told me she hadn’t noticed it at all.',
-        es: 'Noté que el letrero era difícil de ver desde el sendero nuevo. Una visitante me dijo que ni siquiera lo había visto.',
+        es: 'Noté que era difícil ver el letrero desde el sendero nuevo. Una visitante me dijo que ni siquiera lo había visto.',
       },
       {
         speaker: 'Riley',
@@ -350,7 +352,7 @@ export const easternChapterLessons = {
       promptEs: '¿Qué conclusión respaldan las observaciones del equipo?',
       options: [
         'Las tres personas cruzaron porque no vieron el letrero.',
-        'Hay huellas más allá de la cuerda y el letrero se ve poco desde el sendero nuevo.',
+        'Hay huellas del otro lado de la cuerda y el letrero es difícil de ver desde el sendero nuevo.',
         'Mover el letrero evitará que todas las personas crucen la cuerda.',
       ],
       answerIndex: 1,
@@ -360,7 +362,7 @@ export const easternChapterLessons = {
     practiceEs:
       'En otro sitio, tu compañera vio envoltorios cerca de un mirador y anotó que el bote de basura más cercano estaba al final del sendero. Resume sus observaciones y propón probar un cambio. Aclara qué dato sigue sin confirmarse.',
     model: {
-      en: 'My teammate reported finding wrappers by the lookout. She said the nearest trash can was at the end of the trail. A bin near the lookout might help, though we don’t know who left the wrappers.',
+      en: 'My teammate reported finding wrappers by the lookout. She said the nearest trash can was at the end of the trail. A trash can by the lookout might help, though we don’t know who left the wrappers.',
       es: 'Mi compañera informó que encontró envoltorios cerca del mirador. Dijo que el bote más cercano estaba al final del sendero. Un bote cerca del mirador podría ayudar, aunque no sabemos quién dejó los envoltorios.',
     },
   },
@@ -372,7 +374,7 @@ export const easternChapterLessons = {
       {
         speaker: 'Wanjiku',
         en: 'We need someone at the registration desk by eight thirty. David, can you cover it?',
-        es: 'Necesitamos a alguien en la mesa de registro a más tardar a las ocho y media. David, ¿puedes cubrirla?',
+        es: 'Necesitamos a alguien en la mesa de registro a más tardar a las ocho y media. David, ¿puedes atenderla?',
       },
       {
         speaker: 'David',
@@ -382,7 +384,7 @@ export const easternChapterLessons = {
       {
         speaker: 'Amina',
         en: 'I can cover the desk until ten if David emails me the sign-in sheet by Friday afternoon.',
-        es: 'Puedo cubrir la mesa hasta las diez si David me envía la lista de registro por correo a más tardar el viernes por la tarde.',
+        es: 'Puedo atender la mesa hasta las diez si David me manda la lista de registro por correo a más tardar el viernes por la tarde.',
       },
       {
         speaker: 'Wanjiku',
@@ -399,7 +401,7 @@ export const easternChapterLessons = {
     grammarEs:
       'Usa provided para negociar una condición y by para indicar el plazo. David will send the sheet identifica al responsable. The sheet will be sent usa la voz pasiva para centrar la atención en la lista y puede ser útil al resumir una tarea cuyo responsable ya se conoce.',
     question: {
-      promptEs: '¿Qué acuerdo llegó a confirmar el equipo?',
+      promptEs: '¿Qué acuerdo confirma el equipo?',
       options: [
         'David abrirá la mesa de registro y Amina lo relevará el viernes.',
         'Wanjiku abrirá la mesa y enviará la lista cuando termine la jornada.',
@@ -410,7 +412,7 @@ export const easternChapterLessons = {
         'Amina acepta cubrir el primer turno con la condición de recibir la lista de David. Wanjiku confirma el relevo y el plazo de envío.',
     },
     practiceEs:
-      'Amina avisa que no podrá llegar a tiempo. Puedes abrir la mesa si David te envía a ti la lista el viernes. Ofrece el cambio y confirma que David aún te relevará a las diez.',
+      'Amina avisa que no podrá llegar a tiempo. Ofrece abrir la mesa con la condición de que David te mande la lista a más tardar el viernes por la tarde. Pregunta si David todavía te relevará a las diez.',
     model: {
       en: 'I can open the registration desk provided David sends me the sign-in sheet by Friday afternoon. Can you confirm that David will still take over at ten?',
       es: 'Puedo abrir la mesa de registro siempre que David me envíe la lista a más tardar el viernes por la tarde. ¿Puedes confirmar que David aún se hará cargo a las diez?',
@@ -433,7 +435,7 @@ export const easternChapterLessons = {
       },
       {
         speaker: 'Lebo',
-        en: 'The terminal is currently checking the log. Until we see it, I can only confirm the scheduled time.',
+        en: 'The terminal staff are currently checking the log. Until we see it, I can only confirm the scheduled time.',
         es: 'El personal de la terminal está revisando la bitácora en este momento. Hasta que la veamos, solo puedo confirmar la hora programada.',
       },
       {
@@ -449,7 +451,7 @@ export const easternChapterLessons = {
       { en: 'currently', es: 'actualmente, en este momento' },
     ],
     grammarEs:
-      'Para contrastar testimonios sin mezclarlos, usa Lebo thought… y Sofia reported… unidos con while. Actually introduce una corrección y currently indica lo que sucede ahora. Usa hasn’t been confirmed para indicar que aún falta verificar un dato.',
+      'Para contrastar dos testimonios, identifica quién aporta cada versión: «Lebo thought the ferry left early, while Sofia said she saw people boarding at three thirty». «Actually» puede introducir una corrección. «Currently» indica lo que sucede ahora. Para marcar un dato todavía sin verificar, usa «hasn’t been confirmed».',
     question: {
       promptEs: '¿Cuál dato puede confirmar Lebo antes de que se revise la bitácora?',
       options: [
@@ -459,13 +461,13 @@ export const easternChapterLessons = {
       ],
       answerIndex: 0,
       feedbackEs:
-        'Lebo puede confirmar lo que decía el tablero. Sofia vio el abordaje, que es un hecho distinto de la salida. La hora real aún requiere verificación.',
+        'Lebo puede confirmar lo que decía el tablero. Sofia vio a pasajeros subir al ferry. La hora real de salida todavía no se ha verificado.',
     },
     practiceEs:
       'Una tercera viajera, Amara, te muestra un video del ferry que su teléfono registró a las tres y cuarenta. Explica en inglés qué aporta el video y qué habría que comprobar antes de cambiar el informe.',
     model: {
-      en: 'Amara showed us a video of the ferry pulling away with a timestamp of three forty. It gives us a possible departure time, but we still need to check her phone’s clock and compare it with the terminal log.',
-      es: 'Amara nos mostró un video del ferry zarpando con una marca de tiempo de las tres y cuarenta. Nos da una posible hora de salida, pero aún debemos verificar el reloj de su teléfono y compararlo con la bitácora de la terminal.',
+      en: 'Amara showed us a video of the ferry pulling away. Her phone logged the video at three forty. We still need to check the phone’s clock and compare that time with the terminal log.',
+      es: 'Amara nos mostró un video del ferry al zarpar. Su teléfono registró el video a las tres y cuarenta. Aún tenemos que revisar el reloj de su teléfono y comparar esa hora con la bitácora de la terminal.',
     },
   },
   antarctica: {
@@ -486,7 +488,7 @@ export const easternChapterLessons = {
       {
         speaker: 'Sam',
         en: 'Given that report, the landing should be delayed. If the lead guide clears the route, we can review the plan at the next briefing.',
-        es: 'Dado ese informe, se debería aplazar el desembarco. Si la guía responsable autoriza el paso por la ruta, podemos revisar el plan en la próxima reunión informativa.',
+        es: 'En vista de ese informe, conviene aplazar el desembarco. Si la guía responsable confirma que la ruta está despejada, podemos revisar el plan en la próxima reunión informativa.',
       },
       {
         speaker: 'Inez',
@@ -501,7 +503,7 @@ export const easternChapterLessons = {
       { en: 'briefing', es: 'reunión informativa' },
     ],
     grammarEs:
-      'Usa must para una obligación, may para un permiso y only after para el requisito que debe cumplirse primero. Con should be delayed, la voz pasiva pone el foco en la acción. Distingue la fuente de la decisión con The protocol says… y Given that report….',
+      'En el protocolo, «must» indica una obligación y «may» un permiso. «Only after» y «until» te permiten ordenar los pasos: «We may land only after the guide checks the route» y «We must wait until the guide checks the route». «Should be delayed» presenta una recomendación sobre el desembarco. Para atribuir la información a su fuente, empieza con «The protocol says…» o «The field team reports…».',
     question: {
       promptEs: '¿Qué debe ocurrir antes de volver a considerar el desembarco?',
       options: [

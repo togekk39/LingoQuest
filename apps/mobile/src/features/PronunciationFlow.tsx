@@ -69,8 +69,9 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
       <JournalLeaf compact kind="notebook" style={s.disclosure}>
         <Info color={palette.teal} size={19} />
         <Text style={[f.quiet, { flex: 1 }]}>
-          Los ejemplos y el modo solo grabar funcionan sin conexión. El reconocimiento del sistema o
-          del navegador puede procesar tu audio en línea. No genera puntajes de pronunciación.
+          Puedes escuchar y grabarte sin conexión. Usa la grabación para comparar los sonidos. El
+          reconocimiento del sistema o del navegador transcribe palabras y puede procesar el audio
+          en línea. No genera puntajes de pronunciación ni de comunicación.
         </Text>
       </JournalLeaf>
       {!!speechMessage && (

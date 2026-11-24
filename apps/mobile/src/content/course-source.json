@@ -1,9 +1,9 @@
 {
   "packageId": "es419-enus-a1a2",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "repository": "togekk39/LingoQuest",
   "published": false,
   "url": "",
-  "sha256": "c570ce998b82428249ae380ee7b6e68f572eae0dfd0c8af08fdafbab404abdc9",
-  "sizeBytes": 433869
+  "sha256": "81269927477512865ba427fa2fff3b440e84047803e1cb1c809eb8a8580a40ff",
+  "sizeBytes": 463353
 }
