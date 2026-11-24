@@ -2,7 +2,7 @@ import { registerHooks } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { CourseData, HomeContent } from '../src/index';
+import type { CourseData, HomeContent, OfflineState, StoryResponse } from '../src/index';
 
 test('Android starts with a local shell and opens the installed adventure and course', async () => {
   const resolution = registerHooks({
@@ -70,6 +70,62 @@ test('Android starts with a local shell and opens the installed adventure and co
       '/v1/reviews/quick?source=travel',
     );
     assert.equal(review.exercise.id, 'travel_quick_hello');
+
+    const previous = JSON.parse(await readFile(new URL('2/home.json', directory), 'utf8')).story;
+    const before = snapshot;
+    installHomeContent({ ...previous, ...previous.runtime } as HomeContent);
+    await assert.rejects(engine.request('/v1/story'), /Actualiza La primera postal/);
+    assert.equal(snapshot, before);
+    installHomeContent({ ...story, ...story.runtime } as HomeContent);
+    assert.equal(
+      (await engine.request<{ story: { scene: { id: string } } }>('/v1/story')).story.scene.id,
+      'plaza',
+    );
+
+    const priorHome = JSON.parse(await readFile(new URL('4/home.json', directory), 'utf8')).story;
+    assert.equal(
+      priorHome.adventure.encounters.find(({ id }: { id: string }) => id === 'greet-sam')
+        .freshEntryStepId,
+      'travel_hello_write',
+    );
+    snapshot = null;
+    const priorContent = { ...priorHome, ...priorHome.runtime } as HomeContent;
+    installHomeContent(priorContent);
+    let greeting = await engine.request<StoryResponse>('/v1/story');
+    greeting = await engine.request<StoryResponse>('/v1/story', {
+      action: 'interact',
+      hotspotId: 'plaza-sam',
+      turn: greeting.story.turn,
+    });
+    for (const choiceId of [
+      'greet-sam-in-english',
+      'greet-luz-in-english',
+      'reply-to-luz',
+      'continue-opening-with-sam',
+      'introduce-yourself',
+    ]) {
+      greeting = await engine.request<StoryResponse>('/v1/story', {
+        action: 'choose',
+        choiceId,
+        turn: greeting.story.turn,
+      });
+    }
+    assert.equal(greeting.travel.active?.stepId, 'hello_teach');
+
+    const oldState = JSON.parse(snapshot!) as OfflineState;
+    const draft = {
+      ...greeting.travel.active!,
+      step: priorContent.chapter.missions[0].steps.findIndex(
+        ({ id }) => id === 'travel_hello_write',
+      ),
+      stepId: 'travel_hello_write',
+      answer: { text: 'Hi! My name is' },
+    };
+    oldState.travel = { ...greeting.travel, active: draft };
+    snapshot = JSON.stringify(oldState);
+    installHomeContent({ ...story, ...story.runtime } as HomeContent);
+    const restored = await engine.request<StoryResponse>('/v1/story');
+    assert.deepEqual(restored.travel.active, { ...draft, contentRevision: story.chapter.revision });
   } finally {
     resolution.deregister();
   }

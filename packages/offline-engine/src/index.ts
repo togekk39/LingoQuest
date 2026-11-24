@@ -1003,6 +1003,8 @@ export class OfflineEngine {
       const travel = (state.travel ??= emptyTravel());
       const firstVisit = method === 'GET' && route === '/v1/story' && !state.story;
       const story = (state.story ??= emptyStory(chapterStory));
+      if (story.revision > chapterStory.revision)
+        throw new LocalError('Actualiza La primera postal para continuar con esta partida.', 409);
       upgradeTravelCheckpoints(travel);
       upgradeStory(chapterStory, story);
       const before = story.encounterId;

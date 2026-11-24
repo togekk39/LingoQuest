@@ -1,6 +1,6 @@
 import { sha256Hex } from '@lingoquest/course-pack';
 import { Directory, File, Paths } from 'expo-file-system';
-import { compareAndPutRaw, getRaw, putRawAndRemove } from './storage';
+import { compareAndPutRaw, getRaw, putRaw } from './storage';
 
 const keyPrefix = 'lq_chapter_pack:';
 const currentChapterKey = 'lq_current_chapter';
@@ -13,15 +13,8 @@ export function readCurrentChapter() {
   return getRaw(currentChapterKey);
 }
 
-export async function replaceCurrentChapter(previousId: string, nextId: string) {
-  const directories = [
-    new Directory(Paths.cache, 'chapter-media-v2', previousId),
-    new Directory(Paths.cache, 'chapter-media'),
-  ];
-  for (const directory of directories) {
-    if (directory.exists) directory.delete();
-  }
-  await putRawAndRemove(currentChapterKey, nextId, keyPrefix + previousId);
+export function writeCurrentChapter(id: string) {
+  return putRaw(currentChapterKey, id);
 }
 
 export async function writeChapterPack(

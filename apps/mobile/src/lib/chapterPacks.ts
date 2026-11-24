@@ -12,8 +12,8 @@ import {
   chapterMediaUri,
   readChapterPack,
   readCurrentChapter,
-  replaceCurrentChapter,
   writeChapterPack,
+  writeCurrentChapter,
 } from './chapterStorage';
 
 const web = Platform.OS === 'web';
@@ -22,6 +22,7 @@ const baseUrl = web
   : 'https://raw.githubusercontent.com/togekk39/LingoQuest/main/apps/mobile/public/chapter-packs/';
 const destinations = new Map(route.map((destination) => [destination.id, destination]));
 export const [firstChapter, secondChapter] = route;
+const currentHomeRevision = 5;
 export class ChapterDownloadError extends Error {}
 
 export type ChapterDownloadProgress = { receivedBytes: number; totalBytes: number };
@@ -55,15 +56,15 @@ export async function getCurrentChapter() {
   return (await readCurrentChapter()) === secondChapter.id ? secondChapter : firstChapter;
 }
 
-export async function retireFirstChapter() {
-  await downloads.get(firstChapter.id)?.operation.catch(() => {});
-  if (
-    (await readCurrentChapter()) === secondChapter.id &&
-    !(await readChapterPack(firstChapter.id))
-  )
-    return;
-  await replaceCurrentChapter(firstChapter.id, secondChapter.id);
-  if (lastRead?.pack.chapterId === firstChapter.id) lastRead = undefined;
+export function setCurrentChapter(id: string) {
+  return writeCurrentChapter(id);
+}
+
+export async function refreshInstalledHomeChapter() {
+  const installed = await getInstalledChapter(firstChapter.id);
+  if (installed?.story?.runtime && installed.revision < currentHomeRevision) {
+    await downloadChapter(firstChapter.id);
+  }
 }
 
 async function saveChapter(id: string, text: string, pack: ChapterPack) {

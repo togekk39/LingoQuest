@@ -1,8 +1,14 @@
 // Bundled en-US reference clips for the authored first chapter.
 // Audios de referencia en-US incluidos para el primer capítulo.
 import introductionStarter from '../../assets/travel/introduction-starter.mp3';
+import luzGreetingReply from '../../assets/travel/luz-greeting-reply.mp3';
+import luzWelcome from '../../assets/travel/luz-welcome.mp3';
 import samAfterIntroduction from '../../assets/travel/sam-after-introduction.mp3';
+import samAsksForDirections from '../../assets/travel/sam-asks-for-directions.mp3';
+import samAsksName from '../../assets/travel/sam-asks-name.mp3';
 import samGreeting from '../../assets/travel/sam-greeting.mp3';
+import samGreetingReply from '../../assets/travel/sam-greeting-reply.mp3';
+import samIntroducesLuz from '../../assets/travel/sam-introduces-luz.mp3';
 import line1 from '../../assets/travel/line-1.mp3';
 import line2 from '../../assets/travel/line-2.mp3';
 import line3 from '../../assets/travel/line-3.mp3';
@@ -26,6 +32,12 @@ import word7 from '../../assets/travel/word-7.mp3';
 export const audioClips: Readonly<Record<string, number>> = {
   'Hi! My name is Sam.': line1,
   "Hi! My name is Sam. What's your name?": samGreeting,
+  'This is Luz.': samIntroducesLuz,
+  'Hello! I’m Luz. Welcome!': luzWelcome,
+  'Nice to meet you, too!': luzGreetingReply,
+  "What's your name?": samAsksName,
+  "It's nice to meet you.": samGreetingReply,
+  'Can you help me find the bus stop?': samAsksForDirections,
   'Hi! I am Luz.': line2,
   'My name is Luz.': line3,
   'Where is the bus stop?': line4,

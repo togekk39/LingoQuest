@@ -104,6 +104,29 @@ type StoryAction = StoryOperation extends infer Op
     : never
   : never;
 
+const openingChoices = [
+  'greet-sam-in-english',
+  'greet-luz-in-english',
+  'reply-to-luz',
+  'continue-opening-with-sam',
+];
+
+async function openNamePrompt(engine: OfflineEngine, snapshot: StoryResponse) {
+  let current = await engine.request<StoryResponse>(storyPath, {
+    action: 'interact',
+    hotspotId: 'plaza-sam',
+    turn: snapshot.story.turn,
+  });
+  for (const choiceId of openingChoices) {
+    current = await engine.request<StoryResponse>(storyPath, {
+      action: 'choose',
+      choiceId,
+      turn: current.story.turn,
+    });
+  }
+  return current;
+}
+
 test('story launch restores a pre-RPG format-2 checkpoint and is atomic on write failure', async () => {
   const storage = device();
   const legacy = storage.open();
@@ -119,11 +142,7 @@ test('story launch restores a pre-RPG format-2 checkpoint and is atomic on write
   const entry = await engine.request<StoryResponse>(storyPath);
   assert.equal(entry.story.origin, 'Perú');
   assert.deepEqual(entry.travel, saved);
-  const sam = await engine.request<StoryResponse>(storyPath, {
-    action: 'interact',
-    hotspotId: 'plaza-sam',
-    turn: entry.story.turn,
-  });
+  const sam = await openNamePrompt(engine, entry);
   const introduce = { action: 'choose', choiceId: 'introduce-yourself', turn: sam.story.turn };
   storage.setFailure(true);
   await assert.rejects(engine.request(storyPath, introduce), /write failed/);
@@ -143,7 +162,7 @@ test('story launch restores a pre-RPG format-2 checkpoint and is atomic on write
   assert.deepEqual(await storage.open().request(storyPath), opened);
 });
 
-test('another conversation can pause and restore a story lesson without losing a draft', async () => {
+test('the opening teaches before assessing and restores the name draft after another conversation', async () => {
   const storage = device();
   let engine = storage.open();
   let snapshot = await engine.request<StoryResponse>(storyPath);
@@ -156,18 +175,83 @@ test('another conversation can pause and restore a story lesson without losing a
 
   await act({ action: 'interact', hotspotId: 'plaza-sam' });
   assert.equal(snapshot.story.dialogue?.npc?.id, 'sam');
-  assert.equal(snapshot.story.dialogue?.line?.en, "Hi! My name is Sam. What's your name?");
-  await act({ action: 'interact', hotspotId: 'plaza-luz' });
+  assert.equal(snapshot.story.dialogue?.line?.en, 'Hi! My name is Sam.');
+  assert.deepEqual(snapshot.story.dialogue?.choices, [
+    { id: 'greet-sam-in-english', label: 'Hi, Sam!' },
+  ]);
+  await act({ action: 'choose', choiceId: 'greet-sam-in-english' });
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'sam');
+  assert.equal(snapshot.story.dialogue?.line?.en, 'This is Luz.');
+  assert.deepEqual(snapshot.story.dialogue?.choices, [
+    { id: 'greet-luz-in-english', label: 'Hi, Luz!' },
+  ]);
+  await act({ action: 'choose', choiceId: 'greet-luz-in-english' });
   assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
-  assert.equal(snapshot.story.dialogue?.line?.en, 'Hi! I am Luz.');
-  assert.equal(snapshot.story.dialogue?.exampleLabel, 'Ejemplo de Luz');
-  assert.ok(snapshot.story.dialogue?.tip);
-  await act({ action: 'interact', hotspotId: 'plaza-sam' });
+  assert.equal(snapshot.story.dialogue?.line?.en, 'Hello! I’m Luz. Welcome!');
+  assert.deepEqual(snapshot.story.dialogue?.choices, [
+    { id: 'reply-to-luz', label: 'Nice to meet you, Luz!' },
+  ]);
+  engine = storage.open();
+  assert.deepEqual(await engine.request(storyPath), snapshot);
+  await act({ action: 'choose', choiceId: 'reply-to-luz' });
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
+  assert.equal(snapshot.story.dialogue?.line?.en, 'Nice to meet you, too!');
+  await act({ action: 'choose', choiceId: 'continue-opening-with-sam' });
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'sam');
+  assert.equal(snapshot.story.dialogue?.line?.en, "What's your name?");
+  assert.equal((await journey(engine)).active, undefined);
+  assert.deepEqual(storage.state().attempts, {});
   await act({ action: 'choose', choiceId: 'introduce-yourself' });
   assert.equal(snapshot.story.encounter?.npc?.id, 'sam');
   assert.equal(snapshot.story.encounter?.suspended, false);
+  const teaching = snapshot.travel.active!;
+  assert.equal(teaching.stepId, 'hello_teach');
+  const hello = chapter.missions[0];
+  assert.deepEqual(
+    hello.vocabulary.map(({ term, storyPrompt }) => [term, storyPrompt?.speaker]),
+    [
+      ['Hi', 'Sam'],
+      ['I am', 'Luz'],
+      ['My name is', 'Luz'],
+    ],
+  );
+  assert.deepEqual(
+    hello.steps
+      .slice(teaching.step)
+      .map((step) => [step.id, 'storyPrompt' in step ? step.storyPrompt?.speaker : undefined]),
+    [
+      ['hello_teach', 'Luz'],
+      ['travel_hello_recognize', 'Sam'],
+      ['travel_hello_build', 'Luz'],
+      ['travel_hello_recall', 'Sam'],
+      ['travel_hello_write', 'Sam'],
+      ['travel_hello_transfer', 'Luz'],
+      ['hello_speak', 'Sam'],
+    ],
+  );
+  const grammar = hello.steps[teaching.step];
+  assert.equal(grammar.type, 'teach');
+  assert.deepEqual(
+    grammar.examples.map(({ en }) => en),
+    ['I am', 'My name is'],
+  );
+  for (let position = 1; position <= hello.vocabulary.length; position++) {
+    const vocab = await journey(engine, { action: 'word', token: teaching.token, position });
+    assert.equal(vocab.active?.stepId, 'hello_teach');
+    assert.equal(vocab.active?.word, position);
+    assert.deepEqual((await journey(storage.open())).active, vocab.active);
+  }
+  assert.deepEqual(storage.state().attempts, {});
+  assert.equal(storage.state().travelLearning, undefined);
+  const listening = await journey(engine, { action: 'advance', token: teaching.token });
+  assert.equal(listening.active?.stepId, 'travel_hello_recognize');
 
   const atWriting = await finishLesson(engine, 'travel_hello_write');
+  assert.equal(atWriting.active?.stepId, 'travel_hello_write');
+  assert.equal(Object.keys(storage.state().attempts).length, 3);
+  const reorder = storage.state().travelLearning?.targets.find(({ skill }) => skill === 'grammar');
+  assert.equal(reorder?.assistance.guided, 1);
+  assert.deepEqual(reorder?.successes.understanding, { independent: 0, assisted: 1 });
   const draft = await journey(engine, {
     action: 'draft',
     token: atWriting.active!.token,
@@ -176,8 +260,8 @@ test('another conversation can pause and restore a story lesson without losing a
   const introductionTurn = snapshot.story.turn;
   await act({ action: 'suspendEncounter' });
   assert.equal(snapshot.story.encounter?.suspended, true);
-  await act({ action: 'interact', hotspotId: 'plaza-sam' });
-  assert.equal(snapshot.story.dialogue?.id, 'sam-introduction');
+  snapshot = await openNamePrompt(engine, snapshot);
+  assert.equal(snapshot.story.dialogue?.id, 'sam-asks-name');
   assert.deepEqual(snapshot.story.dialogue?.choices, []);
   const unchanged = snapshot;
   await act({ action: 'choose', choiceId: 'introduce-yourself' });
@@ -213,6 +297,7 @@ test('another conversation can pause and restore a story lesson without losing a
   });
   await act({ action: 'finishEncounter' });
   assert.equal(snapshot.story.dialogue?.id, 'sam-after-introduction');
+  assert.equal(snapshot.story.dialogue?.line?.en, 'Can you help me find the bus stop?');
   assert.deepEqual(
     storage.state().travelLearning?.targets.find(({ skill }) => skill === 'speaking')
       ?.speakingPractice,
@@ -237,16 +322,22 @@ test('Luz search route requires canonical learning and item use before one passp
   const close = async () => act({ action: 'closeDialogue' });
   const finish = async () => act({ action: 'finishEncounter' });
 
-  await interact('plaza-sam');
+  snapshot = await openNamePrompt(engine, snapshot);
   await choose('introduce-yourself');
   await finishLesson(engine);
   await finish();
   assert.ok(snapshot.story.hotspots.some(({ id }) => id === 'plaza-luz-after-introduction'));
   await interact('plaza-ticket');
+  assert.equal(snapshot.story.dialogue?.title, 'Cartel del parque');
   await choose('read-ticket');
+  await close();
+  assert.ok(!snapshot.story.hotspots.some(({ id }) => id === 'plaza-sam-ticket'));
+  await interact('plaza-ticket');
+  assert.deepEqual(snapshot.story.dialogue?.choices, []);
   await close();
   await interact('plaza-to-stop');
   await interact('stop-sign');
+  assert.equal(snapshot.story.dialogue?.title, 'Señal de la parada');
   await close();
   await interact('stop-sam-directions');
   await choose('give-directions');
@@ -261,6 +352,7 @@ test('Luz search route requires canonical learning and item use before one passp
   assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
   await close();
   await interact('plaza-to-stop');
+  assert.ok(!snapshot.story.hotspots.some(({ id }) => id === 'stop-sam-search'));
   await interact('stop-to-lost-property');
   await interact('lost-sam-return');
   assert.equal(snapshot.story.dialogue, undefined);
@@ -278,6 +370,11 @@ test('Luz search route requires canonical learning and item use before one passp
   snapshot = await engine.request<StoryResponse>(storyPath);
   assert.equal(snapshot.story.encounter?.ready, true);
   await finish();
+  await interact('lost-luz-identified');
+  assert.equal(snapshot.story.dialogue?.id, 'luz-two-bags');
+  await interact('lost-red-bag');
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
+  assert.equal(snapshot.story.dialogue?.line?.en, 'It’s red.');
   await interact('lost-blue-bag');
   await choose('take-blue-bag');
   await close();
@@ -293,6 +390,8 @@ test('Luz search route requires canonical learning and item use before one passp
   assert.equal(snapshot.story.inventory.find(({ id }) => id === 'sam-blue-bag')?.used, true);
   assert.deepEqual(await storage.open().request(storyPath, finishRequest), snapshot);
   assert.deepEqual(storage.state(), after);
+  await interact('lost-luz-after-return');
+  assert.equal(snapshot.story.dialogue?.id, 'luz-postcard');
   await interact('lost-sam-finale-luz');
   assert.equal(snapshot.story.dialogue?.id, 'sam-finale-luz');
   await close();
@@ -330,19 +429,20 @@ test('Sam separates story identity from English evidence and remembers an unset 
         goalMinutes: 10,
         reducedMotion: false,
       });
-    let snapshot = await engine.request<StoryResponse>(storyPath);
-    snapshot = await engine.request<StoryResponse>(storyPath, {
-      action: 'interact',
-      hotspotId: 'plaza-sam',
-      turn: snapshot.story.turn,
-    });
-    snapshot = await engine.request<StoryResponse>(storyPath, {
+    const sam = await openNamePrompt(engine, await engine.request<StoryResponse>(storyPath));
+    const snapshot = await engine.request<StoryResponse>(storyPath, {
       action: 'choose',
       choiceId: 'introduce-yourself',
-      turn: snapshot.story.turn,
+      turn: sam.story.turn,
     });
-    assert.equal(snapshot.travel.active?.stepId, 'hello_welcome');
+    assert.equal(snapshot.travel.active?.stepId, 'hello_teach');
     let current = (await finishLesson(engine, 'travel_hello_write')).active!;
+    const writing = chapter.missions[0].steps[current.step];
+    assert.equal(writing.type, 'exercise');
+    assert.deepEqual(writing.storyReply, {
+      speaker: 'Sam',
+      line: { en: "It's nice to meet you.", es: 'Mucho gusto.' },
+    });
     async function gradeReply(text: string) {
       return journey(engine, { action: 'answer', token: current.token, answer: { text } });
     }
@@ -375,7 +475,9 @@ test('Sam separates story identity from English evidence and remembers an unset 
       assert.equal((await journey(storage.open())).introductionName, name);
       assert.equal(storage.state().user.name, 'Explorador');
     }
+    assert.deepEqual((await journey(storage.open())).active, correct.active);
     current = (await journey(engine, { action: 'advance', token: current.token })).active!;
+    assert.equal(current.stepId, 'travel_hello_transfer');
     const transfer = await gradeReply(`I'm ${name}.`);
     assert.equal(transfer.active?.stepId, 'travel_hello_transfer');
     assert.equal(transfer.active?.result?.correct, true);

@@ -38,16 +38,8 @@ export function readCurrentChapter() {
   return readChapterPack(currentChapterKey);
 }
 
-export async function replaceCurrentChapter(previousId: string, nextId: string) {
-  const db = await openDatabase();
-  return new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
-    store.put(nextId, currentChapterKey);
-    store.delete(previousId);
-    transaction.oncomplete = () => resolve();
-    transaction.onabort = () => reject(transaction.error);
-  });
+export async function writeCurrentChapter(id: string) {
+  await writeChapterPack(currentChapterKey, id, (previous) => previous !== id);
 }
 
 export async function writeChapterPack(

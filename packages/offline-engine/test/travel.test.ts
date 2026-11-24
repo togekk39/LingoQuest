@@ -528,6 +528,36 @@ test('revision-one travel checkpoints migrate with their token, pending answer a
   assert.deepEqual((await engine.request<TravelLearningState>(evidencePath)).targets, [record]);
 });
 
+test('legacy indexed introduction checkpoints still resolve to transfer and speaking practice', async () => {
+  const phone = device();
+  const engine = phone.open();
+  for (const [step, stepId] of [
+    [7, 'travel_hello_transfer'],
+    [8, 'hello_speak'],
+  ] as const) {
+    const backup = await engine.request<{ state: OfflineState }>('/v1/me/export');
+    const saved = {
+      missionId: 'hello',
+      contentRevision: 2,
+      step,
+      token: `original-${stepId}`,
+      answer: step === 7 ? { text: 'My name is Ana.' } : {},
+      hint: false,
+      transcript: false,
+      finished: false,
+    };
+    backup.state.travel = { active: saved, completed: {}, stamps: {} };
+    await engine.request('/v1/me/import', { backup });
+    const restored = await phone.open().request<TravelState>('/v1/travel');
+    assert.deepEqual(restored.active, {
+      ...saved,
+      step: chapter.missions[0].steps.findIndex((entry) => entry.id === stepId),
+      stepId,
+      contentRevision: chapter.revision,
+    });
+  }
+});
+
 test('speaking self-review advances atomically and records practice without a grade', async () => {
   const phone = device();
   const engine = phone.open();

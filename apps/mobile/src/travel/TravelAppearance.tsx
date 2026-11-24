@@ -115,29 +115,34 @@ export function GrammarWorkbench({
   const [dialogueTranslations, setDialogueTranslations] = useState<Record<number, boolean>>({});
   const dialogue = step.presentation === 'question-answer';
   const inline = !!embedded;
+  const replyBriefing = inline && step.presentation === 'reply-briefing';
+  const showAllExamples = dialogue || replyBriefing;
   const Section = inline ? StoryActivity : Notebook;
-  const alternative = dialogue ? undefined : step.examples.find((_, index) => index !== selected);
+  const alternative = showAllExamples
+    ? undefined
+    : step.examples.find((_, index) => index !== selected);
   const showExample = useCallback((index: number) => {
     select(index);
     reveal(false);
     setCompare(false);
   }, []);
   useEffect(() => {
+    if (replyBriefing) return;
     void playSequence(
       step.examples.map(({ en }) => en),
       dialogue ? undefined : showExample,
       inline,
     );
-  }, [dialogue, inline, playSequence, showExample, step.examples]);
+  }, [dialogue, inline, playSequence, replyBriefing, showExample, step.examples]);
   return (
     <View testID="grammar-workbench" style={{ gap: 12 }}>
       {!inline && <JournalArt source={illustrations.writing} aspectRatio={3.1} taped />}
       <Section title={step.title}>
-        <Label style={styles.copy}>{step.text}</Label>
+        {(!inline || !step.storyPrompt) && <Label style={styles.copy}>{step.text}</Label>}
         {!!step.exampleLabel && (
           <Text style={[styles.meaning, { color: C.teal }]}>{step.exampleLabel}</Text>
         )}
-        {!dialogue && (
+        {!showAllExamples && (
           <View style={styles.samples}>
             {step.examples.map((item, index) => (
               <Pressable
@@ -162,7 +167,7 @@ export function GrammarWorkbench({
           </View>
         )}
         {step.examples.map((example, index) => {
-          if (!dialogue && index !== selected) return null;
+          if (!showAllExamples && index !== selected) return null;
           const pattern = step.patterns?.[index];
           const translationVisible =
             embedded?.translationsVisible ??
@@ -207,24 +212,28 @@ export function GrammarWorkbench({
                 <Button variant="secondary" icon={Volume2} onPress={() => play(example.en)}>
                   {dialogue
                     ? `Escuchar ${label === 'pregunta' ? 'la pregunta' : 'la respuesta'}`
-                    : 'Escuchar frase'}
+                    : replyBriefing
+                      ? `Escuchar: ${example.en}`
+                      : 'Escuchar frase'}
                 </Button>
-                <Button
-                  variant="ghost"
-                  icon={Eye}
-                  onPress={() => {
-                    if (embedded) {
-                      embedded.onToggleTranslation();
-                    } else if (dialogue) {
-                      setDialogueTranslations((shown) => ({ ...shown, [index]: !shown[index] }));
-                    } else {
-                      stop();
-                      reveal(!showTranslation);
-                    }
-                  }}
-                >
-                  {`${translationVisible ? 'Ocultar traducción' : inline ? 'Mostrar traducción' : 'Ver traducción'}${dialogue ? ` de la ${label}` : ''}`}
-                </Button>
+                {!replyBriefing && (
+                  <Button
+                    variant="ghost"
+                    icon={Eye}
+                    onPress={() => {
+                      if (embedded) {
+                        embedded.onToggleTranslation();
+                      } else if (dialogue) {
+                        setDialogueTranslations((shown) => ({ ...shown, [index]: !shown[index] }));
+                      } else {
+                        stop();
+                        reveal(!showTranslation);
+                      }
+                    }}
+                  >
+                    {`${translationVisible ? 'Ocultar traducción' : inline ? 'Mostrar traducción' : 'Ver traducción'}${dialogue ? ` de la ${label}` : ''}`}
+                  </Button>
+                )}
                 {!!alternative && (
                   <Button
                     variant="ghost"
@@ -255,6 +264,16 @@ export function GrammarWorkbench({
             </View>
           );
         })}
+        {replyBriefing && embedded && (
+          <Button
+            variant="ghost"
+            icon={Eye}
+            onPress={embedded.onToggleTranslation}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            {embedded.translationsVisible ? 'Ocultar traducción' : 'Mostrar traducción'}
+          </Button>
+        )}
       </Section>
     </View>
   );
