@@ -93,6 +93,7 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   await click('Revelar significado');
   await expect(vocabulary.getByText('hola', { exact: true })).toBeVisible();
   await click('Siguiente palabra');
+  await expect.poll(async () => (await state(page)).travel.active?.word).toBe(1);
   const vocabularyCheckpoint = (await state(page)).travel.active;
   await click('Cerrar y volver');
   await page.reload();
