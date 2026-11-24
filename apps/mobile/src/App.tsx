@@ -84,6 +84,23 @@ type ChapterTransfer = {
   error?: ChapterTransferFailure;
 };
 
+function restoreStoryGuideStage(saved: unknown, firstVisit?: boolean): StoryGuideStage {
+  if (firstVisit) return 'sam';
+  switch (saved) {
+    case 'postcard-dialogue':
+    case 'object-dialogue':
+    case 'quests':
+      return 'postcard-dialogue';
+    case 'sam':
+    case 'npc':
+    case 'npc-dialogue':
+    case 'object':
+      return 'sam';
+    default:
+      return 'done';
+  }
+}
+
 export default function App() {
   const [reducedMotion, setReducedMotion] = useState(true);
   return (
@@ -248,10 +265,11 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     const session = storySession.current;
     const response = await api<StoryResponse>('/v1/story');
     if (opening) {
-      const saved = await localSettings.get<StoryGuideStage | null>(storyGuideKey, null);
-      if (response.firstVisit) await localSettings.set(storyGuideKey, 'npc');
-      if (session === storySession.current)
-        setStoryGuideStage(response.firstVisit ? 'npc' : (saved ?? 'done'));
+      const saved = await localSettings.get<unknown>(storyGuideKey, null);
+      const stage = restoreStoryGuideStage(saved, response.firstVisit);
+      if (response.firstVisit || (saved !== null && saved !== stage))
+        await localSettings.set(storyGuideKey, stage);
+      if (session === storySession.current) setStoryGuideStage(stage);
     }
     if (session !== storySession.current) return false;
     showStory(response);

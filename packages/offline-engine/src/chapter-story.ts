@@ -1,4 +1,4 @@
-import { chapter, samGreeting } from './travel-content';
+import { chapter } from './travel-content';
 import type { StoryDefinition } from './story';
 
 const greeted = { type: 'event', id: 'greeted-sam' } as const;
@@ -30,6 +30,13 @@ const stopSignName = 'Señal de la parada';
 const parkBenchName = 'Banco del parque';
 const blueBagName = 'Mochila azul';
 const redBagName = 'Mochila roja';
+const luzGreeting = { en: 'Hello! I’m Luz. Welcome!', es: '¡Hola! Soy Luz. ¡Qué gusto recibirte!' };
+const luzGreetingReply = { en: 'Nice to meet you, too!', es: '¡El gusto es mío!' };
+const practiceWithLuz = {
+  id: 'practice-with-luz',
+  label: 'Practicar con el ejemplo de Luz',
+  effects: [{ type: 'dialogue', id: 'luz-introduction-practice' }],
+} as const;
 const askAboutPlazaPostcard = {
   label: 'Preguntar por la postal',
   requires: [{ ...hasOriginCard, not: true }],
@@ -47,7 +54,7 @@ const showPlazaPostcard = {
 
 export const chapterStory = {
   id: chapter.id,
-  revision: 2,
+  revision: 3,
   initialSceneId: 'plaza',
   npcs: [
     { id: 'sam', name: 'Sam', role: 'Viajero que busca la parada del bus de las ocho' },
@@ -86,7 +93,7 @@ export const chapterStory = {
       id: 'meet-sam',
       title: 'Un saludo en la plaza',
       kind: 'main',
-      description: 'Habla con Sam en la plaza. Luz puede mostrarte cómo presentarte en inglés.',
+      description: 'Saluda a Sam en la plaza, conoce a Luz y di tu nombre en inglés.',
       goals: [{ id: 'introduction', label: 'Preséntate a Sam en inglés.', requires: [greeted] }],
     },
     {
@@ -231,7 +238,7 @@ export const chapterStory = {
         },
         {
           id: 'plaza-to-stop',
-          label: 'Camino al parque',
+          label: 'Ir a la parada',
           kind: 'exit',
           requires: [ticketRead],
           effects: [{ type: 'scene', id: 'bus-stop' }],
@@ -374,6 +381,7 @@ export const chapterStory = {
       id: 'greet-sam',
       npcId: 'sam',
       missionId: 'hello',
+      freshEntryStepId: 'travel_hello_write',
       onFinish: [
         { type: 'event', id: 'greeted-sam' },
         { type: 'giveItem', id: 'bus-ticket' },
@@ -412,8 +420,60 @@ export const chapterStory = {
     {
       id: 'sam-introduction',
       npcId: 'sam',
-      text: 'Acabo de llegar a la plaza. ¿Nos presentamos?',
-      line: samGreeting,
+      text: 'Sam te saluda junto a la fuente.',
+      line: { en: 'Hi! My name is Sam.', es: '¡Hola! Me llamo Sam.' },
+      choices: [
+        {
+          id: 'greet-sam-in-english',
+          label: 'Hi, Sam!',
+          effects: [{ type: 'dialogue', id: 'sam-introduces-luz' }],
+        },
+      ],
+    },
+    {
+      id: 'sam-introduces-luz',
+      npcId: 'sam',
+      text: 'Sam señala la mesa de bienvenida.',
+      line: { en: 'This is Luz.', es: 'Ella es Luz.' },
+      choices: [
+        {
+          id: 'greet-luz-in-english',
+          label: 'Hi, Luz!',
+          effects: [{ type: 'dialogue', id: 'luz-meets-traveler' }],
+        },
+      ],
+    },
+    {
+      id: 'luz-meets-traveler',
+      npcId: 'luz',
+      text: 'Luz te saluda desde la mesa de bienvenida.',
+      line: luzGreeting,
+      choices: [
+        {
+          id: 'reply-to-luz',
+          label: 'Nice to meet you, Luz!',
+          effects: [{ type: 'dialogue', id: 'luz-replies-to-traveler' }],
+        },
+      ],
+    },
+    {
+      id: 'luz-replies-to-traveler',
+      npcId: 'luz',
+      text: 'Luz sonríe y deja que Sam siga la conversación.',
+      line: luzGreetingReply,
+      choices: [
+        {
+          id: 'continue-opening-with-sam',
+          label: 'Seguir con Sam',
+          effects: [{ type: 'dialogue', id: 'sam-asks-name' }],
+        },
+      ],
+    },
+    {
+      id: 'sam-asks-name',
+      npcId: 'sam',
+      text: 'Usa una de las frases que oíste, «I’m» o «My name is», y agrega tu nombre.',
+      line: { en: "What's your name?", es: '¿Cómo te llamas?' },
       choices: [
         {
           id: 'introduce-yourself',
@@ -430,8 +490,8 @@ export const chapterStory = {
       npcId: 'sam',
       text: 'Toma mi boleto. El bus sale a las ocho. Busca el mismo árbol en el cartel del parque.',
       line: {
-        en: 'Nice to meet you! Can you help me find the bus stop?',
-        es: '¡Mucho gusto! ¿Me ayudas a encontrar la parada del bus?',
+        en: 'Can you help me find the bus stop?',
+        es: '¿Me ayudas a encontrar la parada del bus?',
       },
       choices: [],
     },
@@ -444,32 +504,35 @@ export const chapterStory = {
     {
       id: 'luz-welcome',
       npcId: 'luz',
-      text: 'Soy Luz, de la mesa de bienvenida. En inglés puedes saludar con «Hi» o «Hello». Escucha cómo me presento y usa tu propio nombre cuando hables con Sam.',
-      line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
-      exampleLabel: 'Ejemplo de Luz',
-      tip: 'Después del saludo, di «I am» o «My name is» seguido de tu nombre.',
+      text: 'Luz te saluda desde la mesa de bienvenida.',
+      line: luzGreeting,
       choices: [
         {
-          id: 'practice-with-luz',
-          label: 'Practicar con el ejemplo de Luz',
-          effects: [{ type: 'dialogue', id: 'luz-introduction-practice' }],
+          id: 'reply-to-luz-at-desk',
+          label: 'Nice to meet you, Luz!',
+          effects: [{ type: 'dialogue', id: 'luz-desk-greeting-reply' }],
         },
         { id: 'ask-luz-about-origin', ...askAboutPlazaPostcard },
         { id: 'show-origin-sketch', ...showPlazaPostcard },
       ],
     },
     {
+      id: 'luz-desk-greeting-reply',
+      npcId: 'luz',
+      text: 'Si necesitas algo, acércate a mi mesa.',
+      line: luzGreetingReply,
+      choices: [
+        practiceWithLuz,
+        { id: 'ask-luz-about-origin-at-desk', ...askAboutPlazaPostcard },
+        { id: 'show-origin-sketch-at-desk', ...showPlazaPostcard },
+      ],
+    },
+    {
       id: 'luz-after-introduction',
       npcId: 'luz',
-      text: 'Ya sabes cómo presentarte. Si necesitas encontrar el camino al parque, puedo marcártelo en la postal de la plaza.',
-      line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
-      exampleLabel: 'Ejemplo de Luz',
+      text: '¿Necesitas ayuda para llegar al parque? Puedo marcarte el camino en la postal de la plaza.',
       choices: [
-        {
-          id: 'practice-with-luz',
-          label: 'Practicar con el ejemplo de Luz',
-          effects: [{ type: 'dialogue', id: 'luz-introduction-practice' }],
-        },
+        practiceWithLuz,
         { id: 'ask-luz-about-origin-after-introduction', ...askAboutPlazaPostcard },
         { id: 'show-origin-sketch-after-introduction', ...showPlazaPostcard },
       ],
@@ -560,7 +623,7 @@ export const chapterStory = {
     {
       id: 'ticket-read',
       title: parkSignName,
-      text: 'El árbol del cartel coincide con el del boleto. Sigue el camino al parque y busca la señal de la parada.',
+      text: 'El árbol del cartel coincide con el del boleto. Ve a la parada junto al parque y busca la señal.',
       choices: [],
     },
     {
@@ -627,13 +690,13 @@ export const chapterStory = {
         },
         {
           id: 'keep-searching-bench',
-          label: 'Revisar la nota del banco',
+          label: 'Recordar dónde buscar',
           requires: [benchPath],
           effects: [{ type: 'dialogue', id: 'sam-search-bench' }],
         },
         {
           id: 'keep-searching-luz',
-          label: 'Volver con Luz',
+          label: 'Recordar dónde está Luz',
           requires: [luzPath],
           effects: [{ type: 'dialogue', id: 'sam-search-luz' }],
         },
@@ -698,7 +761,7 @@ export const chapterStory = {
     {
       id: 'luz-clue',
       npcId: 'luz',
-      text: 'La guardé en objetos perdidos. Hay dos mochilas en el mostrador. Te espero allá y le aviso a Sam que nos alcance.',
+      text: 'La guardé en objetos perdidos. Vuelve a la parada y sigue hacia el mostrador. Le aviso a Sam que nos alcance.',
       choices: [],
     },
     {

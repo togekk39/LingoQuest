@@ -188,17 +188,15 @@ export function updateTravel(
     const entry = entryStepId
       ? Math.max(0, mission?.steps.findIndex(({ id: stepId }) => stepId === entryStepId) ?? -1)
       : 0;
-    if (current?.missionId === input.missionId && current.contentRevision === chapter.revision) {
-      if (current.step < entry) travel.active = checkpoint(input.missionId, entry, id());
+    if (current?.missionId === input.missionId && current.contentRevision === chapter.revision)
       return;
-    }
     if (!canStartTravelMission(travel, input.missionId)) return;
     const paused = (travel.paused ??= {});
     if (current && !current.finished && current.contentRevision === chapter.revision)
       paused[current.missionId] = current;
     const saved = paused[input.missionId];
     travel.active =
-      saved?.contentRevision === chapter.revision && saved.step >= entry
+      saved?.contentRevision === chapter.revision
         ? saved
         : checkpoint(input.missionId, entry, id());
     delete paused[input.missionId];

@@ -37,12 +37,12 @@ const figures: Record<ArtId, Partial<Record<FigureId, Figure>>> = {
   bag: {
     sam: {
       art: { right: '-7%', bottom: '-16%', width: '35%', transform: [{ scaleX: -1 }] },
-      bounds: { x: 75, y: 75, width: 25, height: 25 },
+      bounds: { x: 75, y: 77, width: 25, height: 23 },
       labelAt: 'bottom',
     },
     luz: {
       art: { left: '-7%', bottom: '-7%', width: '43%' },
-      bounds: { x: 0, y: 55, width: 34, height: 26 },
+      bounds: { x: 0, y: 53, width: 34, height: 25 },
       labelAt: 'bottom',
     },
   },
@@ -50,11 +50,11 @@ const figures: Record<ArtId, Partial<Record<FigureId, Figure>>> = {
 
 const landmarks: Record<string, Target> = {
   'plaza-origin': { bounds: { x: 46, y: 78, width: 30, height: 22 }, labelAt: 'bottom' },
-  'plaza-ticket': { bounds: { x: 43, y: 26, width: 28, height: 27 }, labelAt: 'bottom' },
+  'plaza-ticket': { bounds: { x: 41, y: 26, width: 25, height: 36 }, labelAt: 'bottom' },
   'plaza-to-stop': { bounds: { x: 72, y: 19, width: 28, height: 22 } },
   'stop-to-plaza': { bounds: { x: 0, y: 83, width: 32, height: 17 } },
   'stop-sign': { bounds: { x: 23, y: 22, width: 30, height: 30 }, labelAt: 'bottom' },
-  'stop-bench': { bounds: { x: 3, y: 57, width: 28, height: 26 }, labelAt: 'top' },
+  'stop-bench': { bounds: { x: 3, y: 55, width: 28, height: 23 }, labelAt: 'top' },
   'stop-to-lost-property': { bounds: { x: 33, y: 81, width: 32, height: 19 } },
   'lost-to-stop': { bounds: { x: 0, y: 82, width: 34, height: 18 } },
   'lost-blue-bag': { bounds: { x: 37, y: 34, width: 26, height: 43 }, labelAt: 'bottom' },

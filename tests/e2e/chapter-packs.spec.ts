@@ -233,14 +233,15 @@ test('an installed older first chapter stays usable offline and updates after re
   request,
 }) => {
   const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
-  expect(catalog.chapters.home.revision).toBeGreaterThan(2);
-  const previous = await (await request.get('/chapter-packs/2/home.json')).body();
+  const previousRevision = 3;
+  expect(catalog.chapters.home.revision).toBeGreaterThan(previousRevision);
+  const previous = await (await request.get(`/chapter-packs/${previousRevision}/home.json`)).body();
   const previousCatalog: ChapterCatalog = {
     ...catalog,
     chapters: {
       ...catalog.chapters,
       home: {
-        revision: 2,
+        revision: previousRevision,
         sizeBytes: previous.length,
         sha256: createHash('sha256').update(previous).digest('hex'),
       },
@@ -248,13 +249,37 @@ test('an installed older first chapter stays usable offline and updates after re
   };
   const route = `**${catalogUrl}`;
   await context.route(route, (entry) => entry.fulfill({ json: previousCatalog }));
+  await page.addInitScript(() => {
+    if (window.speechSynthesis) window.speechSynthesis.getVoices = () => [];
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      this.addEventListener(
+        'ended',
+        () => (document.body.dataset.endedStoryAudio = this.currentSrc),
+        { once: true },
+      );
+      return play.call(this);
+    };
+  });
   await enterApp(page);
-  expect(await savedHomeRevision(page)).toBe(2);
+  expect(await savedHomeRevision(page)).toBe(previousRevision);
 
   await readyOfflineShell(page, context);
   await page.reload();
   await openLessons(page);
-  expect(await savedHomeRevision(page)).toBe(2);
+  expect(await savedHomeRevision(page)).toBe(previousRevision);
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Inicio')).click();
+  await click(page, 'Comenzar mi aventura');
+  const plaza = page.getByTestId('story-scene-plaza');
+  await expect(plaza).toBeVisible();
+  await click(page, 'Omitir guía');
+  await page.getByTestId('story-hotspot-plaza-sam').click();
+  await click(page, 'Hi, Sam!');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-ended-story-audio',
+    /\/sam-introduces-luz\.[^/]+\.mp3$/,
+  );
 
   await context.setOffline(false);
   await context.unroute(route);

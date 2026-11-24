@@ -136,6 +136,7 @@ export interface StoryEncounter {
   npcId?: string;
   missionId: string;
   entryStepId?: string;
+  freshEntryStepId?: string;
   endBeforeStepId?: string;
   onFinish?: readonly StoryEffect[];
 }
@@ -174,7 +175,7 @@ export interface StoryView {
     goals: { id: string; label: string; completed: boolean }[];
   })[];
   inventory: (StoryItem & InventoryState)[];
-  encounter?: Omit<StoryEncounter, 'onFinish' | 'npcId'> & {
+  encounter?: Omit<StoryEncounter, 'onFinish' | 'npcId' | 'freshEntryStepId'> & {
     ready: boolean;
     suspended: boolean;
     npc?: StoryNpc;
@@ -520,7 +521,7 @@ export function readStory(
     encounter: encounter && {
       id: encounter.id,
       missionId: encounter.missionId,
-      entryStepId: encounter.entryStepId,
+      entryStepId: encounter.freshEntryStepId ?? encounter.entryStepId,
       endBeforeStepId: encounter.endBeforeStepId,
       ready: encounter.id === context.readyEncounterId,
       suspended: !!current.encounterSuspended,

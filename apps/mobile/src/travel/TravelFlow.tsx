@@ -213,7 +213,13 @@ export function TravelFlow({
         : step.phrase
       : '';
   const speakingTemplate = personalResponse && !playerName;
-  const line = !current.finished && step.type === 'dialogue' ? step.line : undefined;
+  const storyReply =
+    embedded &&
+    step.type === 'exercise' &&
+    (current.result?.correct || current.result?.communicationOnly)
+      ? step.storyReply
+      : undefined;
+  const line = !current.finished && step.type === 'dialogue' ? step.line : storyReply?.line;
   const referenceAudio =
     word?.term ??
     line?.en ??
@@ -414,6 +420,18 @@ export function TravelFlow({
             : current.answer
         }
       />
+      {storyReply && embedded && (
+        <View testID="travel-story-reply" style={s.dialogue}>
+          <StorySpeaker name={storyReply.speaker} />
+          <StoryPhrase
+            line={storyReply.line}
+            showTranslation={embedded.translationsVisible}
+            onToggleTranslation={embedded.onToggleTranslation}
+            onListen={() => void play(storyReply.line.en, true)}
+            disabled={busy}
+          />
+        </View>
+      )}
       {review &&
         !current.result.correct &&
         !current.result.identityMismatch &&

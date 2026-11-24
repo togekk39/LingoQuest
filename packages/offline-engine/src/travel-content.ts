@@ -22,6 +22,7 @@ export interface TravelExerciseStep {
   type: 'exercise';
   situation: string;
   response?: 'personal-introduction';
+  storyReply?: { speaker: 'Luz' | 'Sam'; line: Translation };
   activityTitle?: string;
   exercise: CourseExercise;
   hint?: string;
@@ -175,7 +176,7 @@ function adjacentLocation(subjects: string[], reference: string) {
 
 export const chapter: TravelChapter = {
   ...homeChapterDetails,
-  revision: 4,
+  revision: 5,
   missions: [
     {
       id: 'hello',
@@ -351,6 +352,10 @@ export const chapter: TravelChapter = {
           activityTitle: 'Tu saludo para Sam',
           situation: 'Sam quiere saber cómo te llamas.',
           hint: 'Empieza con «Hi!». Después puedes usar «I am» o «My name is».',
+          storyReply: {
+            speaker: 'Sam',
+            line: { en: "It's nice to meet you.", es: 'Mucho gusto.' },
+          },
           exercise: {
             id: 'travel_hello_write',
             type: 'short_text',

@@ -16,11 +16,11 @@ import { InputViewportContext } from '../features/FeatureUI';
 import { useTheme } from '../theme';
 
 const guideSteps = {
-  npc: {
+  sam: {
     number: 1,
     title: 'Habla con los personajes',
     instruction: (label: string) =>
-      `Toca a ${label} en la plaza. Escucha su ejemplo y lee cómo presentarte en inglés.`,
+      `Toca a ${label} en la plaza. Escucha su saludo y preséntate en inglés.`,
   },
   object: {
     number: 2,
@@ -35,7 +35,7 @@ const guideSteps = {
 } as const;
 
 export type GuideStep = keyof typeof guideSteps;
-export type StoryGuideStage = GuideStep | 'npc-dialogue' | 'object-dialogue' | 'done';
+export type StoryGuideStage = 'sam' | 'postcard-dialogue' | 'done';
 export const storyGuideKey = 'storyGuideStage';
 const margin = 12;
 const gap = 12;

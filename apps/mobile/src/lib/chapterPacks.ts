@@ -22,7 +22,7 @@ const baseUrl = web
   : 'https://raw.githubusercontent.com/togekk39/LingoQuest/main/apps/mobile/public/chapter-packs/';
 const destinations = new Map(route.map((destination) => [destination.id, destination]));
 export const [firstChapter, secondChapter] = route;
-const homeSceneRevision = 3;
+const currentHomeRevision = 4;
 export class ChapterDownloadError extends Error {}
 
 export type ChapterDownloadProgress = { receivedBytes: number; totalBytes: number };
@@ -62,7 +62,7 @@ export function setCurrentChapter(id: string) {
 
 export async function refreshInstalledHomeChapter() {
   const installed = await getInstalledChapter(firstChapter.id);
-  if (installed?.story?.runtime && installed.revision < homeSceneRevision) {
+  if (installed?.story?.runtime && installed.revision < currentHomeRevision) {
     await downloadChapter(firstChapter.id);
   }
 }

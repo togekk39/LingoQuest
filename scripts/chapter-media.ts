@@ -34,6 +34,12 @@ const homeImages = {
 const recordedPhrases = new Map([
   ['Hi! My name is Sam.', 'line-1'],
   ["Hi! My name is Sam. What's your name?", 'sam-greeting'],
+  ['This is Luz.', 'sam-introduces-luz'],
+  ["Hello! I'm Luz. Welcome!", 'luz-welcome'],
+  ['Nice to meet you, too!', 'luz-greeting-reply'],
+  ["What's your name?", 'sam-asks-name'],
+  ["It's nice to meet you.", 'sam-greeting-reply'],
+  ['Can you help me find the bus stop?', 'sam-asks-for-directions'],
   ['Hi! I am Luz.', 'line-2'],
   ['My name is Luz.', 'line-3'],
   ['Where is the bus stop?', 'line-4'],

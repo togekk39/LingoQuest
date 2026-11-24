@@ -36,7 +36,7 @@ import { JournalLeaf, PaperGrain } from '../Journal';
 import { localSettings } from '../lib/api';
 import { useTheme } from '../theme';
 import { StoryPhrase, StorySpeaker } from './StoryDialogueAppearance';
-import { StoryGuide, type StoryGuideStage } from './StoryGuide';
+import { StoryGuide, type GuideStep, type StoryGuideStage } from './StoryGuide';
 import { StoryScene } from './StoryScene';
 import { TravelFlow, type TravelFlowHandle } from './TravelFlow';
 import { useChapterAudio } from './useChapterAudio';
@@ -184,21 +184,19 @@ export function StoryAdventure({
   const { scene, dialogue, encounter, hotspots, inventory, quests, turn, origin } = story;
   const lesson = useRef<TravelFlowHandle>(null);
   const [guideAnchor, setGuideAnchor] = useState<View | null>(null);
-  const inPlaza = scene.id === 'plaza';
-  const guideStep =
-    inPlaza && (guideStage === 'npc' || guideStage === 'object' || guideStage === 'quests')
-      ? guideStage
-      : undefined;
-  const guideAfterDialogue = inPlaza
-    ? guideStage === 'npc-dialogue'
-      ? 'object'
-      : guideStage === 'object-dialogue'
-        ? 'quests'
-        : undefined
-    : undefined;
+  const guidePending = scene.id === 'plaza' && guideStage !== 'done';
+  const introductionComplete = quests.some(
+    ({ id, status }) => id === 'meet-sam' && status === 'completed',
+  );
+  const postcardSeen =
+    guideStage === 'postcard-dialogue' || inventory.some(({ id }) => id === 'origin-card');
+  let guideStep: GuideStep | undefined;
+  if (guidePending && !dialogue && !encounter && !finishing) {
+    guideStep = introductionComplete ? (postcardSeen ? 'quests' : 'object') : 'sam';
+  }
   const guideHotspot = hotspots.find(
     (hotspot) =>
-      (guideStep === 'npc' && hotspot.npcId === 'luz') ||
+      (guideStep === 'sam' && hotspot.npcId === 'sam') ||
       (guideStep === 'object' && hotspot.id === 'plaza-origin'),
   );
   const [journal, setJournal] = useState<JournalPanel>(null);
@@ -307,16 +305,7 @@ export function StoryAdventure({
       await onResumeEncounter();
       setJournal(null);
     });
-  const closePanel = () =>
-    act(
-      { action: dialogue ? 'closeDialogue' : 'suspendEncounter', turn },
-      guideAfterDialogue ? () => onGuideStageChange(guideAfterDialogue) : undefined,
-    );
-  const continueGuide = () => {
-    if (!guideAfterDialogue) return;
-    if (dialogue) closePanel();
-    else void perform(() => onGuideStageChange(guideAfterDialogue));
-  };
+  const closePanel = () => act({ action: dialogue ? 'closeDialogue' : 'suspendEncounter', turn });
   const skipGuide = () => void perform(() => onGuideStageChange('done'));
 
   function interact(hotspotId: string) {
@@ -325,15 +314,10 @@ export function StoryAdventure({
       if (!activeCheckpoint) resume();
       return;
     }
-    const nextGuideStage =
-      guideStep === 'npc' && hotspot?.npcId === 'luz'
-        ? 'npc-dialogue'
-        : guideStep === 'object' && hotspotId === 'plaza-origin'
-          ? 'object-dialogue'
-          : undefined;
+    const opensGuidedPostcard = guideStep === 'object' && hotspotId === 'plaza-origin';
     act(
       { action: 'interact', hotspotId, turn },
-      nextGuideStage ? () => onGuideStageChange(nextGuideStage) : undefined,
+      opensGuidedPostcard ? () => onGuideStageChange('postcard-dialogue') : undefined,
     );
   }
 
@@ -425,7 +409,7 @@ export function StoryAdventure({
             />
           ))}
         </View>
-      ) : !guideAfterDialogue ? (
+      ) : (
         <StoryButton
           id="story-dialogue-continue"
           label="Volver a la escena"
@@ -434,7 +418,7 @@ export function StoryAdventure({
           disabled={locked}
           onPress={closePanel}
         />
-      ) : null}
+      )}
     </JournalLeaf>
   ) : hasPanel && encounter ? (
     <JournalLeaf kind="notebook" testID="story-encounter" style={s.dialogue}>
@@ -513,7 +497,7 @@ export function StoryAdventure({
             blueBagCollected={inventory.some(({ id }) => id === 'sam-blue-bag')}
             guideHotspotId={guideHotspot?.id}
             onGuideAnchor={setGuideAnchor}
-            disabled={locked || !!guideAfterDialogue}
+            disabled={locked}
             onInteract={interact}
           />
           <View style={s.caption}>
@@ -536,27 +520,16 @@ export function StoryAdventure({
         </View>
         <View style={[s.notesPage, wide && s.wideNotesPage]}>
           {panel}
-          {guideAfterDialogue && (
-            <View testID="story-guide-reading" style={s.readingGuide}>
-              <Text style={s.tipText}>
-                {guideAfterDialogue === 'object'
-                  ? 'Cuando termines de leer o escuchar a Luz, busca el mapa de la plaza con la guía.'
-                  : 'Si quieres, guarda la postal en tu mochila. Después abre tu lista de misiones.'}
-              </Text>
-              <StoryButton
-                id="story-guide-continue"
-                label="Seguir con la guía"
-                icon={ArrowRight}
-                disabled={locked}
-                onPress={continueGuide}
-              />
-              <StoryButton
-                id="story-guide-skip"
-                label="Omitir guía"
-                disabled={locked}
-                onPress={skipGuide}
-              />
-            </View>
+          {guidePending && !guideStep && !encounter && (
+            <Pressable
+              testID="story-guide-skip"
+              accessibilityRole="button"
+              disabled={locked}
+              onPress={skipGuide}
+              style={({ pressed }) => [s.guideSkip, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={s.guideSkipLabel}>Omitir guía</Text>
+            </Pressable>
           )}
           {encounter && !encounter.ready && !activeCheckpoint && !finishing && (
             <StoryButton
@@ -751,7 +724,13 @@ function useStyles() {
     scenePage: { gap: 6, minWidth: 0 },
     wideScenePage: { flex: 1.25 },
     notesPage: { gap: 8, minWidth: 0 },
-    readingGuide: { gap: 8, padding: 10, borderRadius: 10, backgroundColor: C.mint },
+    guideSkip: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+    guideSkipLabel: {
+      fontFamily: 'ManropeBold',
+      fontSize: 13,
+      color: C.teal,
+      textDecorationLine: 'underline',
+    },
     wideNotesPage: { flex: 1 },
     group: { gap: 9 },
     caption: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },

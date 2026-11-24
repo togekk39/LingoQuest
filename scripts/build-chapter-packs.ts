@@ -53,13 +53,16 @@ const storyPhrases = [
       if (step.type === 'dialogue') return step.line ? [step.line.en] : [];
       if (step.type === 'teach') return step.examples.map(({ en }) => en);
       if (step.type === 'speak') return [step.phrase];
-      return step.audio ? [step.audio] : [];
+      return [step.audio, step.storyReply?.line.en].filter((phrase): phrase is string => !!phrase);
     }),
   ]),
   ...travelPracticeSteps.flatMap(({ audio }) => (audio ? [audio] : [])),
   ...placementQuestions(publicExercise).flatMap(({ audio }) => (audio ? [audio] : [])),
   'Hi! My name is Sam.',
   'Hi! I am',
+  // An open Home revision 3 session still uses this clip after revision 4 downloads.
+  // Una sesión abierta con la revisión 3 sigue usando este audio tras descargar la revisión 4.
+  'Nice to meet you! Can you help me find the bus stop?',
 ];
 
 const digest = (bytes: string) => createHash('sha256').update(bytes).digest('hex');
