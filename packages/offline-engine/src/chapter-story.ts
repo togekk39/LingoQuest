@@ -25,6 +25,11 @@ const knowsIntroduction = {
 
 const close = { type: 'closeDialogue' } as const;
 const plazaPostcardName = 'Postal de la plaza';
+const parkSignName = 'Cartel del parque';
+const stopSignName = 'Señal de la parada';
+const parkBenchName = 'Banco del parque';
+const blueBagName = 'Mochila azul';
+const redBagName = 'Mochila roja';
 const askAboutPlazaPostcard = {
   label: 'Preguntar por la postal',
   requires: [{ ...hasOriginCard, not: true }],
@@ -42,10 +47,10 @@ const showPlazaPostcard = {
 
 export const chapterStory = {
   id: chapter.id,
-  revision: 1,
+  revision: 2,
   initialSceneId: 'plaza',
   npcs: [
-    { id: 'sam', name: 'Sam', role: 'Viajero que necesita encontrar el bus de las ocho' },
+    { id: 'sam', name: 'Sam', role: 'Viajero que busca la parada del bus de las ocho' },
     { id: 'luz', name: 'Luz', role: 'Encargada de la mesa de bienvenida y de objetos perdidos' },
   ],
   items: [
@@ -54,13 +59,13 @@ export const chapterStory = {
       name: 'Boleto de Sam',
       kind: 'quest',
       description:
-        'El boleto de las ocho lleva el símbolo de un árbol. Puedes compararlo con el cartel de la plaza para encontrar el camino a la parada.',
+        'El boleto del bus de las ocho lleva un árbol. Busca ese símbolo en el cartel del parque, en la plaza.',
     },
     {
       id: 'sam-blue-bag',
       name: 'Mochila azul de Sam',
       kind: 'quest',
-      description: 'La mochila que identificaste para Sam en objetos perdidos.',
+      description: 'La mochila que Luz guardó para Sam en el mostrador de objetos perdidos.',
     },
     {
       id: 'origin-card',
@@ -72,7 +77,8 @@ export const chapterStory = {
       id: 'sam-postcard',
       name: chapter.collectible,
       kind: 'souvenir',
-      description: 'Sam guardaba esta postal en su mochila. La puedes escribir en tu pasaporte.',
+      description:
+        'Sam guardaba esta postal en su mochila. Puedes escribir en ella desde tu pasaporte.',
     },
   ],
   quests: [
@@ -80,18 +86,22 @@ export const chapterStory = {
       id: 'meet-sam',
       title: 'Un saludo en la plaza',
       kind: 'main',
-      description: 'Sam llegó a la mesa de bienvenida con un boleto. Averigua qué necesita.',
+      description: 'Habla con Sam en la plaza. Luz puede mostrarte cómo presentarte en inglés.',
       goals: [{ id: 'introduction', label: 'Preséntate a Sam en inglés.', requires: [greeted] }],
     },
     {
       id: 'catch-the-bus',
       title: 'El bus de las ocho',
       kind: 'main',
-      description: 'Usa el boleto para ubicar la parada y explícale a Sam cómo llegar.',
+      description: 'Compara el boleto de Sam con el cartel del parque y dile dónde está la parada.',
       requires: [greeted],
       goals: [
-        { id: 'ticket-read', label: 'Revisa el boleto de Sam.', requires: [ticketRead] },
-        { id: 'stop-found', label: 'Ubica la parada junto al parque.', requires: [stopFound] },
+        {
+          id: 'ticket-read',
+          label: 'Compara el boleto con el cartel del parque.',
+          requires: [ticketRead],
+        },
+        { id: 'stop-found', label: 'Examina la señal de la parada.', requires: [stopFound] },
         { id: 'directions', label: 'Dale la indicación a Sam en inglés.', requires: [guided] },
       ],
     },
@@ -103,7 +113,11 @@ export const chapterStory = {
       requires: [guided],
       goals: [
         { id: 'search-route', label: 'Decide con Sam dónde buscar.', requires: [routeChosen] },
-        { id: 'search-clue', label: 'Encuentra una pista.', requires: [hasClue] },
+        {
+          id: 'search-clue',
+          label: 'Busca una pista en el banco o pregúntale a Luz.',
+          requires: [hasClue],
+        },
         {
           id: 'bag-description',
           label: 'Describe la mochila en inglés.',
@@ -153,14 +167,14 @@ export const chapterStory = {
       id: 'plaza',
       title: 'La plaza',
       art: 'plaza',
-      description: 'La fuente queda frente a la mesa de bienvenida. Aquí empieza tu viaje.',
+      description:
+        'Alrededor de la fuente están la mesa de bienvenida de Luz y el camino al parque.',
       hotspots: [
         {
           id: 'plaza-sam',
           label: 'Sam',
           kind: 'npc',
           npcId: 'sam',
-          position: { x: 53, y: 67 },
           requires: [{ ...greeted, not: true }],
           effects: [{ type: 'dialogue', id: 'sam-introduction' }],
         },
@@ -169,8 +183,7 @@ export const chapterStory = {
           label: 'Sam',
           kind: 'npc',
           npcId: 'sam',
-          position: { x: 53, y: 67 },
-          requires: [greeted, { ...guided, not: true }],
+          requires: [greeted, { ...ticketRead, not: true }],
           effects: [{ type: 'dialogue', id: 'sam-waiting-for-directions' }],
         },
         {
@@ -178,7 +191,6 @@ export const chapterStory = {
           label: 'Luz',
           kind: 'npc',
           npcId: 'luz',
-          position: { x: 78, y: 54 },
           requires: [
             { ...knowsIntroduction, not: true },
             { ...luzPath, not: true },
@@ -190,8 +202,10 @@ export const chapterStory = {
           label: 'Luz',
           kind: 'npc',
           npcId: 'luz',
-          position: { x: 78, y: 54 },
-          requires: [knowsIntroduction, { ...luzPath, not: true }],
+          requires: [
+            knowsIntroduction,
+            { type: 'any', conditions: [{ ...luzPath, not: true }, returnedBag] },
+          ],
           effects: [{ type: 'dialogue', id: 'luz-after-introduction' }],
         },
         {
@@ -199,22 +213,19 @@ export const chapterStory = {
           label: 'Luz',
           kind: 'npc',
           npcId: 'luz',
-          position: { x: 78, y: 54 },
-          requires: [luzPath],
+          requires: [luzPath, { ...returnedBag, not: true }],
           effects: [{ type: 'dialogue', id: 'luz-search' }],
         },
         {
           id: 'plaza-origin',
           label: plazaPostcardName,
           kind: 'object',
-          position: { x: 17, y: 29 },
           effects: [{ type: 'dialogue', id: 'origin-postcards' }],
         },
         {
           id: 'plaza-ticket',
-          label: 'Boleto y cartel del parque',
+          label: parkSignName,
           kind: 'object',
-          position: { x: 48, y: 33 },
           requires: [hasTicket],
           effects: [{ type: 'dialogue', id: 'ticket-inspection' }],
         },
@@ -222,7 +233,6 @@ export const chapterStory = {
           id: 'plaza-to-stop',
           label: 'Camino al parque',
           kind: 'exit',
-          position: { x: 80, y: 82 },
           requires: [ticketRead],
           effects: [{ type: 'scene', id: 'bus-stop' }],
         },
@@ -232,20 +242,19 @@ export const chapterStory = {
       id: 'bus-stop',
       title: 'La parada',
       art: 'bus',
-      description: 'A un lado del parque hay un banco y un poste con el símbolo de un árbol.',
+      description:
+        'Junto al parque hay un banco y una señal de la parada con el símbolo de un árbol.',
       hotspots: [
         {
           id: 'stop-to-plaza',
           label: 'Volver a la plaza',
           kind: 'exit',
-          position: { x: 14, y: 79 },
           effects: [{ type: 'scene', id: 'plaza' }],
         },
         {
           id: 'stop-sign',
-          label: 'Señal de la parada',
+          label: stopSignName,
           kind: 'object',
-          position: { x: 42, y: 24 },
           effects: [
             { type: 'event', id: 'found-bus-stop' },
             { type: 'dialogue', id: 'stop-found' },
@@ -256,7 +265,6 @@ export const chapterStory = {
           label: 'Sam',
           kind: 'npc',
           npcId: 'sam',
-          position: { x: 75, y: 52 },
           requires: [{ ...guided, not: true }],
           effects: [{ type: 'dialogue', id: 'sam-directions' }],
         },
@@ -265,15 +273,13 @@ export const chapterStory = {
           label: 'Sam',
           kind: 'npc',
           npcId: 'sam',
-          position: { x: 75, y: 52 },
-          requires: [guided, { ...returnedBag, not: true }],
+          requires: [guided, { ...hasClue, not: true }],
           effects: [{ type: 'dialogue', id: 'sam-search' }],
         },
         {
           id: 'stop-bench',
-          label: 'Banco del parque',
+          label: parkBenchName,
           kind: 'object',
-          position: { x: 23, y: 51 },
           requires: [benchPath],
           effects: [{ type: 'dialogue', id: 'bench-search' }],
         },
@@ -281,7 +287,6 @@ export const chapterStory = {
           id: 'stop-to-lost-property',
           label: 'Ir a objetos perdidos',
           kind: 'exit',
-          position: { x: 82, y: 83 },
           requires: [hasClue],
           effects: [{ type: 'scene', id: 'lost-property' }],
         },
@@ -291,13 +296,12 @@ export const chapterStory = {
       id: 'lost-property',
       title: 'Objetos perdidos',
       art: 'bag',
-      description: 'En el mostrador guardan dos mochilas y un mensaje de Sam.',
+      description: 'Luz atiende el mostrador donde se guardan los objetos perdidos.',
       hotspots: [
         {
           id: 'lost-to-stop',
           label: 'Volver a la parada',
           kind: 'exit',
-          position: { x: 14, y: 81 },
           effects: [{ type: 'scene', id: 'bus-stop' }],
         },
         {
@@ -305,22 +309,36 @@ export const chapterStory = {
           label: 'Luz',
           kind: 'npc',
           npcId: 'luz',
-          position: { x: 22, y: 30 },
+          requires: [{ ...identifiedBag, not: true }],
           effects: [{ type: 'dialogue', id: 'luz-lost-property' }],
         },
         {
+          id: 'lost-luz-identified',
+          label: 'Luz',
+          kind: 'npc',
+          npcId: 'luz',
+          requires: [identifiedBag, { ...returnedBag, not: true }],
+          effects: [{ type: 'dialogue', id: 'luz-two-bags' }],
+        },
+        {
+          id: 'lost-luz-after-return',
+          label: 'Luz',
+          kind: 'npc',
+          npcId: 'luz',
+          requires: [returnedBag],
+          effects: [{ type: 'dialogue', id: 'luz-postcard' }],
+        },
+        {
           id: 'lost-blue-bag',
-          label: 'Mochila azul',
+          label: blueBagName,
           kind: 'object',
-          position: { x: 48, y: 55 },
           requires: [identifiedBag, { ...hasBag, not: true }],
           effects: [{ type: 'dialogue', id: 'blue-bag' }],
         },
         {
           id: 'lost-red-bag',
-          label: 'Mochila roja',
+          label: redBagName,
           kind: 'object',
-          position: { x: 80, y: 30 },
           requires: [identifiedBag],
           effects: [{ type: 'dialogue', id: 'red-bag' }],
         },
@@ -329,7 +347,6 @@ export const chapterStory = {
           label: 'Sam',
           kind: 'npc',
           npcId: 'sam',
-          position: { x: 77, y: 78 },
           requires: [hasBag, { ...returnedBag, not: true }],
           effects: [{ type: 'dialogue', id: 'sam-return' }],
         },
@@ -338,7 +355,6 @@ export const chapterStory = {
           label: 'Sam',
           kind: 'npc',
           npcId: 'sam',
-          position: { x: 77, y: 78 },
           requires: [benchPath, returnedBag],
           effects: [{ type: 'dialogue', id: 'sam-finale-bench' }],
         },
@@ -347,7 +363,6 @@ export const chapterStory = {
           label: 'Sam',
           kind: 'npc',
           npcId: 'sam',
-          position: { x: 77, y: 78 },
           requires: [luzPath, returnedBag],
           effects: [{ type: 'dialogue', id: 'sam-finale-luz' }],
         },
@@ -397,7 +412,7 @@ export const chapterStory = {
     {
       id: 'sam-introduction',
       npcId: 'sam',
-      text: 'Sam se acerca con un boleto en la mano y te pregunta cómo te llamas.',
+      text: 'Acabo de llegar a la plaza. ¿Nos presentamos?',
       line: samGreeting,
       choices: [
         {
@@ -413,7 +428,7 @@ export const chapterStory = {
     {
       id: 'sam-after-introduction',
       npcId: 'sam',
-      text: 'Sam te entrega su boleto. Su bus sale a las ocho. Compara el árbol del boleto con el del cartel de la plaza.',
+      text: 'Toma mi boleto. El bus sale a las ocho. Busca el mismo árbol en el cartel del parque.',
       line: {
         en: 'Nice to meet you! Can you help me find the bus stop?',
         es: '¡Mucho gusto! ¿Me ayudas a encontrar la parada del bus?',
@@ -423,16 +438,16 @@ export const chapterStory = {
     {
       id: 'sam-waiting-for-directions',
       npcId: 'sam',
-      text: 'Voy a tomar el bus de las ocho. Me adelanto por el parque y te espero en el poste con el árbol. Puedes llevarte mi boleto para comparar el símbolo.',
+      text: 'Te espero por la entrada del parque. Lleva mi boleto y fíjate en el árbol para encontrar la parada.',
       choices: [],
     },
     {
       id: 'luz-welcome',
       npcId: 'luz',
-      text: 'Hi y Hello significan «hola». Para decir tu nombre, usa I am o My name is. En mi ejemplo, I se refiere a mí, Luz. Cuando le respondas a Sam, usa tu propio nombre.',
+      text: 'Soy Luz, de la mesa de bienvenida. En inglés puedes saludar con «Hi» o «Hello». Escucha cómo me presento y usa tu propio nombre cuando hables con Sam.',
       line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
       exampleLabel: 'Ejemplo de Luz',
-      tip: 'Empieza con «Hi!». Si usas «I», el verbo va como «am».',
+      tip: 'Después del saludo, di «I am» o «My name is» seguido de tu nombre.',
       choices: [
         {
           id: 'practice-with-luz',
@@ -446,7 +461,7 @@ export const chapterStory = {
     {
       id: 'luz-after-introduction',
       npcId: 'luz',
-      text: 'Un saludo y tu nombre bastan para empezar. Si necesitas orientarte, la postal de la plaza tiene un mapa en el reverso.',
+      text: 'Ya sabes cómo presentarte. Si necesitas encontrar el camino al parque, puedo marcártelo en la postal de la plaza.',
       line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
       exampleLabel: 'Ejemplo de Luz',
       choices: [
@@ -462,7 +477,7 @@ export const chapterStory = {
     {
       id: 'luz-introduction-practice',
       npcId: 'luz',
-      text: 'En mi ejemplo, ¿qué verbo va con I? Elige la palabra que completa I ___ Luz.',
+      text: 'En mi ejemplo, ¿qué verbo va con «I»? Completa «I ___ Luz».',
       choices: [
         {
           id: 'luz-practice-am',
@@ -479,7 +494,7 @@ export const chapterStory = {
     {
       id: 'luz-introduction-practice-feedback',
       npcId: 'luz',
-      text: 'Con I usamos am. En cambio, con My name usamos is. Ya puedes elegir la forma que prefieras para decirle tu nombre a Sam.',
+      text: '¡Eso es! Puedes decir «I am» o «My name is» y luego tu nombre. Pruébalo cuando hables con Sam.',
       line: { en: 'Hi! I am Luz.', es: '¡Hola! Soy Luz.' },
       exampleLabel: 'Ejemplo de Luz',
       choices: [],
@@ -487,7 +502,7 @@ export const chapterStory = {
     {
       id: 'luz-introduction-practice-retry',
       npcId: 'luz',
-      text: 'Is funciona con My name. Si empiezas con I, usa am.',
+      text: 'Con «My name» usamos «is». Prueba con «am» cuando empieces con «I».',
       choices: [
         {
           id: 'luz-practice-retry',
@@ -499,7 +514,7 @@ export const chapterStory = {
     {
       id: 'origin-postcards',
       title: plazaPostcardName,
-      text: 'En el reverso de esta postal de {origin} hay un mapa sencillo de la plaza y el parque.',
+      text: 'En la mesa de Luz hay postales de {origin}. Esta muestra la plaza y el parque en el reverso.',
       choices: [
         {
           id: 'take-origin-sketch',
@@ -516,18 +531,19 @@ export const chapterStory = {
     {
       id: 'origin-sketch-taken',
       title: plazaPostcardName,
-      text: 'La postal está en tu mochila. Muéstrasela a Luz para que marque el camino al parque.',
+      text: 'La postal está en tu mochila. Habla con Luz y muéstrasela para que marque el camino al parque.',
       choices: [],
     },
     {
       id: 'luz-map-clue',
       npcId: 'luz',
-      text: 'En el reverso de la postal, Luz marca el camino desde la fuente hasta el parque. «Sigue el borde del parque. Si encuentras el poste con el árbol, llegaste a la parada».',
+      text: 'En el reverso de la postal, Luz marca el camino desde la fuente hasta el parque. «Sigue ese camino y busca la señal con el árbol junto al parque».',
       choices: [],
     },
     {
       id: 'ticket-inspection',
-      text: 'El cartel tiene dos caminos. Solo el camino al parque tiene el mismo árbol que el boleto de las ocho.',
+      title: parkSignName,
+      text: 'El árbol del cartel marca el camino al parque.',
       choices: [
         {
           id: 'read-ticket',
@@ -543,18 +559,20 @@ export const chapterStory = {
     },
     {
       id: 'ticket-read',
-      text: 'El símbolo coincide. El camino bordea el parque, donde tienes que buscar la señal de la parada.',
+      title: parkSignName,
+      text: 'El árbol del cartel coincide con el del boleto. Sigue el camino al parque y busca la señal de la parada.',
       choices: [],
     },
     {
       id: 'stop-found',
-      text: 'El poste tiene el mismo árbol que el boleto. Mirando desde aquí, ves que la parada queda justo junto al parque.',
+      title: stopSignName,
+      text: 'La señal tiene el mismo árbol que el boleto. Aquí se toma el bus, junto al parque.',
       choices: [],
     },
     {
       id: 'sam-directions',
       npcId: 'sam',
-      text: 'Sam está junto a la entrada del parque. Necesita una indicación para reconocer la parada y poder decirle a otro pasajero cómo llegar.',
+      text: 'Ya llegué al parque. ¿Me dices por dónde queda la parada para avisarle a otro pasajero?',
       line: { en: 'Where is the bus stop?', es: '¿Dónde está la parada de bus?' },
       choices: [
         {
@@ -574,7 +592,7 @@ export const chapterStory = {
     {
       id: 'sam-found-stop',
       npcId: 'sam',
-      text: '¡Gracias! Ya encontré la parada junto al parque. Un momento… dejé mi mochila en algún lugar.',
+      text: '¡Gracias! Ya puedo explicar dónde queda la parada. Un momento… ¿dónde dejé mi otra mochila?',
       line: { en: 'My bag!', es: '¡Mi mochila!' },
       choices: [
         {
@@ -587,8 +605,7 @@ export const chapterStory = {
     {
       id: 'sam-search',
       npcId: 'sam',
-      text: 'Sam ya encontró la parada, pero su mochila no está. Recuerda que se sentó en el banco mientras miraba el boleto. Luz estaba cerca.',
-      line: { en: 'My bag!', es: '¡Mi mochila!' },
+      text: 'Dejé mi otra mochila en el banco mientras revisaba el boleto. Luz estaba cerca. ¿Por dónde buscamos?',
       choices: [
         {
           id: 'search-bench',
@@ -625,18 +642,19 @@ export const chapterStory = {
     {
       id: 'sam-search-bench',
       npcId: 'sam',
-      text: 'Revisa debajo del banco. Si encuentras algo, déjame un aviso y te alcanzo en la mesa de objetos perdidos.',
+      text: 'Revisa el banco del parque. Si encuentras una pista, déjame un aviso y te alcanzo en objetos perdidos.',
       choices: [],
     },
     {
       id: 'sam-search-luz',
       npcId: 'sam',
-      text: 'Luz estaba en la plaza. Pregúntale si alguien se llevó la mochila. Te alcanzo en la mesa de objetos perdidos si la encuentras.',
+      text: 'Vuelve a la plaza y pregúntale a Luz en la mesa de bienvenida. Si la guardó, te alcanzo en objetos perdidos.',
       choices: [],
     },
     {
       id: 'bench-search',
-      text: 'No hay mochila debajo del banco. Entre las tablas ves un papel doblado.',
+      title: parkBenchName,
+      text: 'Junto al asiento ves un papel doblado. Puede ser una pista sobre la mochila.',
       choices: [
         {
           id: 'read-bench-note',
@@ -650,21 +668,29 @@ export const chapterStory = {
     },
     {
       id: 'bench-clue',
-      text: 'Luz dejó una nota para quien perdió una mochila. La guardó en objetos perdidos junto a otra que ya estaba en el mostrador. Dejas el aviso para Sam.',
+      title: 'Nota del banco',
+      text: 'La nota dice que Luz guardó una mochila en objetos perdidos. Dejas un aviso para Sam y ya puedes ir al mostrador.',
       choices: [],
     },
     {
       id: 'luz-search',
       npcId: 'luz',
-      text: 'Luz recuerda a Sam junto al banco. Cuando volvió a pasar, vio una mochila donde se había sentado.',
+      text: 'Vi a Sam sentado en el banco. Cuando volví a pasar, quedaba una mochila en el asiento.',
       choices: [
         {
           id: 'hear-luz-clue',
-          label: 'Preguntar dónde dejó la mochila',
+          label: 'Preguntar dónde guardó la mochila',
+          requires: [{ ...hasClue, not: true }],
           effects: [
             { type: 'event', id: 'found-bag-clue' },
             { type: 'dialogue', id: 'luz-clue' },
           ],
+        },
+        {
+          id: 'hear-luz-clue-again',
+          label: 'Recordar dónde queda la mochila',
+          requires: [hasClue],
+          effects: [{ type: 'dialogue', id: 'luz-clue' }],
         },
         { id: 'show-origin-sketch-while-searching', ...showPlazaPostcard },
       ],
@@ -672,13 +698,13 @@ export const chapterStory = {
     {
       id: 'luz-clue',
       npcId: 'luz',
-      text: 'La llevé al mostrador de objetos perdidos. Hay dos mochilas y no quiero devolver la equivocada. Voy contigo. Dile a Sam que nos alcance allá.',
+      text: 'La guardé en objetos perdidos. Hay dos mochilas en el mostrador. Te espero allá y le aviso a Sam que nos alcance.',
       choices: [],
     },
     {
       id: 'luz-lost-property',
       npcId: 'luz',
-      text: 'Para entregar una mochila necesito confirmar qué color mencionó su dueño. Sam nos dejó un mensaje en inglés.',
+      text: 'Sam dejó un mensaje en inglés con el color de su mochila. Léelo conmigo para que podamos devolverle la correcta.',
       choices: [
         {
           id: 'read-sam-message',
@@ -703,13 +729,14 @@ export const chapterStory = {
     {
       id: 'luz-two-bags',
       npcId: 'luz',
-      text: 'Ahora puedes elegir cuál llevarle a Sam. La mochila roja es mía y se queda aquí.',
+      text: 'La mochila roja es mía y se queda aquí. Sam está esperando la azul.',
       line: { en: 'It’s red.', es: 'Es roja.' },
       choices: [],
     },
     {
       id: 'blue-bag',
-      text: 'Reconoces el color de la mochila que Sam describió. Luz deja la mochila azul a tu alcance.',
+      title: blueBagName,
+      text: 'El color coincide con el mensaje de Sam. Luz te deja tomar la mochila azul del mostrador.',
       choices: [
         {
           id: 'take-blue-bag',
@@ -724,20 +751,21 @@ export const chapterStory = {
     },
     {
       id: 'bag-taken',
-      text: 'Sam entra a objetos perdidos. Muéstrale la mochila que encontraste.',
+      title: blueBagName,
+      text: 'Sam acaba de llegar al mostrador. Habla con Sam para entregarle la mochila.',
       choices: [],
     },
     {
       id: 'red-bag',
       npcId: 'luz',
-      text: 'Luz reconoce su mochila roja por el lazo del cierre. La deja en su lado del mostrador.',
+      text: 'La mochila roja es mía. Se queda conmigo en el mostrador.',
       line: { en: 'It’s red.', es: 'Es roja.' },
       choices: [],
     },
     {
       id: 'sam-return',
       npcId: 'sam',
-      text: 'Sam se acerca al mostrador para reconocer su mochila.',
+      text: '¡Llegaste! ¿Me enseñas la mochila que encontraste?',
       choices: [
         {
           id: 'show-blue-bag',
@@ -766,7 +794,7 @@ export const chapterStory = {
     {
       id: 'luz-postcard',
       npcId: 'luz',
-      text: 'Tu postal ya tiene una historia. En tu pasaporte puedes guardar el recuerdo de cómo encontraste la mochila.',
+      text: 'Si quieres guardar el recuerdo de cómo encontraste la mochila, escribe en la postal desde tu pasaporte.',
       choices: [],
     },
   ],

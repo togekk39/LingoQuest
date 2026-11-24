@@ -243,10 +243,16 @@ test('Luz search route requires canonical learning and item use before one passp
   await finish();
   assert.ok(snapshot.story.hotspots.some(({ id }) => id === 'plaza-luz-after-introduction'));
   await interact('plaza-ticket');
+  assert.equal(snapshot.story.dialogue?.title, 'Cartel del parque');
   await choose('read-ticket');
+  await close();
+  assert.ok(!snapshot.story.hotspots.some(({ id }) => id === 'plaza-sam-ticket'));
+  await interact('plaza-ticket');
+  assert.deepEqual(snapshot.story.dialogue?.choices, []);
   await close();
   await interact('plaza-to-stop');
   await interact('stop-sign');
+  assert.equal(snapshot.story.dialogue?.title, 'Señal de la parada');
   await close();
   await interact('stop-sam-directions');
   await choose('give-directions');
@@ -261,6 +267,7 @@ test('Luz search route requires canonical learning and item use before one passp
   assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
   await close();
   await interact('plaza-to-stop');
+  assert.ok(!snapshot.story.hotspots.some(({ id }) => id === 'stop-sam-search'));
   await interact('stop-to-lost-property');
   await interact('lost-sam-return');
   assert.equal(snapshot.story.dialogue, undefined);
@@ -278,6 +285,11 @@ test('Luz search route requires canonical learning and item use before one passp
   snapshot = await engine.request<StoryResponse>(storyPath);
   assert.equal(snapshot.story.encounter?.ready, true);
   await finish();
+  await interact('lost-luz-identified');
+  assert.equal(snapshot.story.dialogue?.id, 'luz-two-bags');
+  await interact('lost-red-bag');
+  assert.equal(snapshot.story.dialogue?.npc?.id, 'luz');
+  assert.equal(snapshot.story.dialogue?.line?.en, 'It’s red.');
   await interact('lost-blue-bag');
   await choose('take-blue-bag');
   await close();
@@ -293,6 +305,8 @@ test('Luz search route requires canonical learning and item use before one passp
   assert.equal(snapshot.story.inventory.find(({ id }) => id === 'sam-blue-bag')?.used, true);
   assert.deepEqual(await storage.open().request(storyPath, finishRequest), snapshot);
   assert.deepEqual(storage.state(), after);
+  await interact('lost-luz-after-return');
+  assert.equal(snapshot.story.dialogue?.id, 'luz-postcard');
   await interact('lost-sam-finale-luz');
   assert.equal(snapshot.story.dialogue?.id, 'sam-finale-luz');
   await close();

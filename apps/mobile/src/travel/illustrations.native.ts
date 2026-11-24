@@ -22,6 +22,7 @@ export const storyArt: Record<'plaza' | 'bus' | 'bag', ImageSourcePropType | und
   bus: undefined,
   bag: undefined,
 };
+export let storyLostPropertyAfterPickup: ImageSourcePropType | undefined;
 export const storyFigures: Record<'sam' | 'luz', ImageSourcePropType | undefined> = {
   sam: undefined,
   luz: undefined,
@@ -45,7 +46,8 @@ export async function applyHomeImages(chapterId: string, images: ChapterPack['im
   world = sources.get('world');
   storyArt.plaza = sources.get('story-plaza');
   storyArt.bus = illustrations.bus;
-  storyArt.bag = illustrations.bag;
+  storyArt.bag = sources.get('story-lost-property');
+  storyLostPropertyAfterPickup = sources.get('story-lost-property-after-pickup');
   storyFigures.sam = sources.get('story-sam');
   storyFigures.luz = sources.get('story-luz');
   storyPortraits.sam = sources.get('story-sam-portrait');

@@ -13,6 +13,8 @@ import expedition from '../../assets/journal/expedition.jpg';
 import review from '../../assets/journal/review.jpg';
 import plaza from '../../assets/journal/plaza.jpg';
 import storyPlaza from '../../assets/journal/story-plaza.jpg';
+import storyLostProperty from '../../assets/journal/story-lost-property.jpg';
+import storyLostPropertyEmptySlot from '../../assets/journal/story-lost-property-after-pickup.jpg';
 import storySam from '../../assets/journal/story-sam.png';
 import storyLuz from '../../assets/journal/story-luz.png';
 import storySamPortrait from '../../assets/journal/story-sam-portrait.png';
@@ -48,7 +50,8 @@ export const illustrations: Record<
   plaza,
 };
 
-export const storyArt = { plaza: storyPlaza, bus, bag };
+export const storyArt = { plaza: storyPlaza, bus, bag: storyLostProperty };
+export const storyLostPropertyAfterPickup = storyLostPropertyEmptySlot;
 export const storyFigures = { sam: storySam, luz: storyLuz };
 export const storyPortraits = { sam: storySamPortrait, luz: storyLuzPortrait };
 

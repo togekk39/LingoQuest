@@ -19,23 +19,24 @@ const guideSteps = {
   npc: {
     number: 1,
     title: 'Habla con los personajes',
-    instruction:
-      'Los personajes te cuentan qué pasa en la historia. Toca a Luz para abrir su diálogo.',
+    instruction: (label: string) =>
+      `Toca a ${label} en la plaza. Escucha su ejemplo y lee cómo presentarte en inglés.`,
   },
   object: {
     number: 2,
     title: 'Examina los objetos',
-    instruction: 'Los objetos pueden guardar pistas. Toca «Postal» para revisar el reverso.',
+    instruction: (label: string) => `Toca «${label}» para ver el mapa del reverso.`,
   },
   quests: {
     number: 3,
     title: 'Consulta tus misiones',
-    instruction:
-      'Toca el resumen de misiones para ver tus objetivos, los pasos pendientes y tu progreso.',
+    instruction: () => 'Abre el resumen de misiones para ver qué hacer y seguir tu progreso.',
   },
 } as const;
 
 export type GuideStep = keyof typeof guideSteps;
+export type StoryGuideStage = GuideStep | 'npc-dialogue' | 'object-dialogue' | 'done';
+export const storyGuideKey = 'storyGuideStage';
 const margin = 12;
 const gap = 12;
 const spotlightPadding = 4;
@@ -88,7 +89,11 @@ export function StoryGuide({
         frame = undefined;
         viewport.current?.measureInWindow((left, top) => {
           anchor.measureInWindow((x, y, width, height) => {
-            if (!active || width <= 0 || height <= 0) return;
+            if (!active) return;
+            if (width <= 0 || height <= 0) {
+              setTarget(undefined);
+              return;
+            }
             const next = { x: x - left, y: y - top, width, height };
             setTarget((previous) =>
               previous?.x === next.x &&
@@ -145,7 +150,12 @@ export function StoryGuide({
   const safeBottom = size.height - inset.bottom - margin;
   const width = Math.min(330, Math.max(0, safeRight - safeLeft));
   const visibleTarget =
-    target && target.y >= inset.top && target.y + target.height <= size.height - inset.bottom;
+    target &&
+    anchor &&
+    target.x >= inset.left &&
+    target.x + target.width <= size.width - inset.right &&
+    target.y >= inset.top &&
+    target.y + target.height <= size.height - inset.bottom;
   const verticalPadding = target
     ? Math.max(spotlightPadding, (44 - target.height) / 2)
     : spotlightPadding;
@@ -230,7 +240,7 @@ export function StoryGuide({
                 onPress={onSkip}
                 style={({ pressed }) => [styles.skip, pressed && { opacity: 0.7 }]}
               >
-                <Text style={[styles.skipText, { color: C.ink }]}>Omitir guía</Text>
+                <Text style={[styles.link, { color: C.ink }]}>Omitir guía</Text>
               </Pressable>
             </View>
             <ScrollView style={styles.copy} keyboardShouldPersistTaps="handled" tabIndex={-1}>
@@ -246,7 +256,19 @@ export function StoryGuide({
                   {title}
                 </Text>
               </View>
-              <Text style={[styles.instruction, { color: C.ink }]}>{instruction}</Text>
+              <Text style={[styles.instruction, { color: C.ink }]}>{instruction(targetLabel)}</Text>
+              {!attached && (
+                <Pressable
+                  testID="story-guide-target"
+                  accessibilityRole="button"
+                  accessibilityLabel={targetLabel}
+                  disabled={busy}
+                  onPress={onTarget}
+                  style={styles.skip}
+                >
+                  <Text style={[styles.link, { color: C.teal }]}>{targetLabel}</Text>
+                </Pressable>
+              )}
               {!!error && (
                 <Text accessibilityRole="alert" style={[styles.instruction, { color: C.red }]}>
                   {error}
@@ -254,7 +276,7 @@ export function StoryGuide({
               )}
             </ScrollView>
           </View>
-          {cutout && (
+          {attached && (
             <Pressable
               testID="story-guide-target"
               accessibilityRole="button"
@@ -309,7 +331,7 @@ const styles = StyleSheet.create({
   },
   progress: { fontFamily: 'ManropeBold', fontSize: 12 },
   skip: { minHeight: 44, paddingHorizontal: 3, justifyContent: 'center' },
-  skipText: { fontFamily: 'ManropeBold', fontSize: 12, textDecorationLine: 'underline' },
+  link: { fontFamily: 'ManropeBold', fontSize: 12, textDecorationLine: 'underline' },
   copy: { flexGrow: 0, flexShrink: 1 },
   title: { fontFamily: 'LoraBold', fontSize: 19, lineHeight: 24 },
   instruction: { fontFamily: 'Manrope', fontSize: 14, lineHeight: 20, marginTop: 5 },

@@ -175,7 +175,7 @@ function adjacentLocation(subjects: string[], reference: string) {
 
 export const chapter: TravelChapter = {
   ...homeChapterDetails,
-  revision: 3,
+  revision: 4,
   missions: [
     {
       id: 'hello',
@@ -183,7 +183,7 @@ export const chapter: TravelChapter = {
       place: 'La plaza',
       objective: 'Preséntate a Sam en inglés con tu propio nombre.',
       minutes: [7, 11],
-      success: 'Sam te agradece el saludo y te muestra el boleto del bus que busca.',
+      success: 'Sam te agradece el saludo y te presta su boleto para que busques la parada.',
       vocabulary: [
         {
           term: 'Hi',
@@ -225,13 +225,13 @@ export const chapter: TravelChapter = {
           id: 'hello_welcome',
           type: 'dialogue',
           speaker: 'Sam',
-          text: '¡Hola! Acabo de llegar a la plaza. Escucha mi pregunta y luego dime cómo te llamas.',
+          text: 'Acabo de llegar a la plaza. ¿Nos presentamos?',
         },
         {
           id: 'hello_sam',
           type: 'dialogue',
           speaker: 'Sam',
-          text: 'Sam se presenta y te pregunta cómo te llamas.',
+          text: 'Escucha cómo me presento y luego dime tu nombre.',
           line: samGreeting,
         },
         {
@@ -375,7 +375,7 @@ export const chapter: TravelChapter = {
           response: 'personal-introduction',
           activityTitle: 'Tu ficha en el puesto de fotos',
           situation:
-            'Sam quiere una foto de recuerdo del viaje. En el puesto de fotos te piden que te presentes para anotar tu nombre en tu ficha.',
+            'Imagina que vas a un puesto de fotos. Para anotar el pedido, la persona del puesto te pide que te presentes.',
           exercise: {
             id: 'travel_hello_transfer',
             type: 'short_text',
@@ -417,7 +417,7 @@ export const chapter: TravelChapter = {
       objective: 'Escucha a Sam y explícale dónde tomar el bus.',
       minutes: [7, 10],
       success:
-        'Sam encuentra la parada junto al parque. Al llegar, se da cuenta de que dejó su mochila en la mesa.',
+        'Sam ya sabe dónde se toma el bus. Ahora recuerda que dejó su otra mochila en el banco.',
       vocabulary: [
         {
           term: 'bus stop',
@@ -455,8 +455,8 @@ export const chapter: TravelChapter = {
           id: 'bus_sam',
           type: 'dialogue',
           speaker: 'Sam',
-          text: 'Sam va a tomar el bus de las ocho. Como no conoce el barrio, te pregunta dónde está la parada.',
-          line: { en: 'Where is the bus stop?', es: '¿Dónde está la parada del bus?' },
+          text: 'Mi bus sale a las ocho y no conozco el barrio. ¿Me ayudas a ubicar la parada?',
+          line: { en: 'Where is the bus stop?', es: '¿Dónde está la parada de bus?' },
         },
         {
           id: 'bus_teach',
@@ -550,7 +550,7 @@ export const chapter: TravelChapter = {
           id: 'travel_bus_dictation',
           type: 'exercise',
           situation:
-            'Escucha cómo Luz confirma la indicación. Anótala para que Sam pueda llevarla.',
+            'Escucha la grabación con la indicación de Luz. Anótala para que Sam pueda consultarla.',
           audio: 'It’s next to the park.',
           transcript: 'It’s next to the park.',
           listeningButton: 'Escuchar la indicación',
@@ -578,7 +578,7 @@ export const chapter: TravelChapter = {
           id: 'travel_bus_ask',
           type: 'exercise',
           situation:
-            'Sam quiere mostrar su pregunta a la persona del mostrador. Escríbela de memoria.',
+            'Imagina que otro pasajero necesita preguntar por la parada. Escribe la pregunta de memoria.',
           exercise: {
             id: 'travel_bus_ask',
             type: 'short_text',
@@ -641,7 +641,7 @@ export const chapter: TravelChapter = {
           id: 'bus_lost',
           type: 'dialogue',
           speaker: 'Sam',
-          text: 'Sam encuentra la parada. Antes de subir, se toca el hombro: ya no tiene su mochila.',
+          text: 'Ya sé dónde se toma el bus. Un momento… dejé mi otra mochila en el banco.',
           line: { en: 'My bag!', es: '¡Mi mochila!' },
         },
       ],
@@ -694,7 +694,7 @@ export const chapter: TravelChapter = {
           id: 'bag_luz',
           type: 'dialogue',
           speaker: 'Sam',
-          text: 'En objetos perdidos hay dos mochilas. Sam te manda un mensaje en inglés para decirte cuál es la suya.',
+          text: 'Hay dos mochilas en el mostrador. Te dejo este mensaje para que puedas reconocer la mía.',
           line: { en: 'My bag is blue.', es: 'Mi mochila es azul.' },
         },
         {

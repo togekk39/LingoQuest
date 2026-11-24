@@ -21,7 +21,7 @@ LingoQuest es una app diseñada primero para Android para aprender inglés estad
 
 ## Desarrollo y compilación
 
-Usa Node.js 24 o posterior y npm. Inicia el desarrollo web con `npm ci` y `npm run dev`, y abre `http://localhost:8081`. Para una vista previa sin conexión, ejecuta `npm run build:web` y `npm run preview`, y abre `http://localhost:3000`. Espera a que el service worker llene la caché antes de desconectarte. En el primer inicio, la app descarga **La primera postal** y muestra el avance. Al continuar a Ciudad de México, la app descarga el capítulo 2 y luego borra los recursos guardados del primer capítulo.
+Usa Node.js 24 o posterior y npm. Inicia el desarrollo web con `npm ci` y `npm run dev`, y abre `http://localhost:8081`. Para una vista previa sin conexión, ejecuta `npm run build:web` y `npm run preview`, y abre `http://localhost:3000`. Espera a que el service worker llene la caché antes de desconectarte. En el primer inicio, la app descarga **La primera postal** y muestra el avance. Al continuar a Ciudad de México, la app descarga el capítulo 2 y deja ambos capítulos disponibles sin conexión.
 
 ```sh
 npm run check

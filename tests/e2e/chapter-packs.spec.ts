@@ -1,7 +1,21 @@
-import type { ChapterPack } from '@lingoquest/course-pack';
+import { createHash } from 'node:crypto';
+import type { ChapterCatalog, ChapterPack } from '@lingoquest/course-pack';
 import type { Page } from '@playwright/test';
 import { chapterReaderSections } from '../curriculum/chapter-reader-sections';
-import { click, enterApp, exact, expect, readyOfflineShell, state, test } from './helpers';
+import {
+  answerTravelChoice,
+  click,
+  enterApp,
+  exact,
+  expect,
+  finishVocabulary,
+  openLessons,
+  readyOfflineShell,
+  state,
+  test,
+} from './helpers';
+
+const catalogUrl = '/chapter-packs/catalog.json';
 
 async function savedChapters(page: Page) {
   return page.evaluate(
@@ -20,44 +34,69 @@ async function savedChapters(page: Page) {
   );
 }
 
+async function savedHomeRevision(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<number | undefined>((resolve, reject) => {
+        const database = indexedDB.open('lingoquest-chapter-packs');
+        database.onerror = () => reject(database.error);
+        database.onsuccess = () => {
+          const db = database.result;
+          const request = db.transaction('packs').objectStore('packs').get('home');
+          request.onsuccess = () => resolve(request.result && JSON.parse(request.result).revision);
+          request.onerror = () => reject(request.error);
+          db.close();
+        };
+      }),
+  );
+}
+
 test('launch downloads the first chapter with byte progress and reuses it offline', async ({
   page,
   context,
+  request,
   networkGuard,
 }) => {
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const home = catalog.chapters.home;
+  const middle = Math.ceil(home.sizeBytes / 2);
+  const nextChunk = middle + Math.floor(home.sizeBytes * 0.004);
+  const sizeFormat = new Intl.NumberFormat('es-419', { maximumFractionDigits: 2 });
+  const megabytes = (bytes: number) => `${sizeFormat.format(bytes / 1_000_000)} MB`;
   await page.setViewportSize({ width: 390, height: 740 });
-  await page.addInitScript(() => {
-    localStorage.setItem('lq_setting:onboarded', 'true');
-    const fetchFile = window.fetch.bind(window);
-    window.fetch = async (input, init) => {
-      const response = await fetchFile(input, init);
-      if (new URL(response.url).pathname !== '/chapter-packs/2/home.json') return response;
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      const middle = Math.ceil(bytes.length / 2);
-      const nextChunk = middle + 25_000;
-      return new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(bytes.subarray(0, middle));
-            window.addEventListener(
-              'advance-home-transfer',
-              () => controller.enqueue(bytes.subarray(middle, nextChunk)),
-              { once: true },
-            );
-            window.addEventListener(
-              'finish-home-transfer',
-              () => {
-                controller.enqueue(bytes.subarray(nextChunk));
-                controller.close();
-              },
-              { once: true },
-            );
-          },
-        }),
-        { status: response.status, headers: response.headers },
-      );
-    };
-  });
+  await page.addInitScript(
+    ({ path, middle, nextChunk }) => {
+      localStorage.setItem('lq_setting:onboarded', 'true');
+      const fetchFile = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const response = await fetchFile(input, init);
+        if (new URL(response.url).pathname !== path) return response;
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(bytes.subarray(0, middle));
+              window.addEventListener(
+                'advance-home-transfer',
+                () => controller.enqueue(bytes.subarray(middle, nextChunk)),
+                { once: true },
+              );
+              window.addEventListener(
+                'finish-home-transfer',
+                () => {
+                  controller.enqueue(bytes.subarray(nextChunk));
+                  controller.close();
+                },
+                { once: true },
+              );
+            },
+          }),
+          { status: response.status, headers: response.headers },
+        );
+      };
+    },
+    { path: `/chapter-packs/${home.revision}/home.json`, middle, nextChunk },
+  );
 
   await page.goto('/');
   const backdrop = page.getByTestId('chapter-transfer-backdrop');
@@ -69,9 +108,13 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
   await expect(page.getByText('Descargando capítulo…', { exact: true })).toBeVisible();
   await expect(page.getByText('50 %', { exact: true })).toBeVisible();
-  await expect(page.getByText('2.6 MB de 5.2 MB', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(`${megabytes(middle)} de ${megabytes(home.sizeBytes)}`, { exact: true }),
+  ).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new Event('advance-home-transfer')));
-  const size = page.getByText('2.63 MB de 5.2 MB', { exact: true });
+  const size = page.getByText(`${megabytes(nextChunk)} de ${megabytes(home.sizeBytes)}`, {
+    exact: true,
+  });
   await expect(size).toBeVisible();
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
   await page.setViewportSize({ width: 740, height: 390 });
@@ -97,12 +140,20 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
   );
 });
 
-test('continuing to chapter two keeps chapter one until the new pack is verified', async ({
+test('chapter two verifies its pack and keeps the first adventure, study and due review offline', async ({
   page,
   context,
   networkGuard,
 }) => {
+  const start = Date.UTC(2026, 10, 19, 17);
+  await page.clock.setFixedTime(start);
   await enterApp(page);
+  await openLessons(page);
+  await click(page, 'Continuar');
+  await click(page, 'Continuar');
+  await finishVocabulary(page);
+  await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
+  await click(page, 'Cerrar y volver');
   await page.evaluate(() => {
     const key = 'lq_offline_state_v1';
     const saved = JSON.parse(localStorage.getItem(key)!);
@@ -138,22 +189,78 @@ test('continuing to chapter two keeps chapter one until the new pack is verified
   await context.unroute(packUrl);
   await click(page, 'Reintentar');
   await expect(page.getByTestId('chapter-lesson-mexico')).toBeVisible();
-  expect(await savedChapters(page)).toContain('mexico');
-  expect(await savedChapters(page)).not.toContain('home');
+  expect(await savedChapters(page)).toEqual(expect.arrayContaining(['home', 'mexico']));
   expect(await state(page)).toEqual(before);
 
   await readyOfflineShell(page, context);
   const transferCount = networkGuard.attempted.filter((url) =>
     url.includes('/chapter-packs/'),
   ).length;
+  await page.clock.setFixedTime(start + 2 * 24 * 60 * 60 * 1000);
   await page.reload();
   await click(page, 'Abrir pasaporte');
   await expect(page.getByRole('textbox', exact('Mi recuerdo'))).toHaveValue('My first postcard');
   await click(page, 'Continuar a Ciudad de México');
   await expect(page.getByTestId('chapter-lesson-mexico')).toBeVisible();
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Inicio')).click();
+  await click(page, 'Repaso rápido');
+  await expect(page.getByText('Recuerda lo aprendido · 1 min', { exact: true })).toBeVisible();
+  const review = page.getByTestId('exercise-travel_review_greeting');
+  await review.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hello!');
+  await click(page, 'Comprobar respuesta');
+  await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
+  await click(page, 'Volver al viaje');
+  await click(page, 'Volver a La primera postal');
+  const skipName = page.getByRole('button', exact('Continuar sin nombre'));
+  const plaza = page.getByTestId('story-scene-plaza');
+  await expect(skipName.or(plaza)).toBeVisible();
+  if (await skipName.isVisible()) await skipName.click();
+  await expect(plaza).toBeVisible();
+  const skipGuide = page.getByRole('button', exact('Omitir guía'));
+  if (await skipGuide.isVisible()) await skipGuide.click();
+  await click(page, 'Cerrar y volver');
+  await openLessons(page);
+  await expect(page.getByTestId(/^travel-step-/)).toBeVisible();
   expect(networkGuard.attempted.filter((url) => url.includes('/chapter-packs/'))).toHaveLength(
     transferCount,
   );
+});
+
+test('an installed older first chapter stays usable offline and updates after reconnecting', async ({
+  page,
+  context,
+  request,
+}) => {
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  expect(catalog.chapters.home.revision).toBeGreaterThan(2);
+  const previous = await (await request.get('/chapter-packs/2/home.json')).body();
+  const previousCatalog: ChapterCatalog = {
+    ...catalog,
+    chapters: {
+      ...catalog.chapters,
+      home: {
+        revision: 2,
+        sizeBytes: previous.length,
+        sha256: createHash('sha256').update(previous).digest('hex'),
+      },
+    },
+  };
+  const route = `**${catalogUrl}`;
+  await context.route(route, (entry) => entry.fulfill({ json: previousCatalog }));
+  await enterApp(page);
+  expect(await savedHomeRevision(page)).toBe(2);
+
+  await readyOfflineShell(page, context);
+  await page.reload();
+  await openLessons(page);
+  expect(await savedHomeRevision(page)).toBe(2);
+
+  await context.setOffline(false);
+  await context.unroute(route);
+  await page.reload();
+  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
+  await expect.poll(() => savedHomeRevision(page)).toBe(catalog.chapters.home.revision);
 });
 
 test('opening a destination downloads its lessons and media when needed', async ({

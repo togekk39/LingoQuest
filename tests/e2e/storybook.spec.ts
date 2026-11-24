@@ -84,6 +84,14 @@ async function expectCharacterInsideArt(page: Page, id: string) {
   return character;
 }
 
+async function pressArtwork(artwork: Locator, xPercent: number, yPercent: number, touch = false) {
+  const bounds = await artwork.boundingBox();
+  if (!bounds) throw new Error('The scene artwork must be visible before interacting with it.');
+  const position = { x: (bounds.width * xPercent) / 100, y: (bounds.height * yPercent) / 100 };
+  if (touch) await artwork.tap({ position });
+  else await artwork.click({ position });
+}
+
 async function expectGuideAligned(target: Locator, anchor: Locator) {
   await expect
     .poll(async () => {
@@ -97,7 +105,7 @@ async function expectGuideAligned(target: Locator, anchor: Locator) {
     .toBeLessThanOrEqual(1);
 }
 
-test('the first chapter guides a new player through the scene and mission list only once', async ({
+test('the first chapter guide resumes at its dialogue and opens the current mission', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -106,6 +114,7 @@ test('the first chapter guides a new player through the scene and mission list o
   const guide = page.getByTestId('story-guide');
   const sceneMask = page.getByTestId('story-guide-scene-mask');
   const target = page.getByTestId('story-guide-target');
+  const continueGuide = page.getByTestId('story-guide-continue');
   await adventure(page).click();
   await click(page, 'Honduras');
   await expect(page.getByRole('heading', exact('¿Cómo te llamas?'))).toBeVisible();
@@ -113,10 +122,10 @@ test('the first chapter guides a new player through the scene and mission list o
   await page.getByRole('textbox', exact('Tu nombre')).fill('Ana');
   await click(page, 'Guardar y continuar');
 
-  await expect(guide.getByRole('button')).toHaveText('Omitir guía');
+  await expect(guide.getByRole('button', exact('Omitir guía'))).toBeVisible();
   await expect(guide).toContainText('Guía rápida · 1 de 3');
   await expect(guide.getByText('Habla con los personajes')).toBeInViewport({ ratio: 1 });
-  await expect(guide.getByText(/Toca a Luz para abrir su diálogo/)).toBeInViewport({ ratio: 1 });
+  await expect(guide.getByText(/Toca a Luz en la plaza/)).toBeInViewport({ ratio: 1 });
   await expect(sceneMask.locator('path')).toHaveAttribute('fill-rule', 'evenodd');
   const guideHeading = guide.getByRole('heading', exact('Habla con los personajes'));
   await expect(guideHeading).toBeFocused();
@@ -128,8 +137,8 @@ test('the first chapter guides a new player through the scene and mission list o
   expect((await storyProgress(page)).story?.turn).toBe(0);
   await expect(target).toHaveAccessibleName('Luz');
   await expect(target).toBeInViewport({ ratio: 1 });
-  const luz = spot(page, 'plaza-luz').getByText('Luz', { exact: true });
-  await expectGuideAligned(target, luz.locator('..'));
+  const luz = spot(page, 'plaza-luz');
+  await expectGuideAligned(target, luz);
   expect(
     await luz.evaluate((label) => {
       for (let ancestor = label.parentElement; ancestor; ancestor = ancestor.parentElement) {
@@ -144,24 +153,38 @@ test('the first chapter guides a new player through the scene and mission list o
   await expect(target).toBeFocused();
   await page.keyboard.press('Enter');
 
-  await expect(dialogue(page, 'luz-welcome')).toBeVisible();
+  const welcome = dialogue(page, 'luz-welcome');
+  await expect(welcome.getByRole('heading', exact('Luz'))).toBeFocused();
+  await expect(welcome.getByText('Hi! I am Luz.', { exact: true })).toBeVisible();
+  await expect(continueGuide).toBeVisible();
+  await expect(target).toHaveCount(0);
+
+  await page.reload();
+  await openAdventure(page, undefined, false);
+  await expect(welcome.getByText('Hi! I am Luz.', { exact: true })).toBeVisible();
+  await continueGuide.click();
+
   await expect(guide).toContainText('Guía rápida · 2 de 3');
   await expect(guide.getByText('Examina los objetos')).toBeInViewport({ ratio: 1 });
-  await expect(guide.getByText(/Toca «Postal» para revisar el reverso/)).toBeInViewport({
+  await expect(guide.getByText(/Toca «Postal de la plaza» para ver el mapa/)).toBeInViewport({
     ratio: 1,
   });
   await expect(target).toHaveAccessibleName('Postal de la plaza');
   await expect(target).toBeInViewport({ ratio: 1 });
-  const postcard = spot(page, 'plaza-origin').getByText('Postal', { exact: true });
-  await expectGuideAligned(target, postcard.locator('..'));
+  const postcard = spot(page, 'plaza-origin');
+  await expectGuideAligned(target, postcard);
   await target.click();
 
-  await expect(dialogue(page, 'origin-postcards')).toBeVisible();
+  await expect(dialogue(page, 'origin-postcards')).toContainText(/en el reverso/i);
+  await expect(target).toHaveCount(0);
+  await click(page, 'Guardar la postal');
+  await expect(dialogue(page, 'origin-sketch-taken')).toContainText('La postal está en tu mochila');
+  expect((await storyProgress(page)).story?.inventory['origin-card']).toBeDefined();
+  await continueGuide.click();
+
   await expect(guide).toContainText('Guía rápida · 3 de 3');
   await expect(guide.getByText('Consulta tus misiones')).toBeInViewport({ ratio: 1 });
-  await expect(
-    guide.getByText(/Toca el resumen de misiones para ver tus objetivos/),
-  ).toBeInViewport({
+  await expect(guide.getByText(/Abre el resumen de misiones para ver qué hacer/)).toBeInViewport({
     ratio: 1,
   });
   await expect(guide).toBeInViewport({ ratio: 1 });
@@ -174,8 +197,9 @@ test('the first chapter guides a new player through the scene and mission list o
   await expect(guide).toHaveCount(0);
   await expect(sceneMask).toHaveCount(0);
   await expect(quests).toHaveAttribute('aria-expanded', 'true');
-  await page.getByTestId('story-quest-meet-sam').getByRole('button').click();
-  await expect(page.getByTestId('story-quest-detail-meet-sam')).toBeVisible();
+  const firstMission = page.getByTestId('story-quest-detail-meet-sam');
+  await expect(firstMission).toBeVisible();
+  await expect(firstMission.getByRole('heading')).toBeFocused();
 
   await click(page, 'Cerrar y volver');
   await openAdventure(page);
@@ -234,13 +258,14 @@ test.describe('small touch screen', () => {
       }
     });
     const sam = await expectCharacterInsideArt(page, 'plaza-sam');
-    const luz = await expectCharacterInsideArt(page, 'plaza-luz');
+    await expectCharacterInsideArt(page, 'plaza-luz');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       320,
     );
-    await sam.tap();
+    const artwork = scene(page).getByTestId('story-scene-art');
+    await pressArtwork(artwork, 19, 58, true);
     await expect(dialogue(page, 'sam-introduction')).toBeVisible();
-    await luz.tap();
+    await pressArtwork(artwork, 79, 53, true);
     await expect(dialogue(page, 'luz-welcome')).toBeVisible();
     await closeDialogue(page);
     await expect(dialogue(page, 'luz-welcome')).toBeHidden();
@@ -264,12 +289,11 @@ test.describe('small touch screen', () => {
     const backpackItem = page.getByTestId('story-inventory-origin-card');
 
     await expect(postcard).toHaveAccessibleName(postcardName);
-    await expect(postcard.getByText('Postal', { exact: true })).toBeVisible();
-    await postcard.tap();
+    await expect(postcard.getByText(postcardName, { exact: true })).toBeVisible();
+    await pressArtwork(scene(page).getByTestId('story-scene-art'), 62, 87, true);
     await expect(panel.getByRole('heading', exact(postcardName))).toBeVisible();
-    await expect(
-      panel.getByText(/En el reverso de esta postal de Bolivia hay un mapa/),
-    ).toBeVisible();
+    await expect(panel).toContainText('postales de Bolivia');
+    await expect(panel).toContainText('reverso');
     await savePostcard.tap();
     await expect(confirmation.getByRole('heading', exact(postcardName))).toBeVisible();
     await expect(confirmation.getByText(/La postal está en tu mochila/)).toBeVisible();
@@ -520,12 +544,23 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await capture(page, 'storybook-mobile-mochila');
   await page.getByTestId('story-inventory-toggle').click();
 
-  await spot(page, 'plaza-ticket').click();
+  const parkSign = spot(page, 'plaza-ticket');
+  await expect(parkSign).toHaveAccessibleName('Cartel del parque');
+  await pressArtwork(scene(page).getByTestId('story-scene-art'), 57, 35);
+  await expect(
+    dialogue(page, 'ticket-inspection').getByRole('heading', exact('Cartel del parque')),
+  ).toBeVisible();
   await choice(page, 'read-ticket');
   await closeDialogue(page);
   await spot(page, 'plaza-to-stop').click();
   await expect(scene(page, 'bus-stop')).toBeVisible();
-  await spot(page, 'stop-sign').click();
+  const busArtwork = scene(page, 'bus-stop').getByTestId('story-scene-art');
+  const stopSign = spot(page, 'stop-sign');
+  await expect(stopSign).toHaveAccessibleName('Señal de la parada');
+  await pressArtwork(busArtwork, 38, 32);
+  await expect(
+    dialogue(page, 'stop-found').getByRole('heading', exact('Señal de la parada')),
+  ).toBeVisible();
   await closeDialogue(page);
   await spot(page, 'stop-sam-directions').click();
   await choice(page, 'give-directions');
@@ -547,7 +582,12 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await spot(page, 'stop-sam-search').click();
   await choice(page, 'search-bench');
   await closeDialogue(page);
-  await spot(page, 'stop-bench').click();
+  const bench = spot(page, 'stop-bench');
+  await expect(bench).toHaveAccessibleName('Banco del parque');
+  await pressArtwork(busArtwork, 16, 69);
+  await expect(
+    dialogue(page, 'bench-search').getByRole('heading', exact('Banco del parque')),
+  ).toBeVisible();
   await choice(page, 'read-bench-note');
   await closeDialogue(page);
   await spot(page, 'stop-to-lost-property').click();
@@ -564,8 +604,32 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await click(page, 'Ahora no puedo hablar');
   await expect(learning).toBeHidden();
 
-  await spot(page, 'lost-blue-bag').click();
+  const redBag = spot(page, 'lost-red-bag');
+  const blueBag = spot(page, 'lost-blue-bag');
+  const lostPropertyArtwork = scene(page, 'lost-property').getByTestId('story-scene-art');
+  const lostPropertyBackground = lostPropertyArtwork
+    .getByTestId('story-scene-background')
+    .locator('img');
+  await expect(lostPropertyBackground).toHaveAttribute('src', /\/story-lost-property\./);
+  await expect(redBag).toHaveAccessibleName('Mochila roja');
+  await expect(blueBag).toHaveAccessibleName('Mochila azul');
+  await pressArtwork(lostPropertyArtwork, 77, 53);
+  const luzCorrection = dialogue(page, 'red-bag');
+  await expect(luzCorrection.getByRole('heading', exact('Luz'))).toBeVisible();
+  await expect(luzCorrection.getByText('It’s red.', { exact: true })).toBeVisible();
+  expect((await storyProgress(page)).story?.inventory['sam-blue-bag']).toBeUndefined();
+  await closeDialogue(page);
+
+  await pressArtwork(lostPropertyArtwork, 50, 53);
+  await expect(
+    dialogue(page, 'blue-bag').getByRole('heading', exact('Mochila azul')),
+  ).toBeVisible();
   await choice(page, 'take-blue-bag');
+  await expect(blueBag).toHaveCount(0);
+  await expect(lostPropertyBackground).toHaveAttribute(
+    'src',
+    /\/story-lost-property-after-pickup\./,
+  );
   await closeDialogue(page);
   await spot(page, 'lost-sam-return').click();
   await choice(page, 'show-blue-bag');

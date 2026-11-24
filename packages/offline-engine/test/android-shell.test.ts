@@ -70,6 +70,17 @@ test('Android starts with a local shell and opens the installed adventure and co
       '/v1/reviews/quick?source=travel',
     );
     assert.equal(review.exercise.id, 'travel_quick_hello');
+
+    const previous = JSON.parse(await readFile(new URL('2/home.json', directory), 'utf8')).story;
+    const before = snapshot;
+    installHomeContent({ ...previous, ...previous.runtime } as HomeContent);
+    await assert.rejects(engine.request('/v1/story'), /Actualiza La primera postal/);
+    assert.equal(snapshot, before);
+    installHomeContent({ ...story, ...story.runtime } as HomeContent);
+    assert.equal(
+      (await engine.request<{ story: { scene: { id: string } } }>('/v1/story')).story.scene.id,
+      'plaza',
+    );
   } finally {
     resolution.deregister();
   }

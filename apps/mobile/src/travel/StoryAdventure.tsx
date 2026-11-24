@@ -36,7 +36,7 @@ import { JournalLeaf, PaperGrain } from '../Journal';
 import { localSettings } from '../lib/api';
 import { useTheme } from '../theme';
 import { StoryPhrase, StorySpeaker } from './StoryDialogueAppearance';
-import { StoryGuide, type GuideStep } from './StoryGuide';
+import { StoryGuide, type StoryGuideStage } from './StoryGuide';
 import { StoryScene } from './StoryScene';
 import { TravelFlow, type TravelFlowHandle } from './TravelFlow';
 import { useChapterAudio } from './useChapterAudio';
@@ -50,7 +50,8 @@ const questStatuses = {
 };
 const questKinds = { main: 'Historia principal', side: 'Opcional', review: 'Repaso' };
 const translationKey = 'storyTranslations';
-type JournalPanel = { type: 'quests'; questId?: string } | { type: 'inventory' } | null;
+type JournalPanel =
+  { type: 'quests'; questId?: string; guided?: boolean } | { type: 'inventory' } | null;
 
 function SectionHeading({
   children,
@@ -145,7 +146,8 @@ function StoryButton({
 
 export function StoryAdventure({
   story,
-  firstVisit,
+  guideStage,
+  onGuideStageChange,
   checkpoint,
   playerName,
   onEditName,
@@ -160,7 +162,8 @@ export function StoryAdventure({
   onVoiceSettings,
 }: {
   story: StoryView;
-  firstVisit: boolean;
+  guideStage: StoryGuideStage;
+  onGuideStageChange: (stage: StoryGuideStage) => Promise<void>;
   checkpoint?: TravelCheckpoint;
   playerName?: string;
   onEditName: () => void;
@@ -180,8 +183,19 @@ export function StoryAdventure({
   const { play, stop, speechMessage } = useChapterAudio();
   const { scene, dialogue, encounter, hotspots, inventory, quests, turn, origin } = story;
   const lesson = useRef<TravelFlowHandle>(null);
-  const [guideStep, setGuideStep] = useState<GuideStep | null>(firstVisit ? 'npc' : null);
   const [guideAnchor, setGuideAnchor] = useState<View | null>(null);
+  const inPlaza = scene.id === 'plaza';
+  const guideStep =
+    inPlaza && (guideStage === 'npc' || guideStage === 'object' || guideStage === 'quests')
+      ? guideStage
+      : undefined;
+  const guideAfterDialogue = inPlaza
+    ? guideStage === 'npc-dialogue'
+      ? 'object'
+      : guideStage === 'object-dialogue'
+        ? 'quests'
+        : undefined
+    : undefined;
   const guideHotspot = hotspots.find(
     (hotspot) =>
       (guideStep === 'npc' && hotspot.npcId === 'luz') ||
@@ -206,8 +220,10 @@ export function StoryAdventure({
   const missionTitle = currentQuest?.title ?? 'Misiones principales';
   const missionProgress = `${completed} de ${mainQuests.length} misiones principales completadas`;
   const questsOpen = journal?.type === 'quests';
+  const guidedQuest = questsOpen && journal.guided ? journal.questId : undefined;
   const inventoryOpen = journal?.type === 'inventory';
   const dialogueAudio = dialogue?.line?.en;
+  const dialogueFocus = dialogue && !guideStep ? `${dialogue.id}-${guideStage}` : undefined;
   const postcardConfirmation = dialogue?.id === 'origin-sketch-taken';
   const activeCheckpoint =
     encounter &&
@@ -280,18 +296,28 @@ export function StoryAdventure({
     }
   }
 
-  const act = (operation: StoryOperation, afterAction?: () => void) =>
+  const act = (operation: StoryOperation, afterAction?: () => Promise<void>) =>
     void perform(async () => {
       await onAction(operation);
       setJournal(null);
-      afterAction?.();
+      await afterAction?.();
     });
   const resume = () =>
     void perform(async () => {
       await onResumeEncounter();
       setJournal(null);
     });
-  const closePanel = () => act({ action: dialogue ? 'closeDialogue' : 'suspendEncounter', turn });
+  const closePanel = () =>
+    act(
+      { action: dialogue ? 'closeDialogue' : 'suspendEncounter', turn },
+      guideAfterDialogue ? () => onGuideStageChange(guideAfterDialogue) : undefined,
+    );
+  const continueGuide = () => {
+    if (!guideAfterDialogue) return;
+    if (dialogue) closePanel();
+    else void perform(() => onGuideStageChange(guideAfterDialogue));
+  };
+  const skipGuide = () => void perform(() => onGuideStageChange('done'));
 
   function interact(hotspotId: string) {
     const hotspot = hotspots.find(({ id }) => id === hotspotId);
@@ -299,18 +325,27 @@ export function StoryAdventure({
       if (!activeCheckpoint) resume();
       return;
     }
-    act({ action: 'interact', hotspotId, turn }, () => {
-      setGuideStep((step) => {
-        if (step === 'npc' && hotspot?.npcId === 'luz') return 'object';
-        if (step === 'object' && hotspotId === 'plaza-origin') return 'quests';
-        return step;
-      });
-    });
+    const nextGuideStage =
+      guideStep === 'npc' && hotspot?.npcId === 'luz'
+        ? 'npc-dialogue'
+        : guideStep === 'object' && hotspotId === 'plaza-origin'
+          ? 'object-dialogue'
+          : undefined;
+    act(
+      { action: 'interact', hotspotId, turn },
+      nextGuideStage ? () => onGuideStageChange(nextGuideStage) : undefined,
+    );
   }
 
   function toggleQuests() {
     setJournal(questsOpen ? null : { type: 'quests' });
-    if (guideStep === 'quests') setGuideStep(null);
+  }
+
+  function openGuidedQuests() {
+    void perform(async () => {
+      await onGuideStageChange('done');
+      setJournal({ type: 'quests', questId: currentQuest?.id, guided: true });
+    });
   }
 
   const closeControl = (
@@ -336,7 +371,7 @@ export function StoryAdventure({
             <StorySpeaker
               name={dialogue.npc.name}
               heading={
-                <SectionHeading focusKey={guideStep ? undefined : dialogue.id} style={s.panelTitle}>
+                <SectionHeading focusKey={dialogueFocus} style={s.panelTitle}>
                   {dialogue.npc.name}
                 </SectionHeading>
               }
@@ -344,7 +379,7 @@ export function StoryAdventure({
               <Text style={s.body}>{dialogue.text}</Text>
             </StorySpeaker>
           ) : (
-            <SectionHeading focusKey={guideStep ? undefined : dialogue.id} style={s.panelTitle}>
+            <SectionHeading focusKey={dialogueFocus} style={s.panelTitle}>
               {dialogue.title ?? scene.title}
             </SectionHeading>
           )}
@@ -390,7 +425,7 @@ export function StoryAdventure({
             />
           ))}
         </View>
-      ) : (
+      ) : !guideAfterDialogue ? (
         <StoryButton
           id="story-dialogue-continue"
           label="Volver a la escena"
@@ -399,7 +434,7 @@ export function StoryAdventure({
           disabled={locked}
           onPress={closePanel}
         />
-      )}
+      ) : null}
     </JournalLeaf>
   ) : hasPanel && encounter ? (
     <JournalLeaf kind="notebook" testID="story-encounter" style={s.dialogue}>
@@ -460,9 +495,9 @@ export function StoryAdventure({
             error={error || actionError}
             onTarget={() => {
               if (guideHotspot) interact(guideHotspot.id);
-              if (guideStep === 'quests') toggleQuests();
+              if (guideStep === 'quests') openGuidedQuests();
             }}
-            onSkip={() => setGuideStep(null)}
+            onSkip={skipGuide}
           />
         ),
       }}
@@ -475,15 +510,18 @@ export function StoryAdventure({
             scene={scene}
             hotspots={hotspots}
             activeNpc={dialogue?.npc?.id ?? (activeCheckpoint ? encounter?.npc?.id : undefined)}
+            blueBagCollected={inventory.some(({ id }) => id === 'sam-blue-bag')}
             guideHotspotId={guideHotspot?.id}
             onGuideAnchor={setGuideAnchor}
-            disabled={locked}
+            disabled={locked || !!guideAfterDialogue}
             onInteract={interact}
           />
           <View style={s.caption}>
             <MapPin size={14} color={colors.accent} />
             <SectionHeading
-              focusKey={acted && !hasPanel ? `${scene.id}-${turn}` : undefined}
+              focusKey={
+                acted && !hasPanel && !guideStep && !guidedQuest ? `${scene.id}-${turn}` : undefined
+              }
               style={s.sceneTitle}
             >
               {scene.title}
@@ -498,6 +536,28 @@ export function StoryAdventure({
         </View>
         <View style={[s.notesPage, wide && s.wideNotesPage]}>
           {panel}
+          {guideAfterDialogue && (
+            <View testID="story-guide-reading" style={s.readingGuide}>
+              <Text style={s.tipText}>
+                {guideAfterDialogue === 'object'
+                  ? 'Cuando termines de leer o escuchar a Luz, busca el mapa de la plaza con la guía.'
+                  : 'Si quieres, guarda la postal en tu mochila. Después abre tu lista de misiones.'}
+              </Text>
+              <StoryButton
+                id="story-guide-continue"
+                label="Seguir con la guía"
+                icon={ArrowRight}
+                disabled={locked}
+                onPress={continueGuide}
+              />
+              <StoryButton
+                id="story-guide-skip"
+                label="Omitir guía"
+                disabled={locked}
+                onPress={skipGuide}
+              />
+            </View>
+          )}
           {encounter && !encounter.ready && !activeCheckpoint && !finishing && (
             <StoryButton
               id="story-encounter-resume"
@@ -566,9 +626,12 @@ export function StoryAdventure({
                           accessibilityLabel={`${quest.title}. ${status}`}
                           accessibilityState={{ expanded }}
                           aria-expanded={expanded}
-                          onPress={() =>
-                            setJournal({ type: 'quests', questId: expanded ? undefined : quest.id })
-                          }
+                          onPress={() => {
+                            setJournal({
+                              type: 'quests',
+                              questId: expanded ? undefined : quest.id,
+                            });
+                          }}
                           style={({ pressed }) => [s.questRow, pressed && { opacity: 0.72 }]}
                         >
                           {summary}
@@ -580,7 +643,13 @@ export function StoryAdventure({
                       {expanded && (
                         <View testID={`story-quest-detail-${quest.id}`} style={s.questDetails}>
                           <Text style={s.small}>{questKinds[quest.kind]}</Text>
-                          <Text style={s.body}>{quest.description}</Text>
+                          {guidedQuest === quest.id ? (
+                            <SectionHeading focusKey={guidedQuest} style={s.body}>
+                              {quest.description}
+                            </SectionHeading>
+                          ) : (
+                            <Text style={s.body}>{quest.description}</Text>
+                          )}
                           {quest.goals.map((goal) => (
                             <Text key={goal.id} style={s.goal}>
                               {goal.completed ? '✓ ' : '○ '}
@@ -682,6 +751,7 @@ function useStyles() {
     scenePage: { gap: 6, minWidth: 0 },
     wideScenePage: { flex: 1.25 },
     notesPage: { gap: 8, minWidth: 0 },
+    readingGuide: { gap: 8, padding: 10, borderRadius: 10, backgroundColor: C.mint },
     wideNotesPage: { flex: 1 },
     group: { gap: 9 },
     caption: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },

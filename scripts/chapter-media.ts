@@ -23,6 +23,8 @@ const homeImages = {
   writing: 'journal/writing.jpg',
   luz: 'journal/luz.jpg',
   'story-plaza': 'journal/story-plaza.jpg',
+  'story-lost-property': 'journal/story-lost-property.jpg',
+  'story-lost-property-after-pickup': 'journal/story-lost-property-after-pickup.jpg',
   'story-sam': 'journal/story-sam.png',
   'story-luz': 'journal/story-luz.png',
   'story-sam-portrait': 'journal/story-sam-portrait.png',

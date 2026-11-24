@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowRight, ChevronRight, Compass, MapPin, Route, X } from 'lucide-react-native';
+import { ArrowRight, ChevronRight, Compass, MapPin, Route } from 'lucide-react-native';
 import { chapter } from '@lingoquest/offline-engine';
 import { Button } from '../ui';
 import { JournalArt, JournalBrand, JournalLeaf, PaperEdge, PaperGrain } from '../Journal';
@@ -29,15 +29,6 @@ export function TravelWelcome({
       <View style={[styles.header, { backgroundColor: C.paper }]}>
         <PaperEdge edge="bottom" tint={C.paper} />
         <JournalBrand small />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Explorar primero"
-          disabled={busy}
-          onPress={onClose}
-          style={styles.close}
-        >
-          <X size={22} color={C.ink} />
-        </Pressable>
       </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.body, wide && styles.columns]}>
@@ -46,7 +37,8 @@ export function TravelWelcome({
               Empieza tu viaje en inglés
             </Text>
             <Text style={[styles.copy, { color: C.muted }]}>
-              Sigue la historia de Sam y practica el inglés que necesitas en cada parada.
+              Acompaña a Sam y practica inglés a tu ritmo. Puedes escuchar las frases y ver su
+              traducción.
             </Text>
             <JournalArt source={illustrations.welcome} aspectRatio={2.25} taped />
             <View style={styles.location}>
@@ -74,7 +66,8 @@ export function TravelWelcome({
               <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
                 <Text style={[styles.option, { color: C.ink }]}>{firstMission.title}</Text>
                 <Text style={[styles.detail, { color: C.muted }]}>
-                  Escucha a Sam y ensaya cómo presentarte · {firstMission.minutes.join('–')} min
+                  Empieza desde cero y aprende cómo presentarte · {firstMission.minutes.join('–')}{' '}
+                  min
                 </Text>
               </View>
             </JournalLeaf>
@@ -100,6 +93,16 @@ export function TravelWelcome({
               </View>
               <ChevronRight size={18} color={C.accent} />
             </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Explorar primero"
+              accessibilityHint="Abre el cuaderno de viaje para elegir una actividad"
+              disabled={busy}
+              onPress={onClose}
+              style={({ pressed }) => [styles.explore, pressed && { opacity: 0.72 }]}
+            >
+              <Text style={[styles.exploreLabel, { color: C.teal }]}>Explorar primero</Text>
+            </Pressable>
           </JournalLeaf>
         </View>
       </ScrollView>
@@ -110,14 +113,10 @@ export function TravelWelcome({
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     zIndex: 1,
     paddingHorizontal: 17,
-    paddingVertical: 5,
+    paddingVertical: 10,
   },
-  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 17 },
   body: { width: '100%', maxWidth: 560, alignSelf: 'center', gap: 18 },
   columns: { flexDirection: 'row', alignItems: 'center', maxWidth: 1070, gap: 28 },
@@ -154,4 +153,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 9,
   },
+  explore: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 10 },
+  exploreLabel: { fontFamily: 'ManropeBold', fontSize: 14, textDecorationLine: 'underline' },
 });

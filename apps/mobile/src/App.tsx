@@ -49,16 +49,15 @@ import {
   firstChapter,
   getCurrentChapter,
   getInstalledChapter,
+  refreshInstalledHomeChapter,
   secondChapter,
+  setCurrentChapter,
   type ChapterDownloadProgress,
 } from './lib/chapterPacks';
-import {
-  applyDownloadedContent,
-  discardFirstChapterContent,
-  restoreDownloadedContent,
-} from './lib/downloadedContent';
+import { applyDownloadedContent, restoreDownloadedContent } from './lib/downloadedContent';
 import { TravelFlow } from './travel/TravelFlow';
 import { StoryAdventure } from './travel/StoryAdventure';
+import { storyGuideKey, type StoryGuideStage } from './travel/StoryGuide';
 import { QuickReview } from './travel/QuickReview';
 import { TravelWelcome } from './travel/TravelWelcome';
 import { TravelPlacementFlow } from './travel/TravelPlacementFlow';
@@ -106,7 +105,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
   const [mission, setMission] = useState<TravelCheckpoint | null>(null);
   const [story, setStory] = useState<StoryView | null>(null);
-  const [firstStoryVisit, setFirstStoryVisit] = useState(false);
+  const [storyGuideStage, setStoryGuideStage] = useState<StoryGuideStage>('done');
   const [storyError, setStoryError] = useState('');
   const [finishingEncounter, setFinishingEncounter] = useState(false);
   const [destination, setDestination] = useState('home');
@@ -157,11 +156,10 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
 
       const ready = await applyDownloadedContent(pack);
       if (open && id === secondChapter.id) {
-        setHomeReady(await discardFirstChapterContent());
+        await setCurrentChapter(id);
         setCurrentChapterId(id);
-      } else {
-        setHomeReady(ready);
       }
+      setHomeReady(ready);
       if (open) {
         storySession.current++;
         setStory(null);
@@ -203,7 +201,12 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         }
         await bootstrap();
         await refresh();
-        if (active) await prepareChapter(current.id, false);
+        if (active) {
+          await prepareChapter(current.id, false);
+          // Save an update for the next launch so an active lesson keeps its content.
+          // Guarda la actualización para el próximo inicio y conserva el contenido de la lección activa.
+          void refreshInstalledHomeChapter().catch(() => {});
+        }
       } catch (e) {
         if (active) setError((e as Error).message);
       } finally {
@@ -244,8 +247,13 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   async function refreshStory(opening = false) {
     const session = storySession.current;
     const response = await api<StoryResponse>('/v1/story');
+    if (opening) {
+      const saved = await localSettings.get<StoryGuideStage | null>(storyGuideKey, null);
+      if (response.firstVisit) await localSettings.set(storyGuideKey, 'npc');
+      if (session === storySession.current)
+        setStoryGuideStage(response.firstVisit ? 'npc' : (saved ?? 'done'));
+    }
     if (session !== storySession.current) return false;
-    if (opening) setFirstStoryVisit(response.firstVisit === true);
     showStory(response);
     return true;
   }
@@ -255,7 +263,10 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setFlow(null);
   }
   async function preparePlayerName(journey: TravelState, afterSave: () => Promise<void>) {
-    if (playerIntroductionName(progress?.user.name) || journey.introductionName) await afterSave();
+    const user = progress?.user;
+    const skipped = user && (await localSettings.get('skipPlayerNameFor', '')) === user.id;
+    if (playerIntroductionName(user?.name) || journey.introductionName || skipped)
+      await afterSave();
     else setNamePicker({ afterSave });
   }
   async function openStory(journey = travel) {
@@ -457,6 +468,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         if (name) {
           const { user } = await api<{ user: Progress['user'] }>('/v1/me/settings', { name });
           setProgress((previous) => previous && { ...previous, user });
+        } else if (namePicker.afterSave && progress?.user.id) {
+          await localSettings.set('skipPlayerNameFor', progress.user.id);
         }
         await namePicker.afterSave?.();
         setNamePicker(null);
@@ -559,7 +572,11 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     return withSheets(
       <StoryAdventure
         story={story}
-        firstVisit={firstStoryVisit}
+        guideStage={storyGuideStage}
+        onGuideStageChange={async (stage) => {
+          await localSettings.set(storyGuideKey, stage);
+          setStoryGuideStage(stage);
+        }}
         checkpoint={travel.active}
         playerName={playerName}
         onEditName={editPlayerName}
@@ -573,14 +590,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         }}
         onLessonUpdate={updateStoryLesson}
         onResumeEncounter={resumeStoryLesson}
-        onReview={(missionId) => {
-          setFirstStoryVisit(false);
-          openQuickReview(missionId);
-        }}
-        onPassport={() => {
-          setFirstStoryVisit(false);
-          setPassport(true);
-        }}
+        onReview={openQuickReview}
+        onPassport={() => setPassport(true)}
         onVoiceSettings={openVoiceSettings}
       />,
     );
@@ -762,14 +773,31 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 <Button icon={BookOpen} onPress={() => openChapter(secondChapter.id)}>
                   Continuar capítulo 2
                 </Button>
+                {!homeReady && (
+                  <Button variant="secondary" onPress={() => openChapter(firstChapter.id)}>
+                    Descargar La primera postal
+                  </Button>
+                )}
                 {tab === 'Aprender' ? (
                   <Button variant="secondary" onPress={() => setFlow('textbook')}>
                     Cursos A1–A2
                   </Button>
                 ) : (
-                  <Button variant="secondary" onPress={() => setPassport(true)}>
-                    Abrir pasaporte
-                  </Button>
+                  <>
+                    {homeReady && (
+                      <>
+                        <Button variant="secondary" loading={starting} onPress={startStory}>
+                          Volver a La primera postal
+                        </Button>
+                        <Button variant="secondary" onPress={() => openQuickReview()}>
+                          Repaso rápido
+                        </Button>
+                      </>
+                    )}
+                    <Button variant="secondary" onPress={() => setPassport(true)}>
+                      Abrir pasaporte
+                    </Button>
+                  </>
                 )}
               </JournalLeaf>
             ) : !homeReady && (tab === 'Inicio' || tab === 'Aprender') ? (

@@ -2,7 +2,7 @@
 
 [English](CHAPTER_PACKS.md)
 
-En el primer inicio, la app descarga **La primera postal** y muestra el avance. Después del primer capítulo, **Continuar a Ciudad de México** abre el capítulo 2. La app descarga y verifica el paquete nuevo antes de borrar los recursos guardados del primer capítulo. Conserva tus misiones, tu sello y tu diario. Si la descarga falla, **Reintentar** vuelve a intentarlo con el primer paquete todavía disponible.
+En el primer inicio, la app descarga **La primera postal** y muestra el avance. Después del primer capítulo, **Continuar a Ciudad de México** descarga y verifica el capítulo 2. Los dos paquetes quedan disponibles sin conexión. Desde **Inicio** puedes volver a la primera aventura y abrir **Repaso rápido**. En **Aprender** siguen disponibles las lecciones del primer capítulo. Si falla la descarga del capítulo 2, **Reintentar** vuelve a intentarlo con el primer paquete todavía disponible.
 
 Elige un destino en **Mapa** y selecciona **Abrir capítulo** para usar el paquete guardado o descargarlo automáticamente. Los paquetes contienen lecciones, ilustraciones y audio en inglés. Los primeros ocho incluyen sus respectivas unidades A1–A2. Los paquetes se guardan en IndexedDB en la web y en SQLite en Android. La interfaz inicial de la versión web también incluye la primera aventura y el curso original. El progreso y los respaldos conservan su almacenamiento local y sus identificadores.
 
@@ -16,6 +16,6 @@ Elige un destino en **Mapa** y selecciona **Abrir capítulo** para usar el paque
    npm run packs:chapters -- --verify
    ```
 
-3. Publica el archivo de la revisión nueva y luego el catálogo desde `apps/mobile/public/chapter-packs/`. Conserva sin cambios las rutas como `2/toronto.json`. Sirve `catalog.json` con revalidación de caché. La app web solicita `/chapter-packs/` desde su propio origen. Android lee la misma carpeta de la rama `main` del repositorio de LingoQuest mediante GitHub Raw. Al publicar esta carpeta, las descargas nuevas reciben la última revisión. Los paquetes instalados se vuelven a usar sin conexión.
+3. Publica el archivo de la revisión nueva y luego el catálogo desde `apps/mobile/public/chapter-packs/`. Conserva sin cambios las rutas como `2/toronto.json`. Sirve `catalog.json` con revalidación de caché. La app web solicita `/chapter-packs/` desde su propio origen. Android lee la misma carpeta de la rama `main` del repositorio de LingoQuest mediante GitHub Raw. Al publicar esta carpeta, las descargas nuevas reciben la última revisión. Los paquetes instalados se vuelven a usar sin conexión. Al iniciar, la app busca una versión más reciente del primer capítulo si el paquete instalado es anterior a la revisión 3. La descarga verificada queda disponible en el siguiente inicio.
 
 El catálogo guarda la revisión, el tamaño en bytes y el SHA-256 de cada destino. Cada archivo también tiene su propia versión de esquema y suma de comprobación del contenido. Conserva `schemaVersion` en `1` para cambios compatibles, como nuevas lecciones, ilustraciones de reemplazo y audio adicional. Se necesitan cambios en la app para usar un nuevo esquema de paquete o agregar destinos al mapa.
