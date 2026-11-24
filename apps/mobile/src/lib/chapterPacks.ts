@@ -20,13 +20,20 @@ import {
 
 const web = Platform.OS === 'web';
 const previewRef = process.env.EXPO_PUBLIC_CHAPTER_PACK_REF;
-const chapterPackRef = previewRef && /^[a-f0-9]{40}$/.test(previewRef) ? previewRef : 'main';
+const previewRepository = process.env.EXPO_PUBLIC_CHAPTER_PACK_REPOSITORY;
+const pinnedPreview = previewRef && /^[a-f0-9]{40}$/.test(previewRef);
+const chapterPackRef = pinnedPreview ? previewRef : 'main';
+const chapterPackRepository =
+  pinnedPreview &&
+  previewRepository &&
+  /^[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9_.-]*$/i.test(previewRepository)
+    ? previewRepository
+    : 'togekk39/LingoQuest';
 const baseUrl = web
   ? '/chapter-packs/'
-  : `https://raw.githubusercontent.com/togekk39/LingoQuest/${chapterPackRef}/apps/mobile/public/chapter-packs/`;
+  : `https://raw.githubusercontent.com/${chapterPackRepository}/${chapterPackRef}/apps/mobile/public/chapter-packs/`;
 const destinations = new Map(route.map((destination) => [destination.id, destination]));
 export const [firstChapter, secondChapter] = route;
-const minimumPackRevision = 6;
 export class ChapterDownloadError extends Error {}
 
 export type ChapterDownloadProgress = { receivedBytes: number; totalBytes: number };
@@ -218,15 +225,16 @@ export function downloadChapter(
 }
 
 export async function refreshInstalledChapters() {
-  const outdated = new Map<string, number>();
+  if (web && typeof navigator !== 'undefined' && !navigator.onLine) return;
+  const installed = new Map<string, number>();
   for (const { id } of route) {
     const pack = await getInstalledChapter(id);
-    if (pack && pack.revision < minimumPackRevision) outdated.set(id, pack.revision);
+    if (pack) installed.set(id, pack.revision);
   }
-  if (!outdated.size) return;
+  if (!installed.size) return;
 
   const catalog = await fetchCatalog();
-  for (const [id, revision] of outdated) {
+  for (const [id, revision] of installed) {
     if ((catalog.chapters[id]?.revision ?? 0) <= revision) continue;
     await downloadChapter(id, undefined, catalog).catch(() => {});
   }

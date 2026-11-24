@@ -98,6 +98,14 @@ async function readCatalog(): Promise<ChapterCatalog> {
 async function verifyCatalog(catalog: ChapterCatalog) {
   if (Object.keys(catalog.chapters).length !== route.length)
     throw new Error('The catalog must cover all route destinations.');
+  const practice = [
+    ...chapter.missions.flatMap(({ steps }) => steps.filter((step) => step.type === 'exercise')),
+    ...travelPracticeSteps,
+  ];
+  for (const { id, audio, transcript } of practice) {
+    if (transcript && transcript !== audio)
+      throw new Error(`The transcript differs from the English audio source: ${id}.`);
+  }
   for (const { id, unitId } of route) {
     const entry = catalog.chapters[id];
     if (!entry) throw new Error(`Missing catalog entry for ${id}.`);

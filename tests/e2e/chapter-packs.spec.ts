@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
-import type { ChapterCatalog, ChapterPack } from '@lingoquest/course-pack';
+import {
+  serializeChapterPack,
+  type ChapterCatalog,
+  type ChapterPack,
+} from '@lingoquest/course-pack';
 import type { Page } from '@playwright/test';
 import { chapterReaderSections } from '../curriculum/chapter-reader-sections';
 import {
@@ -35,20 +39,21 @@ async function savedChapters(page: Page) {
   );
 }
 
-async function savedHomeRevision(page: Page) {
+async function savedChapterRevision(page: Page, chapterId = 'home') {
   return page.evaluate(
-    () =>
+    (id) =>
       new Promise<number | undefined>((resolve, reject) => {
         const database = indexedDB.open('lingoquest-chapter-packs');
         database.onerror = () => reject(database.error);
         database.onsuccess = () => {
           const db = database.result;
-          const request = db.transaction('packs').objectStore('packs').get('home');
+          const request = db.transaction('packs').objectStore('packs').get(id);
           request.onsuccess = () => resolve(request.result && JSON.parse(request.result).revision);
           request.onerror = () => reject(request.error);
           db.close();
         };
       }),
+    chapterId,
   );
 }
 
@@ -272,7 +277,7 @@ test('an installed older first chapter plays its introduction model offline and 
     };
   });
   await enterApp(page);
-  expect(await savedHomeRevision(page)).toBe(previousRevision);
+  expect(await savedChapterRevision(page)).toBe(previousRevision);
 
   await readyOfflineShell(page, context);
   await page.reload();
@@ -304,7 +309,7 @@ test('an installed older first chapter plays its introduction model offline and 
   await context.unroute(route);
   await page.reload();
   await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
-  await expect.poll(() => savedHomeRevision(page)).toBe(catalog.chapters.home.revision);
+  await expect.poll(() => savedChapterRevision(page)).toBe(catalog.chapters.home.revision);
 });
 
 test('opening a destination downloads its lessons and media when needed', async ({
@@ -425,6 +430,54 @@ test('early chapter cards render dialogue, teaching, question and optional model
     await expect(model).toBeVisible();
     await click(page, 'Cerrar y volver');
   }
+});
+
+test('an installed chapter updates when the catalog advances beyond the bundled revision', async ({
+  page,
+  context,
+  request,
+}) => {
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const installedRevision = catalog.chapters.toronto.revision;
+  const packPath = `/chapter-packs/${installedRevision}/toronto.json`;
+  const { sha256: _oldDigest, ...pack }: ChapterPack = await (await request.get(packPath)).json();
+  const revision = installedRevision + 1;
+  const newTitle = 'Deletreo mi apellido y confirmo el aula';
+  const newPack = serializeChapterPack({
+    ...pack,
+    revision,
+    lesson: { ...pack.lesson, title: newTitle },
+  });
+  const newEntry = {
+    revision,
+    sizeBytes: Buffer.byteLength(newPack),
+    sha256: createHash('sha256').update(newPack).digest('hex'),
+  };
+
+  async function openToronto() {
+    await page.getByRole('tab', exact('Mapa')).click();
+    await click(page, '9. Toronto');
+    await click(page, 'Abrir capítulo');
+  }
+  await enterApp(page);
+  await openToronto();
+  await expect(page.getByRole('heading', exact(pack.lesson.title))).toBeVisible();
+  expect(await savedChapterRevision(page, 'toronto')).toBe(installedRevision);
+  const before = await state(page);
+
+  await context.route(`**${catalogUrl}`, (entry) =>
+    entry.fulfill({ json: { ...catalog, chapters: { ...catalog.chapters, toronto: newEntry } } }),
+  );
+  await context.route(`**/chapter-packs/${revision}/toronto.json`, (entry) =>
+    entry.fulfill({ body: newPack, contentType: 'application/json' }),
+  );
+  await page.reload();
+  await expect.poll(() => savedChapterRevision(page, 'toronto')).toBe(revision);
+  await readyOfflineShell(page, context);
+  await page.reload();
+  await openToronto();
+  await expect(page.getByRole('heading', exact(newTitle))).toBeVisible();
+  expect(await state(page)).toEqual(before);
 });
 
 test('Salvador offers a fresh offline listening question with an optional translation', async ({
