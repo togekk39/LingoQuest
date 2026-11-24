@@ -133,6 +133,13 @@ export type TravelFlowHandle = {
   suspend: () => Promise<boolean>;
 };
 
+export function travelStoryPrompt(mission: TravelMission, checkpoint: TravelCheckpoint) {
+  const step = mission.steps[checkpoint.step];
+  if (checkpoint.finished || !step || step.type === 'dialogue') return;
+  const word = step.type === 'teach' && mission.vocabulary[checkpoint.word ?? 0];
+  return word ? word.storyPrompt : step.storyPrompt;
+}
+
 export function TravelFlow({
   initial,
   playerName,
@@ -175,7 +182,10 @@ export function TravelFlow({
   const inline = !!embedded;
   const briefing = inline && step.type === 'teach' && step.presentation === 'reply-briefing';
   const requiredReply = step.type === 'exercise' && step.response === 'personal-introduction';
-  const speaker = step.type === 'dialogue' || step.type === 'teach' ? step.speaker : undefined;
+  const storyPrompt = inline ? travelStoryPrompt(mission, current) : undefined;
+  const speaker =
+    storyPrompt?.speaker ??
+    (step.type === 'dialogue' || step.type === 'teach' ? step.speaker : undefined);
   const personalResponse =
     (step.type === 'exercise' || step.type === 'speak') &&
     step.response === 'personal-introduction';
@@ -447,7 +457,11 @@ export function TravelFlow({
       {error && <ErrorCard message={error} />}
       {inline && !current.finished && (
         <View ref={activity} collapsable={false}>
-          {speaker && <StorySpeaker name={speaker} />}
+          {speaker && (
+            <StorySpeaker name={speaker}>
+              {storyPrompt && <Label style={s.storyText}>{storyPrompt.text}</Label>}
+            </StorySpeaker>
+          )}
           <ProgressBar
             value={progress}
             accessibilityLabel={`Paso ${current.step + 1} de ${mission.steps.length}`}
@@ -519,6 +533,20 @@ export function TravelFlow({
               play={play}
             />
           )
+        ) : word && embedded && storyPrompt ? (
+          <>
+            <Button variant="secondary" icon={Volume2} onPress={() => void play(word.term, true)}>
+              Escuchar: {word.term}
+            </Button>
+            <StoryPhrase
+              line={word.example}
+              showTranslation={embedded.translationsVisible}
+              onToggleTranslation={embedded.onToggleTranslation}
+              onListen={() => void play(word.example.en, true)}
+              disabled={busy}
+              testID="travel-reference-phrase"
+            />
+          </>
         ) : word ? (
           <>
             <View style={s.chapterHead}>
@@ -531,7 +559,7 @@ export function TravelFlow({
               key={word.term}
               word={word}
               play={(phrase) => void play(phrase, inline)}
-              recall
+              recall={!inline || mission.id !== 'hello'}
               inline={inline}
             />
           </>
@@ -562,7 +590,7 @@ export function TravelFlow({
                       : 'Ahora te toca a ti')
                 }
               >
-                <Label style={s.storyText}>{step.situation}</Label>
+                {!storyPrompt && <Label style={s.storyText}>{step.situation}</Label>}
                 {!!step.visual && (
                   <Label style={f.quiet}>
                     {step.visualDescription ??
@@ -626,7 +654,7 @@ export function TravelFlow({
           </>
         ) : (
           <>
-            <Label style={s.storyText}>{step.text}</Label>
+            {!storyPrompt && <Label style={s.storyText}>{step.text}</Label>}
             {responseContext}
             <SpeakingPanel
               ref={speaking}

@@ -3,6 +3,11 @@ import type { CourseExercise, CourseLesson } from './index';
 import type { LearningTarget } from './travel-learning';
 import { homeChapterDetails } from './travel-route';
 
+interface TravelStoryPrompt {
+  speaker: 'Luz' | 'Sam';
+  text: string;
+}
+
 export interface TravelVocabulary {
   term: string;
   meaning: string;
@@ -10,6 +15,7 @@ export interface TravelVocabulary {
   explanation: string;
   example: Translation;
   exampleBy?: 'Sam' | 'Luz';
+  storyPrompt?: TravelStoryPrompt;
 }
 
 export interface TravelPattern {
@@ -22,6 +28,7 @@ export interface TravelExerciseStep {
   type: 'exercise';
   situation: string;
   response?: 'personal-introduction';
+  storyPrompt?: TravelStoryPrompt;
   storyReply?: { speaker: 'Luz' | 'Sam'; line: Translation };
   activityTitle?: string;
   exercise: CourseExercise;
@@ -49,6 +56,7 @@ export type TravelStep =
       exampleLabel?: string;
       text: string;
       examples: Translation[];
+      storyPrompt?: TravelStoryPrompt;
       presentation?: 'question-answer' | 'reply-briefing';
       patterns?: TravelPattern[];
     }
@@ -61,6 +69,7 @@ export type TravelStep =
       acceptedPhrases?: string[];
       exampleLabel?: string;
       response?: 'personal-introduction';
+      storyPrompt?: TravelStoryPrompt;
       learning: LearningTarget;
     };
 
@@ -176,7 +185,7 @@ function adjacentLocation(subjects: string[], reference: string) {
 
 export const chapter: TravelChapter = {
   ...homeChapterDetails,
-  revision: 5,
+  revision: 6,
   missions: [
     {
       id: 'hello',
@@ -196,6 +205,10 @@ export const chapter: TravelChapter = {
             en: 'Hi! My name is Sam.',
             es: '¡Hola! Me llamo Sam.',
           },
+          storyPrompt: {
+            speaker: 'Sam',
+            text: 'Te dije «Hi» junto a la fuente. Significa «hola» y lo usamos al saludar. También puedes decir «Hello».',
+          },
         },
         {
           term: 'I am',
@@ -206,6 +219,10 @@ export const chapter: TravelChapter = {
           example: {
             en: 'Hi! I am Luz.',
             es: '¡Hola! Soy Luz.',
+          },
+          storyPrompt: {
+            speaker: 'Luz',
+            text: '«I am» puede ser «soy» o «estoy». Para presentarme, uso «soy» y agrego mi nombre. «I’m» es la forma corta que oíste cuando nos conocimos.',
           },
         },
         {
@@ -218,6 +235,10 @@ export const chapter: TravelChapter = {
           example: {
             en: 'My name is Luz.',
             es: 'Me llamo Luz.',
+          },
+          storyPrompt: {
+            speaker: 'Luz',
+            text: 'Sam se presentó con «My name is», que significa «me llamo». Con «my» hablo de mi propio nombre. También puedo decir «My name’s».',
           },
         },
       ],
@@ -241,6 +262,10 @@ export const chapter: TravelChapter = {
           presentation: 'reply-briefing',
           title: 'Prepara tu respuesta para Sam',
           text: 'Hi y Hello significan «hola». Para responderle a Sam, empieza con uno de esos saludos. Luego usa I am, I’m, My name is o My name’s y completa con tu nombre. Con I va am y con My name va is.',
+          storyPrompt: {
+            speaker: 'Luz',
+            text: 'Con «I» digo «am», y con «My name» digo «is». Después va mi nombre. Para presentarte, empieza con «Hi» o «Hello» y usa tu propio nombre.',
+          },
           examples: [
             { en: 'I am', es: 'Soy' },
             { en: 'My name is', es: 'Me llamo' },
@@ -267,6 +292,10 @@ export const chapter: TravelChapter = {
           type: 'exercise',
           activityTitle: 'Reconoce el saludo de Sam',
           situation: 'Escucha a Sam y reconoce cómo empieza la conversación.',
+          storyPrompt: {
+            speaker: 'Sam',
+            text: 'Escucha otra vez cómo empecé la conversación. ¿Qué significa mi primera palabra?',
+          },
           audio: samGreeting.en,
           transcript: samGreeting.en,
           listeningButton: 'Escuchar el saludo de Sam',
@@ -300,6 +329,10 @@ export const chapter: TravelChapter = {
           type: 'exercise',
           activityTitle: 'Ordena tu respuesta para Sam',
           situation: 'Prepara tu respuesta para Sam con I am y tu nombre.',
+          storyPrompt: {
+            speaker: 'Luz',
+            text: 'Vamos a poner en orden las palabras de tu presentación. La última ficha es tu nombre.',
+          },
           hint: 'Empieza con la persona que habla. Luego pon el verbo y, al final, el nombre.',
           exercise: {
             id: 'travel_hello_build',
@@ -326,6 +359,10 @@ export const chapter: TravelChapter = {
           type: 'exercise',
           activityTitle: 'Recuerda el saludo',
           situation: 'Antes de decirle tu nombre a Sam, recuerda cómo saludar en inglés.',
+          storyPrompt: {
+            speaker: 'Sam',
+            text: 'Imagina que acabamos de encontrarnos. ¿Cómo me saludarías en inglés?',
+          },
           exercise: {
             id: 'travel_hello_recall',
             type: 'short_text',
@@ -352,6 +389,7 @@ export const chapter: TravelChapter = {
           activityTitle: 'Tu saludo para Sam',
           situation: 'Sam quiere saber cómo te llamas.',
           hint: 'Empieza con «Hi!». Después puedes usar «I am» o «My name is».',
+          storyPrompt: { speaker: 'Sam', text: 'Te toca. Salúdame y dime tu nombre.' },
           storyReply: {
             speaker: 'Sam',
             line: { en: "It's nice to meet you.", es: 'Mucho gusto.' },
@@ -381,6 +419,10 @@ export const chapter: TravelChapter = {
           activityTitle: 'Tu ficha en el puesto de fotos',
           situation:
             'Imagina que vas a un puesto de fotos. Para anotar el pedido, la persona del puesto te pide que te presentes.',
+          storyPrompt: {
+            speaker: 'Luz',
+            text: 'En el puesto de fotos quieren anotar tu nombre. ¿Cómo te presentarías allí?',
+          },
           exercise: {
             id: 'travel_hello_transfer',
             type: 'short_text',
@@ -405,6 +447,10 @@ export const chapter: TravelChapter = {
           phrase: 'Hi! I am',
           exampleLabel: 'Tu modelo para responder',
           response: 'personal-introduction',
+          storyPrompt: {
+            speaker: 'Sam',
+            text: 'Cuando puedas, salúdame y dime tu nombre en voz alta.',
+          },
           learning: {
             conceptId: 'introduction',
             skill: 'speaking',

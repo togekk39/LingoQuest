@@ -54,7 +54,7 @@ const showPlazaPostcard = {
 
 export const chapterStory = {
   id: chapter.id,
-  revision: 3,
+  revision: 4,
   initialSceneId: 'plaza',
   npcs: [
     { id: 'sam', name: 'Sam', role: 'Viajero que busca la parada del bus de las ocho' },
@@ -381,7 +381,7 @@ export const chapterStory = {
       id: 'greet-sam',
       npcId: 'sam',
       missionId: 'hello',
-      freshEntryStepId: 'travel_hello_write',
+      freshEntryStepId: 'hello_teach',
       onFinish: [
         { type: 'event', id: 'greeted-sam' },
         { type: 'giveItem', id: 'bus-ticket' },
@@ -420,7 +420,7 @@ export const chapterStory = {
     {
       id: 'sam-introduction',
       npcId: 'sam',
-      text: 'Sam te saluda junto a la fuente.',
+      text: 'Sam te saluda junto a la fuente. Para devolverle el saludo, dile «Hola, Sam».',
       line: { en: 'Hi! My name is Sam.', es: '¡Hola! Me llamo Sam.' },
       choices: [
         {
@@ -433,7 +433,7 @@ export const chapterStory = {
     {
       id: 'sam-introduces-luz',
       npcId: 'sam',
-      text: 'Sam señala la mesa de bienvenida.',
+      text: 'Sam señala la mesa de bienvenida. Puedes decirle «Hola, Luz».',
       line: { en: 'This is Luz.', es: 'Ella es Luz.' },
       choices: [
         {
@@ -446,7 +446,7 @@ export const chapterStory = {
     {
       id: 'luz-meets-traveler',
       npcId: 'luz',
-      text: 'Luz te saluda desde la mesa de bienvenida.',
+      text: 'Luz te da la bienvenida. Puedes contestarle «Mucho gusto, Luz».',
       line: luzGreeting,
       choices: [
         {
@@ -472,7 +472,7 @@ export const chapterStory = {
     {
       id: 'sam-asks-name',
       npcId: 'sam',
-      text: 'Usa una de las frases que oíste, «I’m» o «My name is», y agrega tu nombre.',
+      text: 'Sam quiere saber cómo te llamas. Luz se acerca para practicar contigo antes de que le respondas.',
       line: { en: "What's your name?", es: '¿Cómo te llamas?' },
       choices: [
         {

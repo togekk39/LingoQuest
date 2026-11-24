@@ -9,6 +9,7 @@ import {
   exact,
   expect,
   finishVocabulary,
+  labelFirstChapterAudio,
   openLessons,
   readyOfflineShell,
   state,
@@ -227,13 +228,13 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   );
 });
 
-test('an installed older first chapter stays usable offline and updates after reconnecting', async ({
+test('an installed older first chapter plays its introduction model offline and updates after reconnecting', async ({
   page,
   context,
   request,
 }) => {
   const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
-  const previousRevision = 3;
+  const previousRevision = 4;
   expect(catalog.chapters.home.revision).toBeGreaterThan(previousRevision);
   const previous = await (await request.get(`/chapter-packs/${previousRevision}/home.json`)).body();
   const previousCatalog: ChapterCatalog = {
@@ -249,13 +250,20 @@ test('an installed older first chapter stays usable offline and updates after re
   };
   const route = `**${catalogUrl}`;
   await context.route(route, (entry) => entry.fulfill({ json: previousCatalog }));
+  await labelFirstChapterAudio(page, request, { 'introduction-model': 'I am' });
   await page.addInitScript(() => {
     if (window.speechSynthesis) window.speechSynthesis.getVoices = () => [];
     const play = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () {
       this.addEventListener(
         'ended',
-        () => (document.body.dataset.endedStoryAudio = this.currentSrc),
+        async () => {
+          if (
+            document.querySelector('[data-testid="grammar-workbench"]') &&
+            (await window.chapterAudioLabel(this.currentSrc)) === 'introduction-model'
+          )
+            document.body.dataset.playedIntroductionModel = 'true';
+        },
         { once: true },
       );
       return play.call(this);
@@ -266,20 +274,29 @@ test('an installed older first chapter stays usable offline and updates after re
 
   await readyOfflineShell(page, context);
   await page.reload();
-  await openLessons(page);
   expect(await savedHomeRevision(page)).toBe(previousRevision);
-  await click(page, 'Cerrar y volver');
-  await page.getByRole('tab', exact('Inicio')).click();
   await click(page, 'Comenzar mi aventura');
+  const skipName = page.getByRole('button', exact('Continuar sin nombre'));
   const plaza = page.getByTestId('story-scene-plaza');
+  await expect(skipName.or(plaza)).toBeVisible();
+  if (await skipName.isVisible()) await skipName.click();
   await expect(plaza).toBeVisible();
   await click(page, 'Omitir guía');
   await page.getByTestId('story-hotspot-plaza-sam').click();
-  await click(page, 'Hi, Sam!');
-  await expect(page.locator('body')).toHaveAttribute(
-    'data-ended-story-audio',
-    /\/sam-introduces-luz\.[^/]+\.mp3$/,
-  );
+  for (const choiceId of [
+    'greet-sam-in-english',
+    'greet-luz-in-english',
+    'reply-to-luz',
+    'continue-opening-with-sam',
+    'introduce-yourself',
+  ])
+    await page.getByTestId(`story-choice-${choiceId}`).click();
+  await click(page, 'Siguiente palabra');
+  await click(page, 'Siguiente palabra');
+  await click(page, 'Ver la explicación');
+  const grammar = page.getByTestId('story-learning').getByTestId('grammar-workbench');
+  await grammar.getByRole('button', exact('Escuchar: I am')).click();
+  await expect(page.locator('body')).toHaveAttribute('data-played-introduction-model', 'true');
 
   await context.setOffline(false);
   await context.unroute(route);

@@ -38,7 +38,16 @@ export let travelChallengePools = emptyHome.challenges;
 
 export function installHomeContent(content: HomeContent = emptyHome) {
   chapter = content.chapter;
-  chapterStory = content.adventure;
+  const greeting = content.adventure.encounters.find(({ id }) => id === 'greet-sam');
+  chapterStory =
+    greeting?.freshEntryStepId === 'travel_hello_write'
+      ? {
+          ...content.adventure,
+          encounters: content.adventure.encounters.map((encounter) =>
+            encounter === greeting ? { ...encounter, freshEntryStepId: 'hello_teach' } : encounter,
+          ),
+        }
+      : content.adventure;
   travelLesson = content.lesson;
   travelPracticeSteps = content.practice;
   travelPlacementItems = content.placement;

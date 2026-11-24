@@ -38,7 +38,7 @@ import { useTheme } from '../theme';
 import { StoryPhrase, StorySpeaker } from './StoryDialogueAppearance';
 import { StoryGuide, type GuideStep, type StoryGuideStage } from './StoryGuide';
 import { StoryScene } from './StoryScene';
-import { TravelFlow, type TravelFlowHandle } from './TravelFlow';
+import { TravelFlow, travelStoryPrompt, type TravelFlowHandle } from './TravelFlow';
 import { useChapterAudio } from './useChapterAudio';
 
 const itemKinds = { story: 'Historia', quest: 'Misión', souvenir: 'Recuerdo' };
@@ -230,7 +230,11 @@ export function StoryAdventure({
     checkpoint?.missionId === encounter.missionId
       ? checkpoint
       : undefined;
-  const encounterTitle = chapter.missions.find(({ id }) => id === encounter?.missionId)?.title;
+  const encounterMission = chapter.missions.find(({ id }) => id === encounter?.missionId);
+  const teachingNpc =
+    activeCheckpoint && encounterMission
+      ? travelStoryPrompt(encounterMission, activeCheckpoint)?.speaker.toLowerCase()
+      : undefined;
   const hasPanel = !!(dialogue || activeCheckpoint || finishing || encounter?.ready);
   const wide = hasPanel && width >= 1024 && fontScale < 1.35;
   const locked = busy || finishing;
@@ -424,7 +428,7 @@ export function StoryAdventure({
     <JournalLeaf kind="notebook" testID="story-encounter" style={s.dialogue}>
       <PaperGrain opacity={0.23} />
       <View style={s.lessonTop}>
-        <Text style={s.lessonTitle}>{encounterTitle}</Text>
+        <Text style={s.lessonTitle}>{encounterMission?.title}</Text>
         {!encounter.ready && closeControl}
       </View>
       {activeCheckpoint ? (
@@ -493,7 +497,11 @@ export function StoryAdventure({
           <StoryScene
             scene={scene}
             hotspots={hotspots}
-            activeNpc={dialogue?.npc?.id ?? (activeCheckpoint ? encounter?.npc?.id : undefined)}
+            activeNpc={
+              dialogue?.npc?.id ??
+              teachingNpc ??
+              (activeCheckpoint ? encounter?.npc?.id : undefined)
+            }
             blueBagCollected={inventory.some(({ id }) => id === 'sam-blue-bag')}
             guideHotspotId={guideHotspot?.id}
             onGuideAnchor={setGuideAnchor}

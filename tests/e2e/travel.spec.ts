@@ -89,7 +89,20 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
       .getByText("Hi! My name is Sam. What's your name?", { exact: true }),
   ).toBeVisible();
   await click('Continuar');
-  await finishVocabulary(page);
+  const vocabulary = page.getByTestId('illustrated-vocabulary');
+  await click('Revelar significado');
+  await expect(vocabulary.getByText('hola', { exact: true })).toBeVisible();
+  await click('Siguiente palabra');
+  const vocabularyCheckpoint = (await state(page)).travel.active;
+  await click('Cerrar y volver');
+  await page.reload();
+  await openLessons(page);
+  await expect(vocabulary.getByRole('button', exact('Escuchar: I am'))).toBeVisible();
+  expect((await state(page)).travel.active).toEqual(vocabularyCheckpoint);
+  await click('Siguiente palabra');
+  await click('Ver la explicación');
+  await expect(page.getByTestId('grammar-workbench')).toBeVisible();
+  await click('Probar en la historia');
   await finishGreetingPractice(page);
   const input = page
     .getByTestId('travel-workbook')

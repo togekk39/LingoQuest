@@ -162,7 +162,7 @@ test('story launch restores a pre-RPG format-2 checkpoint and is atomic on write
   assert.deepEqual(await storage.open().request(storyPath), opened);
 });
 
-test('the opening alternates speakers and another conversation can pause and restore the name draft', async () => {
+test('the opening teaches before assessing and restores the name draft after another conversation', async () => {
   const storage = device();
   let engine = storage.open();
   let snapshot = await engine.request<StoryResponse>(storyPath);
@@ -204,9 +204,54 @@ test('the opening alternates speakers and another conversation can pause and res
   await act({ action: 'choose', choiceId: 'introduce-yourself' });
   assert.equal(snapshot.story.encounter?.npc?.id, 'sam');
   assert.equal(snapshot.story.encounter?.suspended, false);
-  assert.equal(snapshot.travel.active?.stepId, 'travel_hello_write');
+  const teaching = snapshot.travel.active!;
+  assert.equal(teaching.stepId, 'hello_teach');
+  const hello = chapter.missions[0];
+  assert.deepEqual(
+    hello.vocabulary.map(({ term, storyPrompt }) => [term, storyPrompt?.speaker]),
+    [
+      ['Hi', 'Sam'],
+      ['I am', 'Luz'],
+      ['My name is', 'Luz'],
+    ],
+  );
+  assert.deepEqual(
+    hello.steps
+      .slice(teaching.step)
+      .map((step) => [step.id, 'storyPrompt' in step ? step.storyPrompt?.speaker : undefined]),
+    [
+      ['hello_teach', 'Luz'],
+      ['travel_hello_recognize', 'Sam'],
+      ['travel_hello_build', 'Luz'],
+      ['travel_hello_recall', 'Sam'],
+      ['travel_hello_write', 'Sam'],
+      ['travel_hello_transfer', 'Luz'],
+      ['hello_speak', 'Sam'],
+    ],
+  );
+  const grammar = hello.steps[teaching.step];
+  assert.equal(grammar.type, 'teach');
+  assert.deepEqual(
+    grammar.examples.map(({ en }) => en),
+    ['I am', 'My name is'],
+  );
+  for (let position = 1; position <= hello.vocabulary.length; position++) {
+    const vocab = await journey(engine, { action: 'word', token: teaching.token, position });
+    assert.equal(vocab.active?.stepId, 'hello_teach');
+    assert.equal(vocab.active?.word, position);
+    assert.deepEqual((await journey(storage.open())).active, vocab.active);
+  }
+  assert.deepEqual(storage.state().attempts, {});
+  assert.equal(storage.state().travelLearning, undefined);
+  const listening = await journey(engine, { action: 'advance', token: teaching.token });
+  assert.equal(listening.active?.stepId, 'travel_hello_recognize');
 
   const atWriting = await finishLesson(engine, 'travel_hello_write');
+  assert.equal(atWriting.active?.stepId, 'travel_hello_write');
+  assert.equal(Object.keys(storage.state().attempts).length, 3);
+  const reorder = storage.state().travelLearning?.targets.find(({ skill }) => skill === 'grammar');
+  assert.equal(reorder?.assistance.guided, 1);
+  assert.deepEqual(reorder?.successes.understanding, { independent: 0, assisted: 1 });
   const draft = await journey(engine, {
     action: 'draft',
     token: atWriting.active!.token,
@@ -390,8 +435,8 @@ test('Sam separates story identity from English evidence and remembers an unset 
       choiceId: 'introduce-yourself',
       turn: sam.story.turn,
     });
-    assert.equal(snapshot.travel.active?.stepId, 'travel_hello_write');
-    let current = snapshot.travel.active!;
+    assert.equal(snapshot.travel.active?.stepId, 'hello_teach');
+    let current = (await finishLesson(engine, 'travel_hello_write')).active!;
     const writing = chapter.missions[0].steps[current.step];
     assert.equal(writing.type, 'exercise');
     assert.deepEqual(writing.storyReply, {
