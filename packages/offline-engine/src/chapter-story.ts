@@ -1,5 +1,5 @@
 import { chapter } from './travel-content';
-import type { StoryDefinition } from './story';
+import type { StoryDefinition, StoryDialogue, StoryEncounter } from './story';
 
 const greeted = { type: 'event', id: 'greeted-sam' } as const;
 const ticketRead = { type: 'event', id: 'read-bus-ticket' } as const;
@@ -860,5 +860,214 @@ export const chapterStory = {
       text: 'Si quieres guardar el recuerdo de cómo encontraste la mochila, escribe en la postal desde tu pasaporte.',
       choices: [],
     },
+  ],
+} satisfies StoryDefinition;
+
+const nameLessons = [
+  ['greetings', 'Saludar y despedirme'],
+  ['names', 'Deletrear mi nombre'],
+  ['sounds', 'Escuchar los sonidos de estas palabras'],
+] as const;
+const letterLessons = [
+  ['letters-a', 'Letras A–G'],
+  ['letters-b', 'Letras H–N'],
+  ['letters-c', 'Letras O–T'],
+  ['letters-d', 'Letras U–Z'],
+] as const;
+const travelLessons = [
+  ['digits', 'Escuchar los números del 0 al 10'],
+  ['teens', 'Leer números del 11 al 19'],
+  ['tens', 'Combinar decenas y unidades'],
+  ['origins', 'Decir de dónde soy'],
+] as const;
+const stopLessons = [
+  ['repair', 'Pedir que repitan o expliquen'],
+  ['place', 'Preguntar por un lugar'],
+  ['direction', 'Dar indicaciones'],
+  ['objects-map', 'Ubicar objetos en el mapa'],
+] as const;
+const bagLessons = [
+  ['people-things', 'Describir personas y cosas'],
+  ['bag', 'Confirmar de quién es un objeto'],
+] as const;
+const transferLesson = ['transfer', 'Ayudar a alguien más con el viaje'] as const;
+
+type StoryChoice = StoryDialogue['choices'][number];
+const missionChoice = ([id, label]: readonly [string, string]): StoryChoice => {
+  const missionId = `foundation-${id}`;
+  return {
+    id: `practice-${missionId}`,
+    label,
+    requires: [{ type: 'completedMission', id: missionId, not: true }],
+    effects: [{ type: 'encounter', id: missionId }],
+  };
+};
+const openPractice = (id: string, label: string, dialogueId: string): StoryChoice => ({
+  id,
+  label,
+  supplemental: true,
+  effects: [{ type: 'dialogue', id: dialogueId }],
+});
+const openNameFoundation = openPractice(
+  'open-name-foundation',
+  'Practicar saludos, letras y nombres con Luz',
+  'luz-name-foundation',
+);
+const openTravelFoundation = openPractice(
+  'open-travel-foundation',
+  'Revisar los datos del viaje con Luz',
+  'luz-travel-foundation',
+);
+const openStopFoundation = openPractice(
+  'open-stop-foundation',
+  'Practicar cómo llegar a la parada',
+  'sam-stop-foundation',
+);
+const openBagFoundation = openPractice(
+  'open-bag-foundation',
+  'Practicar con los objetos del mostrador',
+  'luz-bag-foundation',
+);
+const openTransferFoundation: StoryChoice = {
+  ...missionChoice(transferLesson),
+  supplemental: true,
+};
+
+const foundationChoices: Record<string, readonly StoryChoice[]> = {
+  'sam-asks-name': [openNameFoundation],
+  'luz-welcome': [openNameFoundation],
+  'luz-desk-greeting-reply': [openNameFoundation],
+  'luz-after-introduction': [openNameFoundation, openTravelFoundation, openStopFoundation],
+  'sam-after-introduction': [openTravelFoundation],
+  'sam-waiting-for-directions': [openTravelFoundation],
+  'sam-directions': [openStopFoundation],
+  'stop-found': [openStopFoundation],
+  'luz-lost-property': [openBagFoundation],
+  'luz-two-bags': [openBagFoundation],
+  'luz-postcard': [openBagFoundation],
+  'sam-finale-bench': [openTransferFoundation],
+  'sam-finale-luz': [openTransferFoundation],
+};
+const repairDialogues = new Set([
+  'luz-meets-traveler',
+  'luz-welcome',
+  'sam-asks-name',
+  'sam-after-introduction',
+  'sam-directions',
+  'luz-two-bags',
+]);
+const foundationDialogues: readonly StoryDialogue[] = [
+  {
+    id: 'luz-name-foundation',
+    npcId: 'luz',
+    text: 'En mi mesa hacemos tarjetas con nuestros nombres. Escoge qué quieres practicar antes de hacer la tuya.',
+    choices: [
+      ...nameLessons.map(missionChoice),
+      openPractice(
+        'open-letter-foundation',
+        'Escuchar y reconocer las letras',
+        'luz-letter-foundation',
+      ),
+      {
+        id: 'return-to-sam-introduction',
+        label: 'Volver con Sam',
+        requires: [{ ...greeted, not: true }],
+        effects: [{ type: 'dialogue', id: 'sam-asks-name' }],
+      },
+    ],
+  },
+  {
+    id: 'luz-letter-foundation',
+    npcId: 'luz',
+    text: 'Las tarjetas están ordenadas en cuatro grupos. Podemos escuchar unas pocas letras por vez.',
+    choices: [
+      ...letterLessons.map(missionChoice),
+      openPractice(
+        'return-to-name-foundation',
+        'Volver a la tarjeta de nombre',
+        'luz-name-foundation',
+      ),
+    ],
+  },
+  {
+    id: 'luz-travel-foundation',
+    npcId: 'luz',
+    text: 'Tengo boletos y una hoja de registro de ejemplo. Practica con ellos para reconocer datos de viaje en inglés.',
+    choices: travelLessons.map(missionChoice),
+  },
+  {
+    id: 'sam-stop-foundation',
+    npcId: 'sam',
+    text: 'Tengo la postal del parque a mano. Podemos practicar qué decir cuando necesitas llegar a una parada o entender una indicación.',
+    choices: stopLessons.map(missionChoice),
+  },
+  {
+    id: 'luz-bag-foundation',
+    npcId: 'luz',
+    text: 'En este mostrador hay cosas parecidas. Practica cómo describirlas y confirmar de quién son antes de entregarlas.',
+    choices: bagLessons.map(missionChoice),
+  },
+  {
+    id: 'sam-departure-foundation',
+    npcId: 'sam',
+    text: 'Gracias por devolverme la mochila. Si tienes un momento, acompáñame a la biblioteca del barrio. Allí puedes ayudar a otra persona con lo que practicamos.',
+    choices: [openTransferFoundation],
+  },
+];
+const foundationEncounters: readonly StoryEncounter[] = [
+  ...[...nameLessons, ...letterLessons, ...travelLessons, ...bagLessons].map(
+    ([id]): StoryEncounter => ({
+      id: `foundation-${id}`,
+      npcId: 'luz',
+      missionId: `foundation-${id}`,
+      returnToDialogue: true,
+    }),
+  ),
+  ...[...stopLessons, transferLesson].map(([id]): StoryEncounter => ({
+    id: `foundation-${id}`,
+    npcId: 'sam',
+    missionId: `foundation-${id}`,
+    returnToDialogue: true,
+  })),
+];
+
+export const homeFoundationStory = {
+  ...chapterStory,
+  revision: 5,
+  repairPhrases: [
+    {
+      kind: 'repeat',
+      phrase: { en: 'Can you repeat that, please?', es: '¿Puedes repetirlo, por favor?' },
+    },
+    {
+      kind: 'slower',
+      phrase: {
+        en: 'Can you speak more slowly, please?',
+        es: '¿Puedes hablar más despacio, por favor?',
+      },
+    },
+    {
+      kind: 'meaning',
+      phrase: { en: 'What does that mean?', es: '¿Qué significa eso?' },
+    },
+  ],
+  encounters: [
+    ...chapterStory.encounters.map((encounter): StoryEncounter =>
+      encounter.id === 'return-bag'
+        ? {
+            ...encounter,
+            onFinish: [...encounter.onFinish, { type: 'dialogue', id: 'sam-departure-foundation' }],
+          }
+        : encounter,
+    ),
+    ...foundationEncounters,
+  ],
+  dialogues: [
+    ...chapterStory.dialogues.map((dialogue): StoryDialogue => ({
+      ...dialogue,
+      ...(repairDialogues.has(dialogue.id) && { canRepair: true }),
+      choices: [...dialogue.choices, ...(foundationChoices[dialogue.id] ?? [])],
+    })),
+    ...foundationDialogues,
   ],
 } satisfies StoryDefinition;

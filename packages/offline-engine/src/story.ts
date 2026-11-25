@@ -27,6 +27,7 @@ export const storyStateSchema = z
     sceneId: idSchema,
     dialogueId: idSchema.optional(),
     encounterId: idSchema.optional(),
+    encounterDialogueId: idSchema.optional(),
     encounterSuspended: z.literal(true).optional(),
     flags: z.record(z.string().max(100)),
     events: z.record(z.literal(true)),
@@ -87,6 +88,7 @@ export type StoryEffect =
 interface Interaction {
   id: string;
   label: string;
+  supplemental?: true;
   requires?: readonly StoryCondition[];
   effects: readonly StoryEffect[];
 }
@@ -111,12 +113,18 @@ export interface StoryNpc {
   role: string;
 }
 
+export interface StoryRepair {
+  kind: 'repeat' | 'slower' | 'meaning';
+  phrase: { en: string; es: string };
+}
+
 export interface StoryDialogue {
   id: string;
   npcId?: string;
   title?: string;
   text: string;
   line?: { en: string; es: string };
+  canRepair?: true;
   tip?: string;
   exampleLabel?: string;
   choices: readonly Interaction[];
@@ -147,6 +155,7 @@ export interface StoryEncounter {
   entryStepId?: string;
   freshEntryStepId?: string;
   endBeforeStepId?: string;
+  returnToDialogue?: true;
   onFinish?: readonly StoryEffect[];
 }
 
@@ -160,6 +169,7 @@ export interface StoryDefinition {
   quests: readonly StoryQuest[];
   items: readonly StoryItem[];
   encounters: readonly StoryEncounter[];
+  repairPhrases?: readonly StoryRepair[];
 }
 
 export interface StoryContext {
@@ -177,7 +187,8 @@ export interface StoryView {
   hotspots: Omit<StoryHotspot, 'requires' | 'effects'>[];
   dialogue?: Pick<StoryDialogue, 'id' | 'title' | 'text' | 'line' | 'tip' | 'exampleLabel'> & {
     npc?: StoryNpc;
-    choices: Pick<Interaction, 'id' | 'label'>[];
+    choices: Pick<Interaction, 'id' | 'label' | 'supplemental'>[];
+    repairPhrases?: readonly StoryRepair[];
   };
   quests: (Pick<StoryQuest, 'id' | 'title' | 'description' | 'kind' | 'reviewMissionId'> & {
     status: 'locked' | 'available' | 'active' | 'completed';
@@ -230,8 +241,10 @@ export function upgradeStory(definition: StoryDefinition, state: StoryState) {
   if (!byId(definition.dialogues, state.dialogueId)) delete state.dialogueId;
   if (!byId(definition.encounters, state.encounterId)) {
     delete state.encounterId;
+    delete state.encounterDialogueId;
     delete state.encounterSuspended;
   }
+  if (!byId(definition.dialogues, state.encounterDialogueId)) delete state.encounterDialogueId;
   state.revision = definition.revision;
   state.turn++;
 }
@@ -356,21 +369,31 @@ function applyEffects(
       case 'closeDialogue':
         delete state.dialogueId;
         break;
-      case 'encounter':
-        if (byId(definition.encounters, effect.id)) {
-          state.encounterId = effect.id;
-          delete state.encounterSuspended;
-          delete state.dialogueId;
-        }
+      case 'encounter': {
+        const encounter = byId(definition.encounters, effect.id);
+        if (!encounter) break;
+        if (encounter.returnToDialogue && state.dialogueId)
+          state.encounterDialogueId = state.dialogueId;
+        else delete state.encounterDialogueId;
+        state.encounterId = effect.id;
+        delete state.encounterSuspended;
+        delete state.dialogueId;
         break;
+      }
     }
   }
 }
 
-function canInteract(interaction: Interaction, state: StoryState, context: StoryContext) {
+function canInteract(
+  interaction: Interaction,
+  state: StoryState,
+  context: StoryContext,
+  encounter?: StoryEncounter,
+) {
   return (
     allowed(interaction.requires, state, context) &&
-    (!state.encounterId ||
+    (!encounter ||
+      encounter.returnToDialogue ||
       !interaction.effects.some(({ type }) => type === 'scene' || type === 'encounter'))
   );
 }
@@ -391,21 +414,27 @@ export function updateStory(
   )
     return;
   const dialogue = byId(definition.dialogues, state.dialogueId);
+  const encounter = byId(definition.encounters, state.encounterId);
+  const encounterReturn = state.encounterDialogueId;
   let choiceId: string | undefined;
   let effects: readonly StoryEffect[] = [];
   switch (input.action) {
     case 'interact': {
       const scene = byId(definition.scenes, state.sceneId);
       const hotspot = byId(scene?.hotspots ?? [], input.hotspotId);
-      if (!hotspot || !canInteract(hotspot, state, context)) return;
-      if (state.encounterId) state.encounterSuspended = true;
+      if (!hotspot || !canInteract(hotspot, state, context, encounter)) return;
+      if (encounter?.returnToDialogue) {
+        delete state.encounterId;
+        delete state.encounterDialogueId;
+        delete state.encounterSuspended;
+      } else if (encounter) state.encounterSuspended = true;
       if (!hotspot.effects.some(({ type }) => type === 'dialogue')) delete state.dialogueId;
       effects = hotspot.effects;
       break;
     }
     case 'choose': {
       const choice = byId(dialogue?.choices ?? [], input.choiceId);
-      if (!dialogue || !choice || !canInteract(choice, state, context)) return;
+      if (!dialogue || !choice || !canInteract(choice, state, context, encounter)) return;
       if (
         !state.choices.some(
           (saved) => saved.dialogueId === dialogue.id && saved.choiceId === choice.id,
@@ -421,16 +450,25 @@ export function updateStory(
       delete state.dialogueId;
       break;
     case 'suspendEncounter':
-      if (!state.encounterId || state.encounterSuspended) return;
-      state.encounterSuspended = true;
-      break;
     case 'finishEncounter': {
-      const encounter = byId(definition.encounters, state.encounterId);
-      if (!encounter || encounter.id !== context.readyEncounterId) return;
+      const finished = input.action === 'finishEncounter';
+      if (
+        !encounter ||
+        (finished ? encounter.id !== context.readyEncounterId : state.encounterSuspended)
+      )
+        return;
+      if (!finished && !encounter.returnToDialogue) {
+        state.encounterSuspended = true;
+        break;
+      }
       delete state.encounterId;
+      delete state.encounterDialogueId;
       delete state.encounterSuspended;
       delete state.dialogueId;
-      effects = encounter.onFinish ?? [];
+      effects = [
+        ...(encounterReturn ? [{ type: 'dialogue' as const, id: encounterReturn }] : []),
+        ...(finished ? (encounter.onFinish ?? []) : []),
+      ];
       break;
     }
   }
@@ -498,7 +536,7 @@ export function readStory(
       description: personalize(scene.description),
     },
     hotspots: scene.hotspots
-      .filter((hotspot) => canInteract(hotspot, current, context))
+      .filter((hotspot) => canInteract(hotspot, current, context, encounter))
       .map(({ id, label, kind, npcId, position }) => ({
         id,
         label: personalize(label),
@@ -511,12 +549,17 @@ export function readStory(
       title: node.title && personalize(node.title),
       text: personalize(node.text),
       line: node.line && { en: personalize(node.line.en), es: personalize(node.line.es) },
+      ...(node.canRepair && node.npcId && node.line && { repairPhrases: definition.repairPhrases }),
       tip: node.tip && personalize(node.tip),
       exampleLabel: node.exampleLabel,
       npc: byId(definition.npcs, node.npcId),
       choices: node.choices
-        .filter((choice) => canInteract(choice, current, context))
-        .map(({ id, label }) => ({ id, label: personalize(label) })),
+        .filter((choice) => canInteract(choice, current, context, encounter))
+        .map(({ id, label, supplemental }) => ({
+          id,
+          label: personalize(label),
+          ...(supplemental && { supplemental }),
+        })),
     },
     inventory: definition.items.flatMap((item) => {
       const saved = own(current.inventory, item.id);

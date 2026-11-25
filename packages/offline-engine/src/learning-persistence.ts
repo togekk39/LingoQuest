@@ -154,6 +154,7 @@ export interface ChapterPractice {
   lesson: CourseLesson;
   version: string;
   chapterId: string;
+  authoredAudio?: true;
   definitions?: readonly RpgFormalDefinition[];
   reviewedDigest?: string;
 }
@@ -168,7 +169,7 @@ const archivedPracticeSchema = stepSchema
     type: z.literal('exercise'),
     lessonId: identifier,
     situation: z.string().max(4000),
-    response: z.literal('personal-introduction').optional(),
+    response: z.enum(['personal-introduction', 'personal-spelling']).optional(),
     requiredReply: z.literal(true).optional(),
     storyPrompt: z
       .object({ speaker: identifier, text: z.string().max(4000) })
@@ -218,7 +219,7 @@ export function rememberChapterReview(
   version: string,
   reviewedDefinitions: ReadonlyMap<string, RpgFormalDefinition>,
 ) {
-  const saved = state.chapterProgress?.[chapter.id]?.travel;
+  const saved = chapter.id === 'home' ? state.travel : state.chapterProgress?.[chapter.id]?.travel;
   if (!saved) return;
   const completed = chapter.missions.filter(({ id }) => Object.hasOwn(saved.completed, id));
   if (!completed.length) return;
@@ -256,6 +257,7 @@ export function rememberChapterReview(
       step.transcript ||
       step.visual ||
       step.exercise.ungradable ||
+      step.exercise.spelling ||
       step.exercise.learning?.skill === 'listening' ||
       step.targets?.some(({ dimension }) => dimension === 'listening') ||
       !(step.targets ?? exerciseEvidenceTargets(step.exercise, lesson.id)).some(({ targetId }) =>

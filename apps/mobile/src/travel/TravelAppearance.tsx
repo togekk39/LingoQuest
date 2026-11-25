@@ -144,6 +144,7 @@ export function GrammarWorkbench({
   onTranslationShown,
   showExplanation = !embedded || !step.storyPrompt,
   showAll = false,
+  showBilingual = false,
 }: {
   step: Extract<TravelMission['steps'][number], { type: 'teach' }>;
   play: (value: string) => void;
@@ -157,6 +158,7 @@ export function GrammarWorkbench({
   onTranslationShown?: () => void;
   showExplanation?: boolean;
   showAll?: boolean;
+  showBilingual?: boolean;
 }) {
   const { colors: C } = useTheme();
   const [selected, select] = useState(0);
@@ -220,8 +222,9 @@ export function GrammarWorkbench({
           if (!showAllExamples && index !== selected) return null;
           const pattern = step.patterns?.[index];
           const translationVisible =
-            embedded?.translationsVisible ??
-            (dialogue ? dialogueTranslations[index] : showTranslation);
+            showBilingual ||
+            (embedded?.translationsVisible ??
+              (dialogue ? dialogueTranslations[index] : showTranslation));
           const label = index === 0 ? 'pregunta' : 'respuesta';
           return (
             <View key={example.en} style={{ gap: 10 }}>
@@ -266,7 +269,7 @@ export function GrammarWorkbench({
                       ? `Escuchar: ${example.en}`
                       : 'Escuchar frase'}
                 </Button>
-                {!replyBriefing && (
+                {!replyBriefing && !showBilingual && (
                   <Button
                     variant="ghost"
                     icon={Eye}

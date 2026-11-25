@@ -51,6 +51,12 @@ const questStatuses = {
 };
 const questKinds = { main: 'Historia principal', side: 'Opcional', review: 'Repaso' };
 const translationKey = 'storyTranslations';
+const repairLabels = {
+  repeat: 'Pedir que repita',
+  slower: 'Pedir que hable más despacio',
+  meaning: 'Preguntar qué significa',
+};
+type RepairChoice = keyof typeof repairLabels;
 type JournalPanel =
   { type: 'quests'; questId?: string; guided?: boolean } | { type: 'inventory' } | null;
 
@@ -187,7 +193,7 @@ export function StoryAdventure({
   const s = useStyles();
   const { colors } = useTheme();
   const { width, fontScale } = useWindowDimensions();
-  const { play, stop, speechMessage } = useChapterAudio(chapter.id);
+  const { play, stop, playDialogueRequest, speechMessage } = useChapterAudio(chapter.id);
   const { scene, dialogue, encounter, hotspots, inventory, quests, turn, origin } = story;
   const lesson = useRef<TravelFlowHandle>(null);
   const [guideAnchor, setGuideAnchor] = useState<View | null>(null);
@@ -208,6 +214,7 @@ export function StoryAdventure({
   );
   const [journal, setJournal] = useState<JournalPanel>(null);
   const [translationsVisible, setTranslationsVisible] = useState(true);
+  const [repair, setRepair] = useState<{ turn: number; choice?: RepairChoice }>();
   const translationTouched = useRef(false);
   const translatedDialogueTurn = useRef<number | undefined>(undefined);
   const translationWrites = useRef(Promise.resolve());
@@ -229,6 +236,11 @@ export function StoryAdventure({
   const guidedQuest = questsOpen && journal.guided ? journal.questId : undefined;
   const inventoryOpen = journal?.type === 'inventory';
   const dialogueAudio = dialogue?.line?.en;
+  const mainChoices = dialogue?.choices.filter(({ supplemental }) => !supplemental) ?? [];
+  const repairOpen = repair?.turn === turn;
+  const selectedRepair = repairOpen
+    ? dialogue?.repairPhrases?.find(({ kind }) => kind === repair.choice)
+    : undefined;
   const dialogueFocus = dialogue && !guideStep ? `${dialogue.id}-${guideStage}` : undefined;
   const postcardConfirmation = dialogue?.id === 'origin-sketch-taken';
   const activeCheckpoint =
@@ -290,6 +302,16 @@ export function StoryAdventure({
     translationWrites.current = translationWrites.current
       .then(() => localSettings.set(translationKey, next))
       .catch(() => setActionError('No pudimos guardar la preferencia de traducción.'));
+  }
+
+  function requestRepair(choice: RepairChoice, phrase: string) {
+    if (!dialogueAudio) return;
+    setRepair({ turn, choice });
+    if (choice === 'meaning') translatedDialogueTurn.current = turn;
+    void playDialogueRequest(
+      phrase,
+      choice === 'meaning' ? undefined : { phrase: dialogueAudio, slower: choice === 'slower' },
+    );
   }
 
   async function perform(action: () => void | Promise<void>) {
@@ -428,9 +450,9 @@ export function StoryAdventure({
           {speechMessage}
         </Text>
       )}
-      {!!dialogue.choices.length ? (
+      {!!mainChoices.length ? (
         <View style={s.actions}>
-          {dialogue.choices.map((choice, index) => (
+          {mainChoices.map((choice, index) => (
             <StoryButton
               key={choice.id}
               id={`story-choice-${choice.id}`}
@@ -451,6 +473,64 @@ export function StoryAdventure({
           disabled={locked}
           onPress={closePanel}
         />
+      )}
+      {dialogue.choices
+        .filter(({ supplemental }) => supplemental)
+        .map((choice) => (
+          <StoryButton
+            key={choice.id}
+            id={`story-choice-${choice.id}`}
+            label={choice.label}
+            icon={BookOpen}
+            disabled={locked}
+            onPress={() => act({ action: 'choose', choiceId: choice.id, turn })}
+          />
+        ))}
+      {!!dialogue.repairPhrases?.length && (
+        <View style={s.actions}>
+          <StoryButton
+            id="story-repair-toggle"
+            label="Pedir ayuda en inglés"
+            expanded={repairOpen}
+            disabled={locked}
+            onPress={() => setRepair(repairOpen ? undefined : { turn })}
+          />
+          {repairOpen && (
+            <View style={s.actions}>
+              <Text style={s.small}>
+                Usa una de estas expresiones completas para seguir conversando.
+              </Text>
+              {dialogue.repairPhrases.map(({ kind, phrase }) => (
+                <StoryButton
+                  key={kind}
+                  id={`story-repair-${kind}`}
+                  label={repairLabels[kind]}
+                  disabled={locked}
+                  onPress={() => requestRepair(kind, phrase.en)}
+                />
+              ))}
+              {selectedRepair && (
+                <View testID="story-repair-response" accessibilityLiveRegion="polite" style={s.tip}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text accessibilityLanguage="en-US" style={s.tipText}>
+                      {selectedRepair.phrase.en}
+                    </Text>
+                    <Text style={s.small}>{selectedRepair.phrase.es}</Text>
+                    <Text style={s.tipText}>
+                      {dialogue.npc?.name}
+                      {' · '}
+                      {selectedRepair.kind === 'meaning'
+                        ? dialogue.line?.es
+                        : selectedRepair.kind === 'slower'
+                          ? 'Repite la frase más despacio.'
+                          : 'Repite la frase.'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
       )}
     </JournalLeaf>
   ) : hasPanel && encounter ? (

@@ -30,7 +30,7 @@ export interface TravelExerciseStep {
   id: string;
   type: 'exercise';
   situation: string;
-  response?: 'personal-introduction';
+  response?: 'personal-introduction' | 'personal-spelling';
   requiredReply?: true;
   storyPrompt?: TravelStoryPrompt;
   storyReply?: { speaker: string; line: Translation };
@@ -83,11 +83,15 @@ export type TravelStep =
       exampleLabel?: string;
       response?: 'personal-introduction';
       storyPrompt?: TravelStoryPrompt;
+      speech?: { selfCheck?: true; allowSystemRecognition?: true };
       learning: LearningTarget;
     };
 
 export interface TravelMission {
   id: string;
+  optional?: true;
+  authoredAudio?: true;
+  foundationObjectiveId?: string;
   title: string;
   place: string;
   objective: string;

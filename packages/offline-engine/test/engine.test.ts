@@ -44,7 +44,7 @@ import {
 } from '../src/challenge-learning';
 import { mexicoChallengePools } from '../../../content/source/mexico-challenges';
 import { mexicoChallengeReviews } from '../../../content/source/prerequisites/mexico-challenges';
-import { chapterCatalogSchema, parseChapterPack } from '@lingoquest/course-pack';
+import { CHAPTER_CATALOG_FILE, chapterCatalogSchema, parseChapterPack } from '@lingoquest/course-pack';
 import { travelChallengeItems } from '../src/travel-challenges';
 const source: CourseData = {
   units,
@@ -812,7 +812,7 @@ test('Mexico challenge variations preserve rank size and require reviewed instru
 test('an installed Mexico pack supplies eligible variations to new runs and preserves existing runs', async () => {
   const packs = new URL('../../../apps/mobile/public/chapter-packs/', import.meta.url);
   const catalog = chapterCatalogSchema.parse(
-    JSON.parse(readFileSync(new URL('catalog-v4.json', packs), 'utf8')),
+    JSON.parse(readFileSync(new URL(CHAPTER_CATALOG_FILE, packs), 'utf8')),
   );
   const { revision } = catalog.chapters.mexico;
   const pack = parseChapterPack(

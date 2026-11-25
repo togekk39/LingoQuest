@@ -22,6 +22,7 @@ type AdventureCurriculum = {
   definitions: ReturnType<typeof formalDefinitions>;
   priorTeaching: ReadonlySet<string>;
   properNames: readonly string[];
+  independentEntries?: boolean;
 };
 
 export function adventureTokens(text: string) {
@@ -43,9 +44,11 @@ export function inspectAdventurePrerequisites({
   definitions,
   priorTeaching,
   properNames,
+  independentEntries,
 }: AdventureCurriculum) {
   const issues: string[] = [];
   const taught = new Set(priorTeaching);
+  let available = taught;
   const teaching = new Set<string>();
   const assessments = new Set<string>();
   const independent: TravelExerciseStep[] = [];
@@ -67,7 +70,7 @@ export function inspectAdventurePrerequisites({
       issues.push(`${location} Unreviewed assessment / Evaluación sin revisar`);
       return;
     }
-    const missing = step.requires.map(teachingReferenceKey).filter((key) => !taught.has(key));
+    const missing = step.requires.map(teachingReferenceKey).filter((key) => !available.has(key));
     if (missing.length)
       issues.push(
         `${location} Untaught requirements / Requisitos sin enseñar: ${missing.join(', ')}`,
@@ -102,6 +105,7 @@ export function inspectAdventurePrerequisites({
   }
 
   for (const mission of chapter.missions) {
+    if (independentEntries) available = new Set(priorTeaching);
     for (const step of mission.steps) {
       if (step.type === 'exercise') inspectExercise(step);
       if (step.type !== 'teach' || !step.instruction) continue;
@@ -140,6 +144,7 @@ export function inspectAdventurePrerequisites({
               continue;
             }
             taught.add(teachingReferenceKey(ref));
+            available.add(teachingReferenceKey(ref));
           }
         }
       }
@@ -162,10 +167,12 @@ export function inspectAdventurePrerequisites({
               continue;
             }
             taught.add(teachingReferenceKey(ref));
+            available.add(teachingReferenceKey(ref));
           }
         }
     }
   }
+  available = taught;
   for (const step of practice) inspectExercise(step);
   for (const id of Object.keys(audit.teaching))
     if (!teaching.has(id))

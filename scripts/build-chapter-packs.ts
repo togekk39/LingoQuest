@@ -10,7 +10,7 @@ import {
 } from '../packages/offline-engine/src/learning-prerequisites';
 import { westernChapterLessons } from '../content/source/chapter-lessons-west';
 import { easternChapterLessons } from '../content/source/chapter-lessons-east';
-import { chapterAdventures } from './chapter-adventures';
+import { chapterAdventures, reviewedAdventure } from './chapter-adventures';
 import bundled from '../apps/mobile/src/content/bundled-course.json';
 import {
   CHAPTER_PACK_FORMAT,
@@ -23,13 +23,14 @@ import {
   type ChapterCatalog,
   type ChapterLessonSource,
   type ChapterMedia,
+  type ChapterPack,
   type CoursePayload,
 } from '@lingoquest/course-pack';
 import { loadChapterAudio, loadChapterImages } from './chapter-media';
 
 const root = new URL('../apps/mobile/public/chapter-packs/', import.meta.url);
 const catalogPath = new URL(CHAPTER_CATALOG_FILE, root);
-const previousCatalogPath = new URL('catalog-v3.json', root);
+const previousCatalogPath = new URL('catalog-v4.json', root);
 const course = bundled.payload as CoursePayload;
 const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
@@ -40,8 +41,8 @@ const digest = (bytes: string) => createHash('sha256').update(bytes).digest('hex
 const chapterPath = (revision: number, chapterId: string) =>
   new URL(`${revision}/${chapterId}.json`, root);
 
-function checkReviewLedger({ story }: NonNullable<ReturnType<typeof chapterAdventures.get>>) {
-  if (!('audit' in story)) return;
+function checkReviewLedger(authored: NonNullable<ReturnType<typeof chapterAdventures.get>>) {
+  const story = reviewedAdventure(authored.story);
   const teaching = Object.fromEntries(
     story.chapter.missions.flatMap((mission) =>
       mission.steps.flatMap((step) =>
@@ -85,11 +86,11 @@ function verifyMedia(media: ChapterMedia, name: string) {
     throw new Error(`Invalid ${media.mimeType} resource: ${name}`);
 }
 
-async function readCatalog(): Promise<ChapterCatalog> {
+async function readCatalog(creatingCatalog: boolean): Promise<ChapterCatalog> {
   try {
     return chapterCatalogSchema.parse(JSON.parse(await readFile(catalogPath, 'utf8')));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    if (!creatingCatalog || (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     return chapterCatalogSchema.parse(JSON.parse(await readFile(previousCatalogPath, 'utf8')));
   }
 }
@@ -127,19 +128,19 @@ async function verifyCatalog(catalog: ChapterCatalog, checkAuthoredStory = true)
 }
 
 async function main() {
-  const catalog = await readCatalog();
+  const verifyOnly = process.argv.includes('--verify');
+  const catalog = await readCatalog(!verifyOnly);
   const previousCatalog = chapterCatalogSchema.parse(
     JSON.parse(await readFile(previousCatalogPath, 'utf8')),
   );
-  if (process.argv.includes('--verify')) {
+  if (verifyOnly) {
     await verifyCatalog(catalog);
     await verifyCatalog(previousCatalog, false);
-    await verifyCatalog(
-      chapterCatalogSchema.parse(
-        JSON.parse(await readFile(new URL('catalog-v2.json', root), 'utf8')),
-      ),
-      false,
-    );
+    for (const name of ['catalog-v3.json', 'catalog-v2.json'])
+      await verifyCatalog(
+        chapterCatalogSchema.parse(JSON.parse(await readFile(new URL(name, root), 'utf8'))),
+        false,
+      );
     return;
   }
   const requested = process.argv.find((arg) => arg.startsWith('--chapter='))?.slice(10);
@@ -195,7 +196,7 @@ async function main() {
       lesson,
       additionalLessons,
       ...(unit && { unit }),
-      ...(authored && { story: authored.story }),
+      ...(authored && { story: authored.story as unknown as ChapterPack['story'] }),
       images: await loadChapterImages(id),
       audio,
     });

@@ -19,6 +19,7 @@ import type {
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
 const legacyCatalog = 'apps/mobile/public/chapter-packs/catalog.json';
+const phase5bCatalog = 'apps/mobile/public/chapter-packs/catalog-v2.json';
 const legacyCourse = 'content/releases/lingoquest-es419-enus-a1a2-2.1.0.lqp.json';
 const auditIndex = new URL('docs/PHASE_5B_CONTENT_AUDIT.items.tsv', root);
 
@@ -155,34 +156,46 @@ function auditItems(course: CoursePayload, chapters: Map<string, ChapterPack>) {
   return items;
 }
 
-export async function verifyReleaseAudit(course: CoursePayload, current: Map<string, ChapterPack>) {
-  const legacy = chapterCatalogSchema.parse(JSON.parse(await read(legacyCatalog)));
-  const legacyChapters = new Map<string, ChapterPack>();
-  for (const [id, { revision, sha256 }] of Object.entries(legacy.chapters)) {
+async function readCatalogChapters(path: string) {
+  const catalog = chapterCatalogSchema.parse(JSON.parse(await read(path)));
+  const chapters = new Map<string, ChapterPack>();
+  for (const [id, { revision, sha256 }] of Object.entries(catalog.chapters)) {
     const bytes = await read(`apps/mobile/public/chapter-packs/${revision}/${id}.json`);
     assert.equal(
       sha256Hex(bytes),
       sha256,
-      'Legacy chapter checksum / Suma del capítulo anterior: ' + id,
+      'Historical chapter checksum / Suma del capítulo histórico: ' + id,
     );
-    legacyChapters.set(id, parseChapterPack(bytes, id));
+    chapters.set(id, parseChapterPack(bytes, id));
   }
+  return chapters;
+}
+
+export async function verifyReleaseAudit(course: CoursePayload, current: Map<string, ChapterPack>) {
+  const [legacyChapters, phase5bChapters] = await Promise.all([
+    readCatalogChapters(legacyCatalog),
+    readCatalogChapters(phase5bCatalog),
+  ]);
   const baseline = auditItems(parseCoursePack(await read(legacyCourse)).payload, legacyChapters);
+  const phase5b = auditItems(course, phase5bChapters);
   const active = auditItems(course, current);
   const home = current.get('home');
   assert.ok(home, 'Missing Home chapter / Falta el capítulo inicial');
   verifyAnswerKeys(course, home);
   for (const key of baseline.keys()) {
+    assert.ok(phase5b.has(key), 'Archived ID was removed / Se eliminó un ID histórico: ' + key);
+  }
+  for (const key of phase5b.keys()) {
     assert.ok(active.has(key), 'Released ID was removed / Se eliminó un ID publicado: ' + key);
   }
-  const audited = new Map([...baseline, ...active]);
+  const audited = new Map([...baseline, ...phase5b]);
   const rows = [
     'section\tid\tchange\tbaseline_sha256\tphase_5b_sha256\tbaseline_content\tphase_5b_content',
   ];
   let changed = 0;
   for (const [key, { section, id }] of audited) {
     const before = baseline.get(key)?.serialized;
-    const after = active.get(key)!.serialized;
+    const after = phase5b.get(key)!.serialized;
     const change = before === after ? 'retained' : !before ? 'added' : 'revised';
     if (change !== 'retained') changed++;
     rows.push(
@@ -204,6 +217,6 @@ export async function verifyReleaseAudit(course: CoursePayload, current: Map<str
     'Stale item audit index / Índice de auditoría desactualizado. npm run curriculum:verify -- --write-audit-index',
   );
   console.log(
-    `Release audit / Auditoría de publicación: ${active.size} tracked items/ítems, ${changed} changes/cambios.`,
+    `Phase 5B release audit / Auditoría de publicación de fase 5B: ${phase5b.size} tracked items/ítems, ${changed} changes/cambios.`,
   );
 }

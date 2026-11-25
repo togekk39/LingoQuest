@@ -77,6 +77,35 @@ const recordedPhrases = new Map([
   ['red', 'word-7'],
 ]);
 
+const letterNames: Readonly<Record<string, string>> = {
+  A: 'ay',
+  B: 'bee',
+  C: 'see',
+  D: 'dee',
+  E: 'ee',
+  F: 'eff',
+  G: 'gee',
+  H: 'aitch',
+  I: 'eye',
+  J: 'jay',
+  K: 'kay',
+  L: 'el',
+  M: 'em',
+  N: 'en',
+  O: 'oh',
+  P: 'pee',
+  Q: 'cue',
+  R: 'are',
+  S: 'ess',
+  T: 'tee',
+  U: 'you',
+  V: 'vee',
+  W: 'double you',
+  X: 'ex',
+  Y: 'why',
+  Z: 'zee',
+};
+
 async function readMedia(url: URL, mimeType: ChapterMedia['mimeType']): Promise<ChapterMedia> {
   return { mimeType, dataBase64: await readFile(url, 'base64') };
 }
@@ -95,14 +124,29 @@ export async function loadChapterImages(chapterId: string): Promise<Record<strin
 }
 
 function speechText(phrase: string) {
-  return phrase
+  const text = phrase
     .normalize('NFKD')
     .replace(/\p{Mark}/gu, '')
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
-    .replace(/[–—]/g, ', ')
-    .replace(/\s*→\s*/g, ', ')
     .trim();
+  if (Object.hasOwn(letterNames, text)) return letterNames[text];
+  // Spell out isolated letter sequences while keeping natural dialogue and word audio unchanged.
+  // Deletrea secuencias aisladas de letras sin cambiar el audio natural de diálogos ni palabras.
+  const spelling = text.replace(/[.!?]$/, '');
+  if (/^[A-Z](?:\s*[-–]\s*[A-Z])+$/.test(spelling))
+    return spelling
+      .split(/\s*[-–]\s*/)
+      .map((letter) => letterNames[letter])
+      .join(', ');
+  // Disambiguate the taught commands for Flite without changing the learner-facing text.
+  // Desambigua los comandos enseñados para Flite y conserva el texto visible.
+  return text
+    .replace(/^Read(?=[.!?]?$)/, 'Reed')
+    .replace(/^Close(?=[.!?]?$)/, 'Cloze')
+    .replace(/\bExcuse(?= me\b)/g, 'Excuze')
+    .replace(/[–—]/g, ', ')
+    .replace(/\s*→\s*/g, ', ');
 }
 
 async function makeClip(phrase: string): Promise<ChapterMedia> {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { homeFoundationStory } from '../src/chapter-story.ts';
 import {
   emptyStory,
   readStory,
@@ -298,6 +299,68 @@ test('round-tripping story saves resumes an encounter and rewards it once after 
   const reviewedTurn = state.turn;
   recordStoryReview(story, state, 'bus', context);
   assert.equal(state.turn, reviewedTurn);
+});
+
+test('a Home foundation encounter restores its conversation on suspend and finish', () => {
+  let state = emptyStory(homeFoundationStory);
+  const homeView = (progress = context) => readStory(homeFoundationStory, state, progress);
+  const select = (choiceId: string) =>
+    updateStory(homeFoundationStory, state, context, {
+      action: 'choose',
+      choiceId,
+      turn: state.turn,
+    });
+
+  updateStory(homeFoundationStory, state, context, {
+    action: 'interact',
+    hotspotId: 'plaza-sam',
+    turn: state.turn,
+  });
+  select('greet-sam-in-english');
+  select('greet-luz-in-english');
+  select('reply-to-luz');
+  select('continue-opening-with-sam');
+  assert.equal(homeView().dialogue?.id, 'sam-asks-name');
+  assert.deepEqual(
+    homeView().dialogue?.repairPhrases?.map(({ kind }) => kind),
+    ['repeat', 'slower', 'meaning'],
+  );
+  select('open-name-foundation');
+  select('open-letter-foundation');
+  select('practice-foundation-letters-a');
+  assert.equal(homeView().encounter?.missionId, 'foundation-letters-a');
+
+  state = storyStateSchema.parse(JSON.parse(JSON.stringify(state)));
+  updateStory(homeFoundationStory, state, context, {
+    action: 'suspendEncounter',
+    turn: state.turn,
+  });
+  assert.equal(homeView().dialogue?.id, 'luz-letter-foundation');
+  assert.equal(homeView().encounter, undefined);
+  assert.equal(homeView().quests.find(({ id }) => id === 'meet-sam')?.status, 'available');
+
+  select('practice-foundation-letters-a');
+  const finished = {
+    ...context,
+    completedMissions: ['foundation-letters-a'],
+    readyEncounterId: 'foundation-letters-a',
+  };
+  updateStory(homeFoundationStory, state, finished, {
+    action: 'finishEncounter',
+    turn: state.turn,
+  });
+  assert.equal(homeView(finished).dialogue?.id, 'luz-letter-foundation');
+  assert.ok(
+    !homeView(finished).dialogue?.choices.some(({ id }) => id === 'practice-foundation-letters-a'),
+  );
+  assert.ok(
+    homeView(finished).dialogue?.choices.some(({ id }) => id === 'practice-foundation-letters-b'),
+  );
+  select('return-to-name-foundation');
+  select('return-to-sam-introduction');
+  select('introduce-yourself');
+  assert.equal(homeView().encounter?.missionId, 'hello');
+  assert.equal(homeView().inventory.length, 0);
 });
 
 test('a story revision repairs deleted locations and checkpoints while retaining durable memory', () => {

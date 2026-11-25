@@ -98,6 +98,7 @@ const answerText = z
   .refine((value) => value.trim().length > 0);
 const alternateAnswerMetadata = {
   introduction: z.object({ greetingRequired: z.boolean(), model: text }).strict().optional(),
+  spelling: z.object({ model: text }).strict().optional(),
   communicationOnly: z
     .object({ answers: z.array(answerText).max(100), feedbackEs: text })
     .strict()
@@ -243,7 +244,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
-export const CHAPTER_CATALOG_FILE = 'catalog-v4.json';
+export const CHAPTER_CATALOG_FILE = 'catalog-v5.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -403,6 +404,13 @@ const storyStepSchema = z
     exercise: travelExercise.optional(),
     requires: storyRequirementsSchema.optional(),
     targets: rpgAssessmentTargetsSchema.optional(),
+    speech: z
+      .object({
+        selfCheck: z.literal(true).optional(),
+        allowSystemRecognition: z.literal(true).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .passthrough();
 
@@ -438,6 +446,7 @@ export const chapterPackSchema = z
                     title: text,
                     place: text,
                     objective: text,
+                    optional: z.literal(true).optional(),
                     minutes: z.tuple([z.number().positive(), z.number().positive()]),
                     vocabulary: z
                       .array(
@@ -509,16 +518,26 @@ export const chapterPackSchema = z
         !adventure.scenes.some(({ id }) => id === adventure.initialSceneId)
       )
         return false;
-      if (chapterId === 'home' && (story.challenges || story.supportingLessons || story.audit))
+      const home = chapterId === 'home';
+      if (home && story.challenges) return false;
+      if (
+        home &&
+        !story.audit &&
+        (story.supportingLessons || chapter.missions.some(({ optional }) => optional))
+      )
         return false;
-      if (chapterId !== 'home') {
+      if (!home || story.audit) {
         if (
-          story.runtime ||
+          (home ? !story.runtime : !!story.runtime) ||
           !unit ||
           !adventure.scenes.every(({ art }) => Object.hasOwn(images, art))
         )
           return false;
-        const storyLessons = [...unit.lessons, ...(story.supportingLessons ?? [])];
+        const storyLessons = [
+          ...unit.lessons,
+          ...(story.supportingLessons ?? []),
+          ...(story.runtime ? [story.runtime.lesson] : []),
+        ];
         const lessons = new Set(storyLessons.map(({ id }) => id));
         if (lessons.size !== storyLessons.length) return false;
         const missions = new Set(chapter.missions.map(({ id }) => id));
@@ -543,8 +562,14 @@ export const chapterPackSchema = z
         if (!practice.success || practice.data.some(({ type }) => type !== 'exercise'))
           return false;
         const steps = [...chapter.missions.flatMap(({ steps }) => steps), ...practice.data];
+        const auditedSteps = home
+          ? [
+              ...chapter.missions.filter(({ optional }) => optional).flatMap(({ steps }) => steps),
+              ...steps.filter((step) => step.instruction || step.requires || step.targets),
+            ]
+          : steps;
         if (
-          !steps.every(
+          !auditedSteps.every(
             ({ type, instruction, lessonId, exercise, requires, requiredReply, targets }) =>
               type === 'exercise'
                 ? !!(

@@ -7,6 +7,7 @@ export {
 export {
   equivalentAnswerText,
   judgeAnswer,
+  spellingModel,
   normalizeAnswerText,
   type AnswerKey,
 } from './answer-grading.ts';
@@ -97,6 +98,7 @@ export const learningErrorSchema = z.enum([
   'preposition',
   'article',
   'word_order',
+  'letter_order',
   'false_friend',
   'vocabulary_sense',
 ]);

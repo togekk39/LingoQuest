@@ -96,6 +96,7 @@ export const learningErrorFeedback: Record<LearningError, string> = {
     'Revisa la palabra que expresa la relación. En «junto a», por ejemplo, next to va completo.',
   article: 'El artículo va antes del sustantivo o de su descripción: the park, a blue bag.',
   word_order: 'Las palabras son adecuadas. Revisa su orden y compáralo con el ejemplo.',
+  letter_order: 'Compara las letras una por una, de izquierda a derecha, y conserva el orden.',
   false_friend: 'Esta palabra se parece a una del español, pero su significado en inglés cambia.',
   vocabulary_sense: 'Compara el significado de esta palabra con el ejemplo de la situación.',
 };
@@ -238,6 +239,7 @@ export function findLearningError(
     article: (expected) => differsByToken(expected, actual, articles),
     word_order: (expected) =>
       !sameWords(expected, actual) && sameWords([...expected].sort(), [...actual].sort()),
+    letter_order: (expected) => expected.join('') !== actual.join(''),
   };
   return target.errors?.find((error) =>
     expectedAnswers.some((expected) => detectors[error]?.(expected)),

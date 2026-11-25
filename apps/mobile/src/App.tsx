@@ -98,6 +98,10 @@ function storyPath(chapterId?: string, encounter = false) {
   }`;
 }
 
+function homeReviewChapter(missionId?: string) {
+  return chapter.missions.find(({ id }) => id === missionId)?.optional ? chapter.id : undefined;
+}
+
 function restoreStoryGuideStage(saved: unknown, firstVisit?: boolean): StoryGuideStage {
   if (firstVisit) return 'sam';
   switch (saved) {
@@ -591,7 +595,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         onVoiceSettings={openVoiceSettings}
         onReview={(missionId) => {
           closeMission();
-          openQuickReview(missionId);
+          openQuickReview(missionId, homeReviewChapter(missionId));
         }}
         onPassport={() => {
           closeMission();
@@ -693,7 +697,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         }}
         onLessonUpdate={updateStoryLesson}
         onResumeEncounter={resumeStoryLesson}
-        onReview={(missionId) => openQuickReview(missionId, adventure.content?.chapter.id)}
+        onReview={(missionId) =>
+          openQuickReview(missionId, adventure.content?.chapter.id ?? homeReviewChapter(missionId))
+        }
         onPassport={() => setPassport(true)}
         onVoiceSettings={openVoiceSettings}
       />,

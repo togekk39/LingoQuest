@@ -4,6 +4,7 @@ import {
   type ChapterPack,
 } from '@lingoquest/course-pack';
 import {
+  getUnifiedMastery,
   OFFLINE_STATE_KEY,
   type OfflineState,
   type TravelCheckpoint,
@@ -19,6 +20,9 @@ import {
   enterApp,
   exact,
   expect,
+  homeMission,
+  openHomeFoundationStudy,
+  readTravelInstruction,
   readyOfflineShell,
   state,
   test,
@@ -161,17 +165,30 @@ async function submitWithEnter(page: Page, exercise: string, answer: string) {
 test('Mexico runs offline through the market and library, preserving drafts and the Home adventure', async ({
   page,
   context,
+  request,
   networkGuard,
 }) => {
   test.setTimeout(210_000);
+  await page.clock.setFixedTime(Date.UTC(2026, 10, 20, 17));
   await enterApp(page);
   await click(page, 'Comenzar mi aventura');
   await click(page, 'Continuar sin nombre');
   await expect(page.getByTestId('story-scene-plaza')).toBeVisible();
   await click(page, 'Omitir guía');
-  const { story: home, travel: homeTravel } = await stories(page);
-  expect(home).toBeDefined();
   await click(page, 'Cerrar y volver');
+
+  await openHomeFoundationStudy(page, 'foundation-tens');
+  await readTravelInstruction(page, await homeMission(request, 'foundation-tens'));
+  await click(page, 'Escuchar el mensaje');
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
+  await answerTravelChoice(page, 'foundation-tens-listen', '30');
+  await click(page, 'Cerrar y volver');
+  const { story: home, travel: homeTravel, unifiedLearning } = await stories(page);
+  expect(home).toBeDefined();
+  expect(getUnifiedMastery(unifiedLearning, 'lex.number.30', 'listening')).toMatchObject({
+    independentSuccesses: 1,
+    retention: 'unverified',
+  });
 
   await openMexicoReader(page);
   await openMexicoStudyLesson(page, 'u02_l01');
@@ -268,6 +285,25 @@ test('Mexico runs offline through the market and library, preserving drafts and 
   await learn(page, 'mexico-time');
   await listen(page);
   await answerTravelChoice(page, 'mexico-time-audio', '8:15 y 9:30');
+  const betweenChapters = (await state(page)).unifiedLearning;
+  expect(getUnifiedMastery(betweenChapters, 'lex.number.30', 'listening')).toMatchObject({
+    state: 'demonstrated',
+    independentSuccesses: 2,
+    delayedSuccesses: 0,
+    retention: 'unverified',
+  });
+  const numberAnswers = betweenChapters.evidence.filter(
+    (event) =>
+      event.independent &&
+      event.targets.some(
+        ({ targetId, dimension }) => targetId === 'lex.number.30' && dimension === 'listening',
+      ),
+  );
+  expect(numberAnswers.map(({ exerciseId, source }) => ({ exerciseId, source }))).toEqual([
+    { exerciseId: 'foundation-tens-listen', source: 'study' },
+    { exerciseId: 'mexico-time-audio', source: 'story' },
+  ]);
+  expect(new Set(numberAnswers.map(({ contextId }) => contextId)).size).toBe(2);
   await answerTravelChoice(page, 'mexico-time-read', 'Sábado a las ocho.');
   await submitWithEnter(page, 'mexico-time-write', "On Saturday, we meet at eight o'clock.");
   await click(page, 'Ahora no puedo hablar');
@@ -506,7 +542,7 @@ test('an old Mexico draft survives the audit update and waits for the missing fo
         aids: ['translation'],
         independent: false,
         retry: false,
-        targets: [{ targetId: 'grammar.routine_time', dimension: 'grammar_recognition' }],
+        targets: [{ targetId: 'grammar.routine_time', dimension: 'grammar_understanding' }],
         teaches: [{ id: 'grammar.routine_time' }],
       });
       localStorage.setItem(key, JSON.stringify(saved));

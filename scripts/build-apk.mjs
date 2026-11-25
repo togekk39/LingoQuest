@@ -159,7 +159,7 @@ if (
   throw new Error('APK embeds chapter art or audio. These files belong in chapter packs.');
 const bundle = await run('unzip', ['-p', apk, 'assets/index.android.bundle'], repo, true);
 const chapterPacks = join(mobile, 'public/chapter-packs');
-const chapterCatalog = 'catalog-v4.json';
+const chapterCatalog = 'catalog-v5.json';
 const bundleContains = (value) =>
   bundle.includes(Buffer.from(value)) || bundle.includes(Buffer.from(value, 'utf16le'));
 if (!bundleContains(chapterCatalog))
@@ -169,7 +169,7 @@ if (packRef && /^[a-f0-9]{40}$/.test(packRef) && !bundleContains(packRef))
 const catalog = JSON.parse(await readFile(join(chapterPacks, chapterCatalog), 'utf8'));
 const home = JSON.parse(
   await readFile(join(chapterPacks, String(catalog.chapters.home.revision), 'home.json'), 'utf8'),
-).story.runtime;
+).story;
 const mexico = JSON.parse(
   await readFile(
     join(chapterPacks, String(catalog.chapters.mexico.revision), 'mexico.json'),
@@ -182,8 +182,11 @@ const textbook = JSON.parse(
 // Canonical IDs are available in the shell. Probe authored question bodies for embedded material.
 // Los identificadores canónicos están en la app base. Busca textos de preguntas para detectar material incluido.
 const payloadMarkers = [
-  home.lesson.exercises.find(({ id }) => id === 'travel_quick_hello')?.promptEs,
-  home.challenges.reading_quest.find(({ id }) => id === 'home_challenge_readbag')?.passage,
+  home.runtime.lesson.exercises.find(({ id }) => id === 'travel_quick_hello')?.promptEs,
+  home.runtime.challenges.reading_quest.find(({ id }) => id === 'home_challenge_readbag')?.passage,
+  home.chapter.missions
+    .find(({ id }) => id === 'foundation-letters-a')
+    ?.steps.find(({ id }) => id === 'foundation-letters-a-teach')?.text,
   textbook.payload.lessons.u08_l04.exercises.find(({ id }) => id === 'u08_l04_practice_5')?.passage,
   mexico.chapter.missions
     .find(({ id }) => id === 'mexico-transfer')

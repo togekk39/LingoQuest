@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAudioPlayer } from 'expo-audio';
+import { Platform } from 'react-native';
+import { pausePracticePlayback } from '../features/pausePracticePlayback';
 import { playPracticeClip } from '../features/playPracticeClip';
 
 export function useClipPlayer() {
@@ -11,7 +13,7 @@ export function useClipPlayer() {
       const playback = current.current;
       if (!playback || playback.signal.aborted) return;
       playback.abort();
-      player.pause();
+      pausePracticePlayback(player, Platform.OS);
     };
     return {
       stop,

@@ -5,6 +5,8 @@ import {
   AudioLines,
   BookOpen,
   Bookmark,
+  ChevronDown,
+  ChevronRight,
   Headphones,
   MapPin,
   RotateCcw,
@@ -47,9 +49,12 @@ export function TravelGuide({
   const { colors: C } = useTheme();
   const { width } = useWindowDimensions();
   const [index, select] = useState(0);
+  const [foundationOpen, setFoundationOpen] = useState(false);
   const [workshop, setWorkshop] = useState<'matching' | 'cloze'>();
   const { play, stop, speechMessage } = useChapterAudio();
-  const mission = chapter.missions[index];
+  const missions = chapter.missions.filter(({ optional }) => !optional);
+  const foundation = chapter.missions.filter(({ optional }) => optional);
+  const mission = missions[index];
   const unlocked = canStartTravelMission(travel, mission.id);
   const desktop = width >= 920;
   const configureVoice = () => {
@@ -83,8 +88,61 @@ export function TravelGuide({
           </Button>
         </View>
       </JournalSpread>
+      {!!foundation.length && (
+        <JournalLeaf compact kind="notebook" style={{ gap: 8 }}>
+          <Pressable
+            testID="home-foundation-toggle"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: foundationOpen }}
+            aria-expanded={foundationOpen}
+            onPress={() => setFoundationOpen(!foundationOpen)}
+            style={({ pressed }) => [styles.foundationRow, pressed && { opacity: 0.72 }]}
+          >
+            <BookOpen color={C.teal} size={20} />
+            <Heading style={{ flex: 1, fontSize: 22 }}>Inglés desde cero</Heading>
+            {foundationOpen ? <ChevronDown color={C.teal} /> : <ChevronRight color={C.teal} />}
+          </Pressable>
+          {foundationOpen &&
+            foundation.map((activity) => {
+              const inProgress =
+                (travel.active?.missionId === activity.id && !travel.active.finished) ||
+                !!travel.paused?.[activity.id];
+              const status = inProgress
+                ? ' · En pausa'
+                : travel.completed[activity.id]
+                  ? ' · Practicada'
+                  : '';
+              return (
+                <Pressable
+                  key={activity.id}
+                  testID={`home-study-${activity.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={activity.title}
+                  accessibilityHint={activity.objective}
+                  onPress={() => {
+                    stop();
+                    onMission(activity.id);
+                  }}
+                  style={({ pressed }) => [
+                    styles.foundationRow,
+                    { borderTopWidth: 1, borderTopColor: C.line, opacity: pressed ? 0.72 : 1 },
+                  ]}
+                >
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[styles.tabText, { color: C.ink }]}>
+                      {activity.title}
+                      {status}
+                    </Text>
+                    <Label>{activity.objective}</Label>
+                  </View>
+                  <ArrowRight color={C.teal} size={17} />
+                </Pressable>
+              );
+            })}
+        </JournalLeaf>
+      )}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9 }}>
-        {chapter.missions.map((item, i) => (
+        {missions.map((item, i) => (
           <Pressable
             key={item.id}
             accessibilityRole="tab"
@@ -169,9 +227,9 @@ export function TravelGrammar({
   const { colors: C } = useTheme();
   const [index, select] = useState(0);
   const { play, playSequence, stop, speechMessage } = useChapterAudio();
-  const grammarTopics = chapter.missions.flatMap((mission) =>
-    mission.steps.filter((step) => step.type === 'teach'),
-  );
+  const grammarTopics = chapter.missions
+    .filter(({ optional }) => !optional)
+    .flatMap(({ steps }) => steps.filter((step) => step.type === 'teach'));
   const topic = grammarTopics[index];
   return (
     <FlowFrame
@@ -230,14 +288,16 @@ export function TravelPronunciation({
   onVoiceSettings: () => void;
 }) {
   const { colors: C } = useTheme();
-  const drills = chapter.missions.flatMap((mission) =>
-    mission.vocabulary
-      .filter(
-        (word, index, words) =>
-          words.findIndex((item) => item.example.en === word.example.en) === index,
-      )
-      .map((word) => ({ mission, itemId: word.term, text: word.example.en })),
-  );
+  const drills = chapter.missions
+    .filter(({ optional }) => !optional)
+    .flatMap((mission) =>
+      mission.vocabulary
+        .filter(
+          (word, index, words) =>
+            words.findIndex((item) => item.example.en === word.example.en) === index,
+        )
+        .map((word) => ({ mission, itemId: word.term, text: word.example.en })),
+    );
   const [selected, select] = useState<(typeof drills)[number]>();
   const { play, stop, speechMessage } = useChapterAudio();
   const configureVoice = () => {
@@ -328,6 +388,13 @@ export function TravelPronunciation({
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   copy: { fontSize: 15, lineHeight: 23 },
+  foundationRow: {
+    minHeight: 48,
+    paddingVertical: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
   tab: {
     minHeight: 46,
     paddingHorizontal: 12,

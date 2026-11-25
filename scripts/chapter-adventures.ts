@@ -4,10 +4,16 @@ import {
   travelLesson,
   travelPracticeSteps,
 } from '../packages/offline-engine/src/travel-content';
-import { chapterStory } from '../packages/offline-engine/src/chapter-story';
+import { homeFoundationStory } from '../packages/offline-engine/src/chapter-story';
 import { travelChallengePools } from '../packages/offline-engine/src/travel-challenge-pools';
 import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
 import { placementQuestions } from '../packages/offline-engine/src/travel-placement';
+import {
+  homeFoundationLearningDefinitions,
+  homeFoundationMissions,
+  homeFoundationPractice,
+} from '../content/source/home-foundation';
+import homeReview from '../content/source/home-foundation-rpg-review.json';
 import { mexicoChallengePools } from '../content/source/mexico-challenges';
 import { mexicoChapter, mexicoPractice } from '../content/source/mexico-missions';
 import { mexicoAdventure } from '../content/source/mexico-story';
@@ -103,6 +109,7 @@ function adventurePhrases({
 }) {
   return [
     ...adventure.dialogues.flatMap(({ line }) => (line ? [line.en] : [])),
+    ...(adventure.repairPhrases?.map(({ phrase }) => phrase.en) ?? []),
     ...chapter.missions.flatMap(({ vocabulary, steps }) => [
       ...vocabulary.flatMap(({ term, example }) => [term, example.en]),
       ...steps.flatMap((step) => {
@@ -118,10 +125,29 @@ function adventurePhrases({
   ];
 }
 
+const homeAudit: RpgAdventureAudit = {
+  ...homeReview,
+  definitions: homeFoundationLearningDefinitions,
+};
+const homeChapter = {
+  ...chapter,
+  revision: 10,
+  missions: [...chapter.missions, ...homeFoundationMissions],
+};
+const homePractice = [...travelPracticeSteps, ...homeFoundationPractice];
 export const homeStory = {
-  chapter,
-  adventure: chapterStory,
-  practice: travelPracticeSteps,
+  chapter: homeChapter,
+  adventure: homeFoundationStory,
+  practice: homePractice,
+  audit: {
+    ...homeAudit,
+    definitions: portableDefinitions(
+      homeChapter,
+      homePractice,
+      courseUnits.find(({ id }) => id === 'u01')!.lessons.map(({ id }) => id),
+      homeAudit,
+    ),
+  },
   runtime: {
     lesson: travelLesson,
     placement: travelPlacementItems,
@@ -159,6 +185,20 @@ export const mexicoStory = {
     ),
   },
 };
+
+export function reviewedAdventure(story: typeof homeStory | typeof mexicoStory) {
+  if (!('runtime' in story)) return story;
+  const legacyPracticeIds = new Set(travelPracticeSteps.map(({ id }) => id));
+  return {
+    ...story,
+    chapter: {
+      ...story.chapter,
+      missions: story.chapter.missions.filter(({ foundationObjectiveId }) => foundationObjectiveId),
+    },
+    practice: story.practice.filter(({ id }) => !legacyPracticeIds.has(id)),
+  };
+}
+
 export const chapterAdventures = new Map<
   string,
   { story: typeof homeStory | typeof mexicoStory; phrases: string[]; properNames?: string[] }
@@ -167,6 +207,7 @@ export const chapterAdventures = new Map<
     homeStory.chapter.id,
     {
       story: homeStory,
+      properNames: ['Ana', 'ULZ', 'ZUL'],
       phrases: [
         ...adventurePhrases(homeStory),
         ...placementQuestions(publicExercise).flatMap(({ audio }) => (audio ? [audio] : [])),
