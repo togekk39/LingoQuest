@@ -33,9 +33,12 @@ async function openMexicoReader(page: Page) {
   return reader;
 }
 
-async function openMexicoStory(page: Page) {
-  const reader = await openMexicoReader(page);
-  await reader.getByRole('button', exact('Explorar aventura de este capítulo')).click();
+async function resumeMexicoStory(page: Page) {
+  await click(page, 'Continuar capítulo 2');
+  await page
+    .getByTestId('chapter-lesson-mexico')
+    .getByRole('button', exact('Explorar aventura de este capítulo'))
+    .click();
 }
 
 async function openMexicoStudyLesson(page: Page, lessonId: string) {
@@ -207,7 +210,7 @@ test('Mexico runs offline through the market and library, preserving drafts and 
   await expect(host).toBeVisible();
 
   await page.reload();
-  await openMexicoStory(page);
+  await resumeMexicoStory(page);
   await expect(host).toBeVisible();
   await expect(artwork).toHaveAttribute('src', /^(?:blob:|data:image\/)/);
 
@@ -227,7 +230,7 @@ test('Mexico runs offline through the market and library, preserving drafts and 
     .poll(async () => (await stories(page)).chapterProgress?.mexico?.travel.active?.answer.text)
     .toBe('I study English');
   await page.reload();
-  await openMexicoStory(page);
+  await resumeMexicoStory(page);
   await expect(input).toHaveValue('I study English');
   await expect(
     page.getByTestId('travel-workbook').getByText(/Actividad: estudiar inglés/),
@@ -513,7 +516,7 @@ test('an old Mexico draft survives the audit update and waits for the missing fo
   await setStoredMexicoPack(page, oldPackText);
   expect(await storedMexicoRevision(page)).toBe(oldPack.revision);
   await page.reload();
-  await openMexicoStory(page);
+  await resumeMexicoStory(page);
   await expect(page.getByText(/actualizar este capítulo/)).toBeVisible();
   await expect(answerInput(page, stepId)).toHaveCount(0);
   expect((await stories(page)).chapterProgress?.mexico?.travel.active?.answer.text).toBe(draft);
@@ -523,7 +526,7 @@ test('an old Mexico draft survives the audit update and waits for the missing fo
   await expect.poll(() => storedMexicoRevision(page)).toBe(latest.chapters.mexico.revision);
   await readyOfflineShell(page, context);
   await page.reload();
-  await openMexicoStory(page);
+  await resumeMexicoStory(page);
   await expect(page.getByRole('heading', exact('Primero aprende lo necesario'))).toBeVisible();
   const input = answerInput(page, stepId);
   await expect(input).toHaveCount(0);

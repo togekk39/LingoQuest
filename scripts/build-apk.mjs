@@ -15,6 +15,16 @@ const env = {
   __UNSAFE_EXPO_HOME_DIRECTORY:
     process.env.LINGOQUEST_EXPO_CACHE || join(tmpdir(), 'lingoquest-expo'),
 };
+const packRef = env.EXPO_PUBLIC_CHAPTER_PACK_REF;
+if (packRef && /^[a-f0-9]{40}$/.test(packRef)) {
+  // Scope Metro's cache to the catalog source compiled into this APK.
+  // Separa la caché de Metro por el origen del catálogo compilado en este APK.
+  const cacheKey = createHash('sha256')
+    .update(JSON.stringify([env.EXPO_PUBLIC_CHAPTER_PACK_REPOSITORY ?? '', packRef]))
+    .digest('hex');
+  env.TMPDIR = join(tmpdir(), `lingoquest-metro-${cacheKey}`);
+  await mkdir(env.TMPDIR, { recursive: true });
+}
 const architectures = process.env.ANDROID_ARCHITECTURES || 'arm64-v8a,armeabi-v7a';
 if (!/^(arm64-v8a|armeabi-v7a|x86_64)(,(arm64-v8a|armeabi-v7a|x86_64))*$/.test(architectures))
   throw new Error('Unsupported ANDROID_ARCHITECTURES.');
@@ -150,11 +160,12 @@ if (
 const bundle = await run('unzip', ['-p', apk, 'assets/index.android.bundle'], repo, true);
 const chapterPacks = join(mobile, 'public/chapter-packs');
 const chapterCatalog = 'catalog-v4.json';
-if (
-  !bundle.includes(Buffer.from(chapterCatalog)) &&
-  !bundle.includes(Buffer.from(chapterCatalog, 'utf16le'))
-)
+const bundleContains = (value) =>
+  bundle.includes(Buffer.from(value)) || bundle.includes(Buffer.from(value, 'utf16le'));
+if (!bundleContains(chapterCatalog))
   throw new Error('APK bundle is missing the current chapter catalog reference.');
+if (packRef && /^[a-f0-9]{40}$/.test(packRef) && !bundleContains(packRef))
+  throw new Error('APK bundle is missing the pinned chapter catalog commit.');
 const catalog = JSON.parse(await readFile(join(chapterPacks, chapterCatalog), 'utf8'));
 const home = JSON.parse(
   await readFile(join(chapterPacks, String(catalog.chapters.home.revision), 'home.json'), 'utf8'),
