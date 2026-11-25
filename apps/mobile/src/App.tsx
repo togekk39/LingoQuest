@@ -723,6 +723,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   }
   const shellBackground = chapterTransfer ? `${C.white}EB` : C.white;
   const shellSurface = { backgroundColor: shellBackground };
+  const navigationUnavailable = loading || !!chapterTransfer;
   const nav = (
     <View style={desktop ? s.desktopNav : [s.mobileNav, shellSurface]}>
       {!desktop && <PaperEdge edge="top" tint={shellBackground} />}
@@ -730,9 +731,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         <Pressable
           key={id}
           accessibilityRole="tab"
-          accessibilityState={{ selected: tab === id, disabled: !!chapterTransfer }}
+          accessibilityState={{ selected: tab === id, disabled: navigationUnavailable }}
           accessibilityLabel={id}
-          disabled={!!chapterTransfer}
+          disabled={navigationUnavailable}
           onPress={() => go(id)}
           style={({ pressed }) => [
             desktop ? s.desktopTab : s.mobileTab,
