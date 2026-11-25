@@ -9,6 +9,7 @@ import type {
   OfflineState,
   QuickReviewState,
   StoryResponse,
+  TravelPlacementResponse,
   TravelState,
 } from '../src/index';
 
@@ -101,6 +102,22 @@ test('Android starts with a local shell and opens the installed adventure and co
       },
     );
     assert.equal(placement.placement.correct, 1);
+    const placementAnswers: TravelPlacementResponse[] = story.runtime.placement.map(
+      ({ exercise }: { exercise: { id: string } }) => ({
+        answer: exercise.id === 'route_bus_listen' ? { optionId: 'stop' } : null,
+        transcript: false,
+      }),
+    );
+    const unheard = await engine.request<typeof placement>('/v1/travel/placement', {
+      assessmentId: 'unheard-route-check',
+      answers: placementAnswers,
+    });
+    assert.equal(unheard.placement.correct, 0);
+    const heard = await engine.request<typeof placement>('/v1/travel/placement', {
+      assessmentId: 'heard-route-check',
+      answers: placementAnswers.map((answer) => ({ ...answer, audioPlayed: !!answer.answer })),
+    });
+    assert.equal(heard.placement.correct, 1);
 
     const priorHome = JSON.parse(await readFile(new URL('4/home.json', directory), 'utf8')).story;
     assert.equal(

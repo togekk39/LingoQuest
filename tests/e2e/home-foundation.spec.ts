@@ -184,6 +184,49 @@ test('Sam offers one beginner activity and Study resumes that same checkpoint', 
   expect((await state(page)).travel.completed['foundation-greetings']).toBeUndefined();
 });
 
+test('the optional route diagnostic uses heard audio to skip familiar preparation', async ({
+  page,
+  request,
+}) => {
+  await observeAudio(page, request, { diagnosticBus: 'Where is the bus stop?' });
+  await page.goto('/');
+  await expect(page.getByRole('heading', exact('Empieza tu viaje en inglés'))).toBeVisible({
+    timeout: initialChapterTimeout,
+  });
+  await click(page, 'Ya sé algo de inglés');
+  await click(page, 'Honduras');
+  await click(page, 'Empezar la prueba');
+  await page.getByRole('radio', exact('Se está presentando.')).click();
+  await click(page, 'Siguiente pregunta');
+  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('My name is Ana.');
+  await click(page, 'Siguiente pregunta');
+
+  await page.getByRole('radio', exact('La parada de autobús.')).click();
+  const next = page.getByRole('button', exact('Siguiente pregunta'));
+  await expect(next).toBeDisabled();
+  await click(page, 'Escuchar a Sam');
+  await expect(page.locator('body')).toHaveAttribute('data-completed-audio', 'diagnosticBus');
+  await expect(next).toBeEnabled();
+  await next.click();
+  for (const word of ['It’s', 'next', 'to', 'the', 'park'])
+    await click(page, `Agregar palabra: ${word}`);
+  await next.click();
+  await click(page, 'No lo sé todavía');
+  await click(page, 'No lo sé todavía');
+
+  await expect(page.getByText('4 de 6 respuestas acertadas sin ayuda.')).toBeVisible();
+  const { travel, unifiedLearning } = await state(page);
+  expect(travel.placement?.missionId).toBe('bag');
+  expect(travel.completed).toEqual({});
+  expect(travel.stamps).toEqual({});
+  expect(unifiedLearning.evidence).toHaveLength(4);
+  expect(
+    unifiedLearning.evidence.every(
+      ({ source, teaches }) => source === 'placement' && !teaches?.length,
+    ),
+  ).toBe(true);
+});
+
 test('the first Home conversation teaches sound and print before offline letter assessment', async ({
   page,
   context,

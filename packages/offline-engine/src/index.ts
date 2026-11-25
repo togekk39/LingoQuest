@@ -1047,9 +1047,10 @@ function storyContext(
     return (
       !diagnosticItem ||
       !unified.evidence.some(
-        ({ source, exerciseId, outcome, aids }) =>
+        ({ source, exerciseId, materialVersion, outcome, aids }) =>
           source === 'placement' &&
           exerciseId === diagnosticItem &&
+          materialVersion === `home:${travelChapter.revision}` &&
           outcome === 'target' &&
           !aids.includes('transcript'),
       )
@@ -1822,7 +1823,10 @@ export class OfflineEngine {
     if (route === '/v1/travel/placement') {
       if (method === 'GET') return done({ questions: placementQuestions(publicExercise) });
       const travel = (state.travel ??= emptyTravel());
-      const { placement, responses, assessmentId } = assessTravelPlacement(body);
+      const { placement, responses, assessmentId } = assessTravelPlacement(
+        body,
+        chapter.reviewedHomeCore,
+      );
       for (const { exercise, transcript, outcome } of responses)
         recordAssessmentAnswer(
           state,
