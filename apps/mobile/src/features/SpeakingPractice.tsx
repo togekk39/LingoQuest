@@ -294,7 +294,7 @@ export function SpeakingPanel({
               void local.start(() => {
                 stopAudio();
                 onStopReference?.();
-                player.stop();
+                player.stop(true);
               });
             }
           }}
@@ -320,7 +320,7 @@ export function SpeakingPanel({
                 void stt.start(() => {
                   stopAudio();
                   onStopReference?.();
-                  player.stop();
+                  player.stop(true);
                 });
               }
             }}

@@ -9,10 +9,10 @@ export function useClipPlayer() {
   const current = useRef<AbortController | null>(null);
   useEffect(() => () => current.current?.abort(), []);
   return useMemo(() => {
-    const stop = () => {
+    const stop = (reset = false) => {
       const playback = current.current;
-      if (!playback || playback.signal.aborted) return;
-      playback.abort();
+      if (playback && !playback.signal.aborted) playback.abort();
+      else if (!reset) return;
       pausePracticePlayback(player, Platform.OS);
     };
     return {
