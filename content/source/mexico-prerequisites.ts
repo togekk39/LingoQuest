@@ -1,6 +1,7 @@
 import type { Translation } from '@lingoquest/contracts';
 import type { PrerequisiteReference } from '../../packages/course-pack/src/prerequisites';
 import { textbookPatterns } from './prerequisites/textbook-patterns';
+import { numberLearningId, travelNumberWords } from './travel-number-words';
 
 type Definition = {
   id: string;
@@ -185,35 +186,10 @@ export const mexicoRefs = {
   ),
 };
 
-const numberWords: readonly (readonly [number, string, string])[] = [
-  [0, 'zero', 'cero'],
-  [1, 'one', 'uno'],
-  [2, 'two', 'dos'],
-  [3, 'three', 'tres'],
-  [4, 'four', 'cuatro'],
-  [5, 'five', 'cinco'],
-  [6, 'six', 'seis'],
-  [7, 'seven', 'siete'],
-  [8, 'eight', 'ocho'],
-  [9, 'nine', 'nueve'],
-  [10, 'ten', 'diez'],
-  [11, 'eleven', 'once'],
-  [12, 'twelve', 'doce'],
-  [13, 'thirteen', 'trece'],
-  [14, 'fourteen', 'catorce'],
-  [15, 'fifteen', 'quince'],
-  [16, 'sixteen', 'dieciséis'],
-  [17, 'seventeen', 'diecisiete'],
-  [18, 'eighteen', 'dieciocho'],
-  [19, 'nineteen', 'diecinueve'],
-  [20, 'twenty', 'veinte'],
-  [30, 'thirty', 'treinta'],
-  [40, 'forty', 'cuarenta'],
-  [50, 'fifty', 'cincuenta'],
-];
-
-const numberRefs = new Map(
-  numberWords.map(([number, en, es]) => [number, lexical(`lex.number.${number}`, en, es)]),
+const numberRefs = new Map<number, PrerequisiteReference>(
+  travelNumberWords
+    .filter(([number]) => number <= 50)
+    .map(([number, en, es]) => [number, lexical(numberLearningId(number), en, es)]),
 );
 
 export function numberForms(...values: number[]): PrerequisiteReference[] {

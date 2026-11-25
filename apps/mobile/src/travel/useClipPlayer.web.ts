@@ -5,8 +5,12 @@ const mp3DataPrefix = 'data:audio/mpeg;base64,';
 
 export function useClipPlayer() {
   const current = useRef<(() => void) | null>(null);
+  const prepared = useRef<HTMLAudioElement | null>(null);
   const player = useMemo(() => {
-    const stop = () => current.current?.();
+    const stop = (reset = false) => {
+      if (current.current) current.current();
+      else if (reset) (prepared.current ??= new Audio()).pause();
+    };
     return {
       stop,
       async play(clip: number | string, rate: number, signal: AbortSignal) {
@@ -19,7 +23,9 @@ export function useClipPlayer() {
           const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
           blobUri = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
         }
-        const audio = new Audio(blobUri ?? uri);
+        const audio = prepared.current ?? new Audio();
+        prepared.current = null;
+        audio.src = blobUri ?? uri;
         audio.playbackRate = rate;
         audio.preservesPitch = true;
         return new Promise<boolean>((resolve, reject) => {

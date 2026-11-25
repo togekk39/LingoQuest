@@ -229,15 +229,16 @@ export function TravelFlow({
   const personalResponse =
     (step.type === 'exercise' || step.type === 'speak') &&
     step.response === 'personal-introduction';
+  const personalSpelling = step.type === 'exercise' && step.response === 'personal-spelling';
   const nameTile = step.id === 'travel_hello_build';
   const tokenLabel =
     nameTile && playerName
       ? (token: string) => (token === '[tu nombre]' ? playerName : token)
       : undefined;
-  const responseContext = (personalResponse || nameTile) && (
+  const responseContext = (personalResponse || personalSpelling || nameTile) && (
     <View style={{ gap: 3 }}>
       <Text style={f.eyebrow}>Tu respuesta</Text>
-      {!!playerName && <Label style={f.quiet}>Tu nombre: {playerName}</Label>}
+      {!!playerName && !personalSpelling && <Label style={f.quiet}>Tu nombre: {playerName}</Label>}
       <Button
         variant="ghost"
         disabled={busy}
@@ -252,7 +253,10 @@ export function TravelFlow({
     </View>
   );
   const Section = inline ? StoryActivity : Notebook;
-  const { play, playSequence, stop, speechMessage } = useChapterAudio(chapter.id);
+  const { play, playSequence, stop, speechMessage } = useChapterAudio(
+    chapter.id,
+    mission.authoredAudio,
+  );
   const wordIndex = current.word ?? 0;
   const vocabulary = step.type === 'teach' ? travelStepVocabulary(mission, step) : [];
   const word = current.finished ? undefined : vocabulary[wordIndex];
@@ -263,6 +267,7 @@ export function TravelFlow({
   };
   const translationShown = () =>
     lastTranslation.current === translationKey ||
+    (!!mission.optional && step.type === 'teach') ||
     (embedded?.translationsVisible ?? (step.type === 'dialogue' || !!word));
   function toggleTeachingTranslation() {
     if (!embedded) return;
@@ -276,6 +281,11 @@ export function TravelFlow({
         : step.phrase
       : '';
   const speakingTemplate = personalResponse && !playerName;
+  const openSpeech =
+    step.type === 'speak' &&
+    !step.response &&
+    !step.acceptedPhrases?.length &&
+    !step.learning.guided;
   const storyReply =
     embedded &&
     step.type === 'exercise' &&
@@ -414,7 +424,11 @@ export function TravelFlow({
   const review = onReview ? () => void close(() => onReview(mission.id)) : undefined;
   const lastStep = current.step === mission.steps.length - 1;
   const canSubmit =
-    !prerequisiteBlocked && step.type === 'exercise' && hasAnswer(answer, step.exercise);
+    !prerequisiteBlocked &&
+    step.type === 'exercise' &&
+    (!personalSpelling || !!playerName) &&
+    (!mission.authoredAudio || !step.audio || current.audioPlayed || current.transcript) &&
+    hasAnswer(answer, step.exercise);
   function submitAnswer() {
     if (!canSubmit || current.finished || current.result || actionInFlight.current) return;
     Keyboard.dismiss();
@@ -683,8 +697,9 @@ export function TravelFlow({
             stop={stop}
             embedded={embedded}
             onTranslationShown={markTranslationShown}
-            showExplanation={chapter.id !== 'home' ? true : undefined}
-            showAll={chapter.id !== 'home'}
+            showExplanation={chapter.id !== 'home' || mission.optional ? true : undefined}
+            showAll={chapter.id !== 'home' || mission.optional}
+            showBilingual={mission.optional}
           />
         ) : step.type === 'exercise' ? (
           <>
@@ -757,6 +772,15 @@ export function TravelFlow({
                   onSubmit={submitAnswer}
                   disabled={busy || !!current.result}
                 />
+                {current.canSkipKnown && !current.result && (
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onPress={() => void act({ action: 'skipKnown', token: current.token })}
+                  >
+                    Omitir esta práctica que ya demostré
+                  </Button>
+                )}
                 {step.hint &&
                   !current.result &&
                   (current.hint ? (
@@ -785,8 +809,11 @@ export function TravelFlow({
               inline={inline}
               text={speakingText}
               chapterId={chapter.id}
-              selfCheck={chapter.id === 'mexico'}
-              allowSystemRecognition={chapter.id === 'mexico'}
+              selfCheck={step.speech?.selfCheck ?? openSpeech}
+              allowSystemRecognition={
+                step.speech ? !!step.speech.allowSystemRecognition : openSpeech || undefined
+              }
+              authoredAudio={mission.authoredAudio}
               evidenceScope={{
                 source: inline ? 'story' : 'study',
                 materialId: mission.id,

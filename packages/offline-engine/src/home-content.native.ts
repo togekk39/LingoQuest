@@ -35,6 +35,8 @@ export let chapterStory = emptyHome.adventure;
 export let travelPracticeSteps = emptyHome.practice;
 export let travelPlacementItems = emptyHome.placement;
 export let travelChallengePools = emptyHome.challenges;
+export let homeAdventureAudit = emptyHome.audit;
+export let homeSupportingLessons = emptyHome.supportingLessons;
 
 export function installHomeContent(content: HomeContent = emptyHome) {
   chapter = content.chapter;
@@ -52,4 +54,6 @@ export function installHomeContent(content: HomeContent = emptyHome) {
   travelPracticeSteps = content.practice;
   travelPlacementItems = content.placement;
   travelChallengePools = content.challenges;
+  homeAdventureAudit = content.audit;
+  homeSupportingLessons = content.supportingLessons;
 }

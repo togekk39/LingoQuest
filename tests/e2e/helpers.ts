@@ -1,6 +1,15 @@
 import { mkdirSync } from 'node:fs';
-import type { ChapterCatalog, ChapterPack } from '@lingoquest/course-pack';
-import type { OfflineState, TravelLearningState, TravelState } from '@lingoquest/offline-engine';
+import {
+  CHAPTER_CATALOG_FILE,
+  type ChapterCatalog,
+  type ChapterPack,
+} from '@lingoquest/course-pack';
+import type {
+  OfflineState,
+  TravelLearningState,
+  TravelMission,
+  TravelState,
+} from '@lingoquest/offline-engine';
 import {
   expect,
   test as base,
@@ -8,6 +17,7 @@ import {
   type BrowserContext,
   type Page,
 } from '@playwright/test';
+import { travelStepVocabulary } from '../../packages/offline-engine/src/travel-vocabulary';
 
 export interface LocalState {
   user: { name: string; goalMinutes: number; reducedMotion: boolean };
@@ -70,10 +80,14 @@ export const test = base.extend<{ networkGuard: NetworkGuard }>({
 });
 export { expect };
 
+export const initialChapterTimeout = 40_000;
+
 export async function enterApp(page: Page, { chooseOrigin = true } = {}) {
   await page.addInitScript(() => localStorage.setItem('lq_setting:onboarded', 'true'));
   await page.goto('/');
-  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
+  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible({
+    timeout: initialChapterTimeout,
+  });
   if (chooseOrigin) {
     await click(page, 'Elegir lugar de origen');
     await click(page, 'Honduras');
@@ -152,6 +166,48 @@ export async function openPlacement(page: Page) {
   await click(page, 'Empezar la prueba');
 }
 
+export async function homeMission(request: APIRequestContext, missionId: string) {
+  const catalog: ChapterCatalog = await (
+    await request.get(`/chapter-packs/${CHAPTER_CATALOG_FILE}`)
+  ).json();
+  const home: ChapterPack = await (
+    await request.get(`/chapter-packs/${catalog.chapters.home.revision}/home.json`)
+  ).json();
+  const mission = home.story?.chapter.missions.find(({ id }) => id === missionId);
+  if (!mission) throw new Error(`Missing Home lesson ${missionId}`);
+  return mission as unknown as TravelMission;
+}
+
+export async function openHomeFoundationStudy(page: Page, missionId: string) {
+  await page.getByRole('tab', exact('Aprender')).click();
+  const group = page.getByTestId('home-foundation-toggle');
+  const mission = page.getByTestId(`home-study-${missionId}`);
+  await expect(group).toBeVisible();
+  if (!(await mission.isVisible())) await group.click();
+  await mission.click();
+}
+
+export async function readTravelInstruction(page: Page, mission: TravelMission, from = 0) {
+  for (const step of mission.steps.slice(from)) {
+    if (step.type !== 'dialogue' && step.type !== 'teach') return;
+    await expect(page.locator(`[id="travel-step-id-${step.id}"]`)).toBeVisible();
+    if (step.type === 'dialogue') {
+      await click(page, 'Continuar');
+      continue;
+    }
+    const vocabulary = travelStepVocabulary(mission, step);
+    for (const [index, word] of vocabulary.entries()) {
+      await expect(page.getByRole('button', exact(`Escuchar: ${word.term}`))).toBeVisible();
+      await click(
+        page,
+        index === vocabulary.length - 1 ? 'Ver la explicación' : 'Siguiente palabra',
+      );
+    }
+    await expect(page.getByTestId('grammar-workbench')).toContainText(step.text);
+    await click(page, 'Probar en la historia');
+  }
+}
+
 export async function readyOfflineShell(page: Page, context: BrowserContext) {
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -172,7 +228,7 @@ export async function labelFirstChapterAudio(
   phrases: Record<string, string>,
 ) {
   const catalog: ChapterCatalog = await (
-    await request.get('/chapter-packs/catalog-v4.json')
+    await request.get('/chapter-packs/catalog-v6.json')
   ).json();
   const path = `/chapter-packs/${catalog.chapters.home.revision}/home.json`;
   const { audio }: ChapterPack = await (await request.get(path)).json();

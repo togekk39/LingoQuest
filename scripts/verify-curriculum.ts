@@ -28,11 +28,13 @@ import {
 import {
   formalDefinitions,
   reviewedHomeInstruction,
+  reviewedHomeRequirements,
   reviewPrerequisites,
   teachingReferenceKey,
   textbookFormalReferences,
 } from '../packages/offline-engine/src/learning-prerequisites';
 import { exerciseEvidenceTargets } from '../packages/offline-engine/src/learning-registry';
+import type { StoryDefinition } from '../packages/offline-engine/src/story';
 import {
   checkPrerequisites,
   prerequisiteFileSchema,
@@ -42,7 +44,7 @@ import { verifyReleaseAudit } from './audit-release-items';
 import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
 import { inspectPublishedPrerequisites } from './published-prerequisites';
 import { inspectOptionalPrerequisites } from './published-optional-prerequisites';
-import { chapterAdventures } from './chapter-adventures';
+import { chapterAdventures, reviewedAdventure } from './chapter-adventures';
 import { inspectAdventurePrerequisites } from './published-adventure-prerequisites';
 import { inspectAdventureChallenges } from './published-adventure-challenges';
 
@@ -251,17 +253,18 @@ function verifyAdventure(
   studyLessons: readonly CourseLesson[],
   priorTeaching: ReadonlySet<string>,
 ) {
-  const { story } = authored;
+  const story = reviewedAdventure(authored.story);
   const label = `chapter=${pack.chapterId}`;
-  assert.deepEqual(pack.story, JSON.parse(JSON.stringify(story)), label);
+  assert.deepEqual(pack.story, JSON.parse(JSON.stringify(authored.story)), label);
   for (const phrase of authored.phrases)
     assert.ok(Object.hasOwn(pack.audio, phrase), `${label} Missing audio / Falta audio: ${phrase}`);
-  if (!('audit' in story)) return;
-
+  const isHome = 'runtime' in story;
   const lessons = Object.fromEntries(
-    [...studyLessons, ...(pack.unit?.lessons ?? []), ...(story.supportingLessons ?? [])].map(
-      (lesson) => [lesson.id, lesson],
-    ),
+    [
+      ...studyLessons,
+      ...(pack.unit?.lessons ?? []),
+      ...(isHome ? [story.runtime.lesson] : story.supportingLessons),
+    ].map((lesson) => [lesson.id, lesson]),
   );
   const content = { lessons };
   const definitions = formalDefinitions(content, [], story.audit.definitions);
@@ -276,13 +279,16 @@ function verifyAdventure(
     definitions,
     priorTeaching,
     properNames,
+    independentEntries: isHome,
   });
   assert.deepEqual(audit.issues, [], audit.issues.join('\n'));
-  const challengePools = story.challenges ?? {
-    grammar_rush: [],
-    cloze_battle: [],
-    reading_quest: [],
-  };
+  const challengePools = !isHome
+    ? story.challenges
+    : {
+        grammar_rush: [],
+        cloze_battle: [],
+        reading_quest: [],
+      };
 
   const taught = new Set(audit.taught);
   for (const lesson of studyLessons)
@@ -345,6 +351,21 @@ function verifyAdventure(
       }
       continue;
     }
+    if (exercise.spelling) {
+      const name = 'María-José de la Cruz';
+      assert.equal(
+        judgeAnswer(exercise, { text: 'M-A-R-I-A J-O-S-E D-E L-A C-R-U-Z' }, name),
+        'target',
+        exercise.id,
+      );
+      assert.equal(
+        judgeAnswer(exercise, { text: 'M-A-R-I-A J-O-S-E D-E L-A C-R-U-S' }, name),
+        'incorrect',
+        exercise.id,
+      );
+      probes += 2;
+      continue;
+    }
     assert.ok(exercise.acceptedAnswers.length, exercise.id);
     for (const text of exercise.acceptedAnswers) {
       assert.equal(judgeAnswer(exercise, { text }), 'target', exercise.id);
@@ -359,7 +380,7 @@ function verifyAdventure(
   return audit.taught;
 }
 
-async function verifyPublishedContent(inventory: boolean) {
+async function verifyPublishedContent(inventory: boolean, homeObjectives: readonly string[]) {
   const bundled = parseCoursePack(await read('apps/mobile/src/content/bundled-course.json'));
   const { units, lessons, ...activities } = bundled.payload;
   assert.deepEqual(
@@ -461,9 +482,74 @@ async function verifyPublishedContent(inventory: boolean) {
     }
     const adventure = chapterAdventures.get(id);
     if (adventure) {
-      const taught = verifyAdventure(pack, adventure, studyLessons, priorTeaching);
-      if (taught) priorTeaching = taught;
-      else if (adventure.story.chapter.id === chapter.id) {
+      priorTeaching = verifyAdventure(pack, adventure, studyLessons, priorTeaching);
+      if (id === chapter.id) {
+        const foundation = reviewedAdventure(adventure.story);
+        assert.deepEqual(
+          [
+            ...new Set(
+              foundation.chapter.missions.map(({ foundationObjectiveId }) => foundationObjectiveId),
+            ),
+          ].sort(),
+          [...homeObjectives].sort(),
+          'Home foundation objective coverage / Cobertura de objetivos de bases',
+        );
+        const home = adventure.story;
+        assert.ok(
+          home.chapter.reviewedHomeCore,
+          'Home core prerequisites / Requisitos centrales de Casa',
+        );
+        for (const mission of home.chapter.missions.filter(({ optional }) => !optional))
+          for (const step of mission.steps)
+            if (step.type === 'exercise') assert.ok(reviewedHomeRequirements(step), step.id);
+        for (const letter of 'abcdefghijklmnopqrstuvwxyz') {
+          const targetId = 'lex.letter.' + letter;
+          const items = foundation.practice.filter(({ targets }) =>
+            targets?.some((target) => target.targetId === targetId),
+          );
+          assert.ok(
+            items.some(
+              ({ audio, targets, exercise }) =>
+                audio &&
+                !exercise.learning?.guided &&
+                targets?.some((target) => target.dimension === 'listening'),
+            ),
+            targetId + ' listening',
+          );
+          assert.ok(
+            items.some(({ targets }) => targets?.some((target) => target.dimension === 'reading')),
+            targetId + ' case recognition',
+          );
+          assert.ok(
+            items.some(
+              ({ audio, targets }) =>
+                audio && targets?.some((target) => target.dimension === 'writing'),
+            ),
+            targetId + ' dictation',
+          );
+        }
+        const definition: StoryDefinition = foundation.adventure;
+        const encounterEntrances = new Set(
+          [
+            ...definition.dialogues.flatMap(({ choices }) => choices),
+            ...definition.scenes.flatMap(({ hotspots }) => hotspots),
+          ].flatMap(({ effects }) =>
+            effects.flatMap((effect) => (effect.type === 'encounter' ? [effect.id] : [])),
+          ),
+        );
+        for (const { id, optional } of foundation.chapter.missions) {
+          assert.equal(
+            optional,
+            true,
+            'Required foundation module / Módulo de bases obligatorio: ' + id,
+          );
+          assert.ok(
+            foundation.adventure.encounters.some(
+              (encounter) => encounter.missionId === id && encounterEntrances.has(encounter.id),
+            ),
+            'Missing Story entry / Falta acceso por la historia: ' + id,
+          );
+        }
         const reviewed = chapter.missions.flatMap((mission) =>
           mission.steps.flatMap((step) => [
             ...reviewedHomeInstruction(step),
@@ -589,7 +675,10 @@ async function main() {
     console.log('Planned focal entries / Entradas clave previstas:', focalEntries);
   }
   await verifyPrerequisiteAnnotations(plan);
-  await verifyPublishedContent(inventory);
+  await verifyPublishedContent(
+    inventory,
+    plan.units.filter(({ stop }) => stop === 'home').flatMap(({ lessonIds }) => lessonIds),
+  );
   console.log(
     'Curriculum verified / Currículo verificado: ' +
       plan.units.length +

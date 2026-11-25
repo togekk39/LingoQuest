@@ -5,6 +5,7 @@ export interface AnswerKey {
   acceptedAnswers: string[];
   correctOptionId?: string;
   introduction?: { greetingRequired: boolean; model: string };
+  spelling?: { model: string };
   communicationOnly?: { answers: string[]; feedbackEs: string };
   ungradable?: { feedbackEs: string };
 }
@@ -201,12 +202,37 @@ export function equivalentAnswerText(answer: string, model: string): boolean {
   return !!actual && (actual === expected || expanded(actual) === expanded(expected));
 }
 
+export function spellingModel(name: string) {
+  return (
+    name
+      .normalize('NFC')
+      .match(/\p{L}\p{M}*/gu)
+      ?.join(' – ') ?? ''
+  );
+}
+
+function comparableSpelling(value: string) {
+  return value
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^\p{L}]/gu, '');
+}
+
 export function judgeAnswer(
   exercise: GradedExercise,
   answer: Answer,
   playerName?: string,
 ): AnswerOutcome {
   if (exercise.ungradable) return 'ungradable';
+  if (exercise.spelling) {
+    if (!playerName) return 'ungradable';
+    const response = answer.text?.trim();
+    return response &&
+      /^[\p{L}\p{M}\s.,'’‘ʼ·・\/\-‐‑–]+$/u.test(response) &&
+      comparableSpelling(response) === comparableSpelling(playerName)
+      ? 'target'
+      : 'incorrect';
+  }
   if (exercise.introduction) {
     if (answer.text === undefined) return 'incorrect';
     const response = readIntroduction(answer.text, false, playerName);

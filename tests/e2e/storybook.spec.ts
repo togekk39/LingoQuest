@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
-import type { StoryState } from '@lingoquest/offline-engine';
+import { CHAPTER_CATALOG_FILE, type ChapterCatalog } from '@lingoquest/course-pack';
+import type { OfflineState } from '@lingoquest/offline-engine';
 import {
   answerTravelChoice,
   answerTravelReorder,
@@ -11,12 +12,21 @@ import {
   expect,
   finishGreetingPractice,
   finishVocabulary,
+  homeMission,
   labelFirstChapterAudio,
+  openHomeFoundationStudy,
   openLessons,
+  readTravelInstruction,
   readyOfflineShell,
   state,
   test,
 } from './helpers';
+
+declare global {
+  interface Window {
+    storyPlayback: string[];
+  }
+}
 
 const scene = (page: Page, id = 'plaza') => page.getByTestId(`story-scene-${id}`);
 const spot = (page: Page, id: string) => page.getByTestId(`story-hotspot-${id}`);
@@ -25,7 +35,25 @@ const choice = (page: Page, id: string) => page.getByTestId(`story-choice-${id}`
 const closeDialogue = (page: Page) => page.getByTestId('story-dialogue-close').click();
 const adventure = (page: Page) => page.getByRole('button', exact('Comenzar mi aventura'));
 const storyProgress = async (page: Page) =>
-  (await state(page)) as Awaited<ReturnType<typeof state>> & { story?: StoryState };
+  (await state(page)) as Awaited<ReturnType<typeof state>> &
+    Pick<OfflineState, 'story' | 'chapterProgress'>;
+
+async function savedHomeRevision(page: Page) {
+  return page.evaluate(
+    () =>
+      new Promise<number | undefined>((resolve, reject) => {
+        const database = indexedDB.open('lingoquest-chapter-packs');
+        database.onerror = () => reject(database.error);
+        database.onsuccess = () => {
+          const db = database.result;
+          const request = db.transaction('packs').objectStore('packs').get('home');
+          request.onsuccess = () => resolve(request.result && JSON.parse(request.result).revision);
+          request.onerror = () => reject(request.error);
+          db.close();
+        };
+      }),
+  );
+}
 
 async function openAdventure(page: Page, name?: string, skipGuide = true) {
   await adventure(page).click();
@@ -419,12 +447,20 @@ test('storybook character conversations are keyboard accessible on desktop', asy
   await capture(page, 'storybook-web-luz');
 });
 
-test('an offline storybook restores dialogue, grades exercises and awards one postcard', async ({
+test('an offline storybook preserves its dialogue, evidence and passport across the foundation update', async ({
   page,
   context,
   request,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(250_000);
+  const catalogPath = `/chapter-packs/${CHAPTER_CATALOG_FILE}`;
+  const latest: ChapterCatalog = await (await request.get(catalogPath)).json();
+  const previous: ChapterCatalog = await (
+    await request.get('/chapter-packs/catalog-v4.json')
+  ).json();
+  expect(previous.chapters.home.revision).toBeLessThan(latest.chapters.home.revision);
+  const catalogRoute = `**${catalogPath}`;
+  await context.route(catalogRoute, (entry) => entry.fulfill({ json: previous }));
   await page.setViewportSize({ width: 390, height: 844 });
   await labelFirstChapterAudio(page, request, {
     'line-4': 'Where is the bus stop?',
@@ -461,6 +497,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
     };
   });
   await enterApp(page);
+  expect(await savedHomeRevision(page)).toBe(previous.chapters.home.revision);
   await readyOfflineShell(page, context);
   await openAdventure(page, 'Ana O’Connor');
   await expect.poll(async () => (await state(page)).travel.practiceName).toBe('Ana O’Connor');
@@ -470,8 +507,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   expect(initial.travelLearning?.targets ?? []).toEqual([]);
   const initialXp = initial.xp;
   const quests = page.getByTestId('story-quests-toggle');
-  const playback = () =>
-    page.evaluate(() => (window as Window & { storyPlayback: string[] }).storyPlayback);
+  const playback = () => page.evaluate(() => window.storyPlayback);
   const clipPlays = async (clip: string) => (await playback()).filter((id) => id === clip).length;
   await expect(quests).toContainText('Un saludo en la plaza');
   await capture(page, 'storybook-mobile-plaza');
@@ -522,6 +558,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await expect(learning.getByTestId('exercise-travel_hello_recognize')).toBeVisible();
   await click(page, 'Escuchar el saludo de Sam');
   await expect.poll(() => clipPlays('sam-listening')).toBe(1);
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
   await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
   await expect(learning.getByRole('heading', exact('Luz'))).toBeVisible();
   await answerTravelReorder(page, 'travel_hello_build', ['I', 'am', 'Ana O’Connor']);
@@ -683,6 +720,7 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await finishVocabulary(page);
   await click(page, 'Escuchar a Sam');
   await expect.poll(() => page.evaluate(() => document.body.dataset.played)).toBe('line-4');
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
   await click(page, 'Leer la transcripción');
   await answerTravelChoice(page, 'travel_bus_listen', 'La parada de bus');
   await answerTravelReorder(page, 'travel_bus_direction', ['It’s', 'next', 'to', 'the', 'park']);
@@ -817,6 +855,63 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   );
   await expect(status.getByTestId('study-status-speaking')).toHaveText('Habla · Por comprobar');
   expect((await state(page)).completedLessons).not.toContain('u01_l03');
+
+  await click(page, 'Cerrar y volver');
+  await click(page, 'Cerrar y volver');
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Inicio')).click();
+  await context.setOffline(false);
+  await click(page, 'Continuar a Ciudad de México');
+  await expect(page.getByTestId('chapter-lesson-mexico')).toBeVisible();
+  await click(page, 'Explorar aventura de este capítulo');
+  await click(page, 'Hablar con Inés');
+  await expect(page.getByRole('heading', exact('Inés'))).toBeVisible();
+  const beforeUpdate = await storyProgress(page);
+  expect(beforeUpdate.chapterProgress?.mexico?.story?.dialogueId).toBeTruthy();
+
+  await context.unroute(catalogRoute);
+  await page.reload();
+  await expect.poll(() => savedHomeRevision(page)).toBe(latest.chapters.home.revision);
+  await readyOfflineShell(page, context);
+  await page.reload();
+  await expect(page.getByRole('button', exact('Continuar capítulo 2'))).toBeVisible();
+  const upgraded = await storyProgress(page);
+  expect(upgraded.story).toEqual(beforeUpdate.story);
+  expect(upgraded.travel).toEqual(beforeUpdate.travel);
+  expect(upgraded.chapterProgress?.mexico).toEqual(beforeUpdate.chapterProgress?.mexico);
+  expect(upgraded.unifiedLearning.evidence).toEqual(beforeUpdate.unifiedLearning.evidence);
+  await click(page, 'Abrir pasaporte');
+  await expect(page.getByText('La postal de Sam', { exact: true })).toBeVisible();
+  await click(page, 'Volver al viaje');
+  await click(page, 'Volver a La primera postal');
+  await expect(
+    page.getByText('3 de 3 misiones principales completadas', { exact: true }).first(),
+  ).toBeVisible();
+  await spot(page, 'lost-sam-finale').click();
+  await choice(page, 'practice-foundation-transfer');
+  const library = await homeMission(request, 'foundation-transfer');
+  await readTravelInstruction(page, library);
+  await answerTravelChoice(page, 'foundation-transfer-name-read', 'Ana');
+  await click(page, 'Escuchar el mensaje');
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
+  await answerTravelChoice(page, 'foundation-transfer-bus-listen', '8');
+  await readTravelInstruction(page, library, 3);
+  await answerTravelText(
+    page,
+    'foundation-transfer-location-write',
+    'The umbrella is under the bench.',
+  );
+  await answerTravelText(page, 'foundation-transfer-ownership-write', 'Is this your umbrella?');
+  await click(page, 'Ahora no puedo hablar');
+  expect((await state(page)).travel.stamps.home).toBe(beforeUpdate.travel.stamps.home);
+  await click(page, 'Cerrar y volver');
+  await openHomeFoundationStudy(page, 'foundation-letters-a');
+  await expect(page.getByTestId('grammar-workbench')).toContainText('El gafete');
+  expect(
+    (await state(page)).unifiedLearning.evidence.some(({ teaches }) =>
+      teaches?.some(({ id }) => id === 'lex.letter.e'),
+    ),
+  ).toBe(false);
 });
 
 test('the player can introduce their own name without setting a profile name', async ({ page }) => {

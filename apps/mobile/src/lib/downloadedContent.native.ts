@@ -1,8 +1,8 @@
 import {
+  homeContentFromPack,
   installHomeContent,
   route,
   type CourseData,
-  type HomeContent,
 } from '@lingoquest/offline-engine';
 import { parseCoursePack, type ChapterPack } from '@lingoquest/course-pack';
 import { applyHomeImages } from '../travel/illustrations.native';
@@ -76,19 +76,14 @@ function refreshCourse() {
 async function activate(pack: ChapterPack) {
   if ((activated.get(pack.chapterId) ?? 0) >= pack.revision) return homeReady;
   const { story, unit } = pack;
-  if (story?.runtime) {
-    const { lesson, placement, challenges, course } = story.runtime;
-    const home = {
-      chapter: story.chapter,
-      adventure: story.adventure,
-      practice: story.practice,
-      lesson,
-      placement,
-      challenges,
-    } as unknown as HomeContent;
+  const home = homeContentFromPack(pack);
+  if (home && story?.runtime) {
     await applyHomeImages(pack.chapterId, pack.images).catch(() => {});
     installHomeContent(home);
-    homeActivities = { ...course, courseVersion: `${pack.chapterId}:${pack.revision}` };
+    homeActivities = {
+      ...story.runtime.course,
+      courseVersion: `${pack.chapterId}:${pack.revision}`,
+    };
     homeReady = true;
   }
   if (unit) installedUnits.set(pack.chapterId, { unit, revision: pack.revision });

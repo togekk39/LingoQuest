@@ -35,7 +35,10 @@ export function QuickReview({
   const { colors } = useTheme();
   const f = useFeatureStyles();
   const [review, setReview] = useState<QuickReviewState | null>(null);
-  const { play, stop, speechMessage } = useChapterAudio(review?.chapterId ?? chapterId);
+  const { play, stop, speechMessage } = useChapterAudio(
+    review?.chapterId ?? chapterId,
+    review?.authoredAudio,
+  );
   const [answer, setAnswer] = useState<ExerciseAnswer>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

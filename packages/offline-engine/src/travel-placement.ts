@@ -8,7 +8,15 @@ const responsesSchema = z
   .object({
     assessmentId: z.string().min(8).max(100).optional(),
     answers: z
-      .array(z.object({ answer: answerSchema.nullable(), transcript: z.boolean() }).strict())
+      .array(
+        z
+          .object({
+            answer: answerSchema.nullable(),
+            transcript: z.boolean(),
+            audioPlayed: z.boolean().optional(),
+          })
+          .strict(),
+      )
       .length(6),
   })
   .strict();
@@ -30,11 +38,16 @@ export function placementQuestions(publish: (e: CourseExercise) => PublicExercis
   }));
 }
 
-export function assessTravelPlacement(body: unknown) {
+export function assessTravelPlacement(body: unknown, requirePlayedAudio = false) {
   const { answers, assessmentId } = responsesSchema.parse(body);
-  const responses = items.flatMap(({ exercise }, i) => {
-    const { answer, transcript } = answers[i];
-    return answer ? [{ exercise, transcript, outcome: judgeAnswer(exercise, answer) }] : [];
+  const responses = items.flatMap(({ audio, exercise }, i) => {
+    const { answer, transcript, audioPlayed } = answers[i];
+    if (!answer) return [];
+    const outcome =
+      audio && !transcript && requirePlayedAudio && !audioPlayed
+        ? 'ungradable'
+        : judgeAnswer(exercise, answer);
+    return [{ exercise, transcript, outcome }] as const;
   });
   const scored = new Map(responses.map((item) => [item.exercise.id, item]));
   const passed = items.map(({ audio, exercise }) => {

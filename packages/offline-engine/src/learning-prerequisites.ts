@@ -15,7 +15,10 @@ import {
 } from '../../../content/source/prerequisites/textbook-dependencies';
 import { textbookPatterns } from '../../../content/source/prerequisites/textbook-patterns';
 import { textbookReview } from '../../../content/source/prerequisites/textbook-review';
-import { reviewedHomeSteps } from '../../../content/source/prerequisites/published-travel-review';
+import {
+  reviewedHomeReview,
+  reviewedHomeSteps,
+} from '../../../content/source/prerequisites/published-travel-review';
 import { referenceKey, type PrerequisiteReference } from '../../course-pack/src/prerequisites';
 import type { CourseData, CourseExercise, CourseLesson } from './index';
 import {
@@ -77,6 +80,16 @@ export function reviewedHomeInstruction(step: TravelStep | undefined, word?: str
     reviewedHomeSteps[step.id] === sha256Hex(canonicalStringify(step))
     ? homeFormalReferences(step.id, word)
     : [];
+}
+
+export function reviewedHomeRequirements(step: TravelExerciseStep, forReview = false) {
+  const key = forReview ? step.exercise.id : step.id;
+  const digests = forReview ? reviewedHomeReview : reviewedHomeSteps;
+  const dependencies: Readonly<Record<string, readonly TeachingReference[]>> = forReview
+    ? homeReviewExercises
+    : homeExercises;
+  if (digests[key] !== rpgAssessmentDigest(step) || !Object.hasOwn(dependencies, key)) return;
+  return dependencies[key];
 }
 
 function legacyHomeLesson(event: LearningEvidence) {

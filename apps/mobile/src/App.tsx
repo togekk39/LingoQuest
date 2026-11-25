@@ -98,6 +98,10 @@ function storyPath(chapterId?: string, encounter = false) {
   }`;
 }
 
+function homeReviewChapter(missionId?: string) {
+  return chapter.missions.find(({ id }) => id === missionId)?.optional ? chapter.id : undefined;
+}
+
 function restoreStoryGuideStage(saved: unknown, firstVisit?: boolean): StoryGuideStage {
   if (firstVisit) return 'sam';
   switch (saved) {
@@ -591,7 +595,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         onVoiceSettings={openVoiceSettings}
         onReview={(missionId) => {
           closeMission();
-          openQuickReview(missionId);
+          openQuickReview(missionId, homeReviewChapter(missionId));
         }}
         onPassport={() => {
           closeMission();
@@ -693,7 +697,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         }}
         onLessonUpdate={updateStoryLesson}
         onResumeEncounter={resumeStoryLesson}
-        onReview={(missionId) => openQuickReview(missionId, adventure.content?.chapter.id)}
+        onReview={(missionId) =>
+          openQuickReview(missionId, adventure.content?.chapter.id ?? homeReviewChapter(missionId))
+        }
         onPassport={() => setPassport(true)}
         onVoiceSettings={openVoiceSettings}
       />,
@@ -717,6 +723,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   }
   const shellBackground = chapterTransfer ? `${C.white}EB` : C.white;
   const shellSurface = { backgroundColor: shellBackground };
+  const navigationUnavailable = loading || !!chapterTransfer;
   const nav = (
     <View style={desktop ? s.desktopNav : [s.mobileNav, shellSurface]}>
       {!desktop && <PaperEdge edge="top" tint={shellBackground} />}
@@ -724,9 +731,9 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         <Pressable
           key={id}
           accessibilityRole="tab"
-          accessibilityState={{ selected: tab === id, disabled: !!chapterTransfer }}
+          accessibilityState={{ selected: tab === id, disabled: navigationUnavailable }}
           accessibilityLabel={id}
-          disabled={!!chapterTransfer}
+          disabled={navigationUnavailable}
           onPress={() => go(id)}
           style={({ pressed }) => [
             desktop ? s.desktopTab : s.mobileTab,
@@ -963,6 +970,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onSpeech={() => setFlow('speech')}
                 onGrammar={() => setFlow('grammar')}
                 onReview={() => setFlow('skills')}
+                onFoundationReview={(id) => openQuickReview(id, chapter.id)}
                 onLegacy={() => setFlow('textbook')}
               />
             ) : tab === 'Desafíos' ? (

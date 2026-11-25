@@ -9,6 +9,7 @@ import type {
   TravelVocabulary,
 } from '../../packages/offline-engine/src/travel-content';
 import { answerVariants } from './contextual-answers';
+import { numberLearningId } from './travel-number-words';
 import {
   form,
   grammar,
@@ -172,9 +173,11 @@ function comprehension(
   options: string[],
   correctIndex: number,
   feedbackEs: string,
-  input: { audio: string } | { passage: string },
+  input: { audio: string; contrastNumbers?: readonly number[] } | { passage: string },
 ): TravelExerciseStep {
   const audio = 'audio' in input ? input.audio : undefined;
+  const numberTargets = 'audio' in input ? (input.contrastNumbers ?? []) : [];
+
   const { lessonId, conceptId } = target;
   return {
     id,
@@ -183,7 +186,13 @@ function comprehension(
     situation,
     lessonId,
     requires: assessmentRequirements(id, target),
-    targets: [{ targetId: conceptId, dimension: audio ? 'listening' : 'reading' }],
+    targets: [
+      { targetId: conceptId, dimension: audio ? 'listening' : 'reading' },
+      ...numberTargets.map((number) => ({
+        targetId: numberLearningId(number),
+        dimension: 'listening' as const,
+      })),
+    ],
     ...(audio && { audio, transcript: audio, listeningButton: 'Escuchar el mensaje' }),
     exercise: {
       id,
@@ -201,7 +210,7 @@ function comprehension(
         conceptId,
         skill: audio ? 'listening' : 'reading',
         contextId,
-        evidence: 'understanding',
+        evidence: numberTargets.length ? 'transfer' : 'understanding',
       },
     },
   };
@@ -747,7 +756,7 @@ const clocks: TravelMission = {
       ['8:50 y 9:13', '8:15 y 9:30', '8:15 y 9:13'],
       1,
       'Dice eight fifteen (8:15) y nine thirty (9:30).',
-      { audio: 'We can meet at eight fifteen or nine thirty.' },
+      { audio: 'We can meet at eight fifteen or nine thirty.', contrastNumbers: [15, 30] },
     ),
     comprehension(
       'mexico-time-read',

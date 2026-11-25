@@ -47,8 +47,6 @@ import { useTheme } from '../theme';
 const displayNumber = (n: number) => String(n).padStart(2, '0');
 const homeName = (state: TravelState) =>
   state.country ? homeCountries[state.country] : 'Tu lugar de origen';
-const completedCount = (state: TravelState) =>
-  chapter.missions.filter((m) => state.completed[m.id]).length;
 const missionIcons = [MapPin, BusFront, Backpack];
 
 export function TravelHome({
@@ -84,7 +82,8 @@ export function TravelHome({
   const { width, fontScale } = useWindowDimensions();
   const s = useStyles();
   const wide = width >= 1120 && fontScale <= 1.25;
-  const count = completedCount(travel);
+  const missions = chapter.missions.filter(({ optional }) => !optional);
+  const count = missions.filter(({ id }) => travel.completed[id]).length;
   const next = nextTravelMission(travel);
   const active = travel.active;
   const activeMission = next && active?.missionId === next.id ? active : undefined;
@@ -199,18 +198,18 @@ export function TravelHome({
                 compact
                 kind="stamp"
                 accessible
-                accessibilityLabel={`${count} de ${chapter.missions.length} misiones completadas`}
+                accessibilityLabel={`${count} de ${missions.length} misiones completadas`}
                 style={s.routeTally}
               >
                 <Flag size={15} color={C.accent} />
                 <Text style={s.tallyText}>
-                  {count} / {chapter.missions.length}
+                  {count} / {missions.length}
                 </Text>
               </JournalLeaf>
             </View>
             <View style={s.routeStops}>
               <View pointerEvents="none" style={s.routeTrack} />
-              {chapter.missions.map((mission, index) => {
+              {missions.map((mission, index) => {
                 const Icon = missionIcons[index];
                 const current = mission.id === next?.id;
                 const done = !!travel.completed[mission.id];
@@ -371,6 +370,7 @@ export function TravelRoute({
   const { width, fontScale } = useWindowDimensions();
   const s = useStyles();
   const isHome = selected.id === chapter.id;
+  const missions = chapter.missions.filter(({ optional }) => !optional);
   const homeIsInSouthAmerica = !!travel.country && southAmericanHomes.has(travel.country);
   const selectedContinent = isHome && homeIsInSouthAmerica ? 'América del Sur' : selected.continent;
   const horizon = width < 800 || fontScale > 1.25;
@@ -464,12 +464,12 @@ export function TravelRoute({
           <Heading style={{ fontSize: 30 }}>{isHome ? chapter.title : selected.name}</Heading>
           <Label style={s.copy}>{selected.description}</Label>
           <Text style={s.rowTitle}>{selected.goals.join(' · ')}</Text>
-          {isHome && chapter.missions.length > 0 && (
+          {isHome && missions.length > 0 && (
             <>
               <Button icon={Compass} onPress={onAdventure}>
                 Comenzar mi aventura
               </Button>
-              {chapter.missions.map((mission, i) => {
+              {missions.map((mission, i) => {
                 const available = canStartTravelMission(travel, mission.id);
                 const inProgress =
                   active?.missionId === mission.id || !!travel.paused?.[mission.id];

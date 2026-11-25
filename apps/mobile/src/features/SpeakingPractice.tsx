@@ -3,14 +3,13 @@ import { illustrations } from '../travel/illustrations';
 import { audioClips } from '../travel/audioClips';
 import { matchesSpeechTarget } from '../travel/speakingFeedback';
 import { StoryActivity } from '../travel/StoryDialogueAppearance';
+import { useClipPlayer } from '../travel/useClipPlayer';
 import { useTheme } from '../theme';
-import { pausePracticePlayback } from './pausePracticePlayback';
-import { playPracticeClip } from './playPracticeClip';
 import { useLocalSpeechRecording } from './useLocalSpeechRecording';
 import { useSystemSTT } from './useSystemSTT';
 import React, { useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
+import { setAudioModeAsync } from 'expo-audio';
 import {
   getAvailableChapterAudio,
   getSpeechPreferences,
@@ -40,7 +39,8 @@ export function SpeakingPanel({
   onStopReference,
   story,
   selfCheck = false,
-  allowSystemRecognition = false,
+  allowSystemRecognition,
+  authoredAudio,
   feedback,
   acceptedPhrases,
   exampleLabel,
@@ -61,6 +61,7 @@ export function SpeakingPanel({
   exampleLabel?: string;
   matchesTranscript?: (transcript: string) => boolean;
   allowSystemRecognition?: boolean;
+  authoredAudio?: boolean;
   feedback?: (transcript: string) => { content: string; grammar: string };
   evidenceScope?: SpeechEvidenceScope;
   inline?: boolean;
@@ -75,8 +76,16 @@ export function SpeakingPanel({
   const local = useLocalSpeechRecording();
   const [systemSelected, setSystemSelected] = useState(false);
   const android = Platform.OS === 'android';
-  const showRecognition = android || systemSelected;
-  const player = useAudioPlayer(null);
+  const showRecognition = android
+    ? allowSystemRecognition !== false
+    : allowSystemRecognition && systemSelected;
+  const canRecord =
+    android ||
+    (selfCheck &&
+      Platform.OS === 'web' &&
+      !!globalThis.navigator?.mediaDevices?.getUserMedia &&
+      typeof MediaRecorder === 'function');
+  const player = useClipPlayer();
   const [message, setMessage] = useState('');
   const { playOffline, speechMessage, stop: stopAudio } = useOfflineSpeech(chapterId);
   const [comparing, setComparing] = useState(false);
@@ -131,10 +140,9 @@ export function SpeakingPanel({
       ? `${evidenceScope.submissionId}:${completed.id}`
       : completed.id;
     setSaveError(false);
-    const path =
-      chapterId && chapterId !== 'home' && evidenceScope.source === 'story'
-        ? `/v1/speech/practice?chapter=${encodeURIComponent(chapterId)}`
-        : '/v1/speech/practice';
+    const path = chapterId
+      ? `/v1/speech/practice?chapter=${encodeURIComponent(chapterId)}`
+      : '/v1/speech/practice';
     void api(path, {
       id,
       source: evidenceScope.source,
@@ -167,7 +175,7 @@ export function SpeakingPanel({
     comparison.current?.abort();
     comparison.current = null;
     setComparing(false);
-    pausePracticePlayback(player, Platform.OS);
+    player.stop();
     void stopOfflineSpeech();
   }
 
@@ -216,18 +224,17 @@ export function SpeakingPanel({
       if (run.signal.aborted) return;
       const rate = preferences.rate ?? 1;
       const downloadedPlayed =
-        downloaded &&
-        (await playPracticeClip(player, downloaded, rate, run.signal).catch(() => false));
+        downloaded && (await player.play(downloaded, rate, run.signal).catch(() => false));
       if (run.signal.aborted) return;
       const bundled = audioClips[text];
       const played =
         downloadedPlayed ||
         (bundled
-          ? await playPracticeClip(player, bundled, rate, run.signal).catch(() => false)
-          : await speakOffline(text));
+          ? await player.play(bundled, rate, run.signal).catch(() => false)
+          : !authoredAudio && (await speakOffline(text)));
       if (!run.signal.aborted) {
         if (!played) setMessage('Por ahora solo podemos reproducir tu grabación.');
-        const recordingPlayed = await playPracticeClip(player, { uri }, 1, run.signal);
+        const recordingPlayed = await player.play(uri, 1, run.signal);
         if (!recordingPlayed && !run.signal.aborted) throw new Error('Recording unavailable');
       }
     } catch {
@@ -275,7 +282,7 @@ export function SpeakingPanel({
           {speechMessage}
         </Text>
       )}
-      {android && (
+      {canRecord && (
         <Action
           secondary
           disabled={comparing || recognizing || local.phase === 'stopping' || story?.saving}
@@ -287,7 +294,7 @@ export function SpeakingPanel({
               void local.start(() => {
                 stopAudio();
                 onStopReference?.();
-                pausePracticePlayback(player, Platform.OS);
+                player.stop(true);
               });
             }
           }}
@@ -313,7 +320,7 @@ export function SpeakingPanel({
                 void stt.start(() => {
                   stopAudio();
                   onStopReference?.();
-                  pausePracticePlayback(player, Platform.OS);
+                  player.stop(true);
                 });
               }
             }}
@@ -329,7 +336,7 @@ export function SpeakingPanel({
         <Text style={f.quiet}>
           Esta versión de LingoQuest no incluye el módulo de voz. Instala una versión actualizada.
         </Text>
-      ) : story && !allowSystemRecognition ? (
+      ) : story && !android && allowSystemRecognition === undefined ? (
         <Text style={f.quiet}>
           El reconocimiento de voz de la misión está disponible en Android.
         </Text>

@@ -28,11 +28,12 @@ export function TravelPlacementFlow({
 }) {
   const { colors: C } = useTheme();
   const f = useFeatureStyles();
-  const { play, stop, speechMessage } = useChapterAudio();
+  const { play, stop, speechMessage } = useChapterAudio(chapter.id, true);
   const [questions, setQuestions] = useState<TravelPlacementQuestion[]>([]);
   const [answers, setAnswers] = useState<TravelPlacementResponse[]>([]);
   const [answer, setAnswer] = useState<ExerciseAnswer>({});
   const [transcript, setTranscript] = useState(false);
+  const [audioPlayed, setAudioPlayed] = useState(false);
   const [started, setStarted] = useState(false);
   const [result, setResult] = useState<{ placement: TravelPlacement; travel: TravelState }>();
   const [assessmentId] = useState(newId);
@@ -41,6 +42,8 @@ export function TravelPlacementFlow({
   const pending = useRef(false);
 
   const item = questions[answers.length];
+  const canSubmit =
+    item && hasAnswer(answer, item.exercise) && (!item.audio || audioPlayed || transcript);
   const recommended = chapter.missions.find(
     (mission) => mission.id === result?.placement.missionId,
   );
@@ -60,12 +63,12 @@ export function TravelPlacementFlow({
   }, []);
 
   async function submit(skip = false) {
-    if (pending.current || !item || (!skip && !hasAnswer(answer, item.exercise))) return;
+    if (pending.current || !item || (!skip && !canSubmit)) return;
     pending.current = true;
     Keyboard.dismiss();
     stop();
     setError('');
-    const next = [...answers, { answer: skip ? null : answer, transcript }];
+    const next = [...answers, { answer: skip ? null : answer, transcript, audioPlayed }];
     try {
       if (next.length === questions.length) {
         setBusy(true);
@@ -74,6 +77,7 @@ export function TravelPlacementFlow({
       setAnswers(next);
       setAnswer({});
       setTranscript(false);
+      setAudioPlayed(false);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -107,7 +111,7 @@ export function TravelPlacementFlow({
     <Action onPress={() => setStarted(true)}>Empezar la prueba</Action>
   ) : started && item ? (
     <View style={{ gap: 8 }}>
-      <Action busy={busy} disabled={!hasAnswer(answer, item.exercise)} onPress={submitAnswer}>
+      <Action busy={busy} disabled={!canSubmit} onPress={submitAnswer}>
         {answers.length + 1 === questions.length ? 'Ver mi punto de partida' : 'Siguiente pregunta'}
       </Action>
       <Action secondary disabled={busy} onPress={() => void submit(true)}>
@@ -159,7 +163,7 @@ export function TravelPlacementFlow({
               <Button
                 variant="secondary"
                 icon={Volume2}
-                onPress={() => void play(item.audio!, true)}
+                onPress={() => void play(item.audio!, true, () => setAudioPlayed(true))}
               >
                 Escuchar a Sam
               </Button>

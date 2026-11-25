@@ -1,3 +1,4 @@
+import type { FoundationPathEntry } from './foundation-path';
 import { z } from 'zod';
 import {
   answerOutcomeSchema,
@@ -8,7 +9,7 @@ import {
 } from '@lingoquest/contracts';
 import { travelPlacementSchema } from './travel-placement';
 import { chapter as homeChapter, travelLesson } from './home-content';
-import type { TravelChapter } from './travel-content';
+import type { TravelChapter, TravelStep } from './travel-content';
 import type { TravelExerciseStep } from './travel-content';
 import { travelStepVocabulary } from './travel-vocabulary';
 import type { ReviewInstruction } from './learning-prerequisites';
@@ -82,11 +83,15 @@ export const travelStateSchema = z
   })
   .strict();
 
-export type TravelState = z.infer<typeof travelStateSchema> & { active?: TravelCheckpoint };
+export type TravelState = z.infer<typeof travelStateSchema> & {
+  active?: TravelCheckpoint;
+  foundationPath?: FoundationPathEntry[];
+};
 export type TravelCheckpoint = z.infer<typeof checkpointSchema> & {
   prerequisiteInstruction?: Pick<ReviewInstruction, 'sections'>;
   prerequisiteUnavailable?: true;
   prerequisiteUpdateRequired?: true;
+  canSkipKnown?: true;
 };
 export const emptyTravel = (): TravelState => ({ completed: {}, stamps: {} });
 
@@ -96,12 +101,16 @@ export function canStartTravelMission(
   chapter: TravelChapter = homeChapter,
 ) {
   const i = chapter.missions.findIndex((mission) => mission.id === missionId);
+  if (chapter.missions[i]?.optional) return true;
   return (
     i >= 0 &&
     chapter.missions
       .slice(0, i)
       .every(
-        (entry) => !!travel.completed[entry.id] || travel.cleared?.some((id) => id === entry.id),
+        (entry) =>
+          entry.optional ||
+          !!travel.completed[entry.id] ||
+          travel.cleared?.some((id) => id === entry.id),
       )
   );
 }
@@ -109,10 +118,13 @@ export function canStartTravelMission(
 export function nextTravelMission(travel: TravelState, chapter: TravelChapter = homeChapter) {
   if (travel.active) {
     const active = chapter.missions.find((mission) => mission.id === travel.active?.missionId);
-    if (active) return active;
+    if (active && !active.optional) return active;
   }
   return chapter.missions.find(
-    (mission) => !travel.completed[mission.id] && !travel.cleared?.some((id) => id === mission.id),
+    (mission) =>
+      !mission.optional &&
+      !travel.completed[mission.id] &&
+      !travel.cleared?.some((id) => id === mission.id),
   );
 }
 
@@ -132,7 +144,15 @@ const operationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('draft'), token: z.string(), answer: draftAnswerSchema }).strict(),
   z
     .object({
-      action: z.enum(['hint', 'transcript', 'listened', 'retry', 'dismiss', 'prepare']),
+      action: z.enum([
+        'hint',
+        'transcript',
+        'listened',
+        'retry',
+        'dismiss',
+        'prepare',
+        'skipKnown',
+      ]),
       token: z.string(),
     })
     .strict(),
@@ -168,6 +188,8 @@ export interface TravelAttemptConditions {
 interface TravelPrerequisiteGate {
   allow(step: TravelExerciseStep): boolean;
   prepare(step: TravelExerciseStep, token: string): boolean;
+  canSkipKnown?(step: TravelExerciseStep): boolean;
+  appliesToTeaching?(step: Extract<TravelStep, { type: 'teach' }>): boolean;
 }
 
 const revisionOneSteps: Record<string, string[]> = {
@@ -293,6 +315,13 @@ export function updateTravel(
   const mission = chapter.missions.find((item) => item.id === current.missionId);
   const step = mission?.steps[current.step];
   if (!mission || !step) return;
+  const skipKnown =
+    input.action === 'skipKnown' &&
+    !!mission.optional &&
+    step.type === 'exercise' &&
+    !current.result &&
+    prerequisites?.canSkipKnown?.(step);
+  if (input.action === 'skipKnown' && !skipKnown) return;
   const introduce = (token: string, translation = false, word?: string) =>
     activity?.({
       kind: 'introduced',
@@ -302,11 +331,13 @@ export function updateTravel(
       translation,
       ...(word && { word }),
     });
+  const orderedTeaching =
+    step.type === 'teach' && !!prerequisites && (prerequisites.appliesToTeaching?.(step) ?? true);
   if (input.action === 'word') {
     const word = current.word ?? 0;
     if (step.type === 'teach') {
       const vocabulary = travelStepVocabulary(mission, step);
-      if (input.position > vocabulary.length || (prerequisites && input.position > word + 1))
+      if (input.position > vocabulary.length || (orderedTeaching && input.position > word + 1))
         return;
       if (input.position === word + 1)
         introduce(`${current.token}:word:${word}`, input.translationShown, vocabulary[word].term);
@@ -314,7 +345,7 @@ export function updateTravel(
     }
     return;
   }
-  if (step.type === 'exercise') {
+  if (step.type === 'exercise' && !skipKnown) {
     if (!current.result && input.action === 'prepare') {
       if (prerequisites?.prepare(step, current.token)) current.prerequisitePrepared = true;
       return;
@@ -329,6 +360,8 @@ export function updateTravel(
       introduce(`${current.token}:audio`);
     }
     if (input.action === 'answer' && !current.result) {
+      if (mission.authoredAudio && step.audio && !current.audioPlayed && !current.transcript)
+        return;
       const aids: LearningAid[] = [];
       if (current.hint) aids.push('hint');
       if (current.transcript) aids.push('transcript');
@@ -377,14 +410,14 @@ export function updateTravel(
     if (step.learning) speaking(step.learning, input.practice);
   } else if (input.action === 'advance') {
     if (
-      prerequisites &&
+      orderedTeaching &&
       step.type === 'teach' &&
       (current.word ?? 0) < travelStepVocabulary(mission, step).length
     )
       return;
     if (step.type === 'teach' || (step.type === 'dialogue' && step.line))
       introduce(current.token, input.translationShown);
-  } else return;
+  } else if (!skipKnown) return;
   if (current.step + 1 < mission.steps.length) {
     travel.active = checkpoint(chapter, mission.id, current.step + 1, id());
     return;
@@ -393,7 +426,8 @@ export function updateTravel(
   travel.completed[mission.id] ??= date;
   if (
     chapter.missions.every(
-      (item) => travel.completed[item.id] || travel.cleared?.some((id) => id === item.id),
+      (item) =>
+        item.optional || travel.completed[item.id] || travel.cleared?.some((id) => id === item.id),
     )
   )
     travel.stamps[chapter.id] ??= date;

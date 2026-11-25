@@ -9,7 +9,9 @@ import {
 } from '../features/offlineSpeech';
 import { audioClips } from './audioClips';
 
-export function useChapterAudio(chapterId = 'home') {
+type AudioCue = { phrase: string; slower?: boolean };
+
+export function useChapterAudio(chapterId = 'home', authoredAudio = false) {
   const player = useClipPlayer();
   const [speechMessage, setSpeechMessage] = useState('');
   const playback = useRef<AbortController | null>(null);
@@ -20,9 +22,9 @@ export function useChapterAudio(chapterId = 'home') {
     },
     [],
   );
-  const playSequence = useCallback(
+  const playCues = useCallback(
     async (
-      phrases: readonly string[],
+      cues: readonly AudioCue[],
       onSelect?: (index: number) => void,
       useBundledIfUnavailable = false,
       onPlayed?: () => void,
@@ -36,10 +38,25 @@ export function useChapterAudio(chapterId = 'home') {
       try {
         player.stop();
         await stopOfflineSpeech();
-        const preferences = await getSpeechPreferences();
-        for (const [index, phrase] of phrases.entries()) {
+        const savedPreferences = await getSpeechPreferences();
+        for (const [index, { phrase, slower }] of cues.entries()) {
           if (signal.aborted) return;
           onSelect?.(index);
+          const preferences = slower
+            ? { ...savedPreferences, rate: Math.max(0.55, (savedPreferences.rate ?? 1) * 0.75) }
+            : savedPreferences;
+          if (authoredAudio) {
+            const clip =
+              (await getAvailableChapterAudio(chapterId, phrase)) ??
+              (chapterId === 'home' ? audioClips[phrase] : undefined);
+            if (signal.aborted) return;
+            if (clip && (await player.play(clip, preferences.rate ?? 1, signal).catch(() => false)))
+              continue;
+            if (signal.aborted) return;
+            setSpeechMessage('No pudimos reproducir este audio. Revisa la descarga del capítulo.');
+            completed = false;
+            continue;
+          }
           const result = await playOfflineVoice(phrase, preferences);
           if (signal.aborted) return;
           if (result.played) continue;
@@ -70,12 +87,32 @@ export function useChapterAudio(chapterId = 'home') {
         if (playback.current === controller) playback.current = null;
       }
     },
-    [chapterId, player],
+    [authoredAudio, chapterId, player],
+  );
+  const playSequence = useCallback(
+    (
+      phrases: readonly string[],
+      onSelect?: (index: number) => void,
+      useBundledIfUnavailable = false,
+      onPlayed?: () => void,
+    ) =>
+      playCues(
+        phrases.map((phrase) => ({ phrase })),
+        onSelect,
+        useBundledIfUnavailable,
+        onPlayed,
+      ),
+    [playCues],
   );
   const play = useCallback(
     (phrase: string, useBundledIfUnavailable = false, onPlayed?: () => void) =>
       playSequence([phrase], undefined, useBundledIfUnavailable, onPlayed),
     [playSequence],
+  );
+  const playDialogueRequest = useCallback(
+    (phrase: string, reply?: AudioCue) =>
+      playCues(reply ? [{ phrase }, reply] : [{ phrase }], undefined, true),
+    [playCues],
   );
   const stop = useCallback(() => {
     playback.current?.abort();
@@ -83,5 +120,5 @@ export function useChapterAudio(chapterId = 'home') {
     setSpeechMessage('');
     void stopOfflineSpeech();
   }, [player]);
-  return { play, playSequence, stop, speechMessage };
+  return { play, playSequence, playDialogueRequest, stop, speechMessage };
 }
