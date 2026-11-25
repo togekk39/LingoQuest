@@ -41,4 +41,6 @@ The pack carries distinct clips for `walked`, `watched`, `finished` (/t/), `play
 
 [Pack](../apps/mobile/public/chapter-packs/14/peru.json) · [Catalog](../apps/mobile/public/chapter-packs/catalog-v9.json) · [Voice architecture](TRAVEL_ARCHITECTURE.md)
 
+The curriculum verifier checks seven teaching stages, 71 assessment and review items, 12 challenge items and 245 grading cases for Cusco. The pack verifier checks the current catalog and all eight earlier catalogs. FFmpeg decoded all 178 installed English clips in the Cusco pack.
+
 Run `npm run curriculum:verify`, `npm run packs:verify`, `npm run packs:chapters -- --verify`, `npm run check`, `npm test`, `npm run build:web`, `npm run test:e2e`, `npm run build:android` and `npm run build:apk` on the candidate commit. The browser tests exercise real Study and Story entry points, play installed clips, restore an unfinished inquiry, and update the older Peru guide. The APK signature, the checksum and the latest commit’s workflows are tracked with the pull request. Physical Android airplane mode, device microphone and playback quality, and human A1 trials require separate acceptance. [Browser tests](../tests/e2e/cusco.spec.ts) · [CI](../.github/workflows/ci.yml) · [APK workflow](../.github/workflows/android-apk.yml)

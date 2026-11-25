@@ -42,11 +42,18 @@ const uncertainty = {
 const ambiguity = { en: 'Which event do you mean?', es: '¿A qué evento te refieres?' };
 const normalize = (value: string) =>
   normalizeAnswerText(value)
-    .replace(/[,]/g, '')
-    .replace(/\ba\.m\.?/g, 'am')
-    .replace(/\bp\.m\.?/g, 'pm');
+    .replace(/,/g, ' ')
+    .replace(/\ba\.\s*m\.?/g, 'am')
+    .replace(/\bp\.\s*m\.?/g, 'pm')
+    .replace(/\s+/g, ' ')
+    .trim();
 const includesPhrase = (value: string, phrases: readonly string[]) =>
   phrases.some((phrase) => value === normalize(phrase));
+
+function dateReference(text: string) {
+  const pattern = /(?:^| )(yesterday|today|last night|last weekend)(?= |$)/;
+  return { date: pattern.exec(text)?.[1], clause: text.replace(pattern, ' ').trim() };
+}
 
 function namedPerson(definition: EventScenarioDefinition, value: string) {
   return definition.participants.find(({ name, aliases }) =>
@@ -142,8 +149,9 @@ function inquire(
       },
     };
 
-  const did = /^(?:(when|where|what time|what) )?did ([a-z]+) (.+)$/.exec(text);
-  const who = /^who (.+)$/.exec(text);
+  const { date, clause: question } = dateReference(text.replace(/^please | please$/g, ''));
+  const did = /^(?:(when|where|what time|what) )?did ([a-z]+) (.+)$/.exec(question);
+  const who = /^who (.+)$/.exec(question);
   const subject = did && (did[2] === 'you' ? speaker : namedPerson(definition, did[2]));
   const [verb, ...words] = (did?.[3] ?? who?.[1] ?? '').split(' ');
   const complement = words.join(' ');
@@ -153,8 +161,8 @@ function inquire(
   const formTargets = turn.formTargets?.find((entry) => entry.form === form)?.targets ?? [];
   if (
     (did && pastVerb) ||
-    /^(?:(?:where|when|what) )?did \w+ (?:was|were)\b/.test(text) ||
-    /^where did \w+ (?:be|were|was)$/.test(text)
+    /^(?:(?:where|when|what) )?did \w+ (?:was|were)\b/.test(question) ||
+    /^where did \w+ (?:be|were|was)$/.test(question)
   ) {
     return {
       verdict: {
@@ -197,6 +205,13 @@ function inquire(
   const [event] = matches;
   if (!event || matches.length !== 1)
     return { verdict: noReply, reply: { speaker: speaker.name, line: ambiguity } };
+  if (date && date !== normalize(event.date))
+    return {
+      verdict: {
+        outcome: 'context_mismatch',
+        feedbackEs: 'Revisa el día al que se refiere la nota.',
+      },
+    };
   const knowledge = event.witnesses.find(({ personId }) => personId === speaker.id);
   const actorMatches = !subject || subject.id === event.personId;
   const canAnswer = knowledge?.knows.includes(field) && (field === 'person' || actorMatches);
@@ -274,12 +289,13 @@ function record(
     return mismatch('Confirma los datos pendientes del diario antes de guardarlos.');
   const clauses = input
     .trim()
-    .split(/(?:[.!?](?![mM]\b|\d)|\n)(?:\s+|$)/)
+    .replace(/\b[ap]\.\s*m\.?|[.!?](?=\s|$)/gi, (mark) => (mark.length === 1 ? mark + '\n' : mark))
+    .split('\n')
     .filter((line) => line.trim());
   const submitted: EventScenarioState['submitted'] = [];
   const productions = new Set<EventForm>();
   for (const source of clauses) {
-    const text = normalize(source).replace(/^yesterday | yesterday$/g, '');
+    const { date, clause: text } = dateReference(normalize(source));
     const first = leadingTime.exec(text);
     const [person, ...words] = (first?.[2] ?? text).split(' ');
     const subject = namedPerson(definition, person);
@@ -323,15 +339,19 @@ function record(
             ? 'Después de didn’t usa el verbo en su forma base.'
             : 'Para contar lo que pasó usa el pasado del verbo.',
           error: negative ? 'did_base' : 'past_spelling',
-          targets: turn.eventTargets
-            ?.find(({ eventId }) => eventId === event.id)
-            ?.targets.filter(({ dimension }) => dimension === 'grammar_production'),
+          targets: negative
+            ? []
+            : turn.eventTargets
+                ?.find(({ eventId }) => eventId === event.id)
+                ?.targets.filter(({ dimension }) => dimension === 'grammar_production'),
         },
       };
     if (negative || subject.id !== event.personId)
       return mismatch(
         'La forma en inglés es válida. Comprueba quién realizó la acción y qué pasó.',
       );
+    if (date && date !== normalize(event.date))
+      return mismatch('Comprueba el día del evento en el diario.');
     const last = trailingTime.exec(details);
     if (first && last) return mismatch('Incluye una sola hora para este evento.');
     const time = first?.[1] ?? last?.[1];

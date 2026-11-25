@@ -85,18 +85,20 @@ Review / Repaso	past-irreg	cusco-order-confirm	grammar_production:grammar.cusco.
 Review / Repaso	past-irreg	cusco-photo-review	grammar_production:form.u04_l03.4	form.u04_l04.1[did] | lex.cusco.who[who] | lex.cusco.when[when] | lex.cusco.where[where] | lex.cusco.what[what] | lex.u01_l01_v05[you] | form.u04_l03.7[the] | lex.u04_l03_v06[take] | form.u04_l04.11[a] | lex.cusco.photo[photo] | lex.cusco.take-photo[take a photo] | lex.cusco.took-photo[took a photo] | form.u04_l03.4[took] | form.u02_l04.1[at] | lex.number.11[eleven] | lex.number.9[nine] | lex.number.10[ten] | lex.cusco.am[a.m.] | lex.u04_l01_v01[yesterday] | lex.number.2[two] | lex.cusco.pm[p.m.] | grammar.past_irregular | pattern.u04_l03.past[sujeto + pasado irregular + complemento]	Ana took a photo at two.	Sam took a photo at two.	curriculum:verify
 Scenario / Escenario	past-ask	cusco-market-journal/1	incorrect	sam	—	Did you went to the market?	curriculum:verify
 Scenario / Escenario	past-ask	cusco-market-journal/1	target	sam	Did you take the photo?	—	No, I didn't.
-Scenario / Escenario	past-ask	cusco-market-journal/1	communication_only	sam	—	Did you take a photo?	No, I didn't.
+Scenario / Escenario	past-ask	cusco-market-journal/1	communication_only	sam	—	Did you take a photo yesterday?	No, I didn't.
 Scenario / Escenario	past-ask	cusco-market-journal/1	communication_only	sam	—	When did you take the photo?	I'm not sure. Maybe someone else knows.
 Scenario / Escenario	past-ask	cusco-market-journal/1	target	luz	Did you take the photo?	—	Yes, I did.
 Scenario / Escenario	past-ask	cusco-market-journal/1	target	luz	When did you take the photo?	—	At eleven.
 Scenario / Escenario	past-ask	cusco-market-journal/1	context_mismatch	Journal / Diario	—	Sam took a photo at eleven.	curriculum:verify
 Scenario / Escenario	past-ask	cusco-market-journal/1	context_mismatch	Journal / Diario	—	Luz took a photo at ten.	curriculum:verify
+Scenario / Escenario	past-ask	cusco-market-journal/1	context_mismatch	Journal / Diario	—	Luz took a photo today at eleven.	curriculum:verify
 Scenario / Escenario	past-ask	cusco-market-journal/1	context_mismatch	Journal / Diario	—	Luz didn’t take a photo.	curriculum:verify
 Scenario / Escenario	past-ask	cusco-market-journal/1	incorrect	Journal / Diario	—	Luz take a photo at eleven.	curriculum:verify
+Scenario / Escenario	past-ask	cusco-market-journal/1	incorrect	Journal / Diario	—	Luz didn’t took a photo.	curriculum:verify
 Scenario / Escenario	past-ask	cusco-market-journal/1	target	Journal / Diario	Luz took a photo at eleven.	—	curriculum:verify
 Scenario / Escenario	past-ask	cusco-market-journal/2	target	luz	What time did you take the photo?	—	At eleven.
 Scenario / Escenario	past-ask	cusco-market-journal/2	target	sam	Who took a photo?	—	Luz did.
-Scenario / Escenario	past-ask	cusco-market-journal/2	target	Journal / Diario	At 11:00 a.m., Luz took the photo.	—	curriculum:verify
+Scenario / Escenario	past-ask	cusco-market-journal/2	target	Journal / Diario	At 11:00 a.m. Luz took the photo.	—	curriculum:verify
 Scenario / Escenario	transfer	cusco-museum-journal/1	target	diego	When did Ana see Nora?	—	At three.
 Scenario / Escenario	transfer	cusco-museum-journal/1	target	nora	Where did Ana see Nora?	—	At the museum entrance.
 Scenario / Escenario	transfer	cusco-museum-journal/1	context_mismatch	Journal / Diario	—	Ana saw Nora at the shop at three.	curriculum:verify

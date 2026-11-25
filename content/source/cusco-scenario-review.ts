@@ -14,7 +14,7 @@ export const cuscoScenarioPaths: Readonly<Record<string, readonly (readonly Prob
     [
       question('sam', 'Did you went to the market?', '', 'incorrect'),
       question('sam', 'Did you take the photo?', "No, I didn't."),
-      question('sam', 'Did you take a photo?', "No, I didn't.", 'communication_only'),
+      question('sam', 'Did you take a photo yesterday?', "No, I didn't.", 'communication_only'),
       question(
         'sam',
         'When did you take the photo?',
@@ -25,14 +25,16 @@ export const cuscoScenarioPaths: Readonly<Record<string, readonly (readonly Prob
       question('luz', 'When did you take the photo?', 'At eleven.'),
       note('Sam took a photo at eleven.', 'context_mismatch'),
       note('Luz took a photo at ten.', 'context_mismatch'),
+      note('Luz took a photo today at eleven.', 'context_mismatch'),
       note('Luz didn’t take a photo.', 'context_mismatch'),
       note('Luz take a photo at eleven.', 'incorrect'),
+      note('Luz didn’t took a photo.', 'incorrect'),
       note('Luz took a photo at eleven.'),
     ],
     [
       question('luz', 'What time did you take the photo?', 'At eleven.'),
       question('sam', 'Who took a photo?', 'Luz did.'),
-      note('At 11:00 a.m., Luz took the photo.'),
+      note('At 11:00 a.m. Luz took the photo.'),
     ],
   ],
   'cusco-museum-journal': [

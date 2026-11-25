@@ -1012,4 +1012,15 @@ test('a mobile learner completes Cartagena and two stateful orders offline', asy
   expect(
     networkGuard.attempted.filter((url) => /\/chapter-packs\/\d+\/colombia\.json$/.test(url)),
   ).toHaveLength(1);
+
+  await click(page, 'Volver al viaje');
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Inicio')).click();
+  await click(page, 'Abrir pasaporte');
+  await context.setOffline(false);
+  await click(page, 'Continuar a Cusco');
+  await expect(page.getByTestId('chapter-lesson-peru')).toBeVisible();
+  await click(page, 'Explorar aventura de este capítulo');
+  await expect(scene(page, 'cusco-past-be-scene')).toBeVisible();
+  await expect(page.getByText(/postal de Alba/)).toBeVisible();
 });

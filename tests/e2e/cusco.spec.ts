@@ -198,7 +198,6 @@ test('Cusco shares an offline travel journal and language evidence between Study
         await click(page, 'Explorar aventura de este capítulo');
         await expect(input(page, ask)).toHaveValue(draft);
         await click(page, 'Cerrar y volver');
-        await click(page, 'Cerrar y volver');
         await study(page, mission);
         await expect(input(page, ask)).toHaveValue(draft);
         await expect(journal(page)).toContainText('1/2 datos confirmados');
@@ -280,6 +279,23 @@ test('Cusco shares an offline travel journal and language evidence between Study
   });
 
   await click(page, 'Cerrar y volver');
+  const didMastery = async () =>
+    getUnifiedMastery((await saved(page)).unifiedLearning, 'grammar.did', 'grammar_production');
+  expect((await didMastery()).pendingErrors).toContain('did_base');
+  await page.getByRole('tab', exact('Perfil')).click();
+  await click(page, 'Mis habilidades');
+  await page
+    .getByTestId('learning-review-grammar_production:grammar.did')
+    .getByRole('button', { name: /^Abrir repaso rápido:/ })
+    .click();
+  await typeAnswer(page, 'cusco-did-base-guide', 'Did you buy bread?');
+  expect((await didMastery()).pendingErrors).toContain('did_base');
+  await click(page, 'Probar otra escena');
+  await typeAnswer(page, 'cusco-did-base-confirm', 'Did Luz take a photo at the museum?');
+  expect((await didMastery()).pendingErrors).not.toContain('did_base');
+  await click(page, 'Volver al viaje');
+  await click(page, 'Cerrar y volver');
+
   await map(page);
   await click(page, 'Quitar descarga');
   await click(page, 'Quitar recursos del dispositivo');
@@ -293,7 +309,18 @@ test('Cusco shares an offline travel journal and language evidence between Study
     .getByTestId('learning-review-grammar_production:form.u04_l03.4')
     .getByRole('button', { name: /^Abrir repaso rápido:/ })
     .click();
-  await expect(page.getByTestId(/^exercise-cusco-(?:took-photo|photo-review)/)).toBeVisible();
+  const textReview = page.getByTestId(/^exercise-cusco-(?:took-photo|photo-review)/);
+  await expect(textReview).toBeVisible();
+  const reviewId = (await textReview.getAttribute('data-testid'))?.replace(/^exercise-/, '');
+  const review = (pack.story?.practice as TravelMission['steps']).find(({ id }) => id === reviewId);
+  if (review?.type !== 'exercise') throw new Error('Missing authored text review.');
+  await typeAnswer(page, review.id, review.exercise.acceptedAnswers[0]);
+  await expect(feedback(page)).toContainText('¡Muy bien!');
+  expect((await evidence(page, review.id)).at(-1)).toMatchObject({
+    source: 'review',
+    outcome: 'target',
+    materialVersion: `peru:${pack.revision}`,
+  });
   expect((await saved(page)).chapterProgress?.peru?.travel.stamps.peru).toBeTruthy();
 });
 

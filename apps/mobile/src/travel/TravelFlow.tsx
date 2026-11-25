@@ -777,9 +777,10 @@ export function TravelFlow({
                       : 'Ahora te toca a ti')
                 }
               >
-                {(!storyPrompt || chapter.id !== 'home') && (
-                  <Label style={s.storyText}>{step.situation}</Label>
-                )}
+                {step.situation !== step.exercise.promptEs &&
+                  (!storyPrompt || chapter.id !== 'home') && (
+                    <Label style={s.storyText}>{step.situation}</Label>
+                  )}
                 {!!step.visual && (
                   <Label style={f.quiet}>
                     {step.visualDescription ??
