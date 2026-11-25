@@ -16,6 +16,7 @@ import {
 
 const currentCatalog = `/chapter-packs/${CHAPTER_CATALOG_FILE}`;
 const previousCatalog = '/chapter-packs/catalog-v6.json';
+const previousAdventureCatalog = '/chapter-packs/catalog-v7.json';
 
 async function openCartagenaFromMap(page: Page) {
   await page.getByRole('tab', exact('Mapa')).click();
@@ -47,14 +48,19 @@ test('the installed Cartagena guide works offline and keeps its learning after t
 }) => {
   const oldCatalogResponse = await request.get(previousCatalog);
   const newCatalogResponse = await request.get(currentCatalog);
+  const previousAdventureResponse = await request.get(previousAdventureCatalog);
   expect(oldCatalogResponse.ok()).toBe(true);
   expect(newCatalogResponse.ok()).toBe(true);
+  expect(previousAdventureResponse.ok()).toBe(true);
   const oldCatalog: ChapterCatalog = await oldCatalogResponse.json();
   const newCatalog: ChapterCatalog = await newCatalogResponse.json();
+  const previousAdventure: ChapterCatalog = await previousAdventureResponse.json();
   const oldRevision = oldCatalog.chapters.colombia.revision;
   const newRevision = newCatalog.chapters.colombia.revision;
   expect(oldRevision).toBe(7);
-  expect(newRevision).toBe(12);
+  expect(previousAdventure.chapters.colombia.revision).toBe(12);
+  expect(newRevision).toBeGreaterThan(previousAdventure.chapters.colombia.revision);
+  expect((await request.get('/chapter-packs/12/colombia.json')).ok()).toBe(true);
   const guide = await request.get(`/chapter-packs/${oldRevision}/colombia.json`);
   expect(guide.ok()).toBe(true);
   const { lesson, story }: ChapterPack = await guide.json();

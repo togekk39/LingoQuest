@@ -82,6 +82,8 @@ import {
 } from './learning-prerequisites';
 import type { TravelChapter, TravelExerciseStep } from './travel-content';
 import { travelStepVocabulary } from './travel-vocabulary';
+import { rpgAnswerTargets } from './rpg-answer-evidence';
+import { rpgScenarioDigest, type ScenarioVerdict } from './scenario';
 import {
   emptyUnifiedLearning,
   getUnifiedMastery,
@@ -190,6 +192,16 @@ export { homeCountries, route, type Destination, type HomeCountry } from './trav
 export type { TravelChapter, TravelMission, TravelStep, TravelVocabulary } from './travel-content';
 export { travelStepVocabulary } from './travel-vocabulary';
 export { canStartTravelMission, nextTravelMission, travelStoryReply } from './travel';
+export {
+  formatScenarioAmount,
+  formatScenarioSelection,
+  rpgScenarioDigest,
+  scenarioSelectionTotal,
+  type ScenarioDefinition,
+  type ScenarioLine,
+  type ScenarioState,
+  type ScenarioTurn,
+} from './scenario';
 export type {
   TravelPlacement,
   TravelPlacementQuestion,
@@ -300,7 +312,13 @@ function reviewedAdventure(
   const introducedIds = new Set(auditDefinitions.map(({ id }) => canonicalLearningId(id)));
   const audit =
     introducedIds.size === auditDefinitions.length &&
-    [...introducedIds].every((id) => !knownIds.has(id))
+    [...introducedIds].every((id) => !knownIds.has(id)) &&
+    chapter.missions.every(
+      ({ scenario }) =>
+        !scenario ||
+        (chapterAudit?.scenarios &&
+          own(chapterAudit.scenarios, scenario.id) === rpgScenarioDigest(scenario)),
+    )
       ? chapterAudit
       : undefined;
   const definitions = formalDefinitions(chapterLessons, [], audit?.definitions);
@@ -1243,6 +1261,7 @@ export class OfflineEngine {
       errors?: LearningError[];
       evidenceOutcome?: AnswerOutcome;
       authored?: ChapterPractice;
+      scenarioVerdict?: ScenarioVerdict;
     } = {},
   ) {
     const parsed = attemptSchema.parse(input);
@@ -1265,7 +1284,13 @@ export class OfflineEngine {
       context.authored?.step.exercise ?? lesson?.exercises.find((e) => e.id === parsed.exerciseId);
     if (!lesson || !exercise)
       throw new LocalError('Ejercicio no disponible en el curso instalado.', 404);
-    const outcome = judgeAnswer(exercise, parsed.answer, playerName);
+    const scenarioVerdict: ScenarioVerdict | undefined =
+      context.scenarioVerdict ??
+      (context.authored?.step.scenarioTurn && {
+        outcome: 'ungradable' as const,
+        feedbackEs: 'Abre el encuentro para continuar esta conversación.',
+      });
+    const outcome = scenarioVerdict?.outcome ?? judgeAnswer(exercise, parsed.answer, playerName);
     const correct = outcome === 'target';
     const now = this.clock();
     const learning =
@@ -1287,8 +1312,9 @@ export class OfflineEngine {
       exercise.type === 'meaning' && exercise.vocabularyIds?.length === 1;
     const checksErrors =
       context.errors ?? (exercise.spelling ? ['letter_order'] : exerciseCheckedErrors(exercise));
-    const errorType =
-      !formCorrect && outcome !== 'ungradable' && outcome !== 'context_mismatch'
+    const errorType = scenarioVerdict
+      ? scenarioVerdict.error
+      : !formCorrect && outcome !== 'ungradable' && outcome !== 'context_mismatch'
         ? (introduction?.error ??
           (exercise.spelling ? 'letter_order' : undefined) ??
           (assessesLexicalSense &&
@@ -1333,6 +1359,13 @@ export class OfflineEngine {
         : { missing: [] };
     const evidenceOutcome =
       context.evidenceOutcome ?? (prerequisites?.missing.length === 0 ? undefined : 'ungradable');
+    const evidencedTargets = scenarioVerdict
+      ? (scenarioVerdict.targets ?? [])
+      : context.authored?.step.targets
+        ? rpgAnswerTargets(context.authored.step, parsed.answer, outcome)
+        : exerciseEvidenceTargets(exercise, lesson.id, parsed.answer);
+    const actualAlternative =
+      !!scenarioVerdict?.targets?.length && outcome === 'communication_only';
     recordUnifiedEvidence(state.unifiedLearning, {
       id: parsed.clientAttemptId,
       source,
@@ -1348,22 +1381,24 @@ export class OfflineEngine {
       format: exercise.type,
       activity: 'answer',
       outcome: evidenceOutcome ?? outcome,
-      languageOutcome: !evidenceOutcome && identityMismatch && formCorrect ? 'target' : undefined,
+      languageOutcome:
+        !evidenceOutcome && (actualAlternative || (identityMismatch && formCorrect))
+          ? 'target'
+          : undefined,
       identityMismatch: identityMismatch ? true : undefined,
       aids: [...supports],
       retry,
       independent: !supports.size,
-      targets: context.authored?.step.targets
-        ? [...context.authored.step.targets]
-        : exerciseEvidenceTargets(exercise, lesson.id, parsed.answer),
+      targets: [...evidencedTargets],
       error: evidenceOutcome === 'ungradable' ? undefined : errorType,
       errors: checksErrors,
       remediates: context.remediates ?? learning?.remediates,
       transfer: learning?.evidence === 'transfer',
     });
     const identityFeedback = `Usa tu propio nombre para presentarte: ${playerName}.`;
-    const model =
-      exercise.introduction && playerName
+    const model = scenarioVerdict
+      ? undefined
+      : exercise.introduction && playerName
         ? exercise.introduction.model.replace('[tu nombre]', () => playerName)
         : exercise.spelling
           ? playerName
@@ -1377,7 +1412,10 @@ export class OfflineEngine {
     }
     if (!visited.includes(exercise.id)) visited.push(exercise.id);
     if (!state.learningDays.includes(date)) state.learningDays.push(date);
-    const countLegacy = !context.authored || evidenceOutcome !== 'ungradable';
+    const countLegacy =
+      !scenarioVerdict &&
+      !context.authored?.step.answerEvidence &&
+      (!context.authored || evidenceOutcome !== 'ungradable');
     if (
       outcome === 'communication_only' ||
       outcome === 'ungradable' ||
@@ -1396,9 +1434,11 @@ export class OfflineEngine {
         ...(identityMismatch ? { identityMismatch: true, acceptedAnswer: model } : {}),
         feedbackEs: identityMismatch
           ? identityFeedback
-          : communicates
-            ? exercise.communicationOnly!.feedbackEs
-            : (exercise.ungradable?.feedbackEs ?? 'Faltan datos para evaluar esta respuesta.'),
+          : (scenarioVerdict?.feedbackEs ??
+            (communicates
+              ? (exercise.communicationOnly?.feedbackEs ??
+                'Lograste comunicarte. Puedes practicar la expresión indicada.')
+              : (exercise.ungradable?.feedbackEs ?? 'Faltan datos para evaluar esta respuesta.'))),
         xpAwarded: 0,
         pending: false,
       };
@@ -1500,8 +1540,10 @@ export class OfflineEngine {
       feedbackEs: identityMismatch
         ? `La estructura en inglés es correcta. ${identityFeedback}`
         : outcome === 'context_mismatch'
-          ? exercise.contextMismatch!.feedbackEs
-          : `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${exercise.feedbackEs}`,
+          ? (scenarioVerdict?.feedbackEs ??
+            exercise.contextMismatch?.feedbackEs ??
+            exercise.feedbackEs)
+          : `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${scenarioVerdict?.feedbackEs ?? exercise.feedbackEs}`,
       acceptedAnswer: model,
       errorType,
       xpAwarded,
@@ -1599,6 +1641,7 @@ export class OfflineEngine {
       );
     };
     const canSkipKnown = (step: TravelExerciseStep) =>
+      !step.scenarioTurn &&
       !!step.targets?.length &&
       adventurePrerequisites(step)?.missing.length === 0 &&
       step.targets.every(({ targetId, dimension }) => {
@@ -1698,6 +1741,7 @@ export class OfflineEngine {
             contentVersion: adventure?.version ?? homeVersion,
             authored,
             retry: conditions.retry,
+            scenarioVerdict: conditions.scenarioVerdict,
             ...(conditions.referenceAnswer && { aids: ['answer_shown'] }),
             ...(conditions.missingAudio &&
               (!isHomeChapter || !aids.includes('transcript')) && {
@@ -1856,7 +1900,7 @@ export class OfflineEngine {
     }
     if (route === '/v1/travel') {
       const travel = (journey().travel ??= emptyTravel());
-      upgradeTravelCheckpoints(travel, activeChapter);
+      upgradeTravelCheckpoints(travel, activeChapter, this.id);
       if (method === 'POST')
         changeTravel(travel, body, params.get('source') === 'story' ? 'story' : 'study');
       const view = travelView(travel);
@@ -1887,7 +1931,7 @@ export class OfflineEngine {
             : 'Actualiza La primera postal para continuar con esta partida.',
           409,
         );
-      upgradeTravelCheckpoints(travel, activeChapter);
+      upgradeTravelCheckpoints(travel, activeChapter, this.id);
       upgradeStory(definition, story);
       const context = () =>
         storyContext(

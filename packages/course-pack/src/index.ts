@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { equivalentAnswerText } from '@lingoquest/contracts';
 import { sha256Hex, utf8Bytes } from './hash.ts';
+import { scenarioDefinitionSchema, scenarioTurnSchema } from './scenario.ts';
 export { sha256Hex, utf8Bytes } from './hash.ts';
+export * from './scenario.ts';
 export const COURSE_PACK_FORMAT = 'lingoquest-course-pack' as const;
 export const COURSE_PACK_SCHEMA_VERSION = 2 as const;
 export const APP_VERSION = '2.2.0';
@@ -248,7 +250,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
-export const CHAPTER_CATALOG_FILE = 'catalog-v7.json';
+export const CHAPTER_CATALOG_FILE = 'catalog-v8.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -375,11 +377,19 @@ export const rpgAssessmentTargetsSchema = z
   )
   .min(1)
   .max(100);
+export const rpgAnswerEvidenceSchema = z
+  .array(z.object({
+    answers: z.array(answerText).min(1).max(100),
+    targets: rpgAssessmentTargetsSchema,
+  }).strict())
+  .min(1)
+  .max(20);
 const rpgAdventureAuditSchema = z
   .object({
     definitions: z.array(rpgFormalDefinitionSchema).max(500),
     teaching: z.record(id, chapterDigestSchema),
     assessments: z.record(id, chapterDigestSchema),
+    scenarios: z.record(id, chapterDigestSchema).optional(),
     challenges: z
       .record(
         id,
@@ -419,9 +429,11 @@ const storyStepSchema = z
     requiredReply: z.literal(true).optional(),
     skipWhenMastered: z.literal(true).optional(),
     storyReplies: travelStoryRepliesSchema.optional(),
+    scenarioTurn: scenarioTurnSchema.optional(),
     exercise: travelExercise.optional(),
     requires: storyRequirementsSchema.optional(),
     targets: rpgAssessmentTargetsSchema.optional(),
+    answerEvidence: rpgAnswerEvidenceSchema.optional(),
     speech: z
       .object({
         selfCheck: z.literal(true).optional(),
@@ -432,8 +444,10 @@ const storyStepSchema = z
   })
   .passthrough()
   .refine(
-    ({ storyReplies, type, exercise }) =>
-      !storyReplies || (type === 'exercise' && exercise?.type === 'short_text'),
+    ({ storyReplies, scenarioTurn, type, exercise, requiredReply }) =>
+      (!storyReplies && !scenarioTurn) ||
+      (type === 'exercise' && exercise?.type === 'short_text' &&
+        (!scenarioTurn || (!!requiredReply && !storyReplies))),
   );
 
 export const chapterPackSchema = z
@@ -469,6 +483,7 @@ export const chapterPackSchema = z
                     place: text,
                     objective: text,
                     objectiveId: id.optional(),
+                    scenario: scenarioDefinitionSchema.optional(),
                     optional: z.literal(true).optional(),
                     minutes: z.tuple([z.number().positive(), z.number().positive()]),
                     vocabulary: z.array(
@@ -482,7 +497,20 @@ export const chapterPackSchema = z
                     ),
                     steps: z.array(storyStepSchema).min(1),
                   })
-                  .passthrough(),
+                  .passthrough()
+                  .refine(({ steps, scenario }) => {
+                    const turns = steps.flatMap(({ scenarioTurn }) => scenarioTurn ? [scenarioTurn.action] : []);
+                    if (!scenario) return !turns.length;
+                    const menu = turns[0] === 'menu';
+                    const request = turns.indexOf('request');
+                    const firstConfirmation = turns.indexOf('confirm');
+                    const replacement = turns.indexOf('replace');
+                    const lastConfirmation = turns.lastIndexOf('confirm');
+                    const finish = turns.indexOf('finish');
+                    return menu && request > 0 && firstConfirmation > request &&
+                      (replacement === -1 || (replacement > request && lastConfirmation > replacement)) &&
+                      finish > lastConfirmation && turns.at(-1) === 'bill';
+                  }),
               )
               .min(1),
           })

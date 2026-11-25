@@ -6,10 +6,27 @@ import type {
 import { cartagenaAssessmentSteps, cartagenaReviewSteps } from './cartagena-assessments';
 import { cartagenaTeaching } from './cartagena-lessons';
 import { cartagenaGrammar, cartagenaPatterns } from './cartagena-prerequisites';
+import { cartagenaCafeScenario, cartagenaSeaScenario } from './cartagena-scenarios';
 
 const market = 'El mercado de Cartagena';
 const cafe = 'El café del intercambio';
 const seaside = 'La terraza junto al mar';
+const [food, drinks, ...moreLikes] = cartagenaTeaching.likes.steps;
+const [foodListening, ...moreLikesChecks] = cartagenaAssessmentSteps.likes;
+const [menu, request, ingredients, replacement, confirmation, check] =
+  cartagenaTeaching.order.steps;
+const [
+  askForMenu,
+  readMenu,
+  recognizeRequest,
+  placeOrder,
+  confirmOrder,
+  changeOrder,
+  confirmChange,
+  listenAndClose,
+  finishOrder,
+  pay,
+] = cartagenaAssessmentSteps.order;
 
 function speaking(
   topic: string,
@@ -48,8 +65,11 @@ const likes: TravelMission = {
   success: 'Mar y Luz ya saben qué opciones les gustan a quienes van a comer.',
   vocabulary: cartagenaTeaching.likes.vocabulary,
   steps: [
-    ...cartagenaTeaching.likes.steps,
-    ...cartagenaAssessmentSteps.likes,
+    food,
+    drinks,
+    foodListening,
+    ...moreLikes,
+    ...moreLikesChecks,
     speaking(
       'likes',
       cartagenaGrammar.question.id,
@@ -111,6 +131,7 @@ const prices: TravelMission = {
 
 const order: TravelMission = {
   id: 'cartagena-order',
+  scenario: cartagenaCafeScenario,
   objectiveId: 'lq-cartagena-food.order',
   authoredAudio: true,
   title: 'Una mesa para tres',
@@ -120,8 +141,22 @@ const order: TravelMission = {
   success: 'Alba recibió el pedido y el grupo pagó antes de ir a la terraza.',
   vocabulary: cartagenaTeaching.order.vocabulary,
   steps: [
-    ...cartagenaTeaching.order.steps,
-    ...cartagenaAssessmentSteps.order,
+    menu,
+    askForMenu,
+    readMenu,
+    request,
+    recognizeRequest,
+    placeOrder,
+    confirmation,
+    confirmOrder,
+    ingredients,
+    replacement,
+    changeOrder,
+    confirmChange,
+    listenAndClose,
+    finishOrder,
+    check,
+    pay,
     speaking(
       'order',
       cartagenaPatterns.check.id,
@@ -135,6 +170,7 @@ const order: TravelMission = {
 
 const transfer: TravelMission = {
   id: 'cartagena-transfer',
+  scenario: cartagenaSeaScenario,
   authoredAudio: true,
   title: 'Una comida junto al mar',
   place: seaside,
@@ -157,7 +193,7 @@ const transfer: TravelMission = {
 
 export const cartagenaChapter = {
   id: 'colombia',
-  revision: 12,
+  revision: 13,
   title: 'Cartagena',
   stamp: 'Cartagena',
   postcard: 'Una comida junto al mar',

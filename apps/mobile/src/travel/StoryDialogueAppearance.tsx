@@ -96,7 +96,7 @@ export function StoryPhrase({
   exampleLabel?: string;
   showTranslation: boolean;
   onToggleTranslation: () => void;
-  onListen: () => void;
+  onListen?: () => void;
   disabled?: boolean;
   testID?: string;
 }) {
@@ -122,21 +122,23 @@ export function StoryPhrase({
         )}
       </View>
       <View style={styles.tools}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Escuchar frase"
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          onPress={onListen}
-          style={({ pressed }) => [
-            styles.tool,
-            { borderColor: colors.line, backgroundColor: colors.white },
-            (pressed || disabled) && styles.pressed,
-          ]}
-        >
-          <Volume2 color={colors.teal} size={18} />
-          <Text style={[styles.toolLabel, { color: colors.ink }]}>Escuchar</Text>
-        </Pressable>
+        {onListen && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Escuchar frase"
+            accessibilityState={{ disabled }}
+            disabled={disabled}
+            onPress={onListen}
+            style={({ pressed }) => [
+              styles.tool,
+              { borderColor: colors.line, backgroundColor: colors.white },
+              (pressed || disabled) && styles.pressed,
+            ]}
+          >
+            <Volume2 color={colors.teal} size={18} />
+            <Text style={[styles.toolLabel, { color: colors.ink }]}>Escuchar</Text>
+          </Pressable>
+        )}
         <Pressable
           testID="story-translation"
           accessibilityRole="switch"

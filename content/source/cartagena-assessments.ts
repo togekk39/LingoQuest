@@ -1,4 +1,5 @@
 import type { AnswerKey, LearningError } from '@lingoquest/contracts';
+import type { ScenarioTurn } from '@lingoquest/course-pack';
 import type { PrerequisiteReference } from '../../packages/course-pack/src/prerequisites';
 import type { CourseExercise } from '../../packages/offline-engine/src';
 import type { UnifiedEvidenceTarget } from '../../packages/offline-engine/src/learning-evidence';
@@ -15,6 +16,7 @@ import {
   cartagenaRefs as w,
 } from './cartagena-prerequisites';
 import { answerVariants } from './contextual-answers';
+import { cartagenaCafeMenu, cartagenaSeaMenu } from './cartagena-scenarios';
 
 type Topic = keyof typeof cartagenaLessonIds;
 type ExerciseFields = Pick<CourseExercise, 'promptEs' | 'acceptedAnswers' | 'feedbackEs' | 'type'> &
@@ -53,7 +55,7 @@ type Item = {
   hint?: string;
   storyPrompt?: TravelExerciseStep['storyPrompt'];
   storyReply?: TravelExerciseStep['storyReply'];
-  storyReplies?: TravelExerciseStep['storyReplies'];
+  scenarioTurn?: ScenarioTurn;
   skipWhenMastered?: true;
 };
 
@@ -78,7 +80,7 @@ function assessment(item: Item): TravelExerciseStep {
     ...(item.hint && { hint: item.hint }),
     ...(item.storyPrompt && { storyPrompt: item.storyPrompt }),
     ...(item.storyReply && { storyReply: item.storyReply }),
-    ...(item.storyReplies && { storyReplies: item.storyReplies }),
+    ...(item.scenarioTurn && { scenarioTurn: item.scenarioTurn }),
     ...(item.skipWhenMastered && { skipWhenMastered: true }),
     exercise: {
       ...item.exercise,
@@ -201,6 +203,7 @@ const orderWords = [
   w.idLike,
   w.wouldLike,
   w.canIHave,
+  w.couldIHave,
   w.please,
   w.and,
   w.with,
@@ -208,27 +211,19 @@ const orderWords = [
   w.no,
   w.some,
   w.a,
+  w.an,
   w.of,
   w.bottle,
+  w.bottles,
   w.glass,
+  w.glasses,
   w.cup,
+  w.cups,
+  w.for,
+  w.coffees,
+  ...numbers(1, 2, 3),
 ];
-
-export const cartagenaCafeMenu = [
-  'Coffee — COP 5,000',
-  'Water — COP 3,000',
-  'Eggs with cheese — COP 10,000',
-  'Chicken with rice — COP 25,000',
-  'Fish with rice — COP 30,000',
-].join('\n');
-
-export const cartagenaSeaMenu = [
-  'Eggs with bread — COP 12,000',
-  'Chicken with rice — COP 22,000',
-  'Fish with onions — COP 28,000',
-  'Tea — COP 4,000',
-  'Orange juice — COP 6,000',
-].join('\n');
+export { cartagenaCafeMenu, cartagenaSeaMenu } from './cartagena-scenarios';
 
 const cafeMenuWords = [
   w.coffee,
@@ -255,6 +250,19 @@ const seaMenuWords = [
 ];
 
 const likes = [
+  choice({
+    id: 'likes-food-listen',
+    topic: 'likes',
+    context: 'market-specials-audio',
+    situation: 'Mar anuncia uno de los acompañamientos del puesto.',
+    concept: w.coconutRice,
+    patterns: [],
+    words: [],
+    prompt: 'Escucha el nombre y elige lo que ofrece.',
+    audio: 'Coconut rice.',
+    choices: ['Arroz con coco.', 'Pescado frito.', 'Patacones.'],
+    feedback: 'Coconut rice es arroz con coco.',
+  }),
   writing({
     id: 'likes-aux-guide',
     topic: 'likes',
@@ -442,7 +450,7 @@ const quantity = [
       'Aquí necesitas el número de botellas.',
     ),
     errors: {
-      quantity_question: [
+      quantity_count_question: [
         'How many water?',
         'How much bottles of water?',
         'How many water do we need?',
@@ -450,6 +458,20 @@ const quantity = [
     },
     writingPattern: p.howMany,
     feedback: 'Usa how many con bottles of water. How much water pregunta por la cantidad de agua.',
+  }),
+  writing({
+    id: 'quantity-mass-write',
+    topic: 'quantity',
+    context: 'market-mass-question',
+    situation: 'La leche está en una jarra grande. Necesitas saber cuánta usar.',
+    concept: g.quantity,
+    patterns: [p.howMuch, p.howMany],
+    words: [w.milk, w.howMuch, w.howMany, w.do, w.we, w.need],
+    prompt: 'Pregunta en inglés por la cantidad de leche, sin especificar envases.',
+    answers: ['How much milk?', 'How much milk do we need?'],
+    errors: { quantity_mass_question: ['How many milk?', 'How many milk do we need?'] },
+    writingPattern: p.howMuch,
+    feedback: 'Para preguntar por una cantidad sin envases, usa how much milk.',
   }),
   writing({
     id: 'quantity-bread',
@@ -549,7 +571,7 @@ const prices = [
     context: 'cafe-price-or-volume',
     situation: 'Quieren saber cuánto deben pagar por el agua.',
     concept: g.price,
-    patterns: [p.priceQuestion, p.howMany, p.howMuch],
+    patterns: [p.priceQuestion, p.priceIs, p.howMany, p.howMuch],
     words: [...priceQuestionWords, ...measureWords],
     prompt: 'Elige la pregunta de precio.',
     choices: ['How much water?', 'How many bottles of water?', 'How much is the water?'],
@@ -563,7 +585,7 @@ const prices = [
     context: 'cafe-price-request',
     situation: 'Quieres confirmar el precio de los huevos antes de pedir.',
     concept: g.price,
-    patterns: [p.priceQuestion, p.howMany, p.howMuch],
+    patterns: [p.priceQuestion, p.priceAre, p.howMany, p.howMuch],
     words: [...priceQuestionWords, ...measureWords, w.egg, w.eggs, w.coffee],
     prompt: 'Pregunta en inglés cuánto cuestan los huevos.',
     answers: ['How much are the eggs?', 'How much are eggs?'],
@@ -572,10 +594,9 @@ const prices = [
       'Pregunta por el precio de los huevos.',
     ),
     errors: {
-      be_agreement: ['How much is the eggs?'],
-      quantity_question: ['How much eggs?', 'How many is the eggs?'],
+      price_question: ['How much is the eggs?', 'How much eggs?', 'How many is the eggs?'],
     },
-    writingPattern: p.priceQuestion,
+    writingPattern: p.priceAre,
     feedback: 'Para preguntar un precio usa how much. Con eggs en plural, usa are.',
   }),
   writing({
@@ -601,292 +622,343 @@ const prices = [
   }),
 ];
 
-const cafeChoices = [
-  {
-    main: 'fish with rice',
-    mainEs: 'pescado con arroz',
-  },
-  {
-    main: 'chicken with rice',
-    mainEs: 'pollo con arroz',
-  },
-];
+const grammarTarget = (target: PrerequisiteReference): UnifiedEvidenceTarget => ({
+  targetId: target.id,
+  dimension: 'grammar_production',
+});
+const writingTarget = (target: PrerequisiteReference): UnifiedEvidenceTarget => ({
+  targetId: target.id,
+  dimension: 'writing',
+});
 
-const seaChoices = [
-  { main: 'eggs with bread', mainEs: 'huevos con pan' },
-  { main: 'chicken with rice', mainEs: 'pollo con arroz' },
-];
-
-const cafeDrinks = [
-  ['water', 'agua'],
-  ['some water', 'agua'],
-  ['a glass of water', 'un vaso de agua'],
-  ['a bottle of water', 'una botella de agua'],
-  ['coffee', 'café'],
-  ['some coffee', 'café'],
-  ['a cup of coffee', 'una taza de café'],
-] as const;
-
-const seaDrinks = [
-  ['tea', 'té'],
-  ['some tea', 'té'],
-  ['a cup of tea', 'una taza de té'],
-  ['orange juice', 'jugo de naranja'],
-  ['some orange juice', 'jugo de naranja'],
-  ['a glass of orange juice', 'un vaso de jugo de naranja'],
-] as const;
-
-function orderPhrases(prefix: string, mains: string[], drinks: string[]) {
-  const contents = [
-    ...answerVariants(mains, ' and ', drinks),
-    ...answerVariants(drinks, ' and ', mains),
-  ];
-  return answerVariants(prefix, contents, ['', ', please']);
-}
-
+const cafeRequestWords = [...cafeMenuWords, ...orderWords, w.cheese, w.milk, w.plate, w.plates];
+const seaRequestWords = [...seaMenuWords, ...orderWords, w.milk, w.plate, w.plates];
+const requestPatterns = [p.order, p.canHaveExact, p.couldHave, p.countable];
 const orderTarget = "I'd like ";
 const orderAlternate = 'Can I have ';
+const confirmWords = [w.yes, w.thatsRight, w.thats, w.isThatRight, w.noThankYou, w.yesPlease];
+const finishWords = [w.thatsAll, w.noThankYou, w.yesPlease, w.thankYou];
 
-function menuOrder(
-  mains: readonly { main: string; mainEs: string }[],
-  drinks: readonly (readonly [drink: string, drinkEs: string])[],
-): {
-  answers: string[];
-  alternatives: string[];
-  replies: NonNullable<TravelExerciseStep['storyReplies']>;
-} {
-  const groups = mains.flatMap(({ main, mainEs }) =>
-    drinks.map(([drink, drinkEs]) => {
-      const target = orderPhrases(orderTarget, [main], [drink]);
-      const alternate = orderPhrases(orderAlternate, [main], [drink]);
-      return {
-        target,
-        alternate,
-        reply: {
-          answers: [...target, ...alternate],
-          speaker: 'Alba',
-          line: {
-            en: `${main[0].toUpperCase()}${main.slice(1)} and ${drink}.`,
-            es: `${mainEs} y ${drinkEs}.`,
-          },
+function menuRequest(location: 'order' | 'transfer') {
+  return writing({
+    id: `${location}-menu`,
+    topic: 'order',
+    context: `${location}-menu-request`,
+    situation: 'Alba tiene la carta. Pídele que te la muestre antes de decidir.',
+    concept: g.politeOrder,
+    patterns: [p.canSee, p.canHaveExact],
+    words: [w.canISee, w.canIHave, w.the, w.menu, w.please],
+    prompt: 'Pide el menú con cortesía.',
+    answers: ['Can I see the menu, please?', 'Please, can I have the menu?'],
+    scenarioTurn: {
+      action: 'menu',
+      targetForms: ['can-see', 'can-have'],
+      formTargets: [
+        { form: 'can-see', targets: [grammarTarget(g.politeOrder), writingTarget(p.canSee)] },
+        {
+          form: 'can-have',
+          targets: [grammarTarget(g.politeOrder), writingTarget(p.canHaveExact)],
         },
-      };
-    }),
-  );
-  return {
-    answers: groups.flatMap(({ target }) => target),
-    alternatives: groups.flatMap(({ alternate }) => alternate),
-    replies: groups.map(({ reply }) => reply),
-  };
+      ],
+    },
+    writingPattern: p.canSee,
+    extraTargets: [writingTarget(p.canHaveExact)],
+    requiredReply: true,
+    storyPrompt: { speaker: 'Alba', text: '¿Quieres ver la carta antes de decidir?' },
+    feedback: 'Puedes pedir que te muestren la carta o que te la traigan.',
+  });
 }
 
-const orderForms = menuOrder(cafeChoices, cafeDrinks);
-const transferForms = menuOrder(seaChoices, seaDrinks);
-const order = [
-  writing({
-    id: 'order-menu',
+function placeOrder({
+  id,
+  context,
+  situation,
+  words,
+  sample,
+  alternative,
+  mismatch,
+  feedback,
+  transfer,
+}: {
+  id: 'order-write' | 'transfer-order';
+  context: string;
+  situation: string;
+  words: PrerequisiteReference[];
+  sample: string;
+  alternative: string;
+  mismatch: string[];
+  feedback: string;
+  transfer?: true;
+}) {
+  return writing({
+    id,
     topic: 'order',
-    context: 'cafe-menu-request',
-    situation: 'Alba acerca una silla y espera a que le pidas la carta.',
+    context,
+    situation,
     concept: g.order,
-    patterns: [p.canHave, p.order],
-    words: [
-      w.canISee,
-      w.canIHave,
-      w.the,
-      w.menu,
-      w.please,
-      w.idLike,
-      w.without,
-      w.cheese,
-      w.no,
-      w.onions,
-      w.with,
-      w.rice,
-      w.water,
-      w.and,
-    ],
-    prompt: 'Pide ver el menú en inglés con please.',
-    answers: [
-      'Can I see the menu, please?',
-      'Can I have the menu, please?',
-      'Please, can I see the menu?',
-      'Please, can I have the menu?',
-    ],
-    writingPattern: p.canHave,
+    patterns: requestPatterns,
+    words: [...words, g.politeOrder],
+    prompt: 'Escribe tu pedido con I’d like. Incluye un plato y la bebida o bebidas que eliges.',
+    answers: [sample],
+    communicationOnly: {
+      answers: [alternative],
+      feedbackEs:
+        'Alba entiende el pedido. Puedes usar I’d like para practicar la forma de esta actividad.',
+    },
+    contextMismatch: contextMismatch(mismatch, feedback),
+    scenarioTurn: {
+      action: 'request',
+      targetForms: ['would-like'],
+      formTargets: [
+        { form: 'would-like', targets: [grammarTarget(g.order), writingTarget(p.order)] },
+      ],
+      feedback: {
+        communication_only:
+          'Alba entiende el pedido. Puedes usar I’d like para practicar la forma de esta actividad.',
+      },
+    },
+    writingPattern: p.order,
     requiredReply: true,
-    storyPrompt: { speaker: 'Alba', text: '¿Quieres ver la carta antes de ordenar?' },
-    storyReply: { speaker: 'Alba', line: { en: 'The menu.', es: 'La carta.' } },
-    feedback: 'Can I see the menu, please? es una forma de pedir la carta.',
-  }),
+    ...(transfer && { evidence: 'transfer' }),
+    storyPrompt: { speaker: 'Alba', text: '¿Qué eligen del menú?' },
+    feedback,
+  });
+}
+
+function recapConfirmation(id: string, context: string) {
+  return writing({
+    id,
+    topic: 'order',
+    context,
+    situation: 'Lee lo que Alba anotó. Si coincide con lo que pediste, díselo.',
+    concept: g.politeOrder,
+    patterns: [p.confirm, p.affirmRecap],
+    words: confirmWords,
+    prompt: 'Confirma en inglés que el pedido es correcto.',
+    answers: ["That's right.", "Yes, that's right."],
+    scenarioTurn: {
+      action: 'confirm',
+      targetForms: ['confirm'],
+      formTargets: [{ form: 'confirm', targets: [writingTarget(p.affirmRecap)] }],
+    },
+    writingPattern: p.affirmRecap,
+    requiredReply: true,
+    storyPrompt: { speaker: 'Alba', text: '¿Está bien así?' },
+    feedback: 'Confirma solo cuando coincidan el plato, la bebida y la cantidad.',
+  });
+}
+
+function replaceSelection({
+  id,
+  context,
+  situation,
+  words,
+  sample,
+  mismatch,
+  targetFrame,
+  transfer,
+}: {
+  id: 'order-correct' | 'transfer-change';
+  context: string;
+  situation: string;
+  words: PrerequisiteReference[];
+  sample: string;
+  mismatch: string[];
+  targetFrame: 'can-have' | 'could-have';
+  transfer?: true;
+}) {
+  return writing({
+    id,
+    topic: 'order',
+    context,
+    situation,
+    concept: g.politeOrder,
+    patterns: [...requestPatterns, p.insteadOf],
+    words: [...words, w.insteadOf, g.order],
+    prompt: 'Usa instead of. Nombra primero el producto nuevo y luego el que vas a quitar.',
+    answers: [sample],
+    contextMismatch: contextMismatch(
+      mismatch,
+      'Revisa el pedido actual antes de sustituir un producto.',
+    ),
+    scenarioTurn: {
+      action: 'replace',
+      targetForms: [
+        targetFrame,
+        targetFrame === 'can-have' ? 'could-have' : 'can-have',
+        'would-like',
+      ],
+      formTargets: [
+        {
+          form: 'can-have',
+          targets: [
+            grammarTarget(g.politeOrder),
+            writingTarget(p.canHaveExact),
+            writingTarget(p.insteadOf),
+          ],
+        },
+        {
+          form: 'could-have',
+          targets: [
+            grammarTarget(g.politeOrder),
+            writingTarget(p.couldHave),
+            writingTarget(p.insteadOf),
+          ],
+        },
+        {
+          form: 'would-like',
+          targets: [grammarTarget(g.order), writingTarget(p.order), writingTarget(p.insteadOf)],
+        },
+      ],
+    },
+    writingPattern: p.insteadOf,
+    extraTargets: [
+      writingTarget(p.canHaveExact),
+      writingTarget(p.couldHave),
+      writingTarget(p.order),
+      grammarTarget(g.order),
+    ],
+    requiredReply: true,
+    ...(transfer && { evidence: 'transfer' }),
+    storyPrompt: { speaker: 'Alba', text: '¿Qué quieres cambiar de lo que anoté?' },
+    feedback: 'Revisa el producto sustituido y las demás líneas del pedido.',
+  });
+}
+
+function closeOrder(id: string, context: string) {
+  return writing({
+    id,
+    topic: 'order',
+    context,
+    situation: 'Alba espera para saber si quieres agregar algo más al pedido confirmado.',
+    concept: g.politeOrder,
+    patterns: [p.confirm, p.closeOrder],
+    words: finishWords,
+    prompt: 'Indica en inglés que es todo y agradece.',
+    answers: ["That's all, thank you.", 'No, thank you.'],
+    scenarioTurn: {
+      action: 'finish',
+      targetForms: ['finish'],
+      formTargets: [{ form: 'finish', targets: [writingTarget(p.closeOrder)] }],
+    },
+    writingPattern: p.closeOrder,
+    requiredReply: true,
+    storyPrompt: { speaker: 'Alba', text: '¿Algo más?' },
+    feedback: 'Puedes cerrar con That’s all, thank you o No, thank you.',
+  });
+}
+
+function requestCheck(id: string, context: string) {
+  return writing({
+    id,
+    topic: 'order',
+    context,
+    situation: 'Ya terminaron de comer y quieren pagar el pedido que se confirmó.',
+    concept: g.politeOrder,
+    patterns: [p.check, p.canHaveExact, p.priceIs],
+    words: [w.canIHave, w.the, w.check, w.bill, w.please, w.howMuchPrice, w.total, w.is, g.price],
+    prompt: 'Pide la cuenta con cortesía o pregunta cuánto deben pagar en total.',
+    answers: [
+      'Can I have the check, please?',
+      'Can I have the bill, please?',
+      'How much is the total?',
+    ],
+    scenarioTurn: {
+      action: 'bill',
+      targetForms: ['can-have', 'price'],
+      formTargets: [
+        {
+          form: 'can-have',
+          targets: [
+            grammarTarget(g.politeOrder),
+            writingTarget(p.canHaveExact),
+            writingTarget(p.check),
+          ],
+        },
+        { form: 'price', targets: [grammarTarget(g.price), writingTarget(p.priceIs)] },
+      ],
+    },
+    writingPattern: p.check,
+    extraTargets: [writingTarget(p.priceIs), writingTarget(p.canHaveExact), grammarTarget(g.price)],
+    requiredReply: true,
+    storyPrompt: { speaker: 'Alba', text: '¿Qué necesitas antes de pagar?' },
+    feedback: 'El total se calcula con los productos y cantidades del pedido confirmado.',
+  });
+}
+
+const order = [
+  menuRequest('order'),
   choice({
     id: 'order-read',
     topic: 'order',
     context: 'cafe-menu-ingredients',
-    situation: 'Para este pedido buscan arroz y una bebida. Luz prefiere una comida sin queso.',
-    concept: g.order,
-    patterns: [p.preferences, p.order],
-    words: [...cafeMenuWords, w.no, w.without],
+    situation: 'Sam quiere arroz. Luz prefiere evitar el queso. Consulta las opciones de la carta.',
+    concept: g.price,
+    patterns: [p.preferences],
+    words: cafeMenuWords,
     passage: cartagenaCafeMenu,
-    prompt: '¿Qué comida de la pizarra lleva arroz y aparece sin queso?',
+    prompt: '¿Qué opción de la lista lleva arroz y aparece sin queso?',
     choices: ['Huevos con queso.', 'Pollo con arroz.', 'Café.'],
     correct: 1,
-    feedback: 'Chicken with rice se anuncia con arroz. Puedes aclarar la preferencia al pedir.',
+    feedback: 'Chicken with rice indica pollo con arroz.',
   }),
   choice({
     id: 'order-recognize',
     topic: 'order',
     context: 'cafe-guest-and-server',
-    situation: 'Tú quieres pedir agua. Alba todavía no ha tomado el pedido.',
+    situation: 'Lee lo que indica cada persona mientras Luz y Alba organizan la mesa.',
     concept: g.order,
-    patterns: [p.order, p.canHave, p.confirm],
-    words: [w.canIHave, w.some, w.water, w.please, w.whatWouldYouLike, w.anythingElse],
-    prompt: 'Elige la frase que dirías como cliente para pedir agua.',
-    choices: ['What would you like?', 'Can I have some water, please?', 'Anything else?'],
+    patterns: [p.order, p.canHaveExact],
+    words: [w.idLike, w.canIHave, w.some, w.water, w.tea, w.please, w.whatWouldYouLike],
+    passage: "Alba: What would you like?\nLuz: I'd like some tea, please.",
+    prompt: '¿Qué hace Luz en este diálogo?',
+    choices: ['Pregunta por el precio.', 'Pide té.', 'Pide agua.'],
     correct: 1,
-    english: true,
-    feedback:
-      'Can I have some water, please? es una petición. Las otras frases las puede decir Alba.',
+    feedback: 'I’d like some tea es una petición cortés para pedir té.',
   }),
-  writing({
+  placeOrder({
     id: 'order-write',
-    topic: 'order',
     context: 'cafe-first-order',
     situation:
-      'Pide pollo con arroz o pescado con arroz. Elige agua o café. Es un pedido para compartir y acordaron evitar el plato con queso.',
-    concept: g.order,
-    patterns: [p.order, p.canHave, p.preferences, p.countable],
-    words: [...cafeMenuWords, ...orderWords],
-    passage: cartagenaCafeMenu,
-    prompt: 'Escribe el plato y la bebida en un pedido cortés con I’d like.',
-    answers: orderForms.answers,
-    communicationOnly: {
-      answers: orderForms.alternatives,
-      feedbackEs:
-        'Alba entiende tu pedido. Para practicar la expresión de esta actividad, usa I’d like.',
-    },
-    contextMismatch: contextMismatch(
-      [
-        ...orderPhrases(
-          orderTarget,
-          ['eggs with cheese', 'fish', 'chicken'],
-          ['water', 'some water', 'coffee', 'some coffee'],
-        ),
-        ...orderPhrases(
-          orderAlternate,
-          ['eggs with cheese', 'fish', 'chicken'],
-          ['water', 'some water', 'coffee', 'some coffee'],
-        ),
-        ...answerVariants(
-          orderTarget,
-          cafeChoices.map(({ main }) => main),
-          ['', ', please'],
-        ),
-      ],
-      'El pedido requiere un plato con arroz que figure sin queso y una bebida.',
-    ),
-    writingPattern: p.order,
-    requiredReply: true,
-    storyPrompt: { speaker: 'Alba', text: 'Escucho cuál plato con arroz y cuál bebida quieren.' },
-    storyReplies: orderForms.replies,
-    feedback: 'Usa I’d like seguido de un plato con arroz y de agua o café. Puedes añadir please.',
+      'Pide un plato para compartir con arroz y sin queso. Elige una o dos bebidas de la carta. Tienen COP 35,000 para todo.',
+    words: cafeRequestWords,
+    sample: "I'd like chicken with rice and a cup of coffee, please.",
+    alternative: 'Could I have a glass of water and fish with rice, please?',
+    mismatch: [
+      "I'd like eggs with cheese and some water, please.",
+      "I'd like chicken without rice and coffee, please.",
+      "I'd like two plates of chicken with rice and some water, please.",
+    ],
+    feedback: 'Revisa el arroz, las preferencias, las porciones y el presupuesto de la mesa.',
   }),
-  writing({
-    id: 'order-confirm',
-    topic: 'order',
-    context: 'cafe-check-your-recap',
-    situation:
-      'Alba acaba de repetir el plato y la bebida de tu pedido. Confirma que lo anotó bien.',
-    concept: g.order,
-    patterns: [p.confirm],
-    words: [w.yes, w.thatsRight, w.yesPlease, w.noThankYou],
-    prompt: 'Responde en inglés para confirmar el pedido que acaba de repetir.',
-    answers: ["That's right.", "Yes, that's right.", 'Yes, please.'],
-    contextMismatch: contextMismatch(
-      ['No, thank you.'],
-      'El plato y la bebida coinciden con tu pedido.',
-    ),
-    writingPattern: p.confirm,
-    requiredReply: true,
-    feedback: 'Puedes decir That’s right para confirmar que el pedido coincide.',
-  }),
-  writing({
+  recapConfirmation('order-confirm', 'cafe-check-your-recap'),
+  replaceSelection({
     id: 'order-correct',
-    topic: 'order',
-    context: 'cafe-correct-sams-drink',
+    context: 'cafe-change-your-order',
     situation:
-      'Ahora hacen un pedido aparte para Sam. Él pidió agua, pero Alba anotó leche. Corrige la bebida con cortesía.',
-    concept: g.order,
-    patterns: [p.order, p.canHave, p.confirm],
-    words: [w.milk, w.water, w.idLike, w.wouldLike, w.canIHave, w.no, w.some, w.please],
-    prompt: 'Pide agua en vez de leche.',
-    answers: answerVariants(
-      ['Can I have ', "I'd like "],
-      ['water', 'some water'],
-      [', please?', '?'],
-    ),
-    contextMismatch: contextMismatch(
-      ['Can I have milk, please?', "I'd like milk, please."],
-      'Sam pidió agua.',
-    ),
-    writingPattern: p.canHave,
-    requiredReply: true,
-    storyPrompt: {
-      speaker: 'Alba',
-      text: 'Para Sam anoté leche. ¿Qué debe llevar su pedido aparte?',
-    },
-    storyReply: { speaker: 'Alba', line: { en: 'Water for Sam.', es: 'Agua para Sam.' } },
-    feedback: 'Pide water para que Alba pueda corregir la bebida de Sam.',
+      'Antes de que Alba lleve el pedido, elige otro plato o bebida del menú. El pedido nuevo deberá seguir cumpliendo las necesidades de la mesa y el presupuesto.',
+    words: cafeRequestWords,
+    sample: 'Can I have water instead of coffee?',
+    mismatch: ['Can I have milk instead of coffee?'],
+    targetFrame: 'can-have',
   }),
+  recapConfirmation('order-confirm-updated', 'cafe-check-the-changed-order'),
   choice({
     id: 'order-listen',
     topic: 'order',
     context: 'cafe-server-follow-up',
-    situation: 'Después de anotar la corrección, Alba hace una pregunta.',
-    concept: g.order,
-    patterns: [p.confirm, p.order],
+    situation: 'Ahora que Alba anotó tu cambio y confirmó el pedido, hace otra pregunta.',
+    concept: g.politeOrder,
+    patterns: [p.confirm, p.closeOrder],
     words: [w.anythingElse, w.thatsAll],
     prompt: '¿Qué quiere confirmar Alba?',
     audio: 'Anything else?',
     choices: ['Si quieren algo más.', 'Cuánto cuesta el agua.', 'Si faltan sillas.'],
-    storyPrompt: { speaker: 'Alba', text: '¿Puedes entender mi siguiente pregunta?' },
+    storyPrompt: { speaker: 'Alba', text: 'Escucha mi pregunta para saber si quieres algo más.' },
     feedback: 'Anything else? pregunta si quieres añadir algo más.',
   }),
-  writing({
-    id: 'order-close',
-    topic: 'order',
-    context: 'cafe-final-confirmation',
-    situation: 'El plato y las bebidas ya están anotados. No quieres agregar nada.',
-    concept: g.order,
-    patterns: [p.confirm],
-    words: [w.thatsAll, w.noThankYou, w.yesPlease, w.thankYou],
-    prompt: 'Confirma en inglés que eso es todo. Agradece a Alba.',
-    answers: ["That's all, thank you.", 'No, thank you.', "No, that's all, thank you."],
-    contextMismatch: contextMismatch(['Yes, please.'], 'El pedido ya está completo.'),
-    writingPattern: p.confirm,
-    requiredReply: true,
-    feedback: 'That’s all, thank you cierra el pedido con cortesía.',
-  }),
-  writing({
-    id: 'order-check',
-    topic: 'order',
-    context: 'cafe-bill-request',
-    situation: 'Ya terminaron de comer. Pide la cuenta para poder pagar.',
-    concept: g.order,
-    patterns: [p.check, p.canHave],
-    words: [w.canIHave, w.the, w.check, w.bill, w.please, w.menu],
-    prompt: 'Escribe tu petición cortés en inglés.',
-    answers: answerVariants('Can I have the ', ['check', 'bill'], [', please?', '?']),
-    contextMismatch: contextMismatch(
-      ['Can I have the menu, please?'],
-      'Ahora necesitan la cuenta para pagar.',
-    ),
-    writingPattern: p.check,
-    requiredReply: true,
-    storyReply: { speaker: 'Alba', line: { en: 'The check.', es: 'La cuenta.' } },
-    feedback:
-      'Can I have the check, please? es común en inglés de Estados Unidos. También se entiende bill.',
-  }),
+  closeOrder('order-close', 'cafe-final-confirmation'),
+  requestCheck('order-check', 'cafe-bill-request'),
 ];
 
 const transfer = [
@@ -960,50 +1032,37 @@ const transfer = [
     evidence: 'transfer',
     feedback: 'Eggs with bread cuesta COP 12,000 y cabe en el presupuesto.',
   }),
-  writing({
+  menuRequest('transfer'),
+  placeOrder({
     id: 'transfer-order',
-    topic: 'order',
     context: 'sea-first-order',
     situation:
-      'Pide para una persona del grupo. Elige los huevos con pan para Luz o el pollo con arroz para Sam. Ambos quieren evitar el plato con cebolla. Escoge té o jugo para acompañar.',
-    concept: g.order,
-    patterns: [p.order, p.canHave, p.preferences, p.countable],
-    words: [...seaMenuWords, ...orderWords],
-    passage: cartagenaSeaMenu,
-    prompt: 'Haz tu pedido en inglés con I’d like e incluye un plato y una bebida.',
-    answers: transferForms.answers,
-    communicationOnly: {
-      answers: transferForms.alternatives,
-      feedbackEs:
-        'Alba entiende el pedido. Para demostrar la fórmula de esta actividad, puedes usar I’d like.',
-    },
-    contextMismatch: contextMismatch(
-      [
-        ...orderPhrases(
-          orderTarget,
-          ['fish with onions', 'fish'],
-          ['tea', 'some tea', 'orange juice', 'some orange juice'],
-        ),
-        ...orderPhrases(
-          orderAlternate,
-          ['fish with onions', 'fish'],
-          ['tea', 'some tea', 'orange juice', 'some orange juice'],
-        ),
-        ...answerVariants(
-          orderTarget,
-          seaChoices.map(({ main }) => main),
-          ['', ', please'],
-        ),
-      ],
-      'Pide el plato acordado para Luz o Sam y una de las bebidas del menú.',
-    ),
-    writingPattern: p.order,
-    requiredReply: true,
-    evidence: 'transfer',
-    storyPrompt: { speaker: 'Alba', text: 'Cuéntame qué plato y qué bebida lleva este pedido.' },
-    storyReplies: transferForms.replies,
-    feedback: 'Pide huevos con pan o pollo con arroz y elige té o jugo de naranja.',
+      'Tienen COP 34,000 para compartir un plato sin cebolla y una o dos bebidas. La carta tiene opciones distintas de las del café. Elige lo que pedirás para la mesa.',
+    words: seaRequestWords,
+    sample: "I'd like eggs with bread and some tea, please.",
+    alternative: 'Could I have chicken with rice and a glass of orange juice, please?',
+    mismatch: [
+      "I'd like fish with onions and some tea, please.",
+      "I'd like chicken with rice and three cups of tea, please.",
+    ],
+    feedback: 'Revisa la restricción de Luz, la cantidad de bebidas y el presupuesto de la mesa.',
+    transfer: true,
   }),
+  recapConfirmation('transfer-confirm', 'sea-check-your-recap'),
+  replaceSelection({
+    id: 'transfer-change',
+    context: 'sea-change-after-recapping',
+    situation:
+      'Ahora tus compañeros quieren probar algo diferente. Cambia el plato o una bebida del pedido. Revisa la restricción de Luz y el precio del pedido completo.',
+    words: seaRequestWords,
+    sample: 'Could I have chicken with rice instead of eggs with bread?',
+    mismatch: ['Could I have fish with onions instead of eggs with bread?'],
+    targetFrame: 'could-have',
+    transfer: true,
+  }),
+  recapConfirmation('transfer-confirm-updated', 'sea-check-the-changed-order'),
+  closeOrder('transfer-close', 'sea-final-confirmation'),
+  requestCheck('transfer-check', 'sea-bill-request'),
   writing({
     id: 'transfer-open',
     topic: 'order',
@@ -1035,11 +1094,16 @@ export const cartagenaAssessmentSteps = {
 } satisfies Record<Topic | 'transfer', TravelStep[]>;
 
 const thirdPersonErrors: LearningError[] = ['third_person'];
-const quantityQuestionErrors: LearningError[] = ['quantity_question'];
 const countabilityErrors: LearningError[] = ['countability'];
 const articleErrors: LearningError[] = ['article'];
 
-export const cartagenaReviewSteps = [
+const reviewWouldLike = "I'd like ";
+const reviewCanHave = 'Can I have ';
+const reviewReplacement = 'water instead of orange juice';
+const reviewCanReplace = answerVariants(reviewCanHave, reviewReplacement, ['?', ', please?']);
+const reviewCouldReplace = answerVariants('Could I have ', reviewReplacement, ['?', ', please?']);
+
+const contextualReviewSteps = [
   writing({
     id: 'review-likes-guide',
     topic: 'likes',
@@ -1151,29 +1215,62 @@ export const cartagenaReviewSteps = [
     answers: ['How many apples?'],
     writingPattern: p.howMany,
     guided: true,
-    remediates: quantityQuestionErrors,
+    remediates: ['quantity_count_question'],
     feedback: 'How many apples? Apples se cuenta en unidades.',
+  }),
+  writing({
+    id: 'review-quantity-count-question-confirm',
+    topic: 'quantity',
+    context: 'review-shared-coffee-tray',
+    situation: 'En el club de lectura van a servir café. Quieres saber cuántas tazas preparar.',
+    concept: g.quantity,
+    patterns: [p.howMany, p.countable],
+    words: [w.howMany, w.cups, w.of, w.coffee, w.do, w.we, w.need, g.question],
+    prompt: 'Pregunta en inglés por el número de tazas de café que necesitan.',
+    answers: ['How many cups of coffee?', 'How many cups of coffee do we need?'],
+    writingPattern: p.howMany,
+    evidence: 'transfer',
+    errors: {
+      quantity_count_question: ['How much cups of coffee?', 'How much cups of coffee do we need?'],
+    },
+    remediates: ['quantity_count_question'],
+    feedback: 'Cups es una unidad en plural. Pregunta con How many cups of coffee?',
+  }),
+  writing({
+    id: 'review-quantity-mass-question-guide',
+    topic: 'quantity',
+    context: 'review-cooking-rice',
+    situation:
+      'Para preguntar por una cantidad sin contar vasos o botellas, usa how much. Ejemplo: How much water?',
+    concept: g.quantity,
+    patterns: [p.howMuch],
+    words: [w.howMuch, w.water, w.rice],
+    prompt: 'Pregunta cuánto arroz hace falta para cocinar.',
+    answers: ['How much rice?'],
+    writingPattern: p.howMuch,
+    guided: true,
+    remediates: ['quantity_mass_question'],
+    feedback: 'How much rice? Rice es lo que quieres medir en esta receta.',
   }),
   writing({
     id: 'review-quantity-question-confirm',
     topic: 'quantity',
-    context: 'review-kitchen-milk',
-    situation:
-      'En la cocina de casa necesitan leche para una receta. Te interesa la cantidad de leche.',
+    context: 'review-picnic-juice-pitcher',
+    situation: 'En un picnic van a repartir jugo de una jarra. Averigua la cantidad que necesitan.',
     concept: g.quantity,
     patterns: [p.howMany, p.howMuch, p.countable],
-    words: [...measureWords, w.milk, w.do, g.question],
-    prompt: 'Haz la pregunta en inglés sobre la leche.',
-    answers: ['How much milk?', 'How much milk do we need?'],
+    words: [...measureWords, w.juice, w.do, g.question],
+    prompt: 'Pregunta en inglés cuánto jugo necesitan, sin contar envases.',
+    answers: ['How much juice?', 'How much juice do we need?'],
     contextMismatch: contextMismatch(
-      ['How many bottles of milk?', 'How much water?'],
-      'Piden la cantidad de leche de la receta sin contar envases.',
+      ['How many bottles of juice?', 'How much water?'],
+      'Piden la cantidad de jugo sin contar envases.',
     ),
     writingPattern: p.howMuch,
     evidence: 'transfer',
-    errors: { quantity_question: ['How many milk?', 'How many milk do we need?'] },
-    remediates: quantityQuestionErrors,
-    feedback: 'How much milk? pregunta por la cantidad de leche.',
+    errors: { quantity_mass_question: ['How many juice?', 'How many juice do we need?'] },
+    remediates: ['quantity_mass_question'],
+    feedback: 'How much juice? pregunta por la cantidad de jugo.',
   }),
   writing({
     id: 'review-bread-guide',
@@ -1251,16 +1348,16 @@ export const cartagenaReviewSteps = [
     topic: 'prices',
     context: 'review-market-price-example',
     situation:
-      'Para un precio usa How much is + singular o How much are + plural. Modelo: How much are the eggs?',
+      'En una pregunta de precio con un nombre en plural, usa how much are. Ejemplo: How much are the eggs?',
     concept: g.price,
-    patterns: [p.priceQuestion, p.howMany, p.howMuch],
-    words: [...priceQuestionWords, ...measureWords, w.eggs, w.coffee],
-    prompt: 'Ahora pregunta cuánto cuesta el café en inglés.',
-    answers: ['How much is the coffee?', 'How much is coffee?'],
-    writingPattern: p.priceQuestion,
+    patterns: [p.priceQuestion, p.priceAre],
+    words: [...priceQuestionWords, w.eggs, w.apples],
+    prompt: 'Ahora pregunta cuánto cuestan las manzanas en inglés.',
+    answers: ['How much are the apples?', 'How much are apples?'],
+    writingPattern: p.priceAre,
     guided: true,
-    remediates: ['be_agreement', 'quantity_question'],
-    feedback: 'How much is the coffee? Usa is para el café del menú.',
+    remediates: ['be_agreement', 'price_question'],
+    feedback: 'How much are the apples? Usa are porque apples está en plural.',
   }),
   writing({
     id: 'review-price-confirm',
@@ -1268,7 +1365,7 @@ export const cartagenaReviewSteps = [
     context: 'review-street-fruit-price',
     situation: 'En otro puesto quieres saber el precio de las bananas de la bandeja.',
     concept: g.price,
-    patterns: [p.priceQuestion, p.howMany],
+    patterns: [p.priceQuestion, p.priceAre, p.howMany],
     words: [...priceQuestionWords, w.banana, w.bananas, w.howMany],
     prompt: 'Pregunta el precio en inglés.',
     answers: ['How much are the bananas?', 'How much are bananas?'],
@@ -1276,14 +1373,28 @@ export const cartagenaReviewSteps = [
       ['How many bananas?'],
       'Quieres saber el precio de las bananas.',
     ),
-    writingPattern: p.priceQuestion,
+    writingPattern: p.priceAre,
     evidence: 'transfer',
     errors: {
       be_agreement: ['How much is the bananas?'],
-      quantity_question: ['How much bananas?', 'How many is the bananas?'],
+      price_question: ['How much bananas?', 'How many is the bananas?'],
     },
-    remediates: ['be_agreement', 'quantity_question'],
+    remediates: ['be_agreement', 'price_question'],
     feedback: 'Bananas está en plural. Usa How much are the bananas?',
+  }),
+  writing({
+    id: 'review-price-singular',
+    topic: 'prices',
+    context: 'review-train-station-tea',
+    situation: 'En la cafetería de una estación quieres saber cuánto cuesta el té.',
+    concept: g.price,
+    patterns: [p.priceQuestion, p.priceIs],
+    words: [w.howMuchPrice, w.is, w.the, w.tea],
+    prompt: 'Pregunta el precio en inglés.',
+    answers: ['How much is the tea?', 'How much is tea?'],
+    writingPattern: p.priceIs,
+    evidence: 'transfer',
+    feedback: 'How much is the tea? Usa is para preguntar el precio de esta bebida.',
   }),
   writing({
     id: 'review-price-total',
@@ -1331,7 +1442,7 @@ export const cartagenaReviewSteps = [
     words: [...orderWords, w.cups, w.coffee, w.coffees, ...numbers(2, 3)],
     prompt: 'Pide tres cafés con I’d like. Expresa el número de porciones.',
     answers: answerVariants(
-      orderTarget,
+      reviewWouldLike,
       ['three coffees', 'three cups of coffee'],
       ['', ', please'],
     ),
@@ -1351,10 +1462,14 @@ export const cartagenaReviewSteps = [
     words: [...orderWords, w.coffee, w.coffees, w.cups, ...numbers(2, 3)],
     prompt:
       'Pide en inglés dos tazas de café usando I’d like. Deja claro cuántas porciones quieres.',
-    answers: answerVariants(orderTarget, ['two coffees', 'two cups of coffee'], ['', ', please']),
+    answers: answerVariants(
+      reviewWouldLike,
+      ['two coffees', 'two cups of coffee'],
+      ['', ', please'],
+    ),
     communicationOnly: {
       answers: answerVariants(
-        orderAlternate,
+        reviewCanHave,
         ['two coffees', 'two cups of coffee'],
         ['', ', please'],
       ),
@@ -1363,7 +1478,7 @@ export const cartagenaReviewSteps = [
     },
     contextMismatch: contextMismatch(
       answerVariants(
-        orderTarget,
+        reviewWouldLike,
         ['some coffee', 'three coffees', 'three cups of coffee'],
         ['', ', please'],
       ),
@@ -1391,10 +1506,14 @@ export const cartagenaReviewSteps = [
     patterns: [p.order, p.canHave, p.countable, p.plural],
     words: [...orderWords, w.coffee, w.coffees, w.cups, ...numbers(2, 4)],
     prompt: 'Haz el pedido con I’d like. Pide la cantidad acordada.',
-    answers: answerVariants(orderTarget, ['two coffees', 'two cups of coffee'], ['', ', please']),
+    answers: answerVariants(
+      reviewWouldLike,
+      ['two coffees', 'two cups of coffee'],
+      ['', ', please'],
+    ),
     communicationOnly: {
       answers: answerVariants(
-        orderAlternate,
+        reviewCanHave,
         ['two coffees', 'two cups of coffee'],
         ['', ', please'],
       ),
@@ -1402,7 +1521,7 @@ export const cartagenaReviewSteps = [
     },
     contextMismatch: contextMismatch(
       answerVariants(
-        orderTarget,
+        reviewWouldLike,
         ['some coffee', 'four coffees', 'four cups of coffee'],
         ['', ', please'],
       ),
@@ -1424,8 +1543,8 @@ export const cartagenaReviewSteps = [
     topic: 'order',
     context: 'review-library-cafe-check',
     situation: 'Después de comer en el café de la biblioteca de Inés, ya quieres pagar.',
-    concept: g.order,
-    patterns: [p.check, p.canHave],
+    concept: g.politeOrder,
+    patterns: [p.check, p.canHaveExact],
     words: [w.canIHave, w.the, w.check, w.bill, w.please, w.menu],
     prompt: 'Escribe en inglés una petición cortés para pedir la cuenta.',
     answers: answerVariants('Can I have the ', ['check', 'bill'], [', please?', '?']),
@@ -1434,9 +1553,312 @@ export const cartagenaReviewSteps = [
       'Quieres pagar. Pide el check o bill.',
     ),
     writingPattern: p.check,
+    extraTargets: [{ targetId: p.canHaveExact.id, dimension: 'writing' }],
     evidence: 'transfer',
     feedback: 'Can I have the check, please? También puedes pedir the bill.',
   }),
+  writing({
+    id: 'review-order-request-guide',
+    topic: 'order',
+    context: 'review-park-kiosk-example',
+    situation: 'Para pedir algo, empieza con I’d like. Modelo: I’d like some tea, please.',
+    concept: g.order,
+    patterns: [p.order],
+    words: [w.idLike, w.wouldLike, w.i, w.some, w.tea, w.water, w.please],
+    prompt: 'Pide agua para tu mesa con I’d like.',
+    answers: answerVariants("I'd like ", ['water', 'some water'], ['', ', please']),
+    writingPattern: p.order,
+    guided: true,
+    remediates: ['request_form'],
+    feedback: 'I’d like some water, please expresa un pedido.',
+  }),
+  writing({
+    id: 'review-order-request-confirm',
+    topic: 'order',
+    context: 'review-ferry-coffee-counter',
+    situation: 'En el muelle vas a pedir café para tomar antes de subir al barco.',
+    concept: g.order,
+    patterns: [p.order],
+    words: [w.idLike, w.wouldLike, w.i, w.some, w.coffee, w.please],
+    prompt: 'Haz un pedido cortés de café con I’d like.',
+    answers: answerVariants("I'd like ", ['coffee', 'some coffee'], ['', ', please']),
+    writingPattern: p.order,
+    evidence: 'transfer',
+    errors: { request_form: ['I like coffee, please.', 'I would coffee, please.'] },
+    remediates: ['request_form'],
+    feedback: 'I’d like some coffee, please expresa lo que deseas pedir.',
+  }),
+  writing({
+    id: 'review-order-replacement-guide',
+    topic: 'order',
+    context: 'review-hotel-breakfast-example',
+    situation:
+      'Para cambiar un pedido, di primero lo nuevo. En Can I have water instead of coffee?, quieres agua y quitas el café.',
+    concept: g.politeOrder,
+    patterns: [p.canHaveExact, p.insteadOf],
+    words: [w.canIHave, w.water, w.coffee, w.insteadOf, w.tea, w.please],
+    prompt: 'Ahora pide té en vez de café.',
+    answers: ['Can I have tea instead of coffee?', 'Can I have tea instead of coffee, please?'],
+    writingPattern: p.insteadOf,
+    guided: true,
+    remediates: ['replacement_form'],
+    feedback: 'Can I have tea instead of coffee? Tea es la bebida nueva.',
+  }),
+  {
+    ...writing({
+      id: 'review-order-replacement-confirm',
+      topic: 'order',
+      context: 'review-picnic-drink-change',
+      situation: 'En el puesto de un picnic ya pediste jugo de naranja. Prefieres agua.',
+      concept: g.politeOrder,
+      patterns: [p.canHaveExact, p.couldHave, p.insteadOf],
+      words: [w.canIHave, w.couldIHave, w.water, w.insteadOf, w.orangeJuice, w.please],
+      prompt: 'Pide el cambio por agua en inglés. Indica qué bebida vas a cambiar.',
+      answers: [...reviewCanReplace, ...reviewCouldReplace],
+      extraTargets: [writingTarget(p.canHaveExact), writingTarget(p.couldHave)],
+      writingPattern: p.insteadOf,
+      evidence: 'transfer',
+      errors: {
+        replacement_form: [
+          'Can I have water instead orange juice?',
+          'Could I have water instead orange juice?',
+        ],
+      },
+      remediates: ['replacement_form'],
+      contextMismatch: contextMismatch(
+        ['Can I have orange juice instead of water?'],
+        'El cambio es de jugo a agua.',
+      ),
+      feedback: 'Di water primero y orange juice después de instead of.',
+    }),
+    answerEvidence: [
+      {
+        answers: reviewCanReplace,
+        targets: [
+          grammarTarget(g.politeOrder),
+          writingTarget(p.insteadOf),
+          writingTarget(p.canHaveExact),
+        ],
+      },
+      {
+        answers: reviewCouldReplace,
+        targets: [
+          grammarTarget(g.politeOrder),
+          writingTarget(p.insteadOf),
+          writingTarget(p.couldHave),
+        ],
+      },
+    ],
+  },
 ];
 
+type LexicalReview = {
+  id: string;
+  topic: Topic;
+  context: string;
+  target: PrerequisiteReference;
+  situation: string;
+  prompt: string;
+  feedback: string;
+  words?: PrerequisiteReference[];
+  passage?: string;
+  audio?: string;
+  guided?: true;
+  remediates?: LearningError[];
+  errors?: LearningTarget['errorAnswers'];
+} & (
+  | { choices: [string, string, ...string[]]; correct?: number }
+  | { answer: string; sentence?: string }
+);
+
+function lexicalReview(item: LexicalReview): TravelExerciseStep {
+  const keyed = 'answer' in item;
+  const step = assessment({
+    id: `review-lex-${item.id}`,
+    topic: item.topic,
+    context: `review-${item.context}`,
+    situation: item.situation,
+    concept: item.target,
+    patterns: [],
+    words: item.words ?? [],
+    skill: item.audio ? 'listening' : 'vocabulary',
+    dimension: item.audio ? 'listening' : keyed ? 'vocabulary_recall' : 'vocabulary_recognition',
+    evidence: keyed ? 'recall' : 'recognition',
+    ...(item.audio && { audio: item.audio }),
+    ...(item.guided && { guided: true }),
+    ...(item.remediates && { remediates: item.remediates }),
+    ...(item.errors && { errors: item.errors }),
+    exercise: {
+      type: keyed ? 'short_text' : 'meaning',
+      promptEs: item.prompt,
+      acceptedAnswers: keyed ? [item.answer] : [],
+      feedbackEs: item.feedback,
+      ...(item.passage && { passage: item.passage }),
+      ...(keyed && item.sentence && { sentence: item.sentence }),
+      ...(!keyed && {
+        options: item.choices.map((text, index) => ({ id: String(index + 1), text })),
+        correctOptionId: String((item.correct ?? 0) + 1),
+        optionsLanguage: 'es',
+      }),
+    },
+  });
+  return { ...step, reviewMissionId: `cartagena-${item.topic}` };
+}
+
+const lexicalReviews: LexicalReview[] = [
+  {
+    id: 'chicken-sense',
+    topic: 'likes',
+    context: 'snack-table-chicken',
+    target: w.chicken,
+    situation: 'Ves esta opción en un menú.',
+    passage: 'Chicken with rice',
+    words: [w.with, w.rice],
+    prompt: '¿Qué significa chicken en este menú?',
+    choices: ['Pollo como alimento.', 'Una gallina viva.', 'Arroz.'],
+    feedback: 'Chicken se refiere al pollo que vas a comer.',
+  },
+  {
+    id: 'egg-arepa',
+    topic: 'likes',
+    context: 'bakery-list-arepa',
+    target: w.eggArepa,
+    situation: 'Consulta el letrero del puesto.',
+    passage: 'Egg arepa',
+    prompt: '¿Cuál de estas opciones ofrece el letrero?',
+    choices: ['Arroz con coco.', 'Una arepa con huevo.', 'Pescado frito.'],
+    correct: 1,
+    feedback: 'Egg arepa es una arepa con huevo.',
+  },
+  {
+    id: 'coconut-rice-listen',
+    topic: 'likes',
+    context: 'lunch-announcement-rice',
+    target: w.coconutRice,
+    situation: 'Escucha qué ofrece la persona del puesto.',
+    audio: 'Coconut rice.',
+    prompt: '¿Qué alimento escuchaste?',
+    choices: ['Pescado frito.', 'Arepa con huevo.', 'Arroz con coco.'],
+    correct: 2,
+    feedback: 'Coconut rice es arroz con coco.',
+  },
+  {
+    id: 'coffee-serving',
+    topic: 'quantity',
+    context: 'cash-register-coffee',
+    target: w.coffees,
+    situation: 'Encuentras esta nota de la persona que tomó el pedido.',
+    passage: 'Two coffees.',
+    words: numbers(2),
+    prompt: '¿Qué se pidió?',
+    choices: ['Dos porciones de café.', 'Café sin cantidad indicada.', 'Una taza vacía.'],
+    feedback: 'En este pedido, coffees se refiere a porciones de café.',
+  },
+  {
+    id: 'coffee-drink-listen',
+    topic: 'quantity',
+    context: 'home-breakfast-coffee',
+    target: w.coffee,
+    situation: 'Escucha el mensaje de la persona que prepara el desayuno.',
+    audio: 'Some coffee.',
+    words: [w.some],
+    prompt: '¿Qué se menciona?',
+    choices: ['Exactamente dos cafés.', 'Café sin indicar cuántas tazas.', 'Algo de leche.'],
+    correct: 1,
+    feedback: 'Some coffee se refiere a la bebida sin indicar una cantidad exacta.',
+  },
+  {
+    id: 'cup-form',
+    topic: 'quantity',
+    context: 'picnic-water-cups',
+    target: w.cups,
+    situation: 'Son tres tazas de agua para el picnic.',
+    sentence: 'Three ___ of water.',
+    words: [...numbers(3), w.cup, w.of, w.water],
+    prompt: 'Completa con la forma de la palabra para tazas.',
+    answer: 'cups',
+    errors: { vocabulary_form: ['cup'] },
+    feedback: 'Para indicar varias tazas, escribe cups.',
+  },
+  {
+    id: 'cup-form-guide',
+    topic: 'quantity',
+    context: 'bakery-coffee-cups',
+    target: w.cups,
+    situation: 'Cup es singular. Usa cups para varias tazas. Modelo: two cups of tea.',
+    sentence: 'Four ___ of coffee.',
+    words: [...numbers(2, 4), w.cup, w.of, w.tea, w.coffee],
+    prompt: 'Completa el pedido de cuatro tazas.',
+    answer: 'cups',
+    guided: true,
+    remediates: ['vocabulary_form'],
+    feedback: 'Con four, la forma es cups.',
+  },
+  {
+    id: 'cup-form-confirm',
+    topic: 'quantity',
+    context: 'cake-recipe-milk-cups',
+    target: w.cups,
+    situation: 'La receta pide dos tazas de leche.',
+    sentence: 'Two ___ of milk.',
+    words: [...numbers(2), w.cup, w.of, w.milk],
+    prompt: 'Completa con la palabra correspondiente.',
+    answer: 'cups',
+    errors: { vocabulary_form: ['cup'] },
+    remediates: ['vocabulary_form'],
+    feedback: 'Two cups of milk son dos tazas de leche.',
+  },
+  {
+    id: 'cop',
+    topic: 'prices',
+    context: 'souvenir-menu-cop',
+    target: w.cop,
+    situation: 'En el mostrador ves el código COP al lado del precio.',
+    passage: 'COP 8,000',
+    prompt: '¿En qué moneda está el precio?',
+    choices: ['Dólares estadounidenses.', 'Pesos mexicanos.', 'Pesos colombianos.'],
+    correct: 2,
+    feedback: 'COP identifica el peso colombiano.',
+  },
+  {
+    id: 'without-listen',
+    topic: 'order',
+    context: 'takeout-ingredient-message',
+    target: w.without,
+    situation: 'Escucha cómo pidió el pollo otra mesa.',
+    audio: 'Chicken without cheese.',
+    words: [w.chicken, w.cheese],
+    prompt: '¿Cómo pidieron el pollo?',
+    choices: ['Sin queso.', 'Con queso.', 'Con queso aparte.'],
+    feedback: 'Without cheese significa sin queso.',
+  },
+  {
+    id: 'check-recall',
+    topic: 'order',
+    context: 'outdoor-table-payment',
+    target: w.check,
+    situation: 'Ya deseas pagar en un restaurante en Estados Unidos.',
+    prompt: 'Escribe la palabra que se usa para pedir la cuenta en inglés estadounidense.',
+    answer: 'check',
+    feedback:
+      'Check es la palabra habitual para la cuenta en Estados Unidos. También puedes oír bill.',
+  },
+  {
+    id: 'confirmation-listen',
+    topic: 'order',
+    context: 'food-truck-confirmation',
+    target: w.thatsRight,
+    situation: 'La persona acaba de oír su pedido. Escucha qué responde.',
+    audio: "That's right.",
+    prompt: '¿Qué indica su respuesta?',
+    choices: ['Pide la cuenta.', 'Confirma que el pedido coincide.', 'Quiere cambiar el pedido.'],
+    correct: 1,
+    feedback: 'That’s right confirma que lo que oyó coincide con su pedido.',
+  },
+];
+
+export const cartagenaReviewSteps = [
+  ...contextualReviewSteps,
+  ...lexicalReviews.map(lexicalReview),
+];
 export const cartagenaPractice = cartagenaReviewSteps;

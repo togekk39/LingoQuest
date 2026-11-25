@@ -2,8 +2,10 @@ import type { Translation } from '@lingoquest/contracts';
 import type { PrerequisiteReference } from '../../course-pack/src/prerequisites';
 import type { CourseExercise, CourseLesson } from './index';
 import type { UnifiedEvidenceTarget } from './learning-evidence';
+import type { RpgAnswerEvidence } from './rpg-answer-evidence';
 import type { LearningTarget } from './travel-learning';
 import { homeChapterDetails } from './travel-route';
+import type { ScenarioDefinition, ScenarioTurn } from './scenario';
 
 interface TravelStoryPrompt {
   speaker: string;
@@ -36,12 +38,14 @@ export interface TravelExerciseStep {
   storyPrompt?: TravelStoryPrompt;
   storyReply?: { speaker: string; line: Translation };
   storyReplies?: readonly { answers: readonly string[]; speaker: string; line: Translation }[];
+  scenarioTurn?: ScenarioTurn;
   activityTitle?: string;
   reviewMissionId?: string;
   exercise: CourseExercise;
   lessonId?: string;
   requires?: readonly PrerequisiteReference[];
   targets?: readonly UnifiedEvidenceTarget[];
+  answerEvidence?: readonly RpgAnswerEvidence[];
   hint?: string;
   audio?: string;
   transcript?: string;
@@ -96,6 +100,7 @@ export interface TravelMission {
   authoredAudio?: true;
   foundationObjectiveId?: string;
   objectiveId?: string;
+  scenario?: ScenarioDefinition;
   title: string;
   place: string;
   objective: string;

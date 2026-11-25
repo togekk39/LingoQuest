@@ -12,6 +12,7 @@ import {
   type TravelChapter,
   type TravelExerciseStep,
 } from '../packages/offline-engine/src/travel-content';
+import { rpgScenarioDigest } from '../packages/offline-engine/src/scenario';
 import { optionalAssessmentEnglish } from './published-optional-prerequisites';
 import { textbookTokens } from './published-textbook-prerequisites';
 
@@ -51,16 +52,19 @@ export function inspectAdventurePrerequisites({
   let available = taught;
   const teaching = new Set<string>();
   const assessments = new Set<string>();
+  const scenarios = new Set<string>();
   const independent: TravelExerciseStep[] = [];
   const names = properNames.flatMap((name) => [
     ...adventureTokens(name),
     ...adventureTokens(`${name}'s`),
   ]);
 
-  function inspectExercise(step: TravelExerciseStep) {
+  function inspectExercise(step: TravelExerciseStep, scenarioId?: string) {
     const location = `chapter=${chapter.id} exercise=${step.id}`;
     if (assessments.has(step.id)) issues.push(`${location} Duplicate ID / ID duplicado`);
     assessments.add(step.id);
+    if (step.scenarioTurn && !scenarioId)
+      issues.push(`${location} Missing scenario / Falta el escenario`);
     if (
       !Object.hasOwn(audit.assessments, step.id) ||
       audit.assessments[step.id] !== rpgAssessmentDigest(step) ||
@@ -106,8 +110,16 @@ export function inspectAdventurePrerequisites({
 
   for (const mission of chapter.missions) {
     if (independentEntries) available = new Set(priorTeaching);
+    const scenario = mission.scenario;
+    if (scenario) {
+      const location = `chapter=${chapter.id} mission=${mission.id} scenario=${scenario.id}`;
+      if (scenarios.has(scenario.id)) issues.push(`${location} Duplicate ID / ID duplicado`);
+      scenarios.add(scenario.id);
+      if (audit.scenarios?.[scenario.id] !== rpgScenarioDigest(scenario))
+        issues.push(`${location} Unreviewed scenario / Escenario sin revisar`);
+    }
     for (const step of mission.steps) {
-      if (step.type === 'exercise') inspectExercise(step);
+      if (step.type === 'exercise') inspectExercise(step, scenario?.id);
       if (step.type !== 'teach' || !step.instruction) continue;
       const location = `chapter=${chapter.id} mission=${mission.id} teaching=${step.id}`;
       if (teaching.has(step.id)) issues.push(`${location} Duplicate ID / ID duplicado`);
@@ -183,6 +195,11 @@ export function inspectAdventurePrerequisites({
     if (!assessments.has(id))
       issues.push(
         `chapter=${chapter.id} exercise=${id} Review without assessment / Revisión sin evaluación`,
+      );
+  for (const id of Object.keys(audit.scenarios ?? {}))
+    if (!scenarios.has(id))
+      issues.push(
+        `chapter=${chapter.id} scenario=${id} Review without scenario / Revisión sin escenario`,
       );
   return { issues, taught, independent, teaching: teaching.size, assessments: assessments.size };
 }

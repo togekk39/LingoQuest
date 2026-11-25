@@ -40,7 +40,7 @@ const enterSeaside = [
 
 export const cartagenaAdventure = {
   id: 'colombia',
-  revision: 12,
+  revision: 13,
   initialSceneId: 'cartagena-street',
   repairPhrases: homeFoundationStory.repairPhrases,
   npcs: [

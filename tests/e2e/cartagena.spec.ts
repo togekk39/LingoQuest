@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {
   CHAPTER_CATALOG_FILE,
   type ChapterCatalog,
@@ -17,10 +18,10 @@ import {
   answerTravelReorder,
   answerTravelText,
   click,
-  enterApp,
   exact,
   expect,
   finishVocabulary,
+  initialChapterTimeout,
   readTravelInstruction,
   readyOfflineShell,
   state,
@@ -45,6 +46,15 @@ const answerEvidence = async (page: Page, exerciseId: string) =>
   (await state(page)).unifiedLearning.evidence.filter(
     (event) => event.exerciseId === exerciseId && event.activity === 'answer',
   );
+const scenarioState = async (page: Page) => (await cartagenaCheckpoint(page))?.scenario;
+const scenarioReply = (page: Page) => page.getByTestId('travel-story-reply');
+const scenarioBill = (page: Page) => page.getByTestId('travel-scenario-bill');
+const requestPatterns = {
+  wouldLike: 'pattern.u08_l01.request',
+  canSee: 'pattern.cartagena.request-can-see',
+  canHave: 'pattern.cartagena.request-can-have-exact',
+  couldHave: 'pattern.cartagena.request-could-have',
+};
 const taught = async (page: Page, id: string, form: string) =>
   (await state(page)).unifiedLearning.evidence.some(
     (event) =>
@@ -142,6 +152,66 @@ async function submitText(page: Page, id: string, answer: string) {
   await input.press('Enter');
 }
 
+async function openPlayerProfile(page: Page) {
+  await page.getByRole('tab', exact('Perfil')).click();
+}
+
+async function exportBackup(page: Page) {
+  await openPlayerProfile(page);
+  const download = page.waitForEvent('download');
+  await click(page, 'Exportar mis datos');
+  const file = await (await download).path();
+  if (!file) throw new Error('The app did not export its backup.');
+  const backup = readFileSync(file);
+  return { data: JSON.parse(backup.toString()) as { state: OfflineState }, file: backup };
+}
+
+async function restoreBackup(page: Page, backup: Buffer) {
+  await openPlayerProfile(page);
+  const picker = page.waitForEvent('filechooser');
+  await click(page, 'Restaurar respaldo');
+  await (
+    await picker
+  ).setFiles({
+    name: 'lingoquest-respaldo.json',
+    mimeType: 'application/json',
+    buffer: backup,
+  });
+  await click(page, 'Reemplazar con este respaldo');
+  await expect(page.getByText('Respaldo restaurado en este dispositivo.')).toBeVisible();
+}
+
+async function rejectOrderAnswer(
+  page: Page,
+  id: string,
+  answer: string,
+  outcomes: readonly string[],
+) {
+  const before = await scenarioState(page);
+  await submitText(page, id, answer);
+  await expect(feedback(page)).toBeVisible();
+  const attempt = (await answerEvidence(page, id)).at(-1);
+  expect(outcomes).toContain(attempt?.outcome);
+  expect(attempt?.languageOutcome).toBeUndefined();
+  expect(attempt?.targets).toEqual([]);
+  if (attempt?.outcome === 'ungradable') expect(attempt.independent).toBe(false);
+  expect(await scenarioState(page)).toEqual(before);
+  await expect(scenarioReply(page)).toHaveCount(0);
+  await expect(page.getByRole('button', exact('Seguir la historia'))).toHaveCount(0);
+  await click(page, 'Intentar otra vez');
+}
+
+async function expectWrittenPattern(page: Page, exerciseId: string, pattern: string) {
+  const result = (await answerEvidence(page, exerciseId)).find(
+    ({ outcome }) => outcome === 'target',
+  );
+  const wrote = result?.targets.filter(
+    ({ targetId, dimension }) =>
+      Object.values(requestPatterns).includes(targetId) && dimension === 'writing',
+  );
+  expect(wrote).toEqual([{ targetId: pattern, dimension: 'writing' }]);
+}
+
 async function enterAuthoredAnswer(page: Page, step: ExerciseStep, response?: string) {
   const { exercise } = step;
   if (exercise.options?.length) {
@@ -224,6 +294,11 @@ async function resumeCartagena(page: Page) {
   await click(page, 'Continuar capítulo 3');
   await expect(page.getByTestId('chapter-lesson-colombia')).toBeVisible();
   await click(page, 'Explorar aventura de este capítulo');
+}
+
+async function reopenCartagena(page: Page) {
+  await page.getByRole('tab', exact('Inicio')).click();
+  await resumeCartagena(page);
 }
 
 async function studyCartagena(page: Page, title: string) {
@@ -403,13 +478,13 @@ async function finishMexico(page: Page) {
   await expect(page.getByText(/^Ciudad de México · /)).toBeVisible();
 }
 
-test('a mobile learner reaches Cartagena through the Mexico passport and finishes its five missions offline', async ({
+test('a mobile learner completes Cartagena and two stateful orders offline', async ({
   context,
   networkGuard,
   page,
   request,
 }) => {
-  test.setTimeout(420_000);
+  test.setTimeout(540_000);
   await page.clock.setFixedTime(Date.UTC(2026, 10, 25, 17));
   const pack = await publishedPack(request, 'colombia');
   if (!pack.story) throw new Error('Cartagena adventure pack is missing.');
@@ -417,7 +492,12 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
   await page.setViewportSize({ width: 390, height: 844 });
   await observeLocalMedia(page);
   await provideLocalRecordingInput(page);
-  await enterApp(page);
+  await page.goto('/');
+  await page
+    .getByRole('button', exact('Explorar primero'))
+    .click({ timeout: initialChapterTimeout });
+  await click(page, 'Elegir lugar de origen');
+  await click(page, 'Honduras');
   await finishHome(page);
   await finishMexico(page);
   const beforeCartagena = await progress(page);
@@ -579,28 +659,165 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
   await choice(page, 'cartagena-start-order');
   await playCartagenaMission(page, findMission(missions, 'cartagena-order'), {
     beforeExercise: async (step) => {
-      if (step.id !== 'cartagena-order-write') return;
-      const draft = "I'd like fish with rice and";
-      await answerInput(page, step.id).fill(draft);
-      await expect.poll(async () => (await cartagenaCheckpoint(page))?.answer.text).toBe(draft);
-      await page.reload();
-      await resumeCartagena(page);
-      await expect(answerInput(page, step.id)).toHaveValue(draft);
-      await submitText(page, step.id, "I'd like eggs with cheese and some water, please.");
-      await expect(feedback(page)).toContainText('La forma en inglés es válida.');
-      await expect(page.getByTestId('travel-story-reply')).toHaveCount(0);
-      await expect(page.getByRole('button', exact('Seguir la historia'))).toHaveCount(0);
-      expect(await answerEvidence(page, step.id)).toEqual([
-        expect.objectContaining({ outcome: 'context_mismatch' }),
-      ]);
-      await click(page, 'Intentar otra vez');
-      await submitText(page, step.id, 'Can I have fish with rice and some water, please?');
-      await expect(feedback(page)).toContainText('Lograste comunicarte');
-      await expect(page.getByTestId('travel-story-reply')).toContainText(/fish.*rice.*water/i);
-      expect(await answerEvidence(page, step.id)).toEqual([
-        expect.objectContaining({ outcome: 'context_mismatch' }),
-        expect.objectContaining({ outcome: 'communication_only', independent: false }),
-      ]);
+      switch (step.id) {
+        case 'cartagena-order-menu': {
+          await submitText(page, step.id, 'Can I see the menu, please?');
+          await expect(feedback(page)).toContainText('¡Muy bien!');
+          await expectWrittenPattern(page, step.id, requestPatterns.canSee);
+          expect(await scenarioState(page)).toMatchObject({ phase: 'menu', lines: [] });
+          break;
+        }
+        case 'cartagena-order-write': {
+          const menu = page.getByTestId('travel-scenario-menu');
+          await expect(menu).toContainText(/chicken with rice/i);
+          await expect(menu).toContainText(/COP\s*\$?\s*25[,.]000/i);
+          const initial = await scenarioState(page);
+          expect(initial).toMatchObject({ phase: 'menu', lines: [], changes: [] });
+          const addChicken = page.getByTestId('travel-scenario-add-chicken-rice');
+          const removeChicken = page.getByTestId('travel-scenario-remove-chicken-rice');
+          await expect(removeChicken).toBeDisabled();
+          await addChicken.click();
+          await page.getByTestId('travel-scenario-add-coffee').click();
+          await expect(page.getByTestId('travel-scenario-planning-total')).toContainText(
+            /30[,.]000/,
+          );
+          await removeChicken.click();
+          await expect(page.getByTestId('travel-scenario-planning-total')).toContainText(
+            /5[,.]000/,
+          );
+          expect(await scenarioState(page)).toEqual(initial);
+          await rejectOrderAnswer(page, step.id, "I don't want fish.", ['context_mismatch']);
+          await rejectOrderAnswer(
+            page,
+            step.id,
+            "I'd like eggs with cheese and some water, please.",
+            ['context_mismatch'],
+          );
+          await rejectOrderAnswer(
+            page,
+            step.id,
+            "I'd like chicken without rice and some coffee, please.",
+            ['context_mismatch'],
+          );
+          await rejectOrderAnswer(
+            page,
+            step.id,
+            "I'd like chicken with rice and three cups of coffee, please.",
+            ['context_mismatch'],
+          );
+          await rejectOrderAnswer(
+            page,
+            step.id,
+            'Could I have water for Inés and chicken with rice?',
+            ['context_mismatch'],
+          );
+          await rejectOrderAnswer(page, step.id, 'Could I have whatever the kitchen suggests?', [
+            'ungradable',
+          ]);
+          await submitText(
+            page,
+            step.id,
+            'can I HAVE a cup of coffee for Sam and chicken with rice, please?',
+          );
+          await expect(feedback(page)).toContainText('Lograste comunicarte');
+          await expect(scenarioReply(page)).toContainText(/chicken with rice/i);
+          await expect(scenarioReply(page)).toContainText(/a cup of coffee for Sam/i);
+          await expect(scenarioReply(page)).toContainText(/is that right\?/i);
+          const accepted = (await answerEvidence(page, step.id)).at(-1);
+          expect(accepted).toMatchObject({ outcome: 'communication_only', independent: false });
+          expect(accepted?.targets).not.toContainEqual(
+            expect.objectContaining({ targetId: requestPatterns.wouldLike }),
+          );
+          expect(await scenarioState(page)).toMatchObject({
+            phase: 'selected',
+            lines: expect.arrayContaining([
+              expect.objectContaining({ itemId: 'chicken-rice', quantity: 1 }),
+              expect.objectContaining({
+                itemId: 'coffee',
+                quantity: 1,
+                unit: 'cup',
+                participantId: 'sam',
+              }),
+            ]),
+          });
+          break;
+        }
+        case 'cartagena-order-correct': {
+          const draft = 'Can I have water instead of';
+          const initial = await scenarioState(page);
+          expect(initial).toMatchObject({ phase: 'confirmed', changes: [] });
+          await answerInput(page, step.id).fill(draft);
+          await expect.poll(async () => (await cartagenaCheckpoint(page))?.answer.text).toBe(draft);
+          await page.reload();
+          await resumeCartagena(page);
+          await expect(answerInput(page, step.id)).toHaveValue(draft);
+          await expect(page.getByTestId('travel-scenario-order')).toContainText(/a cup of coffee/i);
+          expect(await scenarioState(page)).toEqual(initial);
+
+          await click(page, 'Cerrar y volver');
+          await studyCartagena(page, 'Una mesa para tres');
+          await expect(answerInput(page, step.id)).toHaveValue(draft);
+          await expect(page.getByTestId('travel-scenario-order')).toContainText(/a cup of coffee/i);
+          expect(await scenarioState(page)).toEqual(initial);
+          await click(page, 'Cerrar y volver');
+          await expect(reader).toBeVisible();
+          await click(page, 'Cerrar y volver');
+          const backup = await exportBackup(page);
+          expect(backup.data.state.chapterProgress?.colombia?.travel.active).toMatchObject({
+            answer: { text: draft },
+            scenario: initial,
+          });
+
+          await reopenCartagena(page);
+          await rejectOrderAnswer(
+            page,
+            step.id,
+            'Can I have chicken with rice instead of fish with rice?',
+            ['context_mismatch'],
+          );
+          await submitText(page, step.id, 'Can I have water instead of coffee?');
+          await expect(feedback(page)).toContainText('¡Muy bien!');
+          await expect(scenarioReply(page)).toContainText(/chicken with rice/i);
+          await expect(scenarioReply(page)).toContainText(/water for Sam/i);
+          expect((await scenarioState(page))?.changes).toHaveLength(1);
+
+          await click(page, 'Cerrar y volver');
+          await restoreBackup(page, backup.file);
+          await reopenCartagena(page);
+          await expect(answerInput(page, step.id)).toHaveValue(draft);
+          expect(await scenarioState(page)).toEqual(initial);
+          expect(await answerEvidence(page, step.id)).toEqual([]);
+          await submitText(page, step.id, 'Can I have water instead of coffee?');
+          await page.keyboard.press('Enter');
+          await expect(feedback(page)).toContainText('¡Muy bien!');
+          await expect(scenarioReply(page)).toContainText(/chicken with rice/i);
+          await expect(scenarioReply(page)).toContainText(/water for Sam/i);
+          await expect(scenarioReply(page)).not.toContainText(/coffee/i);
+          const changed = await scenarioState(page);
+          expect(changed?.lines.map(({ itemId }) => itemId).sort()).toEqual([
+            'chicken-rice',
+            'water',
+          ]);
+          expect(changed?.changes).toEqual([
+            expect.objectContaining({
+              before: expect.objectContaining({ itemId: 'coffee', participantId: 'sam' }),
+              after: expect.objectContaining({ itemId: 'water', participantId: 'sam' }),
+            }),
+          ]);
+          await expectWrittenPattern(page, step.id, requestPatterns.canHave);
+          expect(await answerEvidence(page, step.id)).toHaveLength(1);
+          break;
+        }
+        case 'cartagena-order-check': {
+          await submitText(page, step.id, 'Can I have the check, please?');
+          await expect(feedback(page)).toContainText('¡Muy bien!');
+          await expect(scenarioBill(page)).toContainText(/COP\s*\$?\s*28[,.]000/i);
+          expect(await scenarioState(page)).toMatchObject({ total: 28_000, phase: 'complete' });
+          break;
+        }
+        default:
+          return;
+      }
       await click(page, 'Seguir la historia');
       return true;
     },
@@ -611,10 +828,51 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
   await choice(page, 'cartagena-start-transfer');
   await playCartagenaMission(page, findMission(missions, 'cartagena-transfer'), {
     beforeExercise: async (step) => {
-      if (step.id !== 'cartagena-transfer-order') return;
-      await submitText(page, step.id, "I'd like eggs with bread and some tea, please.");
-      await expect(feedback(page)).toContainText('¡Muy bien!');
-      await expect(page.getByTestId('travel-story-reply')).toContainText(/eggs.*bread.*tea/i);
+      switch (step.id) {
+        case 'cartagena-transfer-order': {
+          const menu = page.getByTestId('travel-scenario-menu');
+          await expect(menu).toContainText(/eggs with bread/i);
+          await expect(menu).toContainText(/COP\s*\$?\s*12[,.]000/i);
+          await expect(menu).not.toContainText(/coffee/i);
+          await submitText(page, step.id, 'I would like eggs with bread and some tea, please.');
+          await expect(feedback(page)).toContainText('¡Muy bien!');
+          await expect(scenarioReply(page)).toContainText(/eggs.*bread.*tea/i);
+          await expectWrittenPattern(page, step.id, requestPatterns.wouldLike);
+          break;
+        }
+        case 'cartagena-transfer-change': {
+          await submitText(
+            page,
+            step.id,
+            'Could I have chicken with rice instead of eggs with bread?',
+          );
+          await expect(feedback(page)).toContainText('¡Muy bien!');
+          await expect(scenarioReply(page)).toContainText(/chicken with rice.*tea/i);
+          await expect(scenarioReply(page)).not.toContainText(/eggs with bread/i);
+          const changed = await scenarioState(page);
+          expect(changed?.lines.map(({ itemId }) => itemId).sort()).toEqual([
+            'chicken-rice',
+            'tea',
+          ]);
+          expect(changed?.changes).toEqual([
+            expect.objectContaining({
+              before: expect.objectContaining({ itemId: 'eggs-bread' }),
+              after: expect.objectContaining({ itemId: 'chicken-rice' }),
+            }),
+          ]);
+          await expectWrittenPattern(page, step.id, requestPatterns.couldHave);
+          break;
+        }
+        case 'cartagena-transfer-check': {
+          await submitText(page, step.id, 'Can I have the bill, please?');
+          await expect(feedback(page)).toContainText('¡Muy bien!');
+          await expect(scenarioBill(page)).toContainText(/COP\s*\$?\s*26[,.]000/i);
+          expect(await scenarioState(page)).toMatchObject({ total: 26_000, phase: 'complete' });
+          break;
+        }
+        default:
+          return;
+      }
       await click(page, 'Seguir la historia');
       return true;
     },
@@ -663,6 +921,17 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
   });
 
   await click(page, 'Volver al viaje');
+  await click(page, 'Cerrar y volver');
+  await studyCartagena(page, 'Una mesa para tres');
+  await expect
+    .poll(() => cartagenaCheckpoint(page))
+    .toMatchObject({
+      missionId: 'cartagena-order',
+      scenario: { phase: 'initial', lines: [], changes: [] },
+    });
+  await expect(page.getByTestId('travel-scenario-order')).toHaveCount(0);
+  await click(page, 'Cerrar y volver');
+  await expect(reader).toBeVisible();
   await click(page, 'Cerrar y volver');
   await studyCartagena(page, 'El mercado de Cartagena');
   await playCartagenaMission(page, findMission(missions, 'cartagena-likes'), {

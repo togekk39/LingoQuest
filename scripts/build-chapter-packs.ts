@@ -8,6 +8,7 @@ import {
   rpgAssessmentDigest,
   rpgTeachingDigest,
 } from '../packages/offline-engine/src/learning-prerequisites';
+import { rpgScenarioDigest } from '../packages/offline-engine/src/scenario';
 import { westernChapterLessons } from '../content/source/chapter-lessons-west';
 import { easternChapterLessons } from '../content/source/chapter-lessons-east';
 import { chapterAdventures, reviewedAdventure } from './chapter-adventures';
@@ -30,7 +31,7 @@ import { loadChapterAudio, loadChapterImages } from './chapter-media';
 
 const root = new URL('../apps/mobile/public/chapter-packs/', import.meta.url);
 const catalogPath = new URL(CHAPTER_CATALOG_FILE, root);
-const previousCatalogPath = new URL('catalog-v6.json', root);
+const previousCatalogPath = new URL('catalog-v7.json', root);
 const course = bundled.payload as CoursePayload;
 const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
@@ -43,6 +44,11 @@ const chapterPath = (revision: number, chapterId: string) =>
 
 function checkReviewLedger(authored: NonNullable<ReturnType<typeof chapterAdventures.get>>) {
   const story = reviewedAdventure(authored.story);
+  const scenarios = Object.fromEntries(
+    story.chapter.missions.flatMap(({ scenario }) =>
+      scenario ? [[scenario.id, rpgScenarioDigest(scenario)]] : [],
+    ),
+  );
   const teaching = Object.fromEntries(
     story.chapter.missions.flatMap((mission) =>
       mission.steps.flatMap((step) =>
@@ -69,6 +75,11 @@ function checkReviewLedger(authored: NonNullable<ReturnType<typeof chapterAdvent
     assessments,
     story.audit.assessments,
     `Assessment review is stale for ${story.chapter.id}.`,
+  );
+  assert.deepEqual(
+    scenarios,
+    story.audit.scenarios ?? {},
+    `Scenario review is stale for ${story.chapter.id}.`,
   );
 }
 
@@ -137,6 +148,7 @@ async function main() {
     await verifyCatalog(catalog);
     await verifyCatalog(previousCatalog, false);
     for (const name of [
+      'catalog-v6.json',
       'catalog-v5.json',
       'catalog-v4.json',
       'catalog-v3.json',

@@ -47,6 +47,8 @@ import { inspectOptionalPrerequisites } from './published-optional-prerequisites
 import { chapterAdventures, reviewedAdventure } from './chapter-adventures';
 import { inspectAdventurePrerequisites } from './published-adventure-prerequisites';
 import { inspectAdventureChallenges } from './published-adventure-challenges';
+import { evaluateScenarioTurn, startScenario } from '../packages/offline-engine/src/scenario';
+import type { TravelMission } from '../packages/offline-engine/src/travel-content';
 
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
@@ -247,6 +249,40 @@ function counts<T>(rows: readonly T[], key: (row: T) => string) {
   return totals;
 }
 
+function verifyScenarioAnswers({ scenario, steps }: TravelMission) {
+  if (!scenario) return 0;
+  let state = startScenario(scenario);
+  let probes = 0;
+  for (const step of steps) {
+    if (step.type !== 'exercise' || !step.scenarioTurn) continue;
+    const { exercise, scenarioTurn } = step;
+    const cases = [
+      ['target', exercise.acceptedAnswers],
+      ['communication_only', exercise.communicationOnly?.answers ?? []],
+      ['context_mismatch', exercise.contextMismatch?.answers ?? []],
+      ['ungradable', [':::?']],
+    ] as const;
+    assert.ok(exercise.acceptedAnswers[0], step.id);
+    for (const [expected, samples] of cases) {
+      for (const answer of samples) {
+        const result = evaluateScenarioTurn(scenario, state, scenarioTurn, answer);
+        assert.equal(result.verdict.outcome, expected, `${step.id}: ${answer}`);
+        assert.equal(
+          !!result.state,
+          expected === 'target' || expected === 'communication_only',
+          step.id,
+        );
+        probes++;
+      }
+    }
+    const result = evaluateScenarioTurn(scenario, state, scenarioTurn, exercise.acceptedAnswers[0]);
+    assert.ok(result.state, step.id);
+    state = result.state;
+  }
+  assert.equal(state.phase, 'complete', scenario.id);
+  return probes;
+}
+
 function verifyAdventure(
   pack: ChapterPack,
   authored: NonNullable<ReturnType<typeof chapterAdventures.get>>,
@@ -329,8 +365,19 @@ function verifyAdventure(
     practice.map(({ id }) => id),
     `${label} Exercise IDs / IDs de ejercicios`,
   );
-  let probes = 0;
+  const scenarioItems = new Set(
+    story.chapter.missions.flatMap(({ steps }) =>
+      steps.flatMap((step) =>
+        step.type === 'exercise' && step.scenarioTurn ? [step.exercise.id] : [],
+      ),
+    ),
+  );
+  let probes = story.chapter.missions.reduce(
+    (count, mission) => count + verifyScenarioAnswers(mission),
+    0,
+  );
   for (const exercise of practice) {
+    if (scenarioItems.has(exercise.id)) continue;
     if (exercise.ungradable) {
       assert.equal(
         judgeAnswer(exercise, { text: 'I work in the morning.' }),

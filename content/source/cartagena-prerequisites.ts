@@ -158,6 +158,10 @@ export const cartagenaRefs = {
   aGlassOf: form('lex.u08_l01_v02', 'a glass of'),
   cup: form('lex.u05_l02_v03', 'cup'),
   cups: lexical('form.portion.cup.plural', 'cups', 'tazas'),
+  plate: lexical('lex.portion.plate', 'plate', 'plato, como medida de una porción', [
+    ['plates', 'platos'],
+  ]),
+  plates: form('lex.portion.plate', 'plates'),
   bottle: lexical('lex.portion.bottle', 'bottle', 'botella', [['bottles', 'botellas']]),
   bottles: form('lex.portion.bottle', 'bottles'),
   piece: lexical('lex.portion.piece', 'piece', 'pedazo o porción', [
@@ -250,7 +254,9 @@ export const cartagenaRefs = {
   toGo: lexical('published.colombia.card-1.word-4', 'to go', 'para llevar'),
   outOf: lexical('lex.food.out-of', 'out of', 'sin existencias de un producto'),
   instead: lexical('lex.food.instead', 'instead', 'en lugar de lo anterior'),
+  insteadOf: lexical('lex.food.instead-of', 'instead of', 'en lugar de, seguido de lo que cambia'),
   change: lexical('lex.food.change-order', 'change', 'cambiar un pedido'),
+  isThatRight: lexical('lex.food.is-that-right', 'Is that right?', '¿Está bien así?'),
   repeat: earlierForm('lex.home.can-you-repeat-that-please', 'Can you repeat that, please?'),
   slowly: earlierForm(
     'lex.home.can-you-speak-more-slowly-please',
@@ -327,6 +333,18 @@ export const cartagenaPatterns = {
     'How much are the eggs?',
     '¿Cuánto cuestan los huevos?',
   ),
+  priceIs: pattern(
+    'price-is',
+    'How much is + producto singular?',
+    'How much is the tea?',
+    '¿Cuánto cuesta el té?',
+  ),
+  priceAre: pattern(
+    'price-are',
+    'How much are + producto plural?',
+    'How much are the eggs?',
+    '¿Cuánto cuestan los huevos?',
+  ),
   priceAnswer: pattern(
     'price-answer',
     'It is / They are + número + moneda',
@@ -346,6 +364,24 @@ export const cartagenaPatterns = {
     'Can I have the menu, please?',
     '¿Me da el menú, por favor?',
   ),
+  canSee: pattern(
+    'request-can-see',
+    'Can I see + el objeto?',
+    'Can I see the menu, please?',
+    '¿Puedo ver el menú, por favor?',
+  ),
+  canHaveExact: pattern(
+    'request-can-have-exact',
+    'Can I have + pedido?',
+    'Can I have some tea?',
+    '¿Me da té?',
+  ),
+  couldHave: pattern(
+    'request-could-have',
+    'Could I have + pedido?',
+    'Could I have two eggs?',
+    '¿Me podría dar dos huevos?',
+  ),
   confirm: pattern(
     'confirm',
     'Yes / No + detalle o cierre cortés',
@@ -358,12 +394,30 @@ export const cartagenaPatterns = {
     'Can I have the check, please?',
     '¿Me da la cuenta, por favor?',
   ),
+  affirmRecap: pattern(
+    'confirm-recap',
+    'That’s right / Yes para confirmar',
+    "That's right.",
+    'Así es.',
+  ),
+  closeOrder: pattern(
+    'close-order',
+    'That’s all / No, thank you para cerrar',
+    "That's all, thank you.",
+    'Eso es todo, gracias.',
+  ),
   repair: studyPattern('u03_l03', 'request'),
   replace: pattern(
     'replace',
     'pedido + instead / pedido + without + ingrediente',
     "I'd like chicken with rice instead.",
     'Quisiera pollo con arroz en su lugar.',
+  ),
+  insteadOf: pattern(
+    'request-instead-of',
+    'petición + producto nuevo + instead of + producto anterior',
+    'Can I have tea instead of coffee?',
+    '¿Me da té en lugar de café?',
   ),
 };
 
@@ -386,6 +440,10 @@ export const cartagenaGrammar = {
     },
   ]),
   order: grammar('grammar.would_like'),
+  politeOrder: rule('polite-order', 'Pedir algo con cortesía en un restaurante', [
+    { en: 'Can I have some water?', es: '¿Me da agua?' },
+    { en: "I'd like some tea, please.", es: 'Quisiera té, por favor.' },
+  ]),
   repair: grammar('grammar.can'),
 };
 

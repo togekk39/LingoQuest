@@ -3,6 +3,7 @@ import { answerOutcomeSchema, learningErrorSchema } from '@lingoquest/contracts'
 import {
   courseExerciseSchema,
   lessonSchema,
+  rpgAnswerEvidenceSchema,
   rpgAssessmentTargetsSchema,
   travelStoryRepliesSchema,
   type RpgFormalDefinition,
@@ -183,6 +184,7 @@ const archivedPracticeSchema = stepSchema
     exercise: archiveExerciseSchema,
     requires: z.array(referenceSchema).min(1).max(150),
     targets: rpgAssessmentTargetsSchema.optional(),
+    answerEvidence: rpgAnswerEvidenceSchema.optional(),
   })
   .strict();
 const chapterArchiveEntrySchema = z
