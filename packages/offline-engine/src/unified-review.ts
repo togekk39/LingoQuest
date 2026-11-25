@@ -14,7 +14,6 @@ import {
   homeSpeakingEvidenceTargets,
 } from './learning-registry';
 import { travelConcepts, type TravelConceptId } from './travel-curriculum';
-import { travelPracticeStep } from './travel-review';
 import type { LearningReviewReason } from './travel-learning';
 
 const dimensionLabels: Record<UnifiedMastery['dimension'], string> = {
@@ -69,7 +68,6 @@ export function unifiedReviewPlans(
   candidates: ReviewCandidate[],
   now: number,
   missionId?: string | null,
-  allowVocabularyVariation = false,
 ): ReviewPlan[] {
   const records = unifiedReviewQueue(state.unifiedLearning, now);
   const knownTargets = new Set(records.map(({ targetId }) => targetId));
@@ -86,7 +84,6 @@ export function unifiedReviewPlans(
       ),
   );
   const registry = buildLearningRegistry(content);
-  const seen = new Set(state.unifiedLearning.evidence.map(({ exerciseId }) => exerciseId));
   const available = candidates.filter((candidate) => {
     if (candidate.lesson.id !== travelLesson.id) return true;
     const concept = candidate.exercise.learning?.conceptId as TravelConceptId | undefined;
@@ -138,27 +135,6 @@ export function unifiedReviewPlans(
     );
     const due =
       mastery.needsReview || (!!mastery.nextReviewAt && Date.parse(mastery.nextReviewAt) <= now);
-    if (
-      allowVocabularyVariation &&
-      due &&
-      (mastery.dimension === 'vocabulary_recognition' ||
-        (mastery.dimension === 'listening' &&
-          alternatives.every(({ exerciseId }) => seen.has(exerciseId))))
-    ) {
-      const recall = rankUnifiedReviewCandidates(
-        state.unifiedLearning,
-        { ...mastery, dimension: 'vocabulary_recall' },
-        available.filter(
-          ({ lesson, exercise }) =>
-            lesson.id === travelLesson.id &&
-            !!travelPracticeStep(exercise.id) &&
-            exercise.learning?.evidence === 'transfer' &&
-            !seen.has(exercise.id),
-        ),
-        now,
-      );
-      alternatives.unshift(...recall.filter((item) => !alternatives.includes(item)));
-    }
     const reason = mastery.pendingErrors.length ? 'remediation' : due ? 'due' : 'practice';
     return [
       {

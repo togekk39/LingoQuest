@@ -7,11 +7,11 @@ import {
 import type { Page } from '@playwright/test';
 import { chapterReaderSections } from '../curriculum/chapter-reader-sections';
 import {
-  answerTravelChoice,
   click,
   enterApp,
   exact,
   expect,
+  finishGreetingPractice,
   finishVocabulary,
   labelFirstChapterAudio,
   openLessons,
@@ -181,7 +181,9 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await finishVocabulary(page);
-  await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
+  await click(page, 'Escuchar el saludo de Sam');
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
+  await finishGreetingPractice(page);
   await click(page, 'Cerrar y volver');
   await page.evaluate(() => {
     const key = 'lq_offline_state_v1';
@@ -238,7 +240,13 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   await expect(page.getByTestId('chapter-lesson-mexico')).toBeVisible();
   await click(page, 'Cerrar y volver');
   await page.getByRole('tab', exact('Inicio')).click();
-  await click(page, 'Repaso rápido');
+  await expect(page.getByRole('button', exact('Repaso rápido'))).toBeVisible();
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Mis habilidades');
+  await page
+    .getByTestId('learning-review-vocabulary_recall:home.greeting-word')
+    .getByRole('button', { name: /^Abrir repaso rápido:/ })
+    .click();
   await expect(page.getByText('Recuerda lo aprendido · 1 min', { exact: true })).toBeVisible();
   const review = page.getByTestId('exercise-travel_review_greeting');
   await review.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hello!');
@@ -247,6 +255,7 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   expect((await state(page)).unifiedLearning.evidence).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ exerciseId: 'travel_hello_recognize', source: 'study' }),
+      expect.objectContaining({ exerciseId: 'travel_hello_recall', source: 'study' }),
       expect.objectContaining({
         exerciseId: 'travel_review_greeting',
         source: 'review',
@@ -256,6 +265,8 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
     ]),
   );
   await click(page, 'Volver al viaje');
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Inicio')).click();
   await click(page, 'Volver a La primera postal');
   const skipName = page.getByRole('button', exact('Continuar sin nombre'));
   const plaza = page.getByTestId('story-scene-plaza');

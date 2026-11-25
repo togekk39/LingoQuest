@@ -40,10 +40,10 @@ test('travel trials expose chapter questions and keep unreleased ranks unavailab
     const date = new Date().toISOString();
     s.travel.completed = { hello: date, bus: date, bag: date };
     s.travel.stamps.home = date;
-    for (const [exerciseId, targetId, contextId] of [
-      ['travel_hello_write', 'home.introduce', 'welcome-desk'],
-      ['travel_bus_ask', 'home.ask-location', 'plaza'],
-      ['travel_bag_write', 'home.statement-be', 'lost-and-found'],
+    for (const [exerciseId, targetId, dimension, contextId] of [
+      ['travel_hello_write', 'home.introduce', 'writing', 'welcome-desk'],
+      ['travel_bus_ask', 'home.ask-location', 'grammar_understanding', 'bus-map'],
+      ['travel_bag_write', 'home.statement-be', 'writing', 'lost-and-found'],
     ])
       s.unifiedLearning.evidence.push({
         id: `verified-${exerciseId}`,
@@ -59,7 +59,7 @@ test('travel trials expose chapter questions and keep unreleased ranks unavailab
         aids: [],
         retry: false,
         independent: true,
-        targets: [{ targetId, dimension: 'writing' }],
+        targets: [{ targetId, dimension }],
       });
     localStorage.setItem(key, JSON.stringify(s));
   });

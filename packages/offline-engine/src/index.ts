@@ -1633,7 +1633,6 @@ export class OfflineEngine {
           createUnifiedReviewCandidates(state, content, archive),
           now,
           mission,
-          !target,
         );
       const create = (
         lesson: CourseLesson,

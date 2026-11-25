@@ -25,7 +25,7 @@ Phase 5C starts from the merged Phase 5B curriculum and offline grading changes 
 
 The browser checks use the exported app and the local preview server. Their network guard rejects service APIs and external requests. Browser offline mode covers the web app and its stored chapters. Physical Android airplane mode, installed voices and Android microphone behavior require a device run. [Browser tests](../tests/e2e) · [Android test plan](OFFLINE_TEST_PLAN.md)
 
-The restore test uses the Phase 5B format 2 contract. Format 1 prototype backups remain incompatible with the integrated course. Restoring format 2 keeps historical challenge feedback and personal bests, with a fresh timer and lives when the learner starts a new run.
+The restore test uses the Phase 5B format 2 contract. Format 1 prototype backups remain incompatible with the integrated course. Restoring format 2 keeps historical challenge feedback and personal bests, with a fresh timer and lives when the learner starts a new run. Import retains the existing ten-million-character backup limit. Long-history backup sizes still need measurement.
 
 ## Reproduce the checks
 
@@ -46,4 +46,6 @@ Start `npm run preview` in one terminal and `npm run test:e2e` in another. Playw
 
 The merged Phase 5B baseline passed curriculum verification with 1,567 answer checks, verification of all 20 active chapter packs, type checking and lint, 130 automated tests and Web and Android Hermes exports. Its CI and signed APK workflows passed. [Phase 5B CI](https://github.com/togekk39/LingoQuest/actions/runs/45547727601) · [Phase 5B APK](https://github.com/togekk39/LingoQuest/actions/runs/45547727538)
 
-The local Phase 5B baseline also passed all 61 Playwright tests. Phase 5C results are recorded after running the checks against the integrated branch. Automated checks establish product behavior under the tested inputs. Learner outcomes, long-term retention and regional language register require human evaluation.
+The local Phase 5B baseline also passed all 61 Playwright tests. Phase 5C passed all 1,567 grading probes, course and chapter pack verification, TypeScript, ESLint, 146 automated tests, the Web export and the Android Hermes export. The four new Phase 5C Playwright scenarios passed locally. The pull request checks report full browser regression and signed APK results for each revision. [Phase 5C pull request](https://github.com/togekk39/LingoQuest/pull/30) · [Android APK runs](https://github.com/togekk39/LingoQuest/actions/workflows/android-apk.yml?query=branch%3Acodex%2Fphase-5c-unified-learning)
+
+Automated checks establish product behavior under the tested inputs. Learner outcomes, long-term retention and regional language register require human evaluation.

@@ -1,10 +1,10 @@
 import {
-  answerTravelChoice,
   capture,
   click,
   enterApp,
   exact,
   expect,
+  finishGreetingPractice,
   finishVocabulary,
   openLessons,
   openTravelWriting,
@@ -140,12 +140,17 @@ test('an offline delayed review asks for independent use of a practiced concept 
   await finishVocabulary(page);
   await click(page, 'Escuchar el saludo de Sam');
   await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
-  await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
+  await finishGreetingPractice(page);
   await click(page, 'Cerrar y volver');
 
   await page.clock.setFixedTime(start + 2 * day);
   await page.reload();
-  await click(page, 'Repaso rápido');
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Mis habilidades');
+  await page
+    .getByTestId('learning-review-vocabulary_recall:home.greeting-word')
+    .getByRole('button', { name: /^Abrir repaso rápido:/ })
+    .click();
   await expect(page.getByText('Recuerda lo aprendido · 1 min', { exact: true })).toBeVisible();
   const exercise = page.getByTestId('exercise-travel_review_greeting');
   await exercise.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hello!');
@@ -157,10 +162,23 @@ test('an offline delayed review asks for independent use of a practiced concept 
     skill: 'vocabulary',
     successes: {
       recognition: { independent: 1, assisted: 0 },
+      recall: { independent: 1, assisted: 0 },
       transfer: { independent: 1, assisted: 0 },
     },
     transferSuccesses: 1,
     delayedSuccesses: 1,
     nextReviewAt: new Date(start + 5 * day).toISOString(),
   });
+  expect(after.unifiedLearning.evidence).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        exerciseId: 'travel_review_greeting',
+        source: 'review',
+        independent: true,
+        targets: expect.arrayContaining([
+          { targetId: 'home.greeting-word', dimension: 'vocabulary_recall' },
+        ]),
+      }),
+    ]),
+  );
 });

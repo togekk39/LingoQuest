@@ -25,7 +25,7 @@ La fase 5C parte de los cambios del currículo y de la evaluación sin conexión
 
 Las pruebas del navegador usan la app exportada y el servidor local de vista previa. El control de red rechaza llamadas a servicios externos y a las API. El modo sin conexión del navegador comprueba la versión web y los capítulos instalados. Para comprobar el modo avión, las voces instaladas y el micrófono de Android hace falta una prueba en el dispositivo. [Pruebas del navegador](../tests/e2e) · [Plan de pruebas de Android](OFFLINE_TEST_PLAN.es-419.md)
 
-La prueba de restauración usa el formato 2 de la fase 5B. Los respaldos de formato 1 del prototipo siguen siendo incompatibles con el curso integrado. La restauración del formato 2 conserva los comentarios anteriores de desafíos y los récords personales. El tiempo y las vidas se inicializan al iniciar un desafío nuevo.
+La prueba de restauración usa el formato 2 de la fase 5B. Los respaldos de formato 1 del prototipo siguen siendo incompatibles con el curso integrado. La restauración del formato 2 conserva los comentarios anteriores de desafíos y los récords personales. El tiempo y las vidas se inicializan al iniciar un desafío nuevo. La importación conserva el límite de diez millones de caracteres. Queda medir el tamaño de los respaldos con historiales extensos.
 
 ## Cómo reproducir las pruebas
 
@@ -46,4 +46,6 @@ Ejecuta `npm run preview` en una terminal y `npm run test:e2e` en otra. Playwrig
 
 La base integrada de la fase 5B pasó la verificación del currículo con 1,567 comprobaciones de respuesta, la verificación de los 20 paquetes vigentes, las comprobaciones de tipos y estilo, 130 pruebas automatizadas y las exportaciones para Web y Hermes en Android. Los flujos de CI y del APK firmado también pasaron. [CI de la fase 5B](https://github.com/togekk39/LingoQuest/actions/runs/45547727601) · [APK de la fase 5B](https://github.com/togekk39/LingoQuest/actions/runs/45547727538)
 
-La base local de la fase 5B también pasó las 61 pruebas de Playwright. Los resultados de la fase 5C se registran al ejecutar las pruebas en la rama integrada. Las pruebas automatizadas comprueban el comportamiento de la app con los datos evaluados. El aprendizaje, la retención a largo plazo y el registro regional requieren evaluación humana.
+La base local de la fase 5B también pasó las 61 pruebas de Playwright. En la fase 5C pasaron las 1,567 comprobaciones de respuesta, la verificación de los paquetes del curso y de los capítulos, TypeScript, ESLint, 146 pruebas automatizadas y las exportaciones para Web y Hermes en Android. Los cuatro escenarios nuevos de la fase 5C pasaron en Playwright local. Las comprobaciones del pull request registran la regresión completa en el navegador y los resultados del APK firmado para cada revisión. [Pull request de la fase 5C](https://github.com/togekk39/LingoQuest/pull/30) · [Compilaciones del APK de Android](https://github.com/togekk39/LingoQuest/actions/workflows/android-apk.yml?query=branch%3Acodex%2Fphase-5c-unified-learning)
+
+Las pruebas automatizadas comprueban el comportamiento de la app con los datos evaluados. El aprendizaje, la retención a largo plazo y el registro regional requieren evaluación humana.
