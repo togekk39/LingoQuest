@@ -39,9 +39,11 @@ import {
 import {
   challengeLearningGate,
   reviewedChallengeRequirements,
-  selectMexicoChallengeVariation,
+  selectAdventureChallengeVariation,
+  type AdventureChallengeReview,
 } from '../src/challenge-learning';
 import { mexicoChallengePools } from '../../../content/source/mexico-challenges';
+import { mexicoChallengeReviews } from '../../../content/source/prerequisites/mexico-challenges';
 import { chapterCatalogSchema, parseChapterPack } from '@lingoquest/course-pack';
 import { travelChallengeItems } from '../src/travel-challenges';
 const source: CourseData = {
@@ -694,17 +696,22 @@ test('Mexico challenge variations preserve rank size and require reviewed instru
   const { engine, store } = fixture();
   await unlock(engine, 3);
   const learned = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const reviews: Readonly<Record<string, AdventureChallengeReview>> = mexicoChallengeReviews;
   const gate = challengeLearningGate(learned, source);
   for (const item of Object.values(mexicoChallengePools).flat()) {
-    assert.ok(reviewedChallengeRequirements(item, 'mexico', source)?.length, item.id);
+    assert.ok(
+      reviewedChallengeRequirements(item, 'adventure', source, reviews[item.id])?.length,
+      item.id,
+    );
     assert.equal(judgeAnswer(item, correct(item)), 'target', item.id);
     assert.equal(judgeAnswer(item, wrong(item)), 'incorrect', item.id);
   }
 
   const cloze = mexicoChallengePools.cloze_battle.find(({ id }) => id.endsWith('_does'))!;
-  assert.equal(gate('mexico', 'cloze_battle', [cloze]).ready, true);
+  assert.equal(gate('adventure', 'cloze_battle', [cloze], reviews).ready, true);
   assert.equal(
-    gate('mexico', 'cloze_battle', [{ ...cloze, sentence: '___ Leo open the market?' }]).taught,
+    gate('adventure', 'cloze_battle', [{ ...cloze, sentence: '___ Leo open the market?' }], reviews)
+      .taught,
     false,
   );
   const instructionOnly = {
@@ -717,7 +724,7 @@ test('Mexico challenge variations preserve rank size and require reviewed instru
     },
   };
   assert.deepEqual(
-    challengeLearningGate(instructionOnly, source)('mexico', 'cloze_battle', [cloze]),
+    challengeLearningGate(instructionOnly, source)('adventure', 'cloze_battle', [cloze], reviews),
     {
       taught: true,
       ready: false,
@@ -726,16 +733,63 @@ test('Mexico challenge variations preserve rank size and require reviewed instru
     },
   );
 
+  const normal = learned.unifiedLearning.evidence.find(
+    ({ exerciseId }) => exerciseId === 'u03_l01_practice_3',
+  )!;
+  const teaching = instructionOnly.unifiedLearning.evidence;
+  const withProof = (evidence: typeof teaching) => ({
+    ...learned,
+    unifiedLearning: { ...learned.unifiedLearning, evidence },
+  });
+  const invalidProofs: [string, typeof teaching][] = [
+    ['taught later', [normal, ...teaching]],
+    ['hinted', [...teaching, { ...normal, aids: ['hint'] }]],
+  ];
+  for (const [label, evidence] of invalidProofs) {
+    const gate = challengeLearningGate(withProof(evidence), source);
+    assert.equal(gate('adventure', 'cloze_battle', [cloze], reviews).ready, false, label);
+  }
+  const onePractice = withProof([...teaching, normal]);
+  assert.equal(
+    challengeLearningGate(onePractice, source)('adventure', 'cloze_battle', [cloze], reviews).ready,
+    true,
+  );
+  const removed = {
+    ...source,
+    lessons: {
+      ...source.lessons,
+      [normal.materialId]: {
+        ...source.lessons[normal.materialId],
+        exercises: source.lessons[normal.materialId].exercises.filter(
+          ({ id }) => id !== normal.exerciseId,
+        ),
+      },
+    },
+  };
+  assert.equal(
+    challengeLearningGate(onePractice, removed)('adventure', 'cloze_battle', [cloze], reviews)
+      .ready,
+    false,
+  );
+  for (const ref of [{ id: 'form.u03_l01.2' }, { id: 'form.u03_l01.1', form: 'does' }]) {
+    const malformed = {
+      ...reviews[cloze.id],
+      requires: [...reviews[cloze.id].requires.filter(({ id }) => id !== 'form.u03_l01.2'), ref],
+    };
+    assert.equal(reviewedChallengeRequirements(cloze, 'adventure', source, malformed), undefined);
+  }
+
   const base = source.challengePools.grammar_rush.slice(0, 10);
-  const eligible = (item: CourseExercise) => gate('mexico', 'grammar_rush', [item]).ready;
-  const first = selectMexicoChallengeVariation(
+  const eligible = (item: CourseExercise) =>
+    gate('adventure', 'grammar_rush', [item], reviews).ready;
+  const first = selectAdventureChallengeVariation(
     base,
     mexicoChallengePools.grammar_rush,
     2,
     0,
     eligible,
   );
-  const replay = selectMexicoChallengeVariation(
+  const replay = selectAdventureChallengeVariation(
     base,
     mexicoChallengePools.grammar_rush,
     2,
@@ -746,11 +800,11 @@ test('Mexico challenge variations preserve rank size and require reviewed instru
   assert.equal(replay[0].id, 'challenge_mexico_grammar_third');
   assert.deepEqual(first.slice(1), base.slice(1));
   assert.equal(
-    selectMexicoChallengeVariation(base, mexicoChallengePools.grammar_rush, 9, 0, eligible),
+    selectAdventureChallengeVariation(base, mexicoChallengePools.grammar_rush, 9, 0, eligible),
     base,
   );
   assert.equal(
-    selectMexicoChallengeVariation(base, mexicoChallengePools.grammar_rush, 2, 0, () => false),
+    selectAdventureChallengeVariation(base, mexicoChallengePools.grammar_rush, 2, 0, () => false),
     base,
   );
 });
@@ -758,7 +812,7 @@ test('Mexico challenge variations preserve rank size and require reviewed instru
 test('an installed Mexico pack supplies eligible variations to new runs and preserves existing runs', async () => {
   const packs = new URL('../../../apps/mobile/public/chapter-packs/', import.meta.url);
   const catalog = chapterCatalogSchema.parse(
-    JSON.parse(readFileSync(new URL('catalog-v3.json', packs), 'utf8')),
+    JSON.parse(readFileSync(new URL('catalog-v4.json', packs), 'utf8')),
   );
   const { revision } = catalog.chapters.mexico;
   const pack = parseChapterPack(
@@ -1308,7 +1362,7 @@ test('review teaches missing audited prerequisites before a learner can attempt 
   assert.ok(evidence[1].aids.includes('guided'));
 });
 
-test('an audio review needs playback or transcript before it supplies listening evidence', async () => {
+test('an audio review requires playback for listening evidence', async () => {
   const { engine, store } = fixture();
   await grantHomeReviewTeaching(engine, store, 'bus_teach');
   await engine.request('/v1/attempts', {

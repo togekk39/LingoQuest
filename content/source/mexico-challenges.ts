@@ -116,7 +116,7 @@ export const mexicoChallengePools = {
     grammar(
       'time',
       schedule,
-      'I start work ___ six.',
+      'I start ___ six.',
       ['in', 'at'],
       1,
       'Usamos at delante de una hora: at six.',
@@ -124,10 +124,10 @@ export const mexicoChallengePools = {
     grammar(
       'do',
       questions,
-      '___ you start work at eight?',
+      '___ you have breakfast at eight?',
       ['Do', 'Does'],
       0,
-      'La pregunta con you empieza con Do, seguido de you y el verbo base start.',
+      'Con you, empieza con Do y conserva la forma base have: Do you have breakfast at eight?',
     ),
     grammar(
       'does',
@@ -174,10 +174,10 @@ export const mexicoChallengePools = {
     cloze(
       'does',
       questions,
-      '___ Leo start work at noon?',
+      '___ Leo study at noon?',
       ['does'],
-      'Pregunta si Leo empieza a trabajar al mediodía. Escribe el auxiliar.',
-      'Does Leo start work at noon? Con Leo usamos Does y el verbo base start.',
+      'Pregunta si Leo estudia al mediodía. Escribe el auxiliar.',
+      'Does Leo study at noon? Con Leo usamos Does y el verbo base study.',
     ),
     cloze(
       'negative',
@@ -201,11 +201,11 @@ export const mexicoChallengePools = {
     reading(
       'schedule',
       schedule,
-      'Luz: I start work at six. I have breakfast at eight.\nSam: I have breakfast at six. I start work at eight.',
-      '¿Quién empieza a trabajar a las ocho?',
+      'Luz: I work at six. I have breakfast at eight.\nSam: I have breakfast at six. I work at eight.',
+      '¿Quién trabaja a las ocho?',
       ['Sam', 'Luz'],
       0,
-      'Sam dice I start work at eight. Luz desayuna a las ocho.',
+      'Sam dice I work at eight. Luz desayuna a las ocho.',
     ),
     reading(
       'questions',

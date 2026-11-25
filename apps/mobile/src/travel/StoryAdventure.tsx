@@ -39,7 +39,7 @@ import { useTheme } from '../theme';
 import { StoryPhrase, StorySpeaker } from './StoryDialogueAppearance';
 import { StoryGuide, type GuideStep, type StoryGuideStage } from './StoryGuide';
 import { StoryScene } from './StoryScene';
-import { TravelFlow, travelStoryPrompt, type TravelFlowHandle } from './TravelFlow';
+import { TravelFlow, travelStoryCue, type TravelFlowHandle } from './TravelFlow';
 import { useChapterAudio } from './useChapterAudio';
 
 const itemKinds = { story: 'Historia', quest: 'Misión', souvenir: 'Recuerdo' };
@@ -241,7 +241,7 @@ export function StoryAdventure({
   const encounterMission = chapter.missions.find(({ id }) => id === encounter?.missionId);
   const teachingSpeaker =
     activeCheckpoint && encounterMission
-      ? travelStoryPrompt(encounterMission, activeCheckpoint)?.speaker
+      ? travelStoryCue(encounterMission, activeCheckpoint)?.speaker
       : undefined;
   const teachingNpc =
     encounter?.npc && teachingSpeaker === encounter.npc.name

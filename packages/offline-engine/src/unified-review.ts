@@ -1,4 +1,5 @@
 import type { LearningError } from '@lingoquest/contracts';
+import type { RpgFormalDefinition } from '@lingoquest/course-pack';
 import { chapter, travelLesson } from './home-content';
 import type { CourseData, CourseExercise, CourseLesson, OfflineState } from './index';
 import type { reviewPrerequisites } from './learning-prerequisites';
@@ -8,10 +9,12 @@ import {
   rankUnifiedReviewCandidates,
   unifiedMasteryKey,
   unifiedReviewQueue,
+  type UnifiedEvidenceTarget,
   type UnifiedMastery,
 } from './learning-evidence';
 import {
   buildLearningRegistry,
+  canonicalLearningId,
   exerciseEvidenceContext,
   exerciseEvidenceTargets,
   homeSpeakingEvidenceTargets,
@@ -67,13 +70,17 @@ export function reviewCandidate(
   lesson: CourseLesson,
   exercise: CourseExercise,
   prerequisites: ReturnType<typeof reviewPrerequisites>,
+  targets: readonly UnifiedEvidenceTarget[] = exerciseEvidenceTargets(exercise, lesson.id),
 ) {
   return {
     lesson,
     exercise,
     exerciseId: exercise.id,
     contextId: exerciseEvidenceContext(exercise, lesson.id),
-    targets: exerciseEvidenceTargets(exercise, lesson.id),
+    targets: targets.map(({ targetId, dimension }) => ({
+      targetId: canonicalLearningId(targetId),
+      dimension,
+    })),
     guided: !!exercise.learning?.guided || exercise.type === 'reorder',
     errors: exerciseCheckedErrors(exercise),
     remediates: exercise.learning?.remediates,
@@ -147,10 +154,11 @@ export function unifiedReviewPlans(
   now: number,
   missionId?: string | null,
   missionTargets = reviewTargetsForMission(missionId),
+  definitions: readonly RpgFormalDefinition[] = [],
 ): ReviewPlan[] {
   const records = unifiedReviewQueue(state.unifiedLearning, now);
   const knownTargets = new Set(records.map(({ targetId }) => targetId));
-  const registry = buildLearningRegistry(content);
+  const registry = buildLearningRegistry(content, definitions);
   const available = candidates.filter(
     (candidate) => reviewReady(candidate) || candidate.prerequisites?.instruction,
   );

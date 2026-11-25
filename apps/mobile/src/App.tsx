@@ -238,7 +238,10 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         await bootstrap();
         await refresh();
         if (active) {
-          await prepareChapter(current.id, false);
+          const currentInstalled =
+            current.id === firstChapter.id || !!(await getInstalledChapter(current.id));
+          if (!active) return;
+          if (currentInstalled) await prepareChapter(current.id, false);
           // Save an update for the next launch so an active lesson keeps its content.
           // Guarda la actualización para el próximo inicio y conserva el contenido de la lección activa.
           void refreshInstalledChapters().catch(() => {});
@@ -890,15 +893,16 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 ) : (
                   <>
                     {homeReady && (
-                      <>
-                        <Button variant="secondary" loading={starting} onPress={startStory}>
-                          Volver a La primera postal
-                        </Button>
-                        <Button variant="secondary" onPress={() => openQuickReview()}>
-                          Repaso rápido
-                        </Button>
-                      </>
+                      <Button variant="secondary" loading={starting} onPress={startStory}>
+                        Volver a La primera postal
+                      </Button>
                     )}
+                    <Button
+                      variant="secondary"
+                      onPress={() => openQuickReview(undefined, secondChapter.id)}
+                    >
+                      Repaso rápido
+                    </Button>
                     <Button variant="secondary" onPress={() => setPassport(true)}>
                       Abrir pasaporte
                     </Button>

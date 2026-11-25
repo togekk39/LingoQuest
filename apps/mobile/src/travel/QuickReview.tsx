@@ -11,6 +11,7 @@ import { Button } from '../ui';
 import { illustrations } from './illustrations';
 import { AnswerFeedback } from '../features/LessonStages';
 import { useChapterAudio } from './useChapterAudio';
+import { PrerequisiteNotice } from './TravelAppearance';
 import { starterGreetingInstruction } from './starterGreeting';
 
 export function QuickReview({
@@ -190,29 +191,8 @@ export function QuickReview({
                 cuando haya otra situación para practicar.
               </Text>
             </Notebook>
-          ) : unavailable ? (
-            <Notebook title="Primero aprende lo necesario">
-              <Text style={f.body}>
-                Cuando hayas practicado las ideas de esta pregunta en tu lección, podrás volver a
-                intentarla.
-              </Text>
-            </Notebook>
-          ) : instruction ? (
-            <Notebook title="Primero aprende lo necesario">
-              {instruction.sections.map(({ title, examples }) => (
-                <View key={title} style={{ gap: 4 }}>
-                  <Text style={f.cardTitle}>{title}</Text>
-                  {examples.map(({ en, es }) => (
-                    <View key={en}>
-                      <Text accessibilityLanguage="en-US" style={f.body}>
-                        {en}
-                      </Text>
-                      <Text style={f.quiet}>{es}</Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </Notebook>
+          ) : unavailable || instruction ? (
+            <PrerequisiteNotice instruction={instruction} />
           ) : (
             review.explanation && (
               <Notebook title="Revisa esta idea">

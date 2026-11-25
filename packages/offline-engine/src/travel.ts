@@ -9,7 +9,9 @@ import {
 import { travelPlacementSchema } from './travel-placement';
 import { chapter as homeChapter, travelLesson } from './home-content';
 import type { TravelChapter } from './travel-content';
+import type { TravelExerciseStep } from './travel-content';
 import { travelStepVocabulary } from './travel-vocabulary';
+import type { ReviewInstruction } from './learning-prerequisites';
 import {
   learningErrorSchema,
   speechPracticeSchema,
@@ -59,6 +61,7 @@ const checkpointSchema = z
     answerShown: z.literal(true).optional(),
     identityRetry: z.literal(true).optional(),
     retry: z.boolean().optional(),
+    prerequisitePrepared: z.literal(true).optional(),
     result: savedResultSchema.optional(),
     finished: z.boolean(),
   })
@@ -79,8 +82,12 @@ export const travelStateSchema = z
   })
   .strict();
 
-export type TravelState = z.infer<typeof travelStateSchema>;
-export type TravelCheckpoint = z.infer<typeof checkpointSchema>;
+export type TravelState = z.infer<typeof travelStateSchema> & { active?: TravelCheckpoint };
+export type TravelCheckpoint = z.infer<typeof checkpointSchema> & {
+  prerequisiteInstruction?: Pick<ReviewInstruction, 'sections'>;
+  prerequisiteUnavailable?: true;
+  prerequisiteUpdateRequired?: true;
+};
 export const emptyTravel = (): TravelState => ({ completed: {}, stamps: {} });
 
 export function canStartTravelMission(
@@ -125,7 +132,7 @@ const operationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('draft'), token: z.string(), answer: draftAnswerSchema }).strict(),
   z
     .object({
-      action: z.enum(['hint', 'transcript', 'listened', 'retry', 'dismiss']),
+      action: z.enum(['hint', 'transcript', 'listened', 'retry', 'dismiss', 'prepare']),
       token: z.string(),
     })
     .strict(),
@@ -156,6 +163,11 @@ export interface TravelAttemptConditions {
   missingAudio: boolean;
   referenceAnswer: boolean;
   retry: boolean;
+}
+
+interface TravelPrerequisiteGate {
+  allow(step: TravelExerciseStep): boolean;
+  prepare(step: TravelExerciseStep, token: string): boolean;
 }
 
 const revisionOneSteps: Record<string, string[]> = {
@@ -189,7 +201,14 @@ export function upgradeTravelCheckpoints(
             tokens: saved.answer.tokens.map((word) => (word === 'Luz' ? '[tu nombre]' : word)),
           }
         : saved.answer;
-    return { ...saved, step, stepId: stableId, answer, contentRevision: chapter.revision };
+    return {
+      ...saved,
+      step,
+      stepId: stableId,
+      answer,
+      ...(chapter.id !== 'home' && mission?.steps[step]?.type === 'teach' && { word: undefined }),
+      contentRevision: chapter.revision,
+    };
   }
   if (travel.active) travel.active = upgrade(travel.active);
   for (const [key, saved] of Object.entries(travel.paused ?? {}))
@@ -229,6 +248,7 @@ export function updateTravel(
   entryStepId?: string,
   activity?: (event: TravelLearningActivity) => void,
   chapter: TravelChapter = homeChapter,
+  prerequisites?: TravelPrerequisiteGate,
 ) {
   const input = operationSchema.parse(body);
   if (input.action === 'country') {
@@ -286,7 +306,8 @@ export function updateTravel(
     const word = current.word ?? 0;
     if (step.type === 'teach') {
       const vocabulary = travelStepVocabulary(mission, step);
-      if (input.position > vocabulary.length) return;
+      if (input.position > vocabulary.length || (prerequisites && input.position > word + 1))
+        return;
       if (input.position === word + 1)
         introduce(`${current.token}:word:${word}`, input.translationShown, vocabulary[word].term);
       current.word = input.position;
@@ -294,6 +315,11 @@ export function updateTravel(
     return;
   }
   if (step.type === 'exercise') {
+    if (!current.result && input.action === 'prepare') {
+      if (prerequisites?.prepare(step, current.token)) current.prerequisitePrepared = true;
+      return;
+    }
+    if (!current.result && prerequisites && !prerequisites.allow(step)) return;
     if (input.action === 'draft' && !current.result) current.answer = input.answer;
     if (input.action === 'hint' && step.hint && !current.result) current.hint = true;
     if (input.action === 'transcript' && step.transcript && !current.result)
@@ -307,6 +333,7 @@ export function updateTravel(
       if (current.hint) aids.push('hint');
       if (current.transcript) aids.push('transcript');
       if (current.retry) aids.push('retry');
+      if (current.prerequisitePrepared) aids.push('guided');
       current.result = attempt(
         {
           lessonId: step.lessonId ?? travelLesson.id,
@@ -349,6 +376,12 @@ export function updateTravel(
     if (step.type !== 'speak') return;
     if (step.learning) speaking(step.learning, input.practice);
   } else if (input.action === 'advance') {
+    if (
+      prerequisites &&
+      step.type === 'teach' &&
+      (current.word ?? 0) < travelStepVocabulary(mission, step).length
+    )
+      return;
     if (step.type === 'teach' || (step.type === 'dialogue' && step.line))
       introduce(current.token, input.translationShown);
   } else return;

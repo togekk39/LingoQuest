@@ -1,0 +1,192 @@
+import { publicExercise } from '@lingoquest/offline-engine';
+import {
+  chapter,
+  travelLesson,
+  travelPracticeSteps,
+} from '../packages/offline-engine/src/travel-content';
+import { chapterStory } from '../packages/offline-engine/src/chapter-story';
+import { travelChallengePools } from '../packages/offline-engine/src/travel-challenge-pools';
+import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
+import { placementQuestions } from '../packages/offline-engine/src/travel-placement';
+import { mexicoChallengePools } from '../content/source/mexico-challenges';
+import { mexicoChapter, mexicoPractice } from '../content/source/mexico-missions';
+import { mexicoAdventure } from '../content/source/mexico-story';
+import { mexicoLearningDefinitions } from '../content/source/mexico-prerequisites';
+import { mexicoChallengeReviews } from '../content/source/prerequisites/mexico-challenges';
+import mexicoReview from '../content/source/mexico-rpg-review.json';
+import {
+  formalDefinitions,
+  teachingReferenceKey,
+} from '../packages/offline-engine/src/learning-prerequisites';
+import { canonicalLearningId } from '../packages/offline-engine/src/learning-registry';
+import type { StoryDefinition } from '../packages/offline-engine/src/story';
+import type {
+  TravelChapter,
+  TravelExerciseStep,
+} from '../packages/offline-engine/src/travel-content';
+import bundled from '../apps/mobile/src/content/bundled-course.json';
+import {
+  chapterLessonPhrases,
+  type CoursePayload,
+  type RpgAdventureAudit,
+} from '@lingoquest/course-pack';
+
+const {
+  units: courseUnits,
+  lessons: courseLessons,
+  ...courseActivities
+} = bundled.payload as CoursePayload;
+
+function portableDefinitions(
+  chapter: TravelChapter,
+  practice: readonly TravelExerciseStep[],
+  localLessonIds: readonly string[],
+  audit: RpgAdventureAudit,
+) {
+  const local = formalDefinitions({
+    lessons: Object.fromEntries(localLessonIds.map((id) => [id, courseLessons[id]])),
+  });
+  const reviewed = formalDefinitions({ lessons: courseLessons });
+  const authored = new Set(audit.definitions.map(({ id }) => id));
+  const references = [
+    ...chapter.missions.flatMap(({ vocabulary, steps }) => [
+      ...vocabulary.flatMap(({ teaches }) => teaches ?? []),
+      ...steps.flatMap((step) =>
+        step.type === 'teach'
+          ? (step.instruction?.references ?? [])
+          : step.type === 'exercise'
+            ? (step.requires ?? [])
+            : [],
+      ),
+    ]),
+    ...practice.flatMap(({ requires }) => requires ?? []),
+    ...Object.values(audit.challenges ?? {}).flatMap(({ requires }) => requires),
+  ];
+  return [
+    ...audit.definitions,
+    ...[...new Set(references.map(({ id }) => id))].flatMap((id) => {
+      const definition = reviewed.get(id);
+      if (local.has(id) || authored.has(id) || !definition) return [];
+      const canonical = local.get(canonicalLearningId(id));
+      if (
+        canonical &&
+        definition.forms.every((form) =>
+          canonical.forms.some(
+            (localForm) =>
+              teachingReferenceKey({ id: canonical.id, form: localForm }) ===
+              teachingReferenceKey({ id, form }),
+          ),
+        )
+      )
+        return [];
+      const { kind, labelEs, forms, examples } = definition;
+      return [
+        {
+          id,
+          kind,
+          labelEs,
+          forms,
+          examples: examples.length ? examples : forms.map((en) => ({ en, es: labelEs })),
+        },
+      ];
+    }),
+  ];
+}
+function adventurePhrases({
+  chapter,
+  adventure,
+  practice,
+}: {
+  chapter: TravelChapter;
+  adventure: StoryDefinition;
+  practice: readonly Pick<TravelExerciseStep, 'audio'>[];
+}) {
+  return [
+    ...adventure.dialogues.flatMap(({ line }) => (line ? [line.en] : [])),
+    ...chapter.missions.flatMap(({ vocabulary, steps }) => [
+      ...vocabulary.flatMap(({ term, example }) => [term, example.en]),
+      ...steps.flatMap((step) => {
+        if (step.type === 'dialogue') return step.line ? [step.line.en] : [];
+        if (step.type === 'teach') return step.examples.map(({ en }) => en);
+        if (step.type === 'speak') return [step.phrase];
+        return [step.audio, step.storyReply?.line.en].filter(
+          (phrase): phrase is string => !!phrase,
+        );
+      }),
+    ]),
+    ...practice.flatMap(({ audio }) => (audio ? [audio] : [])),
+  ];
+}
+
+export const homeStory = {
+  chapter,
+  adventure: chapterStory,
+  practice: travelPracticeSteps,
+  runtime: {
+    lesson: travelLesson,
+    placement: travelPlacementItems,
+    challenges: travelChallengePools,
+    course: courseActivities,
+  },
+};
+const mexicoSupportingLessonIds = ['u03_l01', 'u03_l02'];
+const mexicoAudit: RpgAdventureAudit = {
+  ...mexicoReview,
+  definitions: [...mexicoLearningDefinitions],
+  challenges: Object.fromEntries(
+    Object.entries(mexicoChallengeReviews).map(([id, entry]) => [
+      id,
+      { ...entry, requires: [...entry.requires] },
+    ]),
+  ),
+};
+export const mexicoStory = {
+  chapter: mexicoChapter,
+  adventure: mexicoAdventure,
+  practice: mexicoPractice,
+  supportingLessons: mexicoSupportingLessonIds.map((id) => courseLessons[id]),
+  challenges: mexicoChallengePools,
+  audit: {
+    ...mexicoAudit,
+    definitions: portableDefinitions(
+      mexicoChapter,
+      mexicoPractice,
+      [
+        ...(courseUnits.find(({ id }) => id === 'u02')?.lessons.map(({ id }) => id) ?? []),
+        ...mexicoSupportingLessonIds,
+      ],
+      mexicoAudit,
+    ),
+  },
+};
+export const chapterAdventures = new Map<
+  string,
+  { story: typeof homeStory | typeof mexicoStory; phrases: string[]; properNames?: string[] }
+>([
+  [
+    homeStory.chapter.id,
+    {
+      story: homeStory,
+      phrases: [
+        ...adventurePhrases(homeStory),
+        ...placementQuestions(publicExercise).flatMap(({ audio }) => (audio ? [audio] : [])),
+        'Hi! My name is Sam.',
+        'Hi! I am',
+        // Retain the clip used by open Home revision 3 sessions.
+        // Conserva el audio de las sesiones abiertas de Home revisión 3.
+        'Nice to meet you! Can you help me find the bus stop?',
+      ],
+    },
+  ],
+  [
+    mexicoStory.chapter.id,
+    {
+      story: mexicoStory,
+      properNames: ['Clara', 'Sol', 'Mexico City', 'Ana', 'Nora', 'Eli', 'Eva', 'Luz'],
+      phrases: [
+        ...adventurePhrases(mexicoStory),
+        ...chapterLessonPhrases([], mexicoStory.supportingLessons),
+      ],
+    },
+  ],
+]);

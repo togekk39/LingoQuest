@@ -1,4 +1,5 @@
 import { normalizeAnswerText, type Answer, type EvidenceDimension } from '@lingoquest/contracts';
+import type { RpgFormalDefinition } from '@lingoquest/course-pack';
 import earlyTravel from '../../../content/source/prerequisites/early-travel.json';
 import {
   chapterLexicalForms,
@@ -128,7 +129,10 @@ export function describeLearningTarget(targetId: string) {
   return registered.get(canonicalLearningId(targetId));
 }
 
-export function buildLearningRegistry(content?: Pick<CourseData, 'lessons' | 'speechDrills'>) {
+export function buildLearningRegistry(
+  content?: Pick<CourseData, 'lessons' | 'speechDrills'>,
+  authored: readonly RpgFormalDefinition[] = [],
+) {
   const index = new Map(registered);
   const register = (
     id: string,
@@ -160,6 +164,10 @@ export function buildLearningRegistry(content?: Pick<CourseData, 'lessons' | 'sp
       continue;
     if (typeof drill.category === 'string' && typeof drill.titleEs === 'string')
       register(`speech.${drill.category}`, 'speech', drill.titleEs, []);
+  }
+  for (const { id, kind, labelEs, forms } of authored) {
+    const label = kind === 'lexical' ? `${forms[0]} · ${labelEs}` : labelEs;
+    register(id, kind, label, forms);
   }
   return index;
 }

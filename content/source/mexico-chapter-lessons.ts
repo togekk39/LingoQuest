@@ -129,6 +129,21 @@ export const mexicoChapterLessons: ChapterLesson[] = [
         es: 'Trabajo a las diez y media. Puedo ir al mercado por la mañana.',
       },
       { speaker: 'Leo', en: 'The market closes at noon.', es: 'El mercado cierra al mediodía.' },
+      {
+        speaker: 'Leo',
+        en: 'Zero, one, two, three, four, five, six, seven, eight, nine, ten, eleven, twelve.',
+        es: 'Del 0 al 12: cero, uno, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, once, doce.',
+      },
+      {
+        speaker: 'Inés',
+        en: 'Thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen.',
+        es: 'Del 13 al 19: trece, catorce, quince, dieciséis, diecisiete, dieciocho, diecinueve.',
+      },
+      {
+        speaker: 'Leo',
+        en: 'Twenty, thirty, forty, fifty. Twenty-one, thirty-two, forty-seven, fifty-nine.',
+        es: 'Veinte, treinta, cuarenta, cincuenta. Veintiuno, treinta y dos, cuarenta y siete, cincuenta y nueve.',
+      },
     ],
     vocabulary: [
       { en: 'o’clock', es: 'en punto' },
@@ -148,7 +163,7 @@ export const mexicoChapterLessons: ChapterLesson[] = [
       { en: 'bus stop', es: 'parada del bus' },
     ],
     grammarEs:
-      'Usa at + hora («at eight»), on + día («on Saturday») e in + parte del día («in the morning»). «On Saturdays» indica que ocurre los sábados. Para decir 8:00 puedes decir «eight o’clock». Para 8:30 di «eight thirty» o «half past eight». En un horario digital, di primero la hora y luego los minutos. Para 8:05 puedes decir «eight oh five». Los minutos de 10 a 19 tienen formas propias: ten, eleven, twelve, thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen. Para 20 a 59, combinas twenty, thirty, forty o fifty con la unidad según el número: 8:24 se lee «eight twenty-four». Compara «seven fifteen» (7:15) con «seven fifty» (7:50) y «ten thirteen» (10:13) con «ten thirty» (10:30). Escucha la diferencia entre los finales de fifteen y fifty, y de thirteen y thirty.',
+      'Usa at + hora («at eight»), on + día («on Saturday») e in + parte del día («in the morning»). «On Saturdays» indica que ocurre los sábados. Para decir 8:00 puedes decir «eight o’clock». Para 8:30 di «eight thirty» o «half past eight». En un horario digital, di primero la hora y luego los minutos. Para 8:05 puedes decir «eight oh five». Escucha arriba del 0 al 12 y del 13 al 19. Los números del 13 al 19 terminan en -teen. Para 21 a 59, combina la decena (twenty, thirty, forty o fifty) con la unidad si la hay. Separa ambas partes con un guion al escribir: 8:24 se lee «eight twenty-four». Compara «seven fifteen» (7:15) con «seven fifty» (7:50) y «ten thirteen» (10:13) con «ten thirty» (10:30). Si el horario usa a.m., es antes del mediodía. Con p.m., es después.',
     question: {
       promptEs: 'Escucha el mensaje que confirma las horas de los dos buses. ¿Qué par oyes?',
       options: ['7:15 y 10:13.', '7:50 y 10:13.', '7:50 y 10:30.', '7:15 y 10:30.'],
@@ -212,7 +227,7 @@ export const mexicoChapterLessons: ChapterLesson[] = [
       { en: 'community center', es: 'centro comunitario' },
     ],
     grammarEs:
-      'Para preguntar por un horario, di «What time do you work?» o «What time does she work?». When también pregunta cuándo. Usa do con I, you, we o they y does con he, she o el nombre de una sola persona. Después del sujeto en una pregunta, va el verbo base: «Does she work?». En respuestas negativas, usa don’t o doesn’t + verbo base: «I don’t work» y «She doesn’t work». En un aviso, «is open» significa «está abierto» y «is closed», «está cerrado». Confirma el encuentro con «Let’s meet» y añade on + día y at + hora: «Let’s meet on Saturday at half past ten».',
+      'Para preguntar por un horario, di «What time do you work?» o «What time does she work?». When también pregunta cuándo. Usa do con I, you, we o they y does con he, she o el nombre de una sola persona. Después del sujeto en una pregunta, va el verbo base: «Does she work?». En respuestas negativas, usa do not o don’t y does not o doesn’t antes del verbo base: «I don’t work» y «She doesn’t work». En un aviso, «is open» significa «está abierto» y «is closed», «está cerrado». En «What time does the market open?», open es una acción: abrir al público. Confirma el encuentro con «Let’s meet» y añade on + día y at + hora: «Let’s meet on Saturday at half past ten».',
     question: {
       promptEs:
         'Cruza estos dos avisos. «Community center: Friday at four, open. Saturday at ten, closed.» «Leo: I work on Saturday. I’m available on Friday at four.» ¿Cuándo pueden verse en el centro comunitario?',

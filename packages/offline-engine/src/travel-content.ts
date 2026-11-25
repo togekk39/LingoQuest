@@ -1,6 +1,7 @@
 import type { Translation } from '@lingoquest/contracts';
 import type { PrerequisiteReference } from '../../course-pack/src/prerequisites';
 import type { CourseExercise, CourseLesson } from './index';
+import type { UnifiedEvidenceTarget } from './learning-evidence';
 import type { LearningTarget } from './travel-learning';
 import { homeChapterDetails } from './travel-route';
 
@@ -15,6 +16,7 @@ export interface TravelVocabulary {
   kind: string;
   explanation: string;
   example: Translation;
+  teaches?: readonly PrerequisiteReference[];
   exampleBy?: string;
   storyPrompt?: TravelStoryPrompt;
 }
@@ -36,6 +38,7 @@ export interface TravelExerciseStep {
   exercise: CourseExercise;
   lessonId?: string;
   requires?: readonly PrerequisiteReference[];
+  targets?: readonly UnifiedEvidenceTarget[];
   hint?: string;
   audio?: string;
   transcript?: string;

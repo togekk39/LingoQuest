@@ -243,7 +243,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
-export const CHAPTER_CATALOG_FILE = 'catalog-v3.json';
+export const CHAPTER_CATALOG_FILE = 'catalog-v4.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -338,6 +338,53 @@ const homeRuntime = z
   .strict();
 
 const storyRequirementsSchema = z.array(z.object({ id, form: text.optional() }).strict()).max(100);
+export const rpgFormalDefinitionSchema = z
+  .object({
+    id,
+    kind: z.enum(['lexical', 'pattern', 'grammar']),
+    labelEs: text,
+    forms: z.array(text).max(50),
+    examples: z.array(translation).min(1).max(20),
+  })
+  .strict()
+  .refine(({ kind, forms }) => (kind === 'grammar' ? !forms.length : !!forms.length));
+export type RpgFormalDefinition = z.infer<typeof rpgFormalDefinitionSchema>;
+
+export const rpgAssessmentTargetsSchema = z
+  .array(
+    z
+      .object({
+        targetId: id,
+        dimension: z.enum([
+          'vocabulary_recognition',
+          'vocabulary_recall',
+          'grammar_understanding',
+          'grammar_production',
+          'listening',
+          'reading',
+          'writing',
+          'speaking',
+        ]),
+      })
+      .strict(),
+  )
+  .min(1)
+  .max(100);
+const rpgAdventureAuditSchema = z
+  .object({
+    definitions: z.array(rpgFormalDefinitionSchema).max(500),
+    teaching: z.record(id, chapterDigestSchema),
+    assessments: z.record(id, chapterDigestSchema),
+    challenges: z
+      .record(
+        id,
+        z.object({ digest: chapterDigestSchema, requires: storyRequirementsSchema }).strict(),
+      )
+      .optional(),
+  })
+  .strict();
+export type RpgAdventureAudit = z.infer<typeof rpgAdventureAuditSchema>;
+
 const storyInstructionSchema = z
   .object({
     lessonId: id,
@@ -355,6 +402,7 @@ const storyStepSchema = z
     requiredReply: z.literal(true).optional(),
     exercise: travelExercise.optional(),
     requires: storyRequirementsSchema.optional(),
+    targets: rpgAssessmentTargetsSchema.optional(),
   })
   .passthrough();
 
@@ -392,7 +440,15 @@ export const chapterPackSchema = z
                     objective: text,
                     minutes: z.tuple([z.number().positive(), z.number().positive()]),
                     vocabulary: z
-                      .array(z.object({ term: text, example: translation }).passthrough())
+                      .array(
+                        z
+                          .object({
+                            term: text,
+                            example: translation,
+                            teaches: storyRequirementsSchema.optional(),
+                          })
+                          .passthrough(),
+                      )
                       .min(1),
                     steps: z.array(storyStepSchema).min(1),
                   })
@@ -422,6 +478,7 @@ export const chapterPackSchema = z
         runtime: homeRuntime.optional(),
         challenges: homeRuntime.shape.challenges.optional(),
         supportingLessons: z.array(lessonSchema).max(8).optional(),
+        audit: rpgAdventureAuditSchema.optional(),
       })
       .strict()
       .optional(),
@@ -452,7 +509,8 @@ export const chapterPackSchema = z
         !adventure.scenes.some(({ id }) => id === adventure.initialSceneId)
       )
         return false;
-      if (chapterId === 'home' && (story.challenges || story.supportingLessons)) return false;
+      if (chapterId === 'home' && (story.challenges || story.supportingLessons || story.audit))
+        return false;
       if (chapterId !== 'home') {
         if (
           story.runtime ||
@@ -486,11 +544,18 @@ export const chapterPackSchema = z
           return false;
         const steps = [...chapter.missions.flatMap(({ steps }) => steps), ...practice.data];
         if (
-          !steps.every(({ type, instruction, lessonId, exercise, requires, requiredReply }) =>
-            type === 'exercise'
-              ? !!(lessonId && lessons.has(lessonId) && exercise && requires?.length)
-              : !requiredReply &&
-                (!instruction || (type === 'teach' && lessons.has(instruction.lessonId))),
+          !steps.every(
+            ({ type, instruction, lessonId, exercise, requires, requiredReply, targets }) =>
+              type === 'exercise'
+                ? !!(
+                    lessonId &&
+                    lessons.has(lessonId) &&
+                    exercise &&
+                    requires?.length &&
+                    (!story.audit || targets?.length)
+                  )
+                : !requiredReply &&
+                  (!instruction || (type === 'teach' && lessons.has(instruction.lessonId))),
           )
         )
           return false;

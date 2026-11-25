@@ -1,4 +1,5 @@
 import type { Translation } from '@lingoquest/contracts';
+import type { PrerequisiteReference } from '../../packages/course-pack/src/prerequisites';
 import type { LearningTarget } from '../../packages/offline-engine/src/travel-learning';
 import type {
   TravelChapter,
@@ -7,6 +8,15 @@ import type {
   TravelStep,
   TravelVocabulary,
 } from '../../packages/offline-engine/src/travel-content';
+import { answerVariants } from './contextual-answers';
+import {
+  form,
+  grammar,
+  mexicoAssessmentReferences,
+  mexicoNumberRefs,
+  mexicoRefs as w,
+  mexicoStudyPatterns as p,
+} from './mexico-prerequisites';
 
 const readingRoom = 'Sala de lectura';
 const market = 'Mercado del barrio';
@@ -17,8 +27,27 @@ const time = { lessonId: 'u02_l04', conceptId: 'grammar.routine_time' };
 const questions = { lessonId: 'u03_l01', conceptId: 'grammar.do_questions' };
 const negatives = { lessonId: 'u03_l02', conceptId: 'grammar.dont' };
 type Target = typeof routine;
+type Speaker = 'Inés' | 'Sam' | 'Leo';
 
 const pair = (en: string, es: string): Translation => ({ en, es });
+const meetingVerbs = ['We meet', 'We will meet', 'Let’s meet'];
+const eightOClock = ['eight', 'eight o’clock', '8', '8:00', 'eight a.m.', '8 a.m.', '8:00 a.m.'];
+const halfPastThree = ['half past three', 'three thirty', '3:30', 'three thirty p.m.', '3:30 p.m.'];
+const tenOClock = ['ten', 'ten o’clock', '10', '10:00'];
+const wordReferences = Object.values(w);
+const writingPatterns = new Map([
+  [routine.conceptId, p.routine],
+  [others.conceptId, p.others],
+  [time.conceptId, p.clock],
+  [questions.conceptId, p.question],
+  [negatives.conceptId, p.negative],
+]);
+
+function assessmentRequirements(id: string, target: Target): PrerequisiteReference[] {
+  const required = mexicoAssessmentReferences[id];
+  if (!required) throw new Error(`Missing assessment prerequisites for ${id}`);
+  return [grammar(target.conceptId), ...required];
+}
 
 function word(
   term: string,
@@ -27,8 +56,19 @@ function word(
   en: string,
   es: string,
   explanation = meaning,
+  exactReference?: PrerequisiteReference,
 ): TravelVocabulary {
-  return { term, meaning, kind, explanation, example: pair(en, es) };
+  const matching = wordReferences.filter(({ form }) => form === term);
+  if (!exactReference && matching.length > 1) throw new Error(`Choose an exact sense for ${term}`);
+  const reference = exactReference ?? matching[0];
+  return {
+    term,
+    meaning,
+    kind,
+    explanation,
+    example: pair(en, es),
+    ...(reference && { teaches: [reference] }),
+  };
 }
 
 function teach(
@@ -37,20 +77,22 @@ function teach(
   title: string,
   text: string,
   examples: Translation[],
-  referenceIds: string[],
+  references: readonly PrerequisiteReference[],
   vocabularyTerms?: string[],
+  speaker: Speaker = 'Inés',
 ): TravelStep {
   return {
     id,
     type: 'teach',
     title,
+    speaker,
     text,
     examples,
     vocabularyTerms,
     instruction: {
       lessonId: target.lessonId,
       stage: 'both',
-      references: [target.conceptId, ...referenceIds].map((id) => ({ id })),
+      references: [grammar(target.conceptId), ...references],
     },
   };
 }
@@ -70,10 +112,26 @@ function writing(
     guided?: true;
     requiredReply?: true;
     remediates?: LearningTarget['remediates'];
+    storyPrompt?: { speaker: Speaker; text: string };
+    reply?: { speaker: Speaker; line: Translation };
+    communicationOnly?: { answers: string[]; feedbackEs: string };
+    selfCheck?: true;
   } = {},
 ): TravelExerciseStep {
-  const { passage, evidence = 'production', errors, guided, remediates, requiredReply } = options;
+  const {
+    passage,
+    evidence = 'production',
+    errors,
+    guided,
+    remediates,
+    requiredReply,
+    storyPrompt,
+    reply,
+    communicationOnly,
+    selfCheck,
+  } = options;
   const { lessonId, conceptId } = target;
+  const pattern = writingPatterns.get(conceptId);
   return {
     id,
     type: 'exercise',
@@ -81,7 +139,13 @@ function writing(
     situation,
     lessonId,
     requiredReply,
-    requires: [{ id: conceptId }],
+    storyPrompt,
+    storyReply: reply,
+    requires: assessmentRequirements(id, target),
+    targets: [
+      { targetId: conceptId, dimension: 'grammar_production' },
+      ...(pattern ? [{ targetId: pattern.id, dimension: 'writing' as const }] : []),
+    ],
     exercise: {
       id,
       type: 'short_text',
@@ -89,6 +153,8 @@ function writing(
       acceptedAnswers,
       feedbackEs,
       passage,
+      communicationOnly,
+      ...(selfCheck && { ungradable: { feedbackEs } }),
       difficulty: 1,
       skillId: conceptId,
       dimension: 'grammar_production',
@@ -116,7 +182,8 @@ function comprehension(
     activityTitle: audio ? 'Escucha el horario' : 'Lee la agenda',
     situation,
     lessonId,
-    requires: [{ id: conceptId }],
+    requires: assessmentRequirements(id, target),
+    targets: [{ targetId: conceptId, dimension: audio ? 'listening' : 'reading' }],
     ...(audio && { audio, transcript: audio, listeningButton: 'Escuchar el mensaje' }),
     exercise: {
       id,
@@ -166,7 +233,15 @@ const dailyRoutine: TravelMission = {
   success:
     'Inés ya sabe qué haces en un día normal. Ahora puede contarte cómo se organiza su familia.',
   vocabulary: [
-    word('work', 'trabajar', 'Verbo', 'I work every day.', 'Trabajo todos los días.'),
+    word(
+      'work',
+      'trabajar',
+      'Verbo',
+      'I work every day.',
+      'Trabajo todos los días.',
+      'trabajar',
+      w.work,
+    ),
     word('study', 'estudiar', 'Verbo', 'We study English.', 'Estudiamos inglés.'),
     word('live', 'vivir', 'Verbo', 'I live in Mexico City.', 'Vivo en la Ciudad de México.'),
     word(
@@ -190,19 +265,67 @@ const dailyRoutine: TravelMission = {
       'They study every day.',
       'Estudian todos los días.',
     ),
+    word('I', 'yo', 'Pronombre', 'I work every day.', 'Trabajo todos los días.'),
+    word('English', 'inglés', 'Sustantivo', 'I study English.', 'Estudio inglés.'),
+    word('first', 'primero', 'Orden', 'First I get up.', 'Primero me levanto.'),
+    word('then', 'después o luego', 'Orden', 'Then I have breakfast.', 'Luego desayuno.'),
+    word('after', 'después de', 'Orden', 'I study after work.', 'Estudio después del trabajo.'),
+    word(
+      'after breakfast',
+      'después de desayunar',
+      'Orden',
+      'After breakfast, I work.',
+      'Después de desayunar, trabajo.',
+    ),
+    word(
+      'morning',
+      'mañana, parte del día',
+      'Sustantivo',
+      'Morning: I have breakfast.',
+      'Por la mañana: desayuno.',
+    ),
+    word(
+      'afternoon',
+      'tarde, parte del día',
+      'Sustantivo',
+      'Afternoon: I study.',
+      'Por la tarde: estudio.',
+    ),
+    word(
+      'in the morning',
+      'por la mañana',
+      'Expresión de tiempo',
+      'I get up in the morning.',
+      'Me levanto por la mañana.',
+    ),
+    word(
+      'in the afternoon',
+      'por la tarde',
+      'Expresión de tiempo',
+      'I work in the afternoon.',
+      'Trabajo por la tarde.',
+    ),
+    word('walk', 'caminar', 'Verbo', 'I walk every day.', 'Camino todos los días.'),
   ],
   steps: [
     teach(
       'mexico-routine-lesson',
       routine,
       'Quién hace qué',
-      'Antes de escoger cuándo ir al mercado, Inés quiere saber cómo es tu día. Con I, you, we o they, di quién hace la acción y luego el verbo base. Si hay un complemento, colócalo después del verbo. Every day se escribe en dos palabras y puede ir al principio o al final.',
+      'Inés abre tu agenda. Con I, you, we o they, di quién hace la acción y luego el verbo base. Si hay un complemento, colócalo después del verbo. Every day se escribe en dos palabras y puede ir al principio o al final. Para ordenar tu rutina, first indica qué haces primero, then indica qué sigue y after breakfast ubica una acción después de desayunar. Morning y afternoon son encabezados de la agenda. Dentro de una oración, usa in the morning o in the afternoon.',
       [
-        pair('I study English every day.', 'Estudio inglés todos los días.'),
+        pair('We study English every day.', 'Estudiamos inglés todos los días.'),
+        pair('I work and I study English.', 'Trabajo y estudio inglés.'),
+        pair('You study in the morning.', 'Estudias por la mañana.'),
         pair('We have breakfast at home.', 'Desayunamos en casa.'),
         pair('They work every day.', 'Trabajan todos los días.'),
+        pair('I live in Mexico City.', 'Vivo en la Ciudad de México.'),
+        pair(
+          'First I get up. Then I study. After breakfast, I work.',
+          'Primero me levanto. Luego estudio. Después de desayunar, trabajo.',
+        ),
       ],
-      ['pattern.u02_l01.habit', 'form.u02_l01.1'],
+      [p.routine, w.in, w.inPeriod, w.and, w.we, w.you],
     ),
     comprehension(
       'mexico-routine-audio',
@@ -216,14 +339,14 @@ const dailyRoutine: TravelMission = {
         'Desayuna, se levanta y trabaja.',
       ],
       1,
-      'Inés dice I get up, I have breakfast y luego I work.',
-      { audio: 'I get up. Then I have breakfast. Then I work.' },
+      'Inés dice First I get up, luego Then I have breakfast y finalmente After breakfast, I work.',
+      { audio: 'First I get up. Then I have breakfast. After breakfast, I work.' },
     ),
     comprehension(
       'mexico-routine-planner',
       routine,
       'mexico-visitor-planner',
-      'Sam dejó escrito su plan. Work indica trabajo y study indica estudio.',
+      'Sam dejó dos renglones en su agenda. Busca el de la tarde.',
       '¿Qué actividades hace Sam por la tarde?',
       ['Trabaja y estudia inglés.', 'Estudia inglés y camina.', 'Desayuna y trabaja.'],
       0,
@@ -234,11 +357,44 @@ const dailyRoutine: TravelMission = {
       'mexico-routine-write',
       routine,
       'mexico-host-agenda',
-      'Inés tiene espacio para anotar una actividad habitual tuya.',
-      'Escribe «Estudio inglés todos los días».',
-      ['I study English every day.', 'Every day I study English.'],
+      'Entrada para la agenda de Inés. Actividad: estudiar inglés. Frecuencia: diaria.',
+      'Escribe una frase en primera persona para la agenda. Usa every day para indicar la frecuencia.',
+      ['I study English every day.', 'Every day I study English.', 'Every day, I study English.'],
       'Expresa quién realiza la acción con I y usa study sin -s. Every day puede ir al principio o al final.',
-      { errors: ['subject_omission', 'word_order'] },
+      {
+        errors: ['subject_omission', 'word_order'],
+        storyPrompt: {
+          speaker: 'Inés',
+          text: 'Estoy anotando los hábitos del grupo. ¿Qué actividad hago constar en tu agenda?',
+        },
+        reply: {
+          speaker: 'Inés',
+          line: pair(
+            'You study English every day. I study on Saturdays.',
+            'Estudias inglés todos los días. Yo estudio los sábados.',
+          ),
+        },
+        communicationOnly: {
+          answers: ['I study English daily.', 'I study English each day.'],
+          feedbackEs: 'Se entiende la frecuencia. En esta nota, practica la expresión every day.',
+        },
+      },
+    ),
+    writing(
+      'mexico-routine-self-check',
+      routine,
+      'mexico-personal-agenda',
+      'Inés te deja un espacio para escribir sobre una mañana real o inventada. Tú eliges qué actividades anotar.',
+      'Describe dos o tres actividades de tu rutina. Escribe en inglés y ordénalas con first, then o after cuando te sirvan.',
+      [],
+      'Compara tu nota con este ejemplo: «I get up in the morning. Then I work. After work, I study English.» Revisa si cada oración tiene un sujeto, si el verbo va en su forma base y si se entiende el orden. Puedes conservar tus propias actividades.',
+      {
+        selfCheck: true,
+        storyPrompt: {
+          speaker: 'Inés',
+          text: '¿Cómo describirías tu mañana si pudieras elegir cualquier actividad?',
+        },
+      },
     ),
     speak(
       'mexico-routine-say',
@@ -264,8 +420,8 @@ const familyRoutine: TravelMission = {
       'cook',
       'cocinar',
       'Verbo',
-      'She cooks at home.',
-      'Ella cocina en casa.',
+      'She cooks dinner.',
+      'Ella prepara la cena.',
       'Con she, cooks termina con el sonido /s/.',
     ),
     word(
@@ -285,6 +441,7 @@ const familyRoutine: TravelMission = {
       'Ella nunca cocina por la mañana.',
     ),
     word('at home', 'en casa', 'Expresión de lugar', 'She works at home.', 'Ella trabaja en casa.'),
+    word('watch', 'ver o mirar', 'Verbo', 'I watch a video.', 'Veo un video.'),
     word(
       'at night',
       'por la noche',
@@ -302,19 +459,12 @@ const familyRoutine: TravelMission = {
       [
         pair('My sister cooks.', 'Mi hermana cocina.'),
         pair('My brother reads.', 'Mi hermano lee.'),
+        pair('She works at home. He reads at home.', 'Ella trabaja en casa. Él lee en casa.'),
         pair('Sam watches a video.', 'Sam ve un video.'),
         pair('Inés studies English.', 'Inés estudia inglés.'),
       ],
-      [
-        'pattern.u02_l02.habit',
-        'form.u02_l02.1',
-        'form.u02_l02.2',
-        'form.u02_l02.6',
-        'form.u02_l02.7',
-        'form.u02_l02.12',
-        'form.u02_l02.13',
-      ],
-      ['sister', 'brother', 'cook', 'read', 'at home'],
+      [p.others, w.works, w.studies, w.cooks, w.reads, w.watches, w.she, w.he, w.my],
+      ['sister', 'brother', 'cook', 'read', 'at home', 'watch'],
     ),
     teach(
       'mexico-frequency-lesson',
@@ -326,7 +476,7 @@ const familyRoutine: TravelMission = {
         pair('He never cooks.', 'Él nunca cocina.'),
         pair('Usually he reads.', 'Por lo general, él lee.'),
       ],
-      ['pattern.u02_l03.frequency', 'pattern.u02_l03.front'],
+      [p.frequency, p.frontFrequency],
       ['usually', 'never', 'at night'],
     ),
     comprehension(
@@ -358,11 +508,27 @@ const familyRoutine: TravelMission = {
       'mexico-others-write',
       others,
       'mexico-ines-family',
-      'Sam quiere saber un hábito de la hermana de Inés.',
-      'Dile «Ella cocina en casa».',
-      ['She cooks at home.'],
+      'Ficha de la hermana de Inés: Clara · cocinar · en casa. Sam quiere anotar un hábito de Clara.',
+      'Escribe una oración sobre el hábito de Clara. Usa su nombre o el pronombre que le corresponde.',
+      [
+        ...answerVariants(['She', 'Clara', 'Inés’s sister'], ' cooks at home.'),
+        ...answerVariants('At home', ['', ','], ' ', ['she', 'Clara'], ' cooks.'),
+      ],
       'She se refiere a una sola persona. Escribe cooks y usa at home para indicar dónde.',
-      { errors: ['third_person', 'subject_omission', 'preposition'] },
+      {
+        errors: ['third_person', 'subject_omission', 'preposition'],
+        storyPrompt: {
+          speaker: 'Sam',
+          text: '¿Qué hace Clara en casa? Solo me falta ese dato en la ficha.',
+        },
+        reply: {
+          speaker: 'Sam',
+          line: pair(
+            'Thanks! Now I know what Clara does at home.',
+            '¡Gracias! Ahora sé qué hace Clara en casa.',
+          ),
+        },
+      },
     ),
     speak(
       'mexico-others-say',
@@ -424,8 +590,18 @@ const clocks: TravelMission = {
       'Expresión de tiempo',
       'We meet on Saturdays.',
       'Nos encontramos los sábados.',
+      'Para un hábito que ocurre los sábados, usa el plural Saturdays.',
+      w.saturdays,
     ),
-    word('open', 'abierto', 'Adjetivo', 'The market is open.', 'El mercado está abierto.'),
+    word(
+      'open',
+      'abierto',
+      'Adjetivo',
+      'The market is open.',
+      'El mercado está abierto.',
+      'Estado de un lugar que ya recibe público.',
+      w.openState,
+    ),
     word('closed', 'cerrado', 'Adjetivo', 'The market is closed.', 'El mercado está cerrado.'),
     word(
       'at six',
@@ -442,13 +618,90 @@ const clocks: TravelMission = {
       'Empiezo a trabajar a las ocho.',
     ),
     word('start', 'empezar', 'Verbo', 'I start work at eight.', 'Empiezo a trabajar a las ocho.'),
+    word('market', 'mercado', 'Sustantivo', 'The market is open.', 'El mercado está abierto.'),
+    word('meet', 'encontrarse', 'Verbo', 'We meet on Saturday.', 'Nos encontramos el sábado.'),
+    word('Friday', 'viernes', 'Día', 'We meet on Friday.', 'Nos encontramos el viernes.'),
+    word('Saturday', 'sábado', 'Día', 'We meet on Saturday.', 'Nos encontramos el sábado.'),
+    word(
+      'Sunday',
+      'domingo',
+      'Día',
+      'The market is closed on Sunday.',
+      'El mercado está cerrado el domingo.',
+    ),
+    word(
+      'Sundays',
+      'domingos',
+      'Día habitual',
+      'We do not work on Sundays.',
+      'No trabajamos los domingos.',
+    ),
+    word(
+      'a.m.',
+      'antes del mediodía',
+      'Horario',
+      'The market is open at eight a.m.',
+      'El mercado está abierto a las ocho de la mañana.',
+    ),
+    word(
+      'p.m.',
+      'después del mediodía',
+      'Horario',
+      'We meet at two p.m.',
+      'Nos encontramos a las dos de la tarde.',
+    ),
+    word(
+      'noon',
+      'mediodía',
+      'Hora',
+      'The market closes at noon.',
+      'El mercado cierra al mediodía.',
+    ),
   ],
   steps: [
+    {
+      id: 'mexico-time-numbers',
+      type: 'teach',
+      speaker: 'Sam',
+      title: 'Números que aparecen en un horario',
+      storyPrompt: {
+        speaker: 'Sam',
+        text: 'Tengo que entender dos horas que suenan casi igual. Repasemos los números del tablero.',
+      },
+      text: 'Del 0 al 12, practica cada número como una palabra. Del 13 al 19 el final suele sonar como teen. Aprende las decenas 20, 30, 40 y 50. Para 21–29, 31–39, 41–49 y 51–59, di la decena seguida de la unidad: twenty-one, thirty-two, forty-seven, fifty-nine. Por escrito, une las dos partes con un guion. Escucha fifteen y fifty. Después escucha thirteen y thirty. Para los minutos del 01 al 09, puedes leer el cero como oh: eight oh five.',
+      examples: [
+        pair(
+          'Zero, one, two, three, four, five, six.',
+          'Del 0 al 6: cero, uno, dos, tres, cuatro, cinco, seis.',
+        ),
+        pair(
+          'Seven, eight, nine, ten, eleven, twelve.',
+          'Del 7 al 12: siete, ocho, nueve, diez, once, doce.',
+        ),
+        pair(
+          'Thirteen, fourteen, fifteen, sixteen, seventeen, eighteen, nineteen.',
+          'Del 13 al 19: trece, catorce, quince, dieciséis, diecisiete, dieciocho, diecinueve.',
+        ),
+        pair('Twenty, thirty, forty, fifty.', 'Veinte, treinta, cuarenta, cincuenta.'),
+        pair(
+          'Twenty-one, thirty-two, forty-seven, fifty-nine.',
+          'Veintiuno, treinta y dos, cuarenta y siete, cincuenta y nueve.',
+        ),
+        pair('Fifteen, fifty. Thirteen, thirty.', 'Quince, cincuenta. Trece, treinta.'),
+        pair('Eight oh five.', 'Ocho y cinco.'),
+      ],
+      vocabularyTerms: [],
+      instruction: {
+        lessonId: time.lessonId,
+        stage: 'grammar',
+        references: [...mexicoNumberRefs, w.zeroMinute],
+      },
+    },
     teach(
       'mexico-time-lesson',
       time,
       'At para una hora, on para un día',
-      'Usa at para una hora exacta, on para un día e in para una parte del día. On Saturday señala un sábado y on Saturdays señala un hábito. Para los minutos de 21 a 59, combina una decena (twenty, thirty, forty, fifty) con el número del uno al nueve. Compara fifTEEN con FIFty y thirTEEN con THIRty. Para los primeros nueve minutos, lee el cero como oh: 8:05 es eight oh five.',
+      'Sam señala tres datos del tablero. Usa at para una hora exacta, on para un día e in para una parte del día. On Saturday señala un sábado y on Saturdays señala un hábito. Lee primero la hora y luego los minutos. Para una hora exacta puedes añadir o’clock. Para los 30 minutos, usa half past y la hora que ya pasó. En el tablero, OPEN y CLOSED son estados. A.M. indica antes del mediodía y P.M. después. El mediodía es noon.',
       [
         pair("at eight o'clock", 'a las ocho en punto'),
         pair('at half past eight', 'a las ocho y media'),
@@ -456,8 +709,34 @@ const clocks: TravelMission = {
         pair('eight fifteen, eight fifty', 'ocho y quince, ocho y cincuenta'),
         pair('nine thirteen, nine thirty', 'nueve y trece, nueve y treinta'),
         pair('ten twenty-five', 'diez y veinticinco'),
+        pair('We meet at six on Friday.', 'Nos encontramos el viernes a las seis.'),
+        pair('We will meet at noon.', 'Nos encontraremos al mediodía.'),
+        pair('Let’s meet on Friday at six.', 'Nos vemos el viernes a las seis.'),
+        pair(
+          'We can meet on Friday at six or on Saturday at ten.',
+          'Podemos vernos el viernes a las seis o el sábado a las diez.',
+        ),
+        pair('The market is open.', 'El mercado está abierto.'),
+        pair('I work in the afternoon.', 'Trabajo por la tarde.'),
       ],
-      ['pattern.u02_l04.clock', 'form.u02_l04.1'],
+      [
+        p.clock,
+        w.at,
+        w.on,
+        w.onDay,
+        w.inPeriod,
+        w.hourMinutes,
+        w.wholeHour,
+        w.thirtyMinute,
+        w.appointment,
+        w.can,
+        w.or,
+        w.will,
+        w.lets,
+        w.the,
+      ],
+      undefined,
+      'Sam',
     ),
     comprehension(
       'mexico-time-audio',
@@ -480,27 +759,43 @@ const clocks: TravelMission = {
       2,
       'El mercado del juego abre el sábado a las ocho y el domingo permanece cerrado.',
       {
-        passage:
-          'Neighborhood market\nFriday: CLOSED\nSaturday: OPEN 8:00 a.m. – 12:00 noon\nSunday: CLOSED',
+        passage: 'Market\nFriday: CLOSED\nSaturday: OPEN 8:00 a.m. – 12:00 noon\nSunday: CLOSED',
       },
     ),
     writing(
       'mexico-time-write',
       time,
       'mexico-visit-booking',
-      'Deja una nota en inglés para la visita del sábado a las ocho. Aún falta confirmar con Inés.',
-      'Completa el mensaje escribiendo «Nos encontramos el sábado a las ocho».',
+      'Borrador del viaje: día de la visita, sábado. Hora, 8:00 a. m. Sam quiere guardar el día y la hora en una frase.',
+      'Escribe a Sam una nota en inglés que confirme los dos datos del borrador. Usa meet, on para el día y at para la hora.',
       [
-        'We meet on Saturday at eight.',
-        'We meet at eight on Saturday.',
-        "We meet on Saturday at eight o'clock.",
-        "We meet at eight o'clock on Saturday.",
-        'We meet on Saturday at 8:00.',
-        'We meet at 8:00 on Saturday.',
-        'On Saturday we meet at eight.',
+        ...answerVariants(meetingVerbs, ' on Saturday at ', eightOClock, '.'),
+        ...answerVariants(meetingVerbs, ' at ', eightOClock, ' on Saturday.'),
+        ...answerVariants(
+          'On Saturday',
+          ['', ','],
+          ' ',
+          ['we meet', 'we will meet', 'let’s meet'],
+          ' at ',
+          eightOClock,
+          '.',
+        ),
       ],
       'On indica el día y at indica la hora. Puedes cambiar el orden de esos dos datos.',
-      { errors: ['preposition', 'word_order'] },
+      {
+        errors: ['preposition', 'word_order'],
+        storyPrompt: {
+          speaker: 'Sam',
+          text: 'Voy a guardar un horario de prueba. ¿Me confirmas el día y la hora?',
+        },
+        reply: {
+          speaker: 'Sam',
+          line: pair(
+            'Saturday at eight. I’ll write that down.',
+            'El sábado a las ocho. Voy a anotarlo.',
+          ),
+        },
+      },
     ),
     speak(
       'mexico-time-say',
@@ -528,49 +823,76 @@ const agreement: TravelMission = {
       'Verbo',
       'Does the market open at eight?',
       '¿Abre el mercado a las ocho?',
+      'Aquí open es la acción de abrir un establecimiento. En The market is open, open describe su estado.',
+      w.openAction,
     ),
     word('close', 'cerrar', 'Verbo', 'When does the market close?', '¿Cuándo cierra el mercado?'),
     word(
       'available',
       'disponible',
       'Adjetivo',
-      'I am available at eight.',
-      'Estoy disponible a las ocho.',
+      'I am available at noon.',
+      'Estoy disponible al mediodía.',
     ),
     word('meet', 'encontrarse', 'Verbo', 'We meet on Saturday.', 'Nos encontramos el sábado.'),
+    word('what time', 'a qué hora', 'Pregunta', 'What time do you study?', '¿A qué hora estudias?'),
+    word('start', 'empezar', 'Verbo', 'I start work at eight.', 'Empiezo a trabajar a las ocho.'),
+    word('go', 'ir', 'Verbo', 'We go to the market.', 'Vamos al mercado.'),
+    word('yes', 'sí', 'Respuesta', 'Yes, I do.', 'Sí.'),
+    word('no', 'no', 'Respuesta', 'No, I don’t.', 'No.'),
   ],
   steps: [
     teach(
       'mexico-questions-lesson',
       questions,
       'Pregunta por un plan',
-      'Pon do antes de you, we o they, y does antes de he, she o un sujeto singular. Después del sujeto va el verbo base: Does she work? Si quieres el momento, agrega When o What time al comienzo. Para proponer una cita, puedes usar Can we meet at…?',
+      'Inés quiere comprobar si el mercado abre antes de su turno. Pon do antes de I, you, we o they. Usa does antes de he, she o un sujeto singular. Después del sujeto va el verbo base: Does she work? Si quieres el momento, agrega When o What time al comienzo. Fíjate en la diferencia entre open como verbo, Does the market open?, y open como estado, The market is open. Para preguntar cuándo comienza un turno, puedes usar start work o start working. En start work, work es el trabajo o el turno. En Does she work?, work es el verbo trabajar. Excuse me llama la atención y please hace la pregunta amable.',
       [
         pair('When do you work?', '¿Cuándo trabajas?'),
-        pair('What time does your sister work?', '¿A qué hora trabaja tu hermana?'),
+        pair('What time does Sam start work?', '¿A qué hora empieza a trabajar Sam?'),
+        pair('When does your brother start working?', '¿Cuándo empieza a trabajar tu hermano?'),
+        pair(
+          'Excuse me. Does the market open at eight, please?',
+          'Disculpa. ¿El mercado abre a las ocho?',
+        ),
         pair('Does the market open at eight?', '¿Abre el mercado a las ocho?'),
         pair('Can we meet at eight?', '¿Podemos encontrarnos a las ocho?'),
       ],
-      ['pattern.u03_l01.question', 'form.u03_l01.1', 'form.u03_l01.2'],
+      [
+        p.question,
+        w.do,
+        w.does,
+        w.timeQuestion,
+        w.your,
+        w.workActivity,
+        w.working,
+        w.excuseMe,
+        w.please,
+      ],
     ),
     teach(
       'mexico-negative-lesson',
       negatives,
       'Explica qué hora no sirve',
-      'Usa do not o don’t con I, you, we o they. Usa does not o doesn’t con he, she o una sola persona. Después coloca el verbo base. Si describes disponibilidad, usa am o is: I am available, she is available.',
+      'Inés distingue una hora posible y otra que descarta. Usa do not o don’t con I, you, we o they. Usa does not o doesn’t con he, she o una sola persona. Después coloca el verbo base. Si describes disponibilidad, usa am o is: I am available, she is available. Propón una hora con Let’s meet y luego expresa el horario con at y, si hace falta, el día con on.',
       [
         pair("I don't work at eight.", 'No trabajo a las ocho.'),
-        pair("She doesn't go at ten.", 'Ella no va a las diez.'),
+        pair("She doesn't go to the market at noon.", 'Ella no va al mercado al mediodía.'),
+        pair('She does not go at noon.', 'Ella no va al mediodía.'),
         pair('She is available at eight.', 'Ella está disponible a las ocho.'),
+        pair('Let’s meet on Friday at six.', 'Nos vemos el viernes a las seis.'),
       ],
       [
-        'pattern.u03_l02.negative',
-        'form.u03_l02.1',
-        'form.u03_l02.2',
-        'form.u03_l02.3',
-        'form.u03_l02.4',
-        'form.u03_l02.7',
-        'form.u03_l02.8',
+        p.negative,
+        w.doNot,
+        w.doesNot,
+        w.dont,
+        w.doesnt,
+        form('form.u03_l02.7', 'I'),
+        form('form.u03_l02.8', 'she'),
+        w.meetProposal,
+        w.am,
+        w.to,
       ],
       [],
     ),
@@ -581,7 +903,8 @@ const agreement: TravelMission = {
       situation:
         'El tablero muestra un horario. Practica cómo confirmar la hora de apertura con Inés.',
       lessonId: questions.lessonId,
-      requires: [{ id: questions.conceptId }],
+      requires: assessmentRequirements('mexico-agreement-build', questions),
+      targets: [{ targetId: questions.conceptId, dimension: 'grammar_production' }],
       exercise: {
         id: 'mexico-agreement-build',
         type: 'reorder',
@@ -634,34 +957,92 @@ const agreement: TravelMission = {
       'mexico-agreement-question',
       questions,
       'mexico-market-host',
-      'Confirma con Inés cuándo comienza a trabajar su hermana.',
-      'Escribe «¿A qué hora empieza a trabajar tu hermana?» en inglés.',
-      [
-        'What time does your sister start work?',
-        'What time does your sister start working?',
-        'When does your sister start work?',
-        'When does your sister start working?',
-      ],
+      'Anotación de Inés: su hermana empieza a trabajar el sábado. La hora de inicio quedó en blanco.',
+      'Pregúntale a Inés, en inglés, a qué hora empieza el turno de su hermana. Usa una pregunta directa con does.',
+      answerVariants(
+        ['', 'Excuse me, '],
+        ['What time', 'When'],
+        ' does your sister start ',
+        ['work', 'working'],
+        ['?', ', please?'],
+      ),
       'Empieza con What time o When, luego does, el sujeto y el verbo base start.',
-      { errors: ['third_person', 'word_order'] },
+      {
+        errors: ['third_person', 'word_order'],
+        storyPrompt: { speaker: 'Inés', text: '¿Qué dato necesitas sobre el turno de mi hermana?' },
+        reply: {
+          speaker: 'Inés',
+          line: pair('She starts work at noon.', 'Empieza a trabajar al mediodía.'),
+        },
+      },
     ),
     writing(
       'mexico-agreement-confirm',
       negatives,
       'mexico-market-confirmation',
-      'Inés te dice que empieza a trabajar a las diez. Escríbele a Sam la hora elegida y la que Inés descarta.',
-      'Escribe «Nos encontramos a las ocho. Ella no va a las diez».',
+      'Plan para Sam: Inés puede ir al mercado a las 8:00 a. m. A las 10:00 a. m. trabaja y no va al mercado.',
+      'Escribe a Sam en inglés. Confirma la hora de encuentro y usa doesn’t o does not para descartar las diez.',
       [
-        "We meet at eight. She doesn't go at ten.",
-        'We meet at eight. She does not go at ten.',
-        "We meet at eight. She doesn't go at 10.",
-        'We meet at 8:00. She does not go at 10:00.',
-        "At eight, we meet. She doesn't go at ten.",
-        "Let's meet at eight. She doesn't go at ten.",
-        "Let's meet at eight. She does not go at ten.",
+        ...answerVariants(
+          meetingVerbs,
+          ' at ',
+          eightOClock,
+          '. ',
+          ['She', 'Inés'],
+          ' doesn’t go',
+          ['', ' to the market'],
+          ' at ',
+          tenOClock,
+          '.',
+        ),
+        ...answerVariants(
+          meetingVerbs,
+          ' at ',
+          ['eight', '8:00'],
+          ', and ',
+          ['she', 'Inés'],
+          ' doesn’t go',
+          ['', ' to the market'],
+          ' at ',
+          tenOClock,
+          '.',
+        ),
+        ...answerVariants(
+          'At eight',
+          ['', ','],
+          ' we meet. ',
+          ['She', 'Inés'],
+          ' doesn’t go at ten.',
+        ),
       ],
       'En una confirmación puedes decir We meet o Let’s meet. Con she, usa doesn’t o does not, seguido del verbo base go.',
-      { errors: ['third_person', 'preposition'], requiredReply: true },
+      {
+        errors: ['third_person', 'preposition'],
+        requiredReply: true,
+        storyPrompt: {
+          speaker: 'Sam',
+          text: 'Ya anoté dos horas distintas. ¿A cuál vamos? ¿Cuál descarta Inés?',
+        },
+        reply: {
+          speaker: 'Sam',
+          line: pair(
+            'Eight works. See you at the market!',
+            'A las ocho está bien. ¡Nos vemos en el mercado!',
+          ),
+        },
+        communicationOnly: {
+          answers: answerVariants(
+            meetingVerbs,
+            ' at ',
+            ['eight', '8:00'],
+            '. ',
+            ['She', 'Inés'],
+            [' works at ten.', ' can’t go at ten.', ' is not available at ten.'],
+          ),
+          feedbackEs:
+            'La hora y el motivo se entienden. Para practicar la forma de esta lección, usa doesn’t o does not más go.',
+        },
+      },
     ),
     speak(
       'mexico-agreement-say',
@@ -696,16 +1077,31 @@ const transfer: TravelMission = {
       'We meet on Friday.',
       'Nos encontramos el viernes.',
     ),
+    word(
+      'study room',
+      'sala de estudio',
+      'Lugar',
+      'The study room is open.',
+      'La sala de estudio está abierta.',
+    ),
   ],
   steps: [
     {
       id: 'mexico-transfer-intro',
       type: 'teach',
+      speaker: 'Leo',
       title: 'Un lugar y un día distintos',
-      text: 'Leo quiere practicar inglés contigo en la biblioteca. Esta vez, usa el horario de la sala de estudio y el turno de trabajo de su hermana.',
+      storyPrompt: {
+        speaker: 'Leo',
+        text: 'Ya organizaste la visita al mercado. ¿Me ayudas a encontrar otra hora para practicar inglés en la biblioteca?',
+      },
+      text: 'Leo señala el cartel de la sala de estudio. Usa at the library para indicar el lugar y compara OPEN y CLOSED. This Friday habla del viernes próximo. Para acordar el estudio, combina la hora que hay en el cartel con el turno de su hermana.',
       examples: [
         pair('We study at the library on Friday.', 'Estudiamos en la biblioteca el viernes.'),
+        pair('We study at the library this Friday.', 'Estudiamos en la biblioteca este viernes.'),
+        pair('The study room is closed on Saturday.', 'La sala de estudio está cerrada el sábado.'),
       ],
+      instruction: { lessonId: time.lessonId, stage: 'both', references: [w.this] },
     },
     comprehension(
       'mexico-transfer-read',
@@ -722,38 +1118,94 @@ const transfer: TravelMission = {
       'mexico-transfer-ask',
       questions,
       'mexico-library-classmate',
-      'Leo quiere saber si su hermana podrá acompañarlos. Pregúntale por su trabajo.',
-      'Escribe «¿Trabaja tu hermana el viernes?» en inglés.',
+      'La biblioteca está abierta el viernes. Aún no sabes si la hermana de Leo trabaja ese día.',
+      'Pregúntale a Leo en inglés si su hermana trabaja el viernes. Usa una pregunta directa con does.',
       [
-        'Does your sister work on Friday?',
-        'On Friday, does your sister work?',
-        'Does your sister work this Friday?',
+        ...answerVariants(
+          ['', 'Excuse me, '],
+          'Does your sister work ',
+          ['on Friday', 'this Friday', 'Friday'],
+          ['?', ', please?'],
+        ),
+        ...answerVariants('On Friday', ['', ','], ' does your sister work?'),
       ],
       'Your sister es una persona, por eso la pregunta lleva does. Work conserva su forma base.',
-      { evidence: 'transfer', errors: ['third_person', 'word_order'] },
+      {
+        evidence: 'transfer',
+        errors: ['third_person', 'word_order'],
+        storyPrompt: {
+          speaker: 'Leo',
+          text: 'Mi hermana también quiere venir. ¿Qué necesitas confirmar antes de escoger la hora?',
+        },
+        reply: {
+          speaker: 'Leo',
+          line: pair(
+            'Yes. She works until three. She can come at half past three.',
+            'Sí. Trabaja hasta las tres. Puede venir a las tres y media.',
+          ),
+        },
+      },
     ),
     writing(
       'mexico-transfer-write',
       time,
       'mexico-library-classmate',
-      'Confirma con Leo el viernes a las tres y media en el lugar indicado.',
-      'Escribe «Nos encontramos en la biblioteca el viernes a las tres y media».',
-      ['half past three', 'three thirty', '3:30'].flatMap((hour) => [
-        `We meet at the library on Friday at ${hour}.`,
-        `We meet at the library at ${hour} on Friday.`,
-        `We meet at ${hour} on Friday at the library.`,
-        `We meet on Friday at ${hour} at the library.`,
-        `On Friday, we meet at the library at ${hour}.`,
-      ]),
+      'Leo trae el plan: biblioteca, viernes. Su hermana llega a las 3:30 p. m. y la sala cierra a las 4:00 p. m.',
+      'Confirma a Leo el lugar, el día y la hora en una frase en inglés. Usa meet, on para el día y at para indicar la hora.',
+      [
+        ...answerVariants(
+          meetingVerbs,
+          [' at', ' in'],
+          ' the library on Friday at ',
+          halfPastThree,
+          '.',
+        ),
+        ...answerVariants(
+          meetingVerbs,
+          [' at', ' in'],
+          ' the library at ',
+          halfPastThree,
+          ' on Friday.',
+        ),
+        ...answerVariants(meetingVerbs, ' at ', halfPastThree, [
+          ' on Friday at the library.',
+          ' at the library on Friday.',
+        ]),
+        ...answerVariants(meetingVerbs, ' on Friday at ', halfPastThree, ' at the library.'),
+        ...answerVariants(
+          'On Friday',
+          ['', ','],
+          ' ',
+          ['we meet', 'we will meet', 'let’s meet'],
+          ' at the library at ',
+          halfPastThree,
+          '.',
+        ),
+      ],
       'Confirma los tres datos. Usa at the library, on Friday y at half past three o at three thirty.',
-      { evidence: 'transfer', errors: ['preposition'], requiredReply: true },
+      {
+        evidence: 'transfer',
+        errors: ['preposition'],
+        requiredReply: true,
+        storyPrompt: {
+          speaker: 'Leo',
+          text: 'Escríbeme dónde y cuándo nos vemos para avisarle a mi hermana.',
+        },
+        reply: {
+          speaker: 'Leo',
+          line: pair(
+            'Friday at half past three at the library. Thanks!',
+            'El viernes a las tres y media en la biblioteca. ¡Gracias!',
+          ),
+        },
+      },
     ),
   ],
 };
 
 export const mexicoChapter = {
   id: 'mexico',
-  revision: 1,
+  revision: 2,
   title: 'Ciudad de México',
   stamp: 'Ciudad de México',
   postcard: 'Una mañana en el mercado',

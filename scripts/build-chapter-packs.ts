@@ -1,25 +1,16 @@
 import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { route, publicExercise } from '@lingoquest/offline-engine';
+import { route } from '@lingoquest/offline-engine';
+import { chapter, travelPracticeSteps } from '../packages/offline-engine/src/travel-content';
+import { travelStepVocabulary } from '../packages/offline-engine/src/travel-vocabulary';
 import {
-  chapter,
-  travelLesson,
-  travelPracticeSteps,
-} from '../packages/offline-engine/src/travel-content';
-import { chapterStory } from '../packages/offline-engine/src/chapter-story';
-import { travelChallengePools } from '../packages/offline-engine/src/travel-challenge-pools';
-import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
-import { placementQuestions } from '../packages/offline-engine/src/travel-placement';
+  rpgAssessmentDigest,
+  rpgTeachingDigest,
+} from '../packages/offline-engine/src/learning-prerequisites';
 import { westernChapterLessons } from '../content/source/chapter-lessons-west';
 import { easternChapterLessons } from '../content/source/chapter-lessons-east';
-import { mexicoChallengePools } from '../content/source/mexico-challenges';
-import { mexicoChapter, mexicoPractice } from '../content/source/mexico-missions';
-import { mexicoAdventure } from '../content/source/mexico-story';
-import type { StoryDefinition } from '../packages/offline-engine/src/story';
-import type {
-  TravelChapter,
-  TravelExerciseStep,
-} from '../packages/offline-engine/src/travel-content';
+import { chapterAdventures } from './chapter-adventures';
 import bundled from '../apps/mobile/src/content/bundled-course.json';
 import {
   CHAPTER_PACK_FORMAT,
@@ -38,75 +29,47 @@ import { loadChapterAudio, loadChapterImages } from './chapter-media';
 
 const root = new URL('../apps/mobile/public/chapter-packs/', import.meta.url);
 const catalogPath = new URL(CHAPTER_CATALOG_FILE, root);
-const previousCatalogPath = new URL('catalog-v2.json', root);
+const previousCatalogPath = new URL('catalog-v3.json', root);
 const course = bundled.payload as CoursePayload;
 const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
   ...easternChapterLessons,
 };
-const { units: courseUnits, lessons: courseLessons, ...courseActivities } = course;
-const story = {
-  chapter,
-  adventure: chapterStory,
-  practice: travelPracticeSteps,
-  runtime: {
-    lesson: travelLesson,
-    placement: travelPlacementItems,
-    challenges: travelChallengePools,
-    course: courseActivities,
-  },
-};
-const mexicoStory = {
-  chapter: mexicoChapter,
-  adventure: mexicoAdventure,
-  practice: mexicoPractice,
-  supportingLessons: ['u03_l01', 'u03_l02'].map((id) => courseLessons[id]),
-  challenges: mexicoChallengePools,
-};
-
-function adventurePhrases({
-  chapter,
-  adventure,
-  practice,
-}: {
-  chapter: TravelChapter;
-  adventure: StoryDefinition;
-  practice: readonly Pick<TravelExerciseStep, 'audio'>[];
-}) {
-  return [
-    ...adventure.dialogues.flatMap(({ line }) => (line ? [line.en] : [])),
-    ...chapter.missions.flatMap(({ vocabulary, steps }) => [
-      ...vocabulary.flatMap(({ term, example }) => [term, example.en]),
-      ...steps.flatMap((step) => {
-        if (step.type === 'dialogue') return step.line ? [step.line.en] : [];
-        if (step.type === 'teach') return step.examples.map(({ en }) => en);
-        if (step.type === 'speak') return [step.phrase];
-        return [step.audio, step.storyReply?.line.en].filter(
-          (phrase): phrase is string => !!phrase,
-        );
-      }),
-    ]),
-    ...practice.flatMap(({ audio }) => (audio ? [audio] : [])),
-  ];
-}
-
-const storyPhrases = [
-  ...adventurePhrases(story),
-  ...placementQuestions(publicExercise).flatMap(({ audio }) => (audio ? [audio] : [])),
-  'Hi! My name is Sam.',
-  'Hi! I am',
-  // An open Home revision 3 session still uses this clip after revision 4 downloads.
-  // Una sesión abierta con la revisión 3 sigue usando este audio tras descargar la revisión 4.
-  'Nice to meet you! Can you help me find the bus stop?',
-];
-const mexicoPhrases = [
-  ...adventurePhrases(mexicoStory),
-  ...chapterLessonPhrases([], mexicoStory.supportingLessons),
-];
-
+const { units: courseUnits, lessons: courseLessons } = course;
 const digest = (bytes: string) => createHash('sha256').update(bytes).digest('hex');
 const chapterPath = (revision: number, chapterId: string) =>
   new URL(`${revision}/${chapterId}.json`, root);
+
+function checkReviewLedger({ story }: NonNullable<ReturnType<typeof chapterAdventures.get>>) {
+  if (!('audit' in story)) return;
+  const teaching = Object.fromEntries(
+    story.chapter.missions.flatMap((mission) =>
+      mission.steps.flatMap((step) =>
+        step.type === 'teach' && step.instruction
+          ? [[step.id, rpgTeachingDigest(step, travelStepVocabulary(mission, step))]]
+          : [],
+      ),
+    ),
+  );
+  const assessments = Object.fromEntries(
+    [
+      ...story.chapter.missions.flatMap(({ steps }) =>
+        steps.filter((step) => step.type === 'exercise'),
+      ),
+      ...story.practice,
+    ].map((step) => [step.id, rpgAssessmentDigest(step)]),
+  );
+  assert.deepEqual(
+    teaching,
+    story.audit.teaching,
+    `Teaching review is stale for ${story.chapter.id}.`,
+  );
+  assert.deepEqual(
+    assessments,
+    story.audit.assessments,
+    `Assessment review is stale for ${story.chapter.id}.`,
+  );
+}
 
 function verifyMedia(media: ChapterMedia, name: string) {
   const bytes = Buffer.from(media.dataBase64, 'base64');
@@ -131,7 +94,7 @@ async function readCatalog(): Promise<ChapterCatalog> {
   }
 }
 
-async function verifyCatalog(catalog: ChapterCatalog) {
+async function verifyCatalog(catalog: ChapterCatalog, checkAuthoredStory = true) {
   if (Object.keys(catalog.chapters).length !== route.length)
     throw new Error('The catalog must cover all route destinations.');
   const practice = [
@@ -151,13 +114,12 @@ async function verifyCatalog(catalog: ChapterCatalog) {
     const pack = parseChapterPack(text, id);
     if (pack.revision !== entry.revision || pack.unit?.id !== unitId)
       throw new Error(`Incorrect revision or course unit for ${id}.`);
-    if (id === 'home' && storyPhrases.some((phrase) => !Object.hasOwn(pack.audio, phrase)))
-      throw new Error('Missing audio for the first chapter adventure.');
+    const authored = checkAuthoredStory ? chapterAdventures.get(id) : undefined;
     if (
-      id === 'mexico' &&
-      (!pack.story || mexicoPhrases.some((phrase) => !Object.hasOwn(pack.audio, phrase)))
+      authored &&
+      (!pack.story || authored.phrases.some((phrase) => !Object.hasOwn(pack.audio, phrase)))
     )
-      throw new Error('Missing story data or audio for the Mexico City adventure.');
+      throw new Error(`Missing story data or audio for ${id}.`);
     for (const [key, media] of Object.entries(pack.images)) verifyMedia(media, `${id}/${key}`);
     for (const [text, media] of Object.entries(pack.audio)) verifyMedia(media, `${id}/${text}`);
   }
@@ -166,7 +128,20 @@ async function verifyCatalog(catalog: ChapterCatalog) {
 
 async function main() {
   const catalog = await readCatalog();
-  if (process.argv.includes('--verify')) return verifyCatalog(catalog);
+  const previousCatalog = chapterCatalogSchema.parse(
+    JSON.parse(await readFile(previousCatalogPath, 'utf8')),
+  );
+  if (process.argv.includes('--verify')) {
+    await verifyCatalog(catalog);
+    await verifyCatalog(previousCatalog, false);
+    await verifyCatalog(
+      chapterCatalogSchema.parse(
+        JSON.parse(await readFile(new URL('catalog-v2.json', root), 'utf8')),
+      ),
+      false,
+    );
+    return;
+  }
   const requested = process.argv.find((arg) => arg.startsWith('--chapter='))?.slice(10);
   const targets = requested ? route.filter(({ id }) => id === requested) : route;
   const revision = Number(process.env.CHAPTER_PACK_REVISION ?? '1');
@@ -174,9 +149,6 @@ async function main() {
     throw new Error('Provide a route chapter ID and an integer revision between 1 and 999999.');
 
   await mkdir(new URL(`${revision}/`, root), { recursive: true });
-  const previousCatalog = chapterCatalogSchema.parse(
-    JSON.parse(await readFile(previousCatalogPath, 'utf8')),
-  );
   for (const { id, unitId } of targets) {
     const current = catalog.chapters[id];
     if (current && revision < current.revision)
@@ -193,9 +165,14 @@ async function main() {
       titleEs: unitSource.titleEs,
       lessons: unitSource.lessons.map(({ id }) => courseLessons[id]),
     };
-    const phrases = chapterLessonPhrases([lesson, ...additionalLessons], unit?.lessons);
-    if (id === 'home') phrases.push(...storyPhrases);
-    if (id === 'mexico') phrases.push(...mexicoPhrases);
+    const authored = chapterAdventures.get(id);
+    if (authored) checkReviewLedger(authored);
+    const phrases = [
+      ...new Set([
+        ...chapterLessonPhrases([lesson, ...additionalLessons], unit?.lessons),
+        ...(authored?.phrases ?? []),
+      ]),
+    ];
     const previous = parseChapterPack(
       await readFile(
         chapterPath(current?.revision ?? previousCatalog.chapters[id].revision, id),
@@ -218,16 +195,20 @@ async function main() {
       lesson,
       additionalLessons,
       ...(unit && { unit }),
-      ...(id === 'home' && { story }),
-      ...(id === 'mexico' && { story: mexicoStory }),
+      ...(authored && { story: authored.story }),
       images: await loadChapterImages(id),
       audio,
     });
     parseChapterPack(text, id);
     const sha256 = digest(text);
-    if (current?.revision === revision && current.sha256 !== sha256)
-      throw new Error(`Revision ${revision} of ${id} already exists. Choose a newer revision.`);
-    await writeFile(chapterPath(revision, id), text);
+    const target = chapterPath(revision, id);
+    try {
+      await writeFile(target, text, { flag: 'wx' });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      if ((await readFile(target, 'utf8')) !== text)
+        throw new Error(`Revision ${revision} of ${id} already exists. Choose a newer revision.`);
+    }
     catalog.chapters[id] = { revision, sizeBytes: Buffer.byteLength(text), sha256 };
     console.log(`Built ${id} revision ${revision} (${catalog.chapters[id].sizeBytes} bytes).`);
   }

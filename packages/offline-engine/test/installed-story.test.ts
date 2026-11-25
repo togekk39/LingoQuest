@@ -11,8 +11,11 @@ import {
   type OfflineState,
   type QuickReviewState,
   type StoryResponse,
+  type TravelStep,
   type TravelState,
 } from '../src/index';
+import type { TravelExerciseStep } from '../src/travel-content';
+import { rpgAssessmentDigest, rpgTeachingDigest } from '../src/learning-prerequisites';
 
 const content = JSON.parse(
   readFileSync(
@@ -28,29 +31,46 @@ const legacy = parseChapterPack(
   'mexico',
 );
 const lessonId = 'u02_l01';
-const requires = [{ id: 'grammar.routine_base' }];
-const exerciseStep = (id: string) => ({
-  id,
-  type: 'exercise' as const,
-  situation: 'En el mercado',
-  lessonId,
-  requires,
-  exercise: {
+const pattern = {
+  id: 'pattern.u02_l01.habit',
+  form: 'I / you + verbo base + complemento',
+};
+const requires = [{ id: 'grammar.routine_base' }, pattern];
+const exerciseStep = (id: string) =>
+  ({
     id,
-    type: 'short_text' as const,
-    promptEs: 'Escribe la rutina en inglés.',
-    acceptedAnswers: ['I eat breakfast.'],
-    feedbackEs: 'Usa I y el verbo sin -s.',
-    difficulty: 1,
-    skillId: 'grammar.routine_base',
-    learning: {
-      conceptId: 'grammar.routine_base',
-      skill: 'grammar',
-      evidence: 'production',
-      contextId: id,
+    type: 'exercise' as const,
+    situation: 'En el mercado',
+    lessonId,
+    requires,
+    targets: [{ targetId: pattern.id, dimension: 'writing' }],
+    exercise: {
+      id,
+      type: 'short_text' as const,
+      promptEs: 'Escribe la rutina en inglés.',
+      acceptedAnswers: ['I eat breakfast.'],
+      feedbackEs: 'Usa I y el verbo sin -s.',
+      difficulty: 1,
+      skillId: 'grammar.routine_base',
+      learning: {
+        conceptId: 'grammar.routine_base',
+        skill: 'grammar',
+        evidence: 'production',
+        contextId: id,
+      },
     },
-  },
-});
+  }) satisfies TravelExerciseStep;
+const teach = {
+  id: 'market-teaching',
+  type: 'teach',
+  title: 'La rutina',
+  text: 'Usa I y el verbo sin -s.',
+  examples: [{ en: 'I eat breakfast.', es: 'Desayuno.' }],
+  vocabularyTerms: [],
+  instruction: { lessonId, stage: 'grammar', references: requires },
+} satisfies Extract<TravelStep, { type: 'teach' }>;
+const marketExercise = exerciseStep('market-answer');
+const reviewExercise = exerciseStep('another-market-answer');
 const story: NonNullable<ChapterPack['story']> = {
   chapter: {
     id: 'mexico',
@@ -77,17 +97,7 @@ const story: NonNullable<ChapterPack['story']> = {
             explanation: 'Una actividad de la mañana.',
           },
         ],
-        steps: [
-          {
-            id: 'market-teaching',
-            type: 'teach',
-            title: 'La rutina',
-            text: 'Usa I y el verbo sin -s.',
-            examples: [{ en: 'I eat breakfast.', es: 'Desayuno.' }],
-            instruction: { lessonId, stage: 'grammar', references: requires },
-          },
-          exerciseStep('market-answer'),
-        ],
+        steps: [teach, marketExercise],
       },
     ],
   },
@@ -117,7 +127,15 @@ const story: NonNullable<ChapterPack['story']> = {
     items: [],
     quests: [],
   },
-  practice: [exerciseStep('another-market-answer')],
+  practice: [reviewExercise],
+  audit: {
+    definitions: [],
+    teaching: { [teach.id]: rpgTeachingDigest(teach, []) },
+    assessments: {
+      [marketExercise.id]: rpgAssessmentDigest(marketExercise),
+      [reviewExercise.id]: rpgAssessmentDigest(reviewExercise),
+    },
+  },
 };
 
 const { sha256: _digest, ...previous } = legacy;
@@ -138,9 +156,14 @@ test('a chapter adventure preserves legacy cards and validates lesson and scene 
   );
 });
 
-test('installed adventures resume separately and share taught evidence with adaptive review', async () => {
-  const installed = parseChapterPack(serializeChapterPack({ ...previous, story }), 'mexico');
-  let available = false;
+function device(adventure = story, revision = 9) {
+  const install = (value: typeof story, version: number) =>
+    parseChapterPack(
+      serializeChapterPack({ ...previous, revision: version, story: value }),
+      'mexico',
+    );
+  let installed = install(adventure, revision);
+  let available = true;
   let count = 0;
   const store = new Map<string, string>();
   const open = () =>
@@ -158,10 +181,27 @@ test('installed adventures resume separately and share taught evidence with adap
       randomId: () => `installed-adventure-${++count}`,
       clock: () => Date.parse('2026-11-25T12:00:00Z'),
     });
+  return {
+    open,
+    install(value: typeof story, version: number) {
+      installed = install(value, version);
+    },
+    enable(value: boolean) {
+      available = value;
+    },
+    state: () => JSON.parse(store.get(OFFLINE_STATE_KEY)!) as OfflineState,
+    save: (state: OfflineState) => store.set(OFFLINE_STATE_KEY, JSON.stringify(state)),
+  };
+}
+
+const storyPath = '/v1/story?chapter=mexico';
+const travelPath = '/v1/travel?chapter=mexico&source=story';
+const reviewPath = '/v1/reviews/quick?source=unified&chapter=mexico&mission=market';
+
+test('installed adventures resume separately and share precise writing evidence with adaptive review', async () => {
+  const { open, enable, state } = device();
+  enable(false);
   const engine = open();
-  const storyPath = '/v1/story?chapter=mexico';
-  const travelPath = '/v1/travel?chapter=mexico&source=story';
-  const reviewPath = '/v1/reviews/quick?source=unified&chapter=mexico&mission=market';
   await engine.request('/v1/travel', { action: 'country', country: 'HN' });
   const home = await engine.request<StoryResponse>('/v1/story');
   assert.equal(home.story.origin, 'Honduras');
@@ -169,7 +209,7 @@ test('installed adventures resume separately and share taught evidence with adap
     engine.request(storyPath),
     (error) => error instanceof LocalError && error.status === 404,
   );
-  available = true;
+  enable(true);
 
   const mexico = await engine.request<StoryResponse>(storyPath);
   assert.equal(mexico.firstVisit, true);
@@ -200,8 +240,7 @@ test('installed adventures resume separately and share taught evidence with adap
     answer,
   });
   assert.equal(reviewed.result?.correct, true);
-  const evidence = (JSON.parse(store.get(OFFLINE_STATE_KEY)!) as OfflineState).unifiedLearning
-    .evidence;
+  const evidence = state().unifiedLearning.evidence;
   assert.deepEqual(
     evidence.find(({ exerciseId }) => exerciseId === 'market-teaching')?.teaches,
     requires,
@@ -215,7 +254,7 @@ test('installed adventures resume separately and share taught evidence with adap
     assert.equal(entry?.source, source);
     assert.equal(entry?.independent, true);
     assert.equal(entry?.outcome, 'target');
-    assert.ok(entry?.targets.some(({ targetId }) => targetId === 'grammar.routine_base'));
+    assert.deepEqual(entry?.targets, [{ targetId: pattern.id, dimension: 'writing' }]);
   }
 
   const completed = await engine.request<TravelState>(travelPath, { action: 'advance', token });
@@ -230,4 +269,195 @@ test('installed adventures resume separately and share taught evidence with adap
   assert.deepEqual(await open().request(storyPath), savedStory);
   const { firstVisit: _firstVisit, ...savedHome } = home;
   assert.deepEqual(await open().request('/v1/story'), savedHome);
+});
+
+test('edited teaching and broad old receipts cannot unlock a graded item', async () => {
+  const changed = structuredClone(story);
+  changed.chapter.missions[0].steps[0].text = 'Todo listo.';
+  changed.chapter.missions[0].steps[0].examples = [];
+  const storage = device(changed);
+  const engine = storage.open();
+  const entry = await engine.request<StoryResponse>(storyPath);
+  const activity = await engine.request<StoryResponse>(storyPath, {
+    action: 'interact',
+    hotspotId: 'begin',
+    turn: entry.story.turn,
+  });
+  const saved = storage.state();
+  saved.unifiedLearning.evidence.push({
+    id: `mexico:${activity.travel.active!.token}:market-teaching`,
+    source: 'story',
+    materialId: lessonId,
+    exerciseId: 'market-teaching',
+    materialVersion: 'mexico:8',
+    timestamp: 1,
+    contextId: 'market',
+    format: 'instruction',
+    activity: 'introduced',
+    aids: ['guided'],
+    retry: false,
+    independent: false,
+    targets: [],
+    teaches: requires,
+  });
+  storage.save(saved);
+  const paused = await engine.request<TravelState>(travelPath, {
+    action: 'advance',
+    token: activity.travel.active!.token,
+  });
+  const token = paused.active!.token;
+  assert.equal(paused.active?.prerequisiteInstruction?.sections.length, requires.length);
+  const answer = { text: 'I eat breakfast.' };
+  const blocked = await storage.open().request<TravelState>(travelPath, {
+    action: 'answer',
+    token,
+    answer,
+  });
+  assert.ok(blocked.active?.prerequisiteInstruction);
+  assert.equal(blocked.active?.result, undefined);
+  assert.equal(storage.state().attempts[token], undefined);
+  const ready = await storage.open().request<TravelState>(travelPath, { action: 'prepare', token });
+  assert.equal(ready.active?.prerequisiteInstruction, undefined);
+  assert.equal(ready.active?.prerequisitePrepared, true);
+  await storage.open().request<TravelState>(travelPath, { action: 'answer', token, answer });
+  const evidence = storage.state().unifiedLearning.evidence;
+  const response = evidence.find((event) => event.id === token);
+  assert.ok(response);
+  assert.ok(response.aids.includes('guided'));
+  assert.equal(response.independent, false);
+  assert.equal(response.outcome, 'target');
+  assert.ok(evidence.some((event) => event.id === `rpg-instruction:mexico:${token}:prepare`));
+});
+
+test('one reviewed sense of a word cannot unlock assessment of a different sense', async () => {
+  const changed = structuredClone(story);
+  const openState = { id: 'lex.market.open.state', form: 'open' };
+  const openAction = { id: 'lex.market.open.action', form: 'open' };
+  const taughtWord = {
+    term: 'open',
+    meaning: 'abierto al público',
+    kind: 'adjetivo',
+    explanation: 'Indica el estado del mercado.',
+    example: { en: 'The market is open.', es: 'El mercado está abierto.' },
+    teaches: [openState],
+  };
+  const annotatedTeach = {
+    ...teach,
+    vocabularyTerms: ['open'],
+    instruction: { ...teach.instruction, stage: 'both' as const },
+  };
+  const assessed = {
+    ...marketExercise,
+    requires: [openAction],
+    targets: [{ targetId: openAction.id, dimension: 'vocabulary_recall' as const }],
+  };
+  const mission = changed.chapter.missions[0];
+  mission.vocabulary = [taughtWord];
+  mission.steps = [annotatedTeach, assessed];
+  changed.audit!.teaching[teach.id] = rpgTeachingDigest(annotatedTeach, [taughtWord]);
+  changed.audit!.assessments[assessed.id] = rpgAssessmentDigest(assessed);
+  changed.audit!.definitions = [
+    {
+      kind: 'lexical',
+      id: openState.id,
+      forms: [openState.form],
+      labelEs: taughtWord.meaning,
+      examples: [taughtWord.example],
+    },
+    {
+      kind: 'lexical',
+      id: openAction.id,
+      forms: [openAction.form],
+      labelEs: 'abrir un establecimiento',
+      examples: [{ en: 'They open the market at eight.', es: 'Abren el mercado a las ocho.' }],
+    },
+  ];
+  const { open, state } = device(changed);
+  const engine = open();
+  const entry = await engine.request<StoryResponse>(storyPath);
+  const activity = await engine.request<StoryResponse>(storyPath, {
+    action: 'interact',
+    hotspotId: 'begin',
+    turn: entry.story.turn,
+  });
+  const token = activity.travel.active!.token;
+  const skippedWord = await engine.request<TravelState>(travelPath, { action: 'advance', token });
+  assert.equal(skippedWord.active?.stepId, teach.id);
+  await engine.request(travelPath, { action: 'word', token, position: 1 });
+  const blocked = await engine.request<TravelState>(travelPath, { action: 'advance', token });
+  assert.match(blocked.active?.prerequisiteInstruction?.sections[0].title ?? '', /abrir/);
+  const receipt = state().unifiedLearning.evidence.find((event) => event.id.includes(':word:'));
+  assert.deepEqual(receipt?.teaches, [openState]);
+});
+
+test('an assessment cannot claim an untaught sense or unknown form despite matching item digest', async () => {
+  for (const reference of [
+    { id: 'lex.market.breakfast.sense', form: 'eat breakfast' },
+    { ...pattern, form: 'I / you + verbo con -s' },
+  ]) {
+    const changed = structuredClone(story);
+    const step = structuredClone(marketExercise);
+    step.requires = [reference];
+    step.targets = [{ targetId: reference.id, dimension: 'writing' }];
+    changed.chapter.missions[0].steps[1] = step;
+    changed.audit!.assessments[step.id] = rpgAssessmentDigest(step);
+    const { open } = device(changed);
+    const engine = open();
+    const entry = await engine.request<StoryResponse>(storyPath);
+    const started = await engine.request<StoryResponse>(storyPath, {
+      action: 'interact',
+      hotspotId: 'begin',
+      turn: entry.story.turn,
+    });
+    const blocked = await engine.request<TravelState>(travelPath, {
+      action: 'advance',
+      token: started.travel.active!.token,
+    });
+    assert.equal(blocked.active?.prerequisiteUnavailable, true);
+    const after = await open().request<TravelState>(travelPath, {
+      action: 'prepare',
+      token: blocked.active!.token,
+    });
+    assert.equal(after.active?.prerequisiteUnavailable, true);
+  }
+});
+
+test('an old offline pack preserves its draft and the updated package teaches before resuming', async () => {
+  const old = structuredClone(story);
+  delete old.audit;
+  const storage = device(old, 8);
+  const engine = storage.open();
+  const entry = await engine.request<StoryResponse>(storyPath);
+  const started = await engine.request<StoryResponse>(storyPath, {
+    action: 'interact',
+    hotspotId: 'begin',
+    turn: entry.story.turn,
+  });
+  const blocked = await engine.request<TravelState>(travelPath, {
+    action: 'advance',
+    token: started.travel.active!.token,
+  });
+  assert.equal(blocked.active?.prerequisiteUpdateRequired, true);
+  const saved = storage.state();
+  const draft = { text: 'I eat breakfast.' };
+  saved.chapterProgress!.mexico.travel.active!.answer = draft;
+  storage.save(saved);
+  const token = blocked.active!.token;
+  const oldPack = await storage.open().request<TravelState>(travelPath, {
+    action: 'answer',
+    token,
+    answer: draft,
+  });
+  assert.deepEqual(oldPack.active?.answer, draft);
+  assert.equal(oldPack.active?.prerequisiteUpdateRequired, true);
+  assert.equal(oldPack.active?.result, undefined);
+
+  const current = structuredClone(story);
+  current.chapter.revision++;
+  storage.install(current, 9);
+  const upgraded = await storage.open().request<TravelState>(travelPath);
+  assert.deepEqual(upgraded.active?.answer, draft);
+  assert.equal(upgraded.active?.token, token);
+  assert.equal(upgraded.active?.prerequisiteUpdateRequired, undefined);
+  assert.ok(upgraded.active?.prerequisiteInstruction);
 });
