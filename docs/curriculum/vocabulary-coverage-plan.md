@@ -93,4 +93,4 @@ The weekly entries are workload examples, with review inside sessions where usef
 
 ## Travel memories and questions in Cusco
 
-Cusco recycles pronouns, places, clock time, numbers and market purchases. U04 retains its IDs for forms such as was, were, visited, went, bought, took and did. The notes teach specific senses such as taking a photo, taking a bus, finishing and leaving a place, along with first, then, before and after. Each assessment declares the forms and senses it needs. [Cusco validation](../PHASE_5D_CUSCO_VALIDATION.md)
+Cusco recycles pronouns, places, clock time, numbers and market purchases. U04 retains its IDs for forms such as was, were, visited, went, bought, took and did. The notes teach specific senses such as taking a photo, taking a bus, finishing and leaving a place, along with first, then, before and after. Cusco reuses the shared sense for see/saw and existing IDs for question words, places, first/then and clock expressions. The photo and transit senses of take have exact references. Each assessment declares its forms and senses. Revision 14 evidence keeps its original scope. [Cusco validation](../PHASE_5D_CUSCO_VALIDATION.md)

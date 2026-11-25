@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { learningErrorSchema } from '@lingoquest/contracts';
 
 const id = z
   .string()
@@ -290,16 +291,34 @@ const eventScenarioTurnSchema = z
       .max(20)
       .readonly()
       .optional(),
+    errorTargets: z
+      .array(
+        z
+          .object({
+            form: eventFormSchema,
+            error: learningErrorSchema,
+            eventId: id.optional(),
+            targets: z.array(scenarioEvidenceTargetSchema).min(1).max(20).readonly(),
+          })
+          .strict(),
+      )
+      .max(20)
+      .readonly()
+      .optional(),
     feedback: z.record(scenarioFeedbackSchema, phrase).optional(),
   })
   .strict()
   .refine(
-    ({ targetForms, formTargets, eventTargets, action, focusEventIds }) =>
+    ({ targetForms, formTargets, eventTargets, errorTargets, action, focusEventIds }) =>
       !!focusEventIds.length &&
       distinct(focusEventIds) &&
       distinct(targetForms) &&
       distinct((formTargets ?? []).map(({ form }) => form)) &&
       distinct((eventTargets ?? []).map(({ eventId }) => eventId)) &&
+      distinct(
+        (errorTargets ?? []).map(({ form, error, eventId }) => `${form}:${error}:${eventId ?? ''}`),
+      ) &&
+      (errorTargets ?? []).every(({ eventId }) => !eventId || focusEventIds.includes(eventId)) &&
       (action === 'record' || !eventTargets?.length),
   );
 

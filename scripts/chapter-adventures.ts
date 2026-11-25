@@ -71,8 +71,7 @@ function portableDefinitions(
   const reviewed = formalDefinitions({ lessons: courseLessons });
   const authored = new Set(audit.definitions.map(({ id }) => id));
   const references = [
-    ...chapter.missions.flatMap(({ vocabulary, steps, scenario }) => [
-      ...(scenario && 'kind' in scenario ? eventScenarioPhrases(scenario) : []),
+    ...chapter.missions.flatMap(({ vocabulary, steps }) => [
       ...vocabulary.flatMap(({ teaches }) => teaches ?? []),
       ...steps.flatMap((step) =>
         step.type === 'teach'

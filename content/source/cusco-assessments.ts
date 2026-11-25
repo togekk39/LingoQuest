@@ -38,6 +38,7 @@ type Item = {
   optionErrors?: NonNullable<CourseExercise['learning']>['optionErrors'];
   remediates?: LearningError[];
   turn?: EventScenarioTurn;
+  recommendUnverified?: true;
 };
 
 const target = (ref: Ref, dimension: Dimension): Target => ({ targetId: ref.id, dimension });
@@ -58,6 +59,7 @@ function item({
   optionErrors,
   remediates,
   turn,
+  recommendUnverified,
 }: Item): TravelExerciseStep {
   const id = `cusco-${name}`;
   const conceptId = targets[0].targetId;
@@ -68,6 +70,7 @@ function item({
     situation: fields.promptEs,
     requires,
     targets,
+    ...(recommendUnverified && { recommendUnverified }),
     ...(audio && { audio, transcript: audio, listeningButton: 'Escuchar el mensaje' }),
     ...(hint && { hint }),
     ...(turn && { scenarioTurn: turn, requiredReply: true }),
@@ -215,7 +218,7 @@ export const beChecks = [
     name: 'be-listen',
     topic: 'be',
     reference: g.be,
-    words: [...whereabouts, w.atSix, w.lastNight],
+    words: [w.was, w.at, w.the, w.park, w.hotel, w.atSix, w.lastNight],
     rules: [p.be],
     audio: 'Sam was at the park at six last night. Luz was at the hotel.',
     prompt: 'Escucha el mensaje de Sam. ¿Dónde estaban él y Luz a las seis de anoche?',
@@ -439,7 +442,14 @@ export const irregularChecks = [
       'El mercado ocurrió antes que el almuerzo.',
     ),
     feedback: 'Encuentra qué evento sigue a before o after y compara su posición en el tiempo.',
-    errors: { past_order: ['We went to the market after before lunch.'] },
+    errors: {
+      past_order: [
+        'We went to the market after before lunch.',
+        'We went to the market after we ate lunch.',
+        'Before we went to the market, we ate lunch.',
+        'We ate lunch before we went to the market.',
+      ],
+    },
   }),
 ];
 
@@ -451,12 +461,13 @@ type FormDrill = {
   rules: Ref[];
   feedback: string;
   error: LearningError;
+  additionalTargets?: Target[];
   samples: readonly [Sample, Sample, Sample];
 };
 type Sample = { en: string; prompt: string; wrong: string; more?: string[]; mismatch?: string[] };
 
 function formPractice(drill: FormDrill, index: 0 | 1 | 2) {
-  const { name, topic, reference, words, rules, feedback, error } = drill;
+  const { name, topic, reference, words, rules, feedback, error, additionalTargets = [] } = drill;
   const { en, prompt, wrong, more, mismatch: wrongContext } = drill.samples[index];
   const guide = index === 1;
   const role = index === 0 ? 'write' : guide ? 'guide' : 'confirm';
@@ -464,7 +475,8 @@ function formPractice(drill: FormDrill, index: 0 | 1 | 2) {
     name: `${name}-${role}`,
     topic,
     requires: refs(words, reference, ...rules),
-    targets: [grammar(reference)],
+    targets: [grammar(reference), ...additionalTargets],
+    ...(index === 0 && topic === 'ask' && { recommendUnverified: true }),
     prompt,
     answers: [en, ...(more ?? [])],
     feedback,
@@ -524,9 +536,9 @@ const formDrills: FormDrill[] = [
       },
       { en: 'They were tired.', prompt: 'Escribe que tenían cansancio.', wrong: 'They was tired.' },
       {
-        en: 'They were at the hotel.',
-        prompt: 'Escribe que ellos estaban en el hotel.',
-        wrong: 'They was at the hotel.',
+        en: 'They were at the market.',
+        prompt: 'Escribe que ellos estaban en el mercado.',
+        wrong: 'They was at the market.',
       },
     ],
   },
@@ -750,6 +762,7 @@ const formDrills: FormDrill[] = [
     name: 'took-photo',
     topic: 'irregular',
     reference: w.took[0],
+    additionalTargets: [grammar(w.tookPhoto[0])],
     words: [
       w.take,
       w.takePhoto,
@@ -789,6 +802,7 @@ const formDrills: FormDrill[] = [
     name: 'did-base',
     topic: 'ask',
     reference: g.ask,
+    additionalTargets: [grammar(p.ask), target(p.ask, 'writing')],
     words: [
       w.you,
       w.did,
@@ -802,17 +816,17 @@ const formDrills: FormDrill[] = [
       w.museum,
       w.go,
       w.to,
-      w.market,
+      w.plaza,
     ],
     rules: [p.ask],
     feedback: 'Forma una pregunta con Did, la persona y el verbo en su forma base.',
     error: 'did_base',
     samples: [
       {
-        en: 'Did you go to the market?',
-        prompt: 'Pregúntale a Diego si fue al mercado.',
-        wrong: 'Did you went to the market?',
-        mismatch: ['Did Luz go to the market?'],
+        en: 'Did you go to the plaza?',
+        prompt: 'Pregúntale a Diego si fue a la plaza.',
+        wrong: 'Did you went to the plaza?',
+        mismatch: ['Did Luz go to the plaza?'],
       },
       {
         en: 'Did you buy bread?',
@@ -830,8 +844,9 @@ const formDrills: FormDrill[] = [
     name: 'didnt-base',
     topic: 'ask',
     reference: p.negative,
+    additionalTargets: [grammar(g.negativeBase)],
     words: [w.didnt, w.didNot, w.buy, w.bread, w.coffee, w.go, w.to, w.the, w.i, w.she, w.market],
-    rules: [g.ask],
+    rules: [g.negativeBase, g.ask],
     feedback: 'Después de didn’t o did not, usa el verbo base.',
     error: 'did_base',
     samples: [
@@ -853,6 +868,64 @@ const formDrills: FormDrill[] = [
       },
     ],
   },
+  {
+    name: 'did-info',
+    topic: 'ask',
+    reference: p.wh,
+    additionalTargets: [target(p.wh, 'writing')],
+    words: [w.did, w.when, w.you, w.arrive, w.go, w.to, w.the, w.market, w.leave, w.museum],
+    rules: [g.ask],
+    feedback: 'Escribe When did, la persona y el verbo base.',
+    error: 'did_base',
+    samples: [
+      {
+        en: 'When did Nora arrive?',
+        prompt: 'Pregunta cuándo llegó Nora.',
+        wrong: 'When did Nora arrived?',
+      },
+      {
+        en: 'When did you go to the market?',
+        prompt: 'Pregunta cuándo fue Diego al mercado.',
+        wrong: 'When did you went to the market?',
+      },
+      {
+        en: 'When did Diego leave the museum?',
+        prompt: 'Pregunta cuándo salió Diego del museo.',
+        wrong: 'When did Diego left the museum?',
+      },
+    ],
+  },
+  {
+    name: 'who-past',
+    topic: 'ask',
+    reference: p.subject,
+    additionalTargets: [target(p.subject, 'writing')],
+    words: [
+      w.who,
+      w.the,
+      w.a,
+      w.photo,
+      w.took,
+      w.tookPhoto,
+      w.saw,
+      w.bought,
+      w.bread,
+      w.at,
+      w.hotel,
+    ],
+    rules: [g.irregular],
+    feedback: 'Usa Who y después el verbo en pasado para preguntar quién hizo algo.',
+    error: 'past_spelling',
+    samples: [
+      {
+        en: 'Who took a photo at the hotel?',
+        prompt: 'Pregunta quién sacó una foto en el hotel.',
+        wrong: 'Who take a photo at the hotel?',
+      },
+      { en: 'Who saw Nora?', prompt: 'Pregunta quién vio a Nora.', wrong: 'Who see Nora?' },
+      { en: 'Who bought bread?', prompt: 'Pregunta quién compró pan.', wrong: 'Who buy bread?' },
+    ],
+  },
 ];
 
 export const formChecks = (topic: CuscoTopic) =>
@@ -868,6 +941,7 @@ const photoVocabulary = [
   w.take,
   w.a,
   w.photo,
+  w.picture,
   w.takePhoto,
   w.tookPhoto,
   w.took,
@@ -877,6 +951,9 @@ const photoVocabulary = [
   w.ten,
   w.am,
   w.yesterday,
+  w.today,
+  w.lastNight,
+  w.lastWeekend,
 ];
 const museumVocabulary = [
   w.did,
@@ -894,6 +971,11 @@ const museumVocabulary = [
   w.four,
   w.pm,
   w.in,
+  w.who,
+  w.yesterday,
+  w.today,
+  w.lastNight,
+  w.lastWeekend,
 ];
 
 function inquiry(museum: boolean) {
@@ -904,7 +986,13 @@ function inquiry(museum: boolean) {
   return writing({
     name: museum ? 'museum-inquire' : 'market-inquire',
     topic: 'ask',
-    requires: refs(museum ? museumVocabulary : photoVocabulary, g.ask, p.ask, p.wh, p.subject),
+    requires: refs(
+      museum ? museumVocabulary : [...photoVocabulary, w.buy, w.bread, w.bought],
+      g.ask,
+      p.ask,
+      p.wh,
+      p.subject,
+    ),
     targets: all,
     evidence: museum ? 'transfer' : 'production',
     prompt: museum
@@ -912,19 +1000,29 @@ function inquiry(museum: boolean) {
       : 'Elige a alguien y escribe una pregunta en inglés. Averigua quién sacó la foto y a qué hora la sacó.',
     answers: museum
       ? ['When did Ana see Nora?', 'Where did Ana see Nora?']
-      : ['Did you take the photo?', 'When did you take the photo?', 'Who took the photo?'],
+      : [
+          'Did you take the photo?',
+          'When did you take the photo?',
+          'Who took the photo?',
+          'Did Luz buy bread?',
+        ],
     feedback: 'Comprueba que tu pregunta pide un dato del diario.',
     hint: museum
       ? 'Para pedir la hora, empieza con When. Para pedir el lugar, empieza con Where. Sigue con did, la persona y el verbo base.'
       : 'Usa Did al principio para comprobar quién realizó la acción. Empieza con When did para preguntar por la hora.',
     turn: {
       action: 'inquire',
-      focusEventIds: [museum ? 'sighting' : 'photo'],
+      focusEventIds: museum ? ['sighting'] : ['photo', 'bread'],
       targetForms: ['did-question', 'wh-question', 'subject-question'],
       formTargets: [
         { form: 'did-question', targets: yesNo },
         { form: 'wh-question', targets: wh },
         { form: 'subject-question', targets: subject },
+      ],
+      errorTargets: [
+        { form: 'did-question', error: 'did_base', targets: [grammar(g.ask), grammar(p.ask)] },
+        { form: 'wh-question', error: 'did_base', targets: [grammar(p.wh)] },
+        { form: 'subject-question', error: 'past_spelling', targets: [grammar(p.subject)] },
       ],
     },
   });
@@ -932,12 +1030,21 @@ function inquiry(museum: boolean) {
 
 function record(museum: boolean) {
   const word = museum ? w.saw[0] : w.took[0];
-  const targets = [grammar(word), target(p.irregular, 'writing')];
+  const form = [grammar(word), ...(!museum ? [grammar(w.tookPhoto[0])] : [])];
+  const negative = [grammar(p.negative), grammar(g.negativeBase)];
+  const eventId = museum ? 'sighting' : 'photo';
+  const targets = [...form, grammar(p.irregular), target(p.irregular, 'writing')];
   return writing({
     name: museum ? 'museum-record' : 'market-record',
     topic: museum ? 'ask' : 'irregular',
-    requires: refs(museum ? museumVocabulary : photoVocabulary, ...irregularRules),
-    targets,
+    requires: refs(
+      [...(museum ? museumVocabulary : photoVocabulary), w.didnt, w.didNot],
+      ...irregularRules,
+      g.ask,
+      p.negative,
+      g.negativeBase,
+    ),
+    targets: [...targets, ...negative],
     evidence: museum ? 'transfer' : 'production',
     prompt: museum
       ? 'Corrige la nota en inglés. Escribe a quién vio Ana, dónde y a qué hora. Incluye el lugar y la hora confirmados.'
@@ -948,9 +1055,13 @@ function record(museum: boolean) {
     feedback: 'Comprueba el nombre, el verbo en pasado y los datos que confirmaste.',
     turn: {
       action: 'record',
-      focusEventIds: [museum ? 'sighting' : 'photo'],
+      focusEventIds: [eventId],
       targetForms: ['past-statement'],
-      eventTargets: [{ eventId: museum ? 'sighting' : 'photo', targets }],
+      eventTargets: [{ eventId, targets }],
+      errorTargets: [
+        { form: 'past-statement', eventId, error: 'past_spelling', targets: form },
+        { form: 'past-negative', eventId, error: 'did_base', targets: negative },
+      ],
     },
   });
 }
@@ -984,7 +1095,7 @@ export const askChecks = [
     topic: 'ask',
     reference: g.ask,
     words: [w.did, w.you, w.buy, w.coffee, w.no, w.i, w.didnt, w.bought, w.bread],
-    rules: didRules,
+    rules: [g.ask, p.ask, p.negative],
     passage: "Nora: Did you buy coffee? Diego: No, I didn't. I bought bread.",
     prompt: 'Lee lo que contó Diego. ¿Qué es cierto?',
     options: ['Compró café.', 'Compró pan y café.', 'Compró pan y no compró café.'],
@@ -1032,7 +1143,11 @@ export const askChecks = [
 ];
 
 export const cuscoPractice = [
-  ...formDrills.flatMap((drill) => [formPractice(drill, 1), formPractice(drill, 2)]),
+  ...formDrills.flatMap((drill) => [
+    ...(drill.topic === 'ask' ? [formPractice(drill, 0)] : []),
+    formPractice(drill, 1),
+    formPractice(drill, 2),
+  ]),
   sounds('sound-review-t-guide', w.walked, 0, true),
   sounds('sound-review-d-guide', w.played, 1, true),
   sounds('sound-review-id-guide', w.visited, 2, true),

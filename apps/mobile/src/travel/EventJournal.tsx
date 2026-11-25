@@ -50,6 +50,13 @@ export function EventJournal({
         const hour = Math.floor(event.minute / 60);
         const clock = `${hour % 12 || 12}:${String(event.minute % 60).padStart(2, '0')} ${hour < 12 ? 'a.m.' : 'p.m.'}`;
         const submitted = state?.submitted.find(({ eventId }) => eventId === event.id);
+        const excluded = new Set(
+          state?.answers.flatMap(({ eventId, field, subjectId }) =>
+            eventId === event.id && field === 'person' && subjectId && subjectId !== event.personId
+              ? [subjectId]
+              : [],
+          ),
+        );
         const Icon = allKnown ? CircleCheck : CircleHelp;
         return (
           <View
@@ -70,6 +77,11 @@ export function EventJournal({
             <Label>
               {submitted?.text ?? (event.required.length ? event.note.es : event.statement.en)}
             </Label>
+            {!submitted &&
+              event.required.includes('person') &&
+              definition.participants
+                .filter(({ id }) => excluded.has(id))
+                .map(({ id, name }) => <Label key={id}>{name} no realizó esta acción.</Label>)}
             {!submitted && event.required.includes('person') && personKnown && (
               <Label>Persona confirmada: {person?.name}</Label>
             )}

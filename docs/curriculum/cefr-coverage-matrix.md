@@ -47,4 +47,4 @@ The table distinguishes available chapter activities from the broader planned as
 
 ### A1 evidence in Cusco
 
-U04 and the Cusco chapter include comprehension of past locations and events, writing ordered actions, and asking to confirm information. The museum visit supplies a transfer check. The oral production and open museum account use self-check criteria. Observed speaking and learner trials remain open. [Cusco validation](../PHASE_5D_CUSCO_VALIDATION.md)
+U04 and the Cusco chapter include comprehension of past locations and events, writing ordered actions, and asking to confirm information. The museum visit supplies an independent transfer check for supported question forms and past statements. A different item on a later day tests retention. Yes/no, information and Who questions record separate evidence. The oral production and open museum account use self-check criteria. Observed speaking and learner trials remain open. [Cusco validation](../PHASE_5D_CUSCO_VALIDATION.md)

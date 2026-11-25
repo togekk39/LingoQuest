@@ -41,6 +41,7 @@ export interface TravelExerciseStep {
   scenarioTurn?: ScenarioTurn;
   activityTitle?: string;
   reviewMissionId?: string;
+  recommendUnverified?: true;
   exercise: CourseExercise;
   lessonId?: string;
   requires?: readonly PrerequisiteReference[];
@@ -101,6 +102,7 @@ export interface TravelMission {
   foundationObjectiveId?: string;
   objectiveId?: string;
   scenario?: ScenarioDefinition;
+  replacedSteps?: Record<string, string>;
   title: string;
   place: string;
   objective: string;

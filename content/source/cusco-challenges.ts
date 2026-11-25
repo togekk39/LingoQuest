@@ -63,12 +63,13 @@ function define(mode: Mode, data: Prompt) {
   const cloze = mode === 'cloze_battle';
   const id = `challenge_cusco_${mode}_${topic}`;
   const choices = reading ? options : answers;
+  const conceptId = topic === 'ask' && !reading ? p.ask.id : g[topic].id;
   const exercise: CourseExercise = {
     id,
     type: reading ? 'meaning' : cloze ? 'cloze' : 'single_choice',
     difficulty: 3,
     requiredLessonIds: [cuscoLessons[topic]],
-    skillId: g[topic].id,
+    skillId: conceptId,
     promptEs: reading
       ? question
       : `Completa la nota del viaje con la forma correcta. ${topic === 'ask' ? 'Fíjate en el verbo después de did.' : 'La nota habla de ayer.'}`,
@@ -83,7 +84,7 @@ function define(mode: Mode, data: Prompt) {
           ...(reading ? { optionsLanguage: 'es' } : { dimension: 'grammar_understanding' }),
         }),
     learning: {
-      conceptId: g[topic].id,
+      conceptId,
       contextId: `cusco.challenge.${mode}.${topic}`,
       skill: reading ? 'reading' : 'grammar',
       evidence: cloze ? 'production' : 'understanding',

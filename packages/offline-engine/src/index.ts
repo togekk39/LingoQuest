@@ -6,6 +6,7 @@ import {
   attemptSchema,
   challengeQuestionCount,
   challengeRequiredUnit,
+  equivalentAnswerText,
   judgeAnswer,
   learningErrorSchema,
   matchesIntroductionName,
@@ -750,6 +751,7 @@ function createUnifiedReviewCandidates(
             requires,
           ),
           step.targets,
+          step.recommendUnverified,
         ),
       ];
     }),
@@ -1318,25 +1320,31 @@ export class OfflineEngine {
       context.errors ?? (exercise.spelling ? ['letter_order'] : exerciseCheckedErrors(exercise));
     const errorType = scenarioVerdict
       ? scenarioVerdict.error
-      : !formCorrect && outcome !== 'ungradable' && outcome !== 'context_mismatch'
-        ? (introduction?.error ??
-          (exercise.spelling ? 'letter_order' : undefined) ??
-          (assessesLexicalSense &&
-          !learning &&
-          exercise.options?.some(({ id }) => id === parsed.answer.optionId)
-            ? 'vocabulary_sense'
-            : findLearningError(
-                learning ?? {
-                  conceptId: exercise.skillId,
-                  skill: 'writing',
-                  evidence: 'production',
-                  contextId,
-                  errors: checksErrors,
-                },
-                parsed.answer,
-                exercise.acceptedAnswers,
-              )))
-        : undefined;
+      : outcome === 'context_mismatch' &&
+          context.authored?.reviewedDigest &&
+          learning?.errorAnswers?.past_order?.some((sample) =>
+            equivalentAnswerText(parsed.answer.text ?? '', sample),
+          )
+        ? 'past_order'
+        : !formCorrect && outcome !== 'ungradable' && outcome !== 'context_mismatch'
+          ? (introduction?.error ??
+            (exercise.spelling ? 'letter_order' : undefined) ??
+            (assessesLexicalSense &&
+            !learning &&
+            exercise.options?.some(({ id }) => id === parsed.answer.optionId)
+              ? 'vocabulary_sense'
+              : findLearningError(
+                  learning ?? {
+                    conceptId: exercise.skillId,
+                    skill: 'writing',
+                    evidence: 'production',
+                    contextId,
+                    errors: checksErrors,
+                  },
+                  parsed.answer,
+                  exercise.acceptedAnswers,
+                )))
+          : undefined;
     const supports = new Set<UnifiedLearningAid>([
       ...aids.filter((aid): aid is Exclude<LearningAid, 'none'> => aid !== 'none'),
       ...(context.aids ?? []),
@@ -1365,9 +1373,14 @@ export class OfflineEngine {
       context.evidenceOutcome ?? (prerequisites?.missing.length === 0 ? undefined : 'ungradable');
     const evidencedTargets = scenarioVerdict
       ? (scenarioVerdict.targets ?? [])
-      : context.authored?.step.targets
-        ? rpgAnswerTargets(context.authored.step, parsed.answer, outcome)
-        : exerciseEvidenceTargets(exercise, lesson.id, parsed.answer);
+      : outcome === 'context_mismatch' && errorType === 'past_order'
+        ? (context.authored?.step.targets ?? []).filter(
+            ({ targetId, dimension }) =>
+              targetId === learning?.conceptId && dimension === 'grammar_production',
+          )
+        : context.authored?.step.targets
+          ? rpgAnswerTargets(context.authored.step, parsed.answer, outcome)
+          : exerciseEvidenceTargets(exercise, lesson.id, parsed.answer);
     const actualAlternative =
       !!scenarioVerdict?.targets?.length && outcome === 'communication_only';
     recordUnifiedEvidence(state.unifiedLearning, {

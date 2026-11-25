@@ -159,7 +159,7 @@ if (
   throw new Error('APK embeds chapter art or audio. These files belong in chapter packs.');
 const bundle = await run('unzip', ['-p', apk, 'assets/index.android.bundle'], repo, true);
 const chapterPacks = join(mobile, 'public/chapter-packs');
-const chapterCatalog = 'catalog-v9.json';
+const chapterCatalog = 'catalog-v10.json';
 const bundleContains = (value) =>
   bundle.includes(Buffer.from(value)) || bundle.includes(Buffer.from(value, 'utf16le'));
 if (!bundleContains(chapterCatalog))

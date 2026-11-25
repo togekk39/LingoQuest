@@ -250,7 +250,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
-export const CHAPTER_CATALOG_FILE = 'catalog-v9.json';
+export const CHAPTER_CATALOG_FILE = 'catalog-v10.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -489,6 +489,7 @@ export const chapterPackSchema = z
                     objective: text,
                     objectiveId: id.optional(),
                     scenario: scenarioDefinitionSchema.optional(),
+                    replacedSteps: z.record(id, id).optional(),
                     optional: z.literal(true).optional(),
                     minutes: z.tuple([z.number().positive(), z.number().positive()]),
                     vocabulary: z.array(
@@ -503,6 +504,13 @@ export const chapterPackSchema = z
                     steps: z.array(storyStepSchema).min(1),
                   })
                   .passthrough()
+                  .refine(({ steps, replacedSteps }) =>
+                    Object.entries(replacedSteps ?? {}).every(
+                      ([removed, next]) =>
+                        steps.every(({ id: step }) => step !== removed) &&
+                        steps.some(({ id: step }) => step === next),
+                    ),
+                  )
                   .refine(({ steps, scenario }) => {
                     const turns = steps.flatMap(({ scenarioTurn }) =>
                       scenarioTurn ? [scenarioTurn.action] : [],

@@ -114,7 +114,8 @@ test('Cusco shares an offline travel journal and language evidence between Study
   context,
   request,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(300_000);
+  await page.clock.setFixedTime(Date.UTC(2026, 10, 25, 17));
   await page.setViewportSize({ width: 414, height: 850 });
   const catalog: ChapterCatalog = await (
     await request.get(`/chapter-packs/${CHAPTER_CATALOG_FILE}`)
@@ -177,6 +178,9 @@ test('Cusco shares an offline travel journal and language evidence between Study
         await click(page, 'Intentar otra vez');
         await typeAnswer(page, ask, 'Did you take the photo?');
         await expect(reply(page)).toContainText("No, I didn't.");
+        await expect(reply(page).getByRole('button', exact('Escuchar frase'))).toBeVisible();
+        await expect(journal(page)).toContainText('Sam no realizó esta acción.');
+        await expect(journal(page)).toContainText('0/2 datos confirmados');
         await more();
         await typeAnswer(page, ask, 'Did you take a photo?');
         await expect(reply(page)).toContainText("No, I didn't.");
@@ -239,6 +243,15 @@ test('Cusco shares an offline travel journal and language evidence between Study
         return true;
       }
       if (id === record) {
+        await typeAnswer(page, id, "Luz didn't took a photo.");
+        expect((await evidence(page, id)).at(-1)).toMatchObject({
+          outcome: 'incorrect',
+          error: 'did_base',
+          targets: expect.arrayContaining([
+            { targetId: 'pattern.u04_l04.negative', dimension: 'grammar_production' },
+          ]),
+        });
+        await click(page, 'Intentar otra vez');
         await typeAnswer(page, id, "Luz didn't take the photo.");
         expect((await evidence(page, id)).at(-1)).toMatchObject({
           outcome: 'context_mismatch',
@@ -296,8 +309,15 @@ test('Cusco shares an offline travel journal and language evidence between Study
   await typeAnswer(page, 'cusco-did-base-guide', 'Did you buy bread?');
   expect((await didMastery()).pendingErrors).toContain('did_base');
   await click(page, 'Probar otra escena');
-  await typeAnswer(page, 'cusco-did-base-confirm', 'Did Luz take a photo at the museum?');
+  await typeAnswer(page, 'cusco-did-base-write', 'Did you go to the plaza?');
   expect((await didMastery()).pendingErrors).not.toContain('did_base');
+  const negative = async () =>
+    getUnifiedMastery(
+      (await saved(page)).unifiedLearning,
+      'pattern.u04_l04.negative',
+      'grammar_production',
+    );
+  expect((await negative()).pendingErrors).toContain('did_base');
   await click(page, 'Volver al viaje');
   await click(page, 'Cerrar y volver');
 

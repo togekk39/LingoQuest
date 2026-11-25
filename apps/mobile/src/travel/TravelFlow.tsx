@@ -45,6 +45,7 @@ import {
 } from '../Journal';
 import { useTheme } from '../theme';
 import { Celebration } from '../motion';
+import { getAvailableChapterAudio } from '../features/offlineSpeech';
 import { useChapterAudio } from './useChapterAudio';
 import { EventJournal } from './EventJournal';
 import { ScenarioBoard } from './ScenarioBoard';
@@ -308,7 +309,28 @@ export function TravelFlow({
     step.type === 'exercise' && (embedded || step.storyReplies || scenarioTurn)
       ? travelStoryReply(step, current)
       : undefined;
-  const replyAudio = current.scenarioReply && !timeline ? undefined : storyReply?.line.en;
+  const replyPhrase = storyReply?.line.en;
+  const dynamicPhrase = timeline && current.scenarioReply ? replyPhrase : undefined;
+  const [availableReply, setAvailableReply] = useState<string>();
+  useEffect(() => {
+    if (!dynamicPhrase) return;
+    let active = true;
+    void getAvailableChapterAudio(chapter.id, dynamicPhrase)
+      .then((clip) => {
+        if (active) setAvailableReply(clip ? dynamicPhrase : undefined);
+      })
+      .catch(() => {
+        if (active) setAvailableReply(undefined);
+      });
+    return () => {
+      active = false;
+    };
+  }, [chapter.id, dynamicPhrase]);
+  const replyAudio = current.scenarioReply
+    ? dynamicPhrase && dynamicPhrase === availableReply
+      ? dynamicPhrase
+      : undefined
+    : replyPhrase;
   const dialogueAudio = !current.finished && step.type === 'dialogue' ? step.line?.en : undefined;
   const lineAudio = dialogueAudio ?? replyAudio;
   const referenceAudio =

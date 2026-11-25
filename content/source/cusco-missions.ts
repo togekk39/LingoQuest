@@ -72,6 +72,7 @@ const where: TravelMission = {
     ),
     teach.be,
     beChecks[0],
+    teach.beDetails,
     dialogue(
       'be-notes',
       'Luz',
@@ -109,7 +110,9 @@ const regular: TravelMission = {
     ),
     teach.regular,
     regularChecks[0],
-    ...formChecks('regular'),
+    formChecks('regular')[0],
+    teach.regularDetails,
+    ...formChecks('regular').slice(1),
     dialogue(
       'regular-audio',
       'Luz',
@@ -155,7 +158,9 @@ const irregular: TravelMission = {
       'Primero fuimos al mercado.',
     ),
     teach.irregular,
-    ...formChecks('irregular'),
+    ...formChecks('irregular').slice(0, 2),
+    teach.irregularDetails,
+    ...formChecks('irregular').slice(2),
     teach.order,
     ...irregularChecks,
     speaking(
@@ -179,6 +184,10 @@ const ask: TravelMission = {
   success: 'El diario del mercado ya tiene la persona y la hora correctas.',
   vocabulary: [],
   scenario: marketTimeline,
+  replacedSteps: {
+    'cusco-did-base-write': 'cusco-did-read',
+    'cusco-didnt-base-write': 'cusco-did-read',
+  },
   steps: [
     dialogue(
       'ask-opening',
@@ -186,8 +195,8 @@ const ask: TravelMission = {
       'En el patio del hotel, Nora compara el diario con las fotos. Solo con las notas no se puede saber quién sacó una foto ni si la hora es correcta.',
     ),
     teach.ask,
-    ...formChecks('ask'),
     askChecks[0],
+    teach.askDetails,
     ...marketExchange,
     ...askChecks.slice(1),
     speaking(
@@ -283,7 +292,7 @@ const transfer: TravelMission = {
 
 export const cuscoChapter = {
   id: 'peru',
-  revision: 14,
+  revision: 15,
   title: 'Cusco',
   stamp: 'Cusco',
   postcard: 'Un nuevo recuerdo',

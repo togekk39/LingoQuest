@@ -260,7 +260,12 @@ export function upgradeTravelCheckpoints(
           : saved.contentRevision === 2
             ? mission?.steps[saved.step]?.id
             : undefined);
-    const step = mission?.steps.findIndex((item) => item.id === stableId) ?? -1;
+    const replacement = stableId ? mission?.replacedSteps?.[stableId] : undefined;
+    const currentId = replacement ?? stableId;
+    const step = mission?.steps.findIndex((item) => item.id === currentId) ?? -1;
+    if (replacement) {
+      saved = { ...saved, answer: {}, result: undefined, scenarioReply: undefined };
+    }
     if (mission?.scenario) {
       const authoredScenario = mission.scenario;
       const compatible = saved.scenario?.definitionDigest === rpgScenarioDigest(authoredScenario);
@@ -312,7 +317,7 @@ export function upgradeTravelCheckpoints(
     return {
       ...saved,
       step,
-      stepId: stableId,
+      stepId: currentId,
       answer,
       ...(chapter.id !== 'home' && mission?.steps[step]?.type === 'teach' && { word: undefined }),
       contentRevision: chapter.revision,

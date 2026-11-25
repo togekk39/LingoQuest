@@ -71,6 +71,7 @@ export function reviewCandidate(
   exercise: CourseExercise,
   prerequisites: ReturnType<typeof reviewPrerequisites>,
   targets: readonly UnifiedEvidenceTarget[] = exerciseEvidenceTargets(exercise, lesson.id),
+  recommendUnverified = false,
 ) {
   return {
     lesson,
@@ -85,6 +86,7 @@ export function reviewCandidate(
     errors: exerciseCheckedErrors(exercise),
     remediates: exercise.learning?.remediates,
     prerequisites,
+    recommendUnverified,
   };
 }
 
@@ -190,8 +192,13 @@ export function unifiedReviewPlans(
       ...ranked.filter(reviewReady),
       ...ranked.filter((candidate) => candidate.prerequisites?.instruction),
     ];
+    const recommended =
+      !mastery.independentSuccesses &&
+      alternatives.some((candidate) => candidate.recommendUnverified && reviewReady(candidate));
     const due =
-      mastery.needsReview || (!!mastery.nextReviewAt && Date.parse(mastery.nextReviewAt) <= now);
+      recommended ||
+      mastery.needsReview ||
+      (!!mastery.nextReviewAt && Date.parse(mastery.nextReviewAt) <= now);
     const reason = mastery.pendingErrors.length ? 'remediation' : due ? 'due' : 'practice';
     return [
       {

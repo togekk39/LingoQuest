@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { normalizeAnswerText } from '@lingoquest/contracts';
+import { normalizeAnswerText, type LearningError } from '@lingoquest/contracts';
 import {
   eventFactSchema,
   type EventFact,
@@ -15,6 +15,7 @@ const identifier = z
   .regex(/^[a-z][a-z0-9._-]*$/)
   .max(100);
 const factKey = z.object({ eventId: identifier, field: eventFactSchema }).strict();
+const inquiryForms = ['did-question', 'wh-question', 'subject-question'] as const;
 
 export const eventScenarioStateSchema = z
   .object({
@@ -24,7 +25,13 @@ export const eventScenarioStateSchema = z
     phase: z.enum(['investigating', 'complete']),
     confirmed: z.array(factKey).max(80),
     answers: z
-      .array(factKey.extend({ speakerId: identifier, subjectId: identifier.optional() }))
+      .array(
+        factKey.extend({
+          speakerId: identifier,
+          subjectId: identifier.optional(),
+          form: z.enum(inquiryForms).optional(),
+        }),
+      )
       .max(160),
     submitted: z
       .array(z.object({ eventId: identifier, text: z.string().min(1).max(2000) }).strict())
@@ -34,7 +41,7 @@ export const eventScenarioStateSchema = z
 
 export type EventScenarioState = z.infer<typeof eventScenarioStateSchema>;
 type Participant = EventScenarioDefinition['participants'][number];
-type InquiryForm = Extract<EventForm, 'did-question' | 'wh-question' | 'subject-question'>;
+type InquiryForm = (typeof inquiryForms)[number];
 const uncertainty = {
   en: "I'm not sure. Maybe someone else knows.",
   es: 'No estoy seguro. Tal vez alguien más lo sepa.',
@@ -50,9 +57,54 @@ const normalize = (value: string) =>
 const includesPhrase = (value: string, phrases: readonly string[]) =>
   phrases.some((phrase) => value === normalize(phrase));
 
+const timePattern =
+  "(?:[0-9]{1,2}(?::[0-9]{2})?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight)(?: o'clock)?(?: [ap]m)?";
+const leadingTime = new RegExp('^at (' + timePattern + ') (.+)$');
+const trailingTime = new RegExp('^(?:(.+?) )?at (' + timePattern + ')(?: (.+))?$');
+const timeSuffix = new RegExp('^ at ' + timePattern + '$');
+const badDate = {
+  outcome: 'context_mismatch' as const,
+  feedbackEs: 'Indica un solo día y comprueba la fecha del diario.',
+};
+
 function dateReference(text: string) {
-  const pattern = /(?:^| )(yesterday|today|last night|last weekend)(?= |$)/;
-  return { date: pattern.exec(text)?.[1], clause: text.replace(pattern, ' ').trim() };
+  const dates = text.matchAll(/(?:^| )(yesterday|today|last night|last weekend)(?= |$)/g);
+  const match = dates.next().value;
+  if (!match) return { clause: text };
+  const end = match.index + match[0].length;
+  if (
+    !dates.next().done ||
+    (match.index !== 0 && end !== text.length && !timeSuffix.test(text.slice(end)))
+  )
+    return;
+  return { date: match[1], clause: (text.slice(0, match.index) + text.slice(end)).trim() };
+}
+
+function errorTargets(
+  turn: EventScenarioTurn,
+  form: EventForm,
+  error: LearningError,
+  eventId?: string,
+) {
+  return (
+    turn.errorTargets?.find(
+      (entry) => entry.form === form && entry.error === error && entry.eventId === eventId,
+    )?.targets ??
+    turn.errorTargets?.find(
+      (entry) => entry.form === form && entry.error === error && !entry.eventId,
+    )?.targets
+  );
+}
+
+function answerForm(answer: EventScenarioState['answers'][number]): InquiryForm {
+  return (
+    answer.form ??
+    (answer.field !== 'person'
+      ? 'wh-question'
+      : answer.subjectId
+        ? 'did-question'
+        : 'subject-question')
+  );
 }
 
 function namedPerson(definition: EventScenarioDefinition, value: string) {
@@ -149,7 +201,9 @@ function inquire(
       },
     };
 
-  const { date, clause: question } = dateReference(text.replace(/^please | please$/g, ''));
+  const dated = dateReference(text.replace(/^please | please$/g, ''));
+  if (!dated) return { verdict: badDate };
+  const { date, clause: question } = dated;
   const did = /^(?:(when|where|what time|what) )?did ([a-z]+) (.+)$/.exec(question);
   const who = /^who (.+)$/.exec(question);
   const subject = did && (did[2] === 'you' ? speaker : namedPerson(definition, did[2]));
@@ -171,10 +225,14 @@ function inquire(
           ? 'Después de did usa la forma base del verbo.'
           : 'Para preguntar con was o were, pon esa forma antes del sujeto.',
         error: 'did_base',
-        targets: formTargets.filter(
-          ({ dimension, targetId }) =>
-            dimension === 'grammar_production' && targetId === 'grammar.did',
-        ),
+        targets:
+          errorTargets(turn, form, 'did_base') ??
+          (turn.errorTargets
+            ? []
+            : formTargets.filter(
+                ({ dimension, targetId }) =>
+                  dimension === 'grammar_production' && targetId === 'grammar.did',
+              )),
       },
     };
   }
@@ -183,6 +241,8 @@ function inquire(
       verdict: {
         outcome: 'incorrect',
         feedbackEs: 'Después de who, cuando preguntas quién hizo algo, usa el pasado del verbo.',
+        error: 'past_spelling',
+        targets: errorTargets(turn, 'subject-question', 'past_spelling'),
       },
     };
   if ((!did && !who) || (did && !subject))
@@ -225,12 +285,13 @@ function inquire(
       reply: { speaker: speaker.name, line: uncertainty },
     };
 
+  const sameInquiry = (answer: EventScenarioState['answers'][number]) =>
+    answer.eventId === event.id &&
+    answer.field === field &&
+    answerForm(answer) === form &&
+    answer.subjectId === (field === 'person' ? subject?.id : undefined);
   const previous = state.answers.some(
-    (answer) =>
-      answer.eventId === event.id &&
-      answer.field === field &&
-      answer.speakerId === speaker.id &&
-      answer.subjectId === (field === 'person' ? subject?.id : undefined),
+    (answer) => sameInquiry(answer) && answer.speakerId === speaker.id,
   );
   const confirmed =
     (field !== 'person' || actorMatches) && !confirmedEventFact(state, event, field);
@@ -248,7 +309,10 @@ function inquire(
       reply,
     };
 
-  const target = turn.focusEventIds.includes(event.id) && turn.targetForms.includes(form);
+  const target =
+    turn.focusEventIds.includes(event.id) &&
+    turn.targetForms.includes(form) &&
+    !state.answers.some(sameInquiry);
   return {
     verdict: {
       outcome: target ? 'target' : 'communication_only',
@@ -263,6 +327,7 @@ function inquire(
           eventId: event.id,
           field,
           speakerId: speaker.id,
+          form,
           ...(field === 'person' && subject && { subjectId: subject.id }),
         },
       ],
@@ -270,11 +335,6 @@ function inquire(
     reply,
   };
 }
-
-const timePattern =
-  "(?:[0-9]{1,2}(?::[0-9]{2})?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight)(?: o'clock)?(?: [ap]m)?";
-const leadingTime = new RegExp(`^at (${timePattern}) (.+)$`);
-const trailingTime = new RegExp(`(?:^| )at (${timePattern})(?: |$)`);
 
 function record(
   definition: EventScenarioDefinition,
@@ -293,9 +353,14 @@ function record(
     .split('\n')
     .filter((line) => line.trim());
   const submitted: EventScenarioState['submitted'] = [];
-  const productions = new Set<EventForm>();
   for (const source of clauses) {
-    const { date, clause: text } = dateReference(normalize(source));
+    if (source.trim().endsWith('?'))
+      return {
+        verdict: { outcome: 'ungradable', feedbackEs: 'Escribe una afirmación para la nota.' },
+      };
+    const dated = dateReference(normalize(source));
+    if (!dated) return { verdict: badDate };
+    const { date, clause: text } = dated;
     const first = leadingTime.exec(text);
     const [person, ...words] = (first?.[2] ?? text).split(' ');
     const subject = namedPerson(definition, person);
@@ -330,7 +395,27 @@ function record(
     const { event, details } = match[0];
     if (!turn.focusEventIds.includes(event.id))
       return mismatch('Escribe la corrección de la entrada con datos pendientes.');
+    const last = trailingTime.exec(details);
+    if ((first && last) || (last?.[1] && last[3]))
+      return mismatch('Incluye una sola hora para este evento.');
+    const time = first?.[1] ?? last?.[2];
+    const placePhrase = (last ? (last[1] ?? last[3] ?? '') : details).trim();
+    if (placePhrase && !/^(at|in) /.test(placePhrase))
+      return {
+        verdict: {
+          outcome: 'ungradable',
+          feedbackEs: 'Revisa el lugar y escribe una sola hora.',
+        },
+      };
+    const place = placePhrase.replace(/^(?:at|in) /, '');
+    if (place && !includesPhrase(place, event.place.aliases))
+      return mismatch('Comprueba el lugar que confirmaste e inclúyelo en la nota.');
+    if (time && !includesPhrase(time, event.time.aliases))
+      return mismatch('Comprueba la hora que confirmaste e inclúyela en la nota.');
+    if (date && date !== normalize(event.date))
+      return mismatch('Comprueba el día del evento en el diario.');
     const expected = normalize(negative ? event.base : event.past);
+    const error = negative ? 'did_base' : 'past_spelling';
     if (verb !== expected)
       return {
         verdict: {
@@ -338,46 +423,27 @@ function record(
           feedbackEs: negative
             ? 'Después de didn’t usa el verbo en su forma base.'
             : 'Para contar lo que pasó usa el pasado del verbo.',
-          error: negative ? 'did_base' : 'past_spelling',
-          targets: negative
-            ? []
-            : turn.eventTargets
-                ?.find(({ eventId }) => eventId === event.id)
-                ?.targets.filter(({ dimension }) => dimension === 'grammar_production'),
+          error,
+          targets:
+            errorTargets(turn, negative ? 'past-negative' : 'past-statement', error, event.id) ??
+            (negative
+              ? []
+              : turn.eventTargets
+                  ?.find(({ eventId }) => eventId === event.id)
+                  ?.targets.filter(({ dimension }) => dimension === 'grammar_production')),
         },
       };
     if (negative || subject.id !== event.personId)
       return mismatch(
         'La forma en inglés es válida. Comprueba quién realizó la acción y qué pasó.',
       );
-    if (date && date !== normalize(event.date))
-      return mismatch('Comprueba el día del evento en el diario.');
-    const last = trailingTime.exec(details);
-    if (first && last) return mismatch('Incluye una sola hora para este evento.');
-    const time = first?.[1] ?? last?.[1];
-    const placePhrase = details.replace(trailingTime, ' ').trim();
-    if (placePhrase && !/^(at|in) /.test(placePhrase))
-      return {
-        verdict: {
-          outcome: 'ungradable',
-          feedbackEs: 'Revisa cómo unes el evento con el lugar. Prueba con at o in.',
-        },
-      };
-    const place = placePhrase.replace(/^(?:at|in) /, '');
-    if (
-      (time && !includesPhrase(time, event.time.aliases)) ||
-      (!time && event.required.includes('time'))
-    )
+    if (!time && event.required.includes('time'))
       return mismatch('Comprueba la hora que confirmaste e inclúyela en la nota.');
-    if (
-      (place && !includesPhrase(place, event.place.aliases)) ||
-      (!place && event.required.includes('place'))
-    )
+    if (!place && event.required.includes('place'))
       return mismatch('Comprueba el lugar que confirmaste e inclúyelo en la nota.');
     if (submitted.some(({ eventId }) => eventId === event.id))
       return mismatch('Escribe una sola nota por cada evento.');
     submitted.push({ eventId: event.id, text: source.trim() });
-    productions.add('past-statement');
   }
   if (
     definition.events.some(
@@ -385,10 +451,10 @@ function record(
     )
   )
     return mismatch('Incluye una nota en inglés por cada evento con datos pendientes.');
-  const target = [...productions].every((form) => turn.targetForms.includes(form));
+  const target = turn.targetForms.includes('past-statement');
   const targets = [
     ...(turn.formTargets ?? []).flatMap(({ form, targets }) =>
-      productions.has(form) ? targets : [],
+      form === 'past-statement' ? targets : [],
     ),
     ...(turn.eventTargets ?? []).flatMap(({ eventId, targets }) =>
       submitted.some((entry) => entry.eventId === eventId) ? targets : [],
