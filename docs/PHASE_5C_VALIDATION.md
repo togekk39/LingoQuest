@@ -48,4 +48,6 @@ The merged Phase 5B baseline passed curriculum verification with 1,567 answer ch
 
 The local Phase 5B baseline also passed all 61 Playwright tests. Phase 5C passed all 1,567 grading probes, course and chapter pack verification, TypeScript, ESLint, 146 automated tests, the Web export and the Android Hermes export. The four new Phase 5C Playwright scenarios passed locally. The pull request checks report full browser regression and signed APK results for each revision. [Phase 5C pull request](https://github.com/togekk39/LingoQuest/pull/30) · [Android APK runs](https://github.com/togekk39/LingoQuest/actions/workflows/android-apk.yml?query=branch%3Acodex%2Fphase-5c-unified-learning)
 
+The ARM preview APK for product source `fc80817` passed the native English voice checks and signature verification. The downloaded APK matched the published SHA-256 checksum. The follow-up Storybook test checks that a chosen practice name remains separate from the saved profile. [Signed Android build](https://github.com/togekk39/LingoQuest/actions/runs/45550917650)
+
 Automated checks establish product behavior under the tested inputs. Learner outcomes, long-term retention and regional language register require human evaluation.

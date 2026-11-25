@@ -463,8 +463,9 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await enterApp(page);
   await readyOfflineShell(page, context);
   await openAdventure(page, 'Ana O’Connor');
-  await expect.poll(async () => (await state(page)).user.name).toBe('Ana O’Connor');
+  await expect.poll(async () => (await state(page)).travel.practiceName).toBe('Ana O’Connor');
   const initial = await state(page);
+  expect(initial.user.name).toBe('Explorador');
   expect(initial.attempts).toEqual({});
   expect(initial.travelLearning?.targets ?? []).toEqual([]);
   const initialXp = initial.xp;
