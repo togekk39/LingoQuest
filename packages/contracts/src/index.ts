@@ -98,6 +98,7 @@ export const learningErrorSchema = z.enum([
   'article',
   'word_order',
   'false_friend',
+  'vocabulary_sense',
 ]);
 export type LearningError = z.infer<typeof learningErrorSchema>;
 export interface Translation {
@@ -185,7 +186,7 @@ export function suggestPlacementLevel(
   return answered === questions.length &&
     later.length > 0 &&
     correct.size >= Math.ceil(questions.length * 0.75) &&
-    later.filter((question) => correct.has(question.id)).length >= Math.ceil(later.length * 2 / 3)
+    later.filter((question) => correct.has(question.id)).length >= Math.ceil((later.length * 2) / 3)
     ? 'A2'
     : 'A1';
 }

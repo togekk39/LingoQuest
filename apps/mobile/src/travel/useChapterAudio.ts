@@ -25,12 +25,14 @@ export function useChapterAudio() {
       phrases: readonly string[],
       onSelect?: (index: number) => void,
       useBundledIfUnavailable = false,
+      onPlayed?: () => void,
     ) => {
       playback.current?.abort();
       const controller = new AbortController();
       playback.current = controller;
       const { signal } = controller;
       setSpeechMessage('');
+      let completed = true;
       try {
         player.stop();
         await stopOfflineSpeech();
@@ -54,11 +56,13 @@ export function useChapterAudio() {
           const clip = audioClips[phrase];
           if (!clip || (preferences.voice !== null && !useBundledIfUnavailable)) {
             setSpeechMessage(result.message);
+            completed = false;
             continue;
           }
           setSpeechMessage('Voz del sistema no disponible. Estás escuchando el audio incluido.');
           if (!(await player.play(clip, preferences.rate ?? 1, signal))) return;
         }
+        if (completed && !signal.aborted) onPlayed?.();
       } catch {
         if (!signal.aborted)
           setSpeechMessage('No pudimos reproducir la frase. Revisa la configuración de voz.');
@@ -69,8 +73,8 @@ export function useChapterAudio() {
     [player],
   );
   const play = useCallback(
-    (phrase: string, useBundledIfUnavailable = false) =>
-      playSequence([phrase], undefined, useBundledIfUnavailable),
+    (phrase: string, useBundledIfUnavailable = false, onPlayed?: () => void) =>
+      playSequence([phrase], undefined, useBundledIfUnavailable, onPlayed),
     [playSequence],
   );
   const stop = useCallback(() => {

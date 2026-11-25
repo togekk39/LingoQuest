@@ -97,6 +97,7 @@ export const learningErrorFeedback: Record<LearningError, string> = {
   article: 'El artículo va antes del sustantivo o de su descripción: the park, a blue bag.',
   word_order: 'Las palabras son adecuadas. Revisa su orden y compáralo con el ejemplo.',
   false_friend: 'Esta palabra se parece a una del español, pero su significado en inglés cambia.',
+  vocabulary_sense: 'Compara el significado de esta palabra con el ejemplo de la situación.',
 };
 
 function tokens(value: string) {
@@ -146,6 +147,38 @@ function differsByToken(expected: string[], actual: string[], eligible: Set<stri
   );
 }
 
+function thirdPersonForm(word: string) {
+  if (word === 'have') return 'has';
+  if (/[^aeiou]y$/.test(word)) return word.slice(0, -1) + 'ies';
+  return word + (/(ch|sh|s|x|z|o)$/.test(word) ? 'es' : 's');
+}
+
+export function writtenLearningErrors(answers: readonly string[]): LearningError[] {
+  const expected = answers.map(tokens);
+  const usesBe = expected.some((words) => words.some((word) => formsOfBe.has(word)));
+  const coverage: [LearningError, boolean][] = [
+    ['subject_omission', expected.some((words) => words.some((word) => subjects.has(word)))],
+    ['be_omission', usesBe],
+    ['be_agreement', usesBe],
+    [
+      'third_person',
+      expected.some(
+        ([subject, verb]) =>
+          !!subject &&
+          !!verb &&
+          ['he', 'she', 'it'].includes(subject) &&
+          verb.endsWith('s') &&
+          !formsOfBe.has(verb),
+      ),
+    ],
+    ['tense', usesBe],
+    ['preposition', expected.some((words) => words.some((word) => prepositions.has(word)))],
+    ['article', expected.some((words) => words.some((word) => articles.has(word)))],
+    ['word_order', expected.some((words) => new Set(words).size > 1)],
+  ];
+  return coverage.flatMap(([error, applies]) => (applies ? [error] : []));
+}
+
 export function findLearningError(
   target: LearningTarget,
   answer: Answer,
@@ -184,6 +217,21 @@ export function findLearningError(
           formsOfBe.has(actual[i]) &&
           actual[i] !== word &&
           pastBe.has(word) === pastBe.has(actual[i]) &&
+          sameWords([...expected.slice(0, i), actual[i], ...expected.slice(i + 1)], actual),
+      ),
+    third_person: (expected) =>
+      ['he', 'she', 'it'].includes(expected[0]) &&
+      actual[0] === expected[0] &&
+      !!actual[1] &&
+      thirdPersonForm(actual[1]) === expected[1] &&
+      sameWords(expected.slice(2), actual.slice(2)),
+    tense: (expected) =>
+      expected.length === actual.length &&
+      expected.some(
+        (word, i) =>
+          formsOfBe.has(word) &&
+          formsOfBe.has(actual[i]) &&
+          pastBe.has(word) !== pastBe.has(actual[i]) &&
           sameWords([...expected.slice(0, i), actual[i], ...expected.slice(i + 1)], actual),
       ),
     preposition: (expected) => differsByToken(expected, actual, prepositions),

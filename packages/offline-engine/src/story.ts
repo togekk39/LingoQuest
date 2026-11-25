@@ -3,6 +3,7 @@ import { homeCountries, type HomeCountry } from './travel-route';
 
 const idSchema = z.string().min(1).max(100);
 const turnSchema = z.number().int().nonnegative().safe();
+const dialogueObservation = { turn: turnSchema, translationShown: z.boolean().optional() };
 const questStateSchema = z
   .object({
     status: z.enum(['active', 'completed']),
@@ -42,13 +43,21 @@ export type NPCState = z.infer<typeof npcStateSchema>;
 export type InventoryState = z.infer<typeof inventoryStateSchema>;
 
 const operationSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('interact'), turn: turnSchema, hotspotId: idSchema }).strict(),
-  z.object({ action: z.literal('choose'), turn: turnSchema, choiceId: idSchema }).strict(),
-  z.object({ action: z.literal('closeDialogue'), turn: turnSchema }).strict(),
+  z.object({ action: z.literal('interact'), ...dialogueObservation, hotspotId: idSchema }).strict(),
+  z.object({ action: z.literal('choose'), ...dialogueObservation, choiceId: idSchema }).strict(),
+  z.object({ action: z.literal('closeDialogue'), ...dialogueObservation }).strict(),
   z.object({ action: z.literal('suspendEncounter'), turn: turnSchema }).strict(),
   z.object({ action: z.literal('finishEncounter'), turn: turnSchema }).strict(),
 ]);
 export type StoryOperation = z.input<typeof operationSchema>;
+
+export interface StoryLearningActivity {
+  kind: 'introduced' | 'guided';
+  itemId: string;
+  dialogueId: string;
+  token: string;
+  translation: boolean;
+}
 
 export type StoryCondition = (
   | { type: 'flag'; id: string; value?: string }
@@ -371,6 +380,7 @@ export function updateStory(
   state: StoryState,
   context: StoryContext,
   operation: unknown,
+  activity?: (event: StoryLearningActivity) => void,
 ) {
   const input = operationSchema.parse(operation);
   upgradeStory(definition, state);
@@ -380,6 +390,8 @@ export function updateStory(
     state.turn !== input.turn
   )
     return;
+  const dialogue = byId(definition.dialogues, state.dialogueId);
+  let choiceId: string | undefined;
   let effects: readonly StoryEffect[] = [];
   switch (input.action) {
     case 'interact': {
@@ -392,13 +404,15 @@ export function updateStory(
       break;
     }
     case 'choose': {
-      const node = byId(definition.dialogues, state.dialogueId);
-      const choice = byId(node?.choices ?? [], input.choiceId);
-      if (!node || !choice || !canInteract(choice, state, context)) return;
+      const choice = byId(dialogue?.choices ?? [], input.choiceId);
+      if (!dialogue || !choice || !canInteract(choice, state, context)) return;
       if (
-        !state.choices.some((saved) => saved.dialogueId === node.id && saved.choiceId === choice.id)
+        !state.choices.some(
+          (saved) => saved.dialogueId === dialogue.id && saved.choiceId === choice.id,
+        )
       )
-        state.choices.push({ dialogueId: node.id, choiceId: choice.id });
+        state.choices.push({ dialogueId: dialogue.id, choiceId: choice.id });
+      choiceId = choice.id;
       effects = choice.effects;
       break;
     }
@@ -422,6 +436,14 @@ export function updateStory(
   }
   applyEffects(definition, state, context, effects);
   settleQuests(definition, state, context);
+  if (dialogue && ['interact', 'choose', 'closeDialogue'].includes(input.action)) {
+    const token = `${definition.id}:${state.turn}`;
+    const translation = 'translationShown' in input && input.translationShown === true;
+    const dialogueId = dialogue.id;
+    if (dialogue.line)
+      activity?.({ kind: 'introduced', itemId: dialogueId, dialogueId, token, translation });
+    if (choiceId) activity?.({ kind: 'guided', itemId: choiceId, dialogueId, token, translation });
+  }
   state.turn++;
 }
 

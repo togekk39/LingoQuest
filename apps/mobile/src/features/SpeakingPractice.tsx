@@ -6,6 +6,7 @@ import { StoryActivity } from '../travel/StoryDialogueAppearance';
 import { useTheme } from '../theme';
 import { pausePracticePlayback } from './pausePracticePlayback';
 import { playPracticeClip } from './playPracticeClip';
+import { useLocalSpeechRecording } from './useLocalSpeechRecording';
 import { useSystemSTT } from './useSystemSTT';
 import React, { useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -19,9 +20,16 @@ import {
 } from './offlineSpeech';
 import { ShieldCheck, Volume2 } from 'lucide-react-native';
 import { Action, useFeatureStyles, FlowFrame, InputViewportContext } from './FeatureUI';
+import { api } from '../lib/api';
 
 export type SpeakingPracticeMethod = 'recorded' | 'imitated';
 export type SpeakingPanelHandle = { stop: () => void };
+type SpeechEvidenceScope = {
+  source: 'story' | 'study' | 'drill' | 'travel-guide';
+  materialId: string;
+  itemId: string;
+  submissionId?: string;
+};
 
 export function SpeakingPanel({
   text,
@@ -36,6 +44,7 @@ export function SpeakingPanel({
   acceptedPhrases,
   exampleLabel,
   matchesTranscript,
+  evidenceScope,
   inline = false,
   ref,
 }: {
@@ -51,6 +60,7 @@ export function SpeakingPanel({
   matchesTranscript?: (transcript: string) => boolean;
   allowSystemRecognition?: boolean;
   feedback?: (transcript: string) => { content: string; grammar: string };
+  evidenceScope?: SpeechEvidenceScope;
   inline?: boolean;
   ref?: React.Ref<SpeakingPanelHandle>;
 }) {
@@ -60,6 +70,7 @@ export function SpeakingPanel({
   const Section = inline ? StoryActivity : Notebook;
 
   const stt = useSystemSTT();
+  const local = useLocalSpeechRecording();
   const [systemSelected, setSystemSelected] = useState(false);
   const android = Platform.OS === 'android';
   const showRecognition = android || systemSelected;
@@ -68,15 +79,21 @@ export function SpeakingPanel({
   const { playOffline, speechMessage, stop: stopAudio } = useOfflineSpeech(chapterId);
   const [comparing, setComparing] = useState(false);
   const comparison = useRef<AbortController | null>(null);
+  const sent = useRef<string | undefined>(undefined);
   const transcriptPanel = useRef<View>(null);
   const { revealItem } = useContext(InputViewportContext);
   const recognizing = stt.phase !== 'idle';
-  const audioBusy = comparing || recognizing;
+  const localBusy = local.phase !== 'idle';
+  const audioBusy = comparing || recognizing || localBusy;
+  const recordingUri = local.capture?.uri ?? stt.recordingUri;
   const textFeedback = stt.finalTranscript && feedback?.(stt.finalTranscript);
   const passed = matchesTranscript
     ? matchesTranscript(stt.finalTranscript)
     : matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
   const transcript = stt.finalTranscript || stt.liveTranscript;
+  const completed = stt.completed ?? local.capture;
+  const [saveError, setSaveError] = useState(false);
+  const [saveRetry, setSaveRetry] = useState(0);
   const transcriptStatus =
     stt.phase === 'starting'
       ? 'Preparando el micrófono…'
@@ -91,6 +108,32 @@ export function SpeakingPanel({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!evidenceScope || !completed || sent.current === completed.id) return;
+    sent.current = completed.id;
+    const id = evidenceScope.submissionId
+      ? `${evidenceScope.submissionId}:${completed.id}`
+      : completed.id;
+    setSaveError(false);
+    void api('/v1/speech/practice', {
+      id,
+      source: evidenceScope.source,
+      materialId: evidenceScope.materialId,
+      itemId: evidenceScope.itemId,
+      retry: completed.retry,
+      timestamp: completed.timestamp,
+      ...(stt.completed
+        ? {
+            recognition: stt.completed.transcript ? (passed ? 'matched' : 'unmatched') : 'empty',
+            recording: stt.completed.recording,
+          }
+        : { recording: true }),
+    }).catch(() => {
+      if (sent.current !== completed.id) return;
+      setSaveError(true);
+    });
+  }, [completed, evidenceScope, passed, saveRetry, stt.completed]);
 
   useEffect(() => {
     if (!recognizing) return;
@@ -120,6 +163,7 @@ export function SpeakingPanel({
       onStopReference?.();
     } finally {
       stt.cancel();
+      local.cancel();
     }
   }
 
@@ -152,7 +196,7 @@ export function SpeakingPanel({
       if (run.signal.aborted) return;
       const [downloaded, preferences] = await Promise.all([
         getAvailableChapterAudio(chapterId, text),
-        getSpeechPreferences(),
+        getSpeechPreferences().catch(() => ({ rate: null })),
       ]);
       if (run.signal.aborted) return;
       const rate = preferences.rate ?? 1;
@@ -164,11 +208,12 @@ export function SpeakingPanel({
       const played =
         downloadedPlayed ||
         (bundled
-          ? await playPracticeClip(player, bundled, rate, run.signal)
+          ? await playPracticeClip(player, bundled, rate, run.signal).catch(() => false)
           : await speakOffline(text));
-      if (!played && !run.signal.aborted) throw new Error('Reference audio unavailable');
-      if (played && !run.signal.aborted) {
-        await playPracticeClip(player, { uri }, 1, run.signal);
+      if (!run.signal.aborted) {
+        if (!played) setMessage('Por ahora solo podemos reproducir tu grabación.');
+        const recordingPlayed = await playPracticeClip(player, { uri }, 1, run.signal);
+        if (!recordingPlayed && !run.signal.aborted) throw new Error('Recording unavailable');
       }
     } catch {
       if (!run.signal.aborted) {
@@ -213,6 +258,26 @@ export function SpeakingPanel({
           {speechMessage}
         </Text>
       )}
+      {android && (
+        <Action
+          secondary
+          disabled={comparing || recognizing || local.phase === 'stopping' || story?.saving}
+          busy={local.phase === 'preparing'}
+          onPress={() => {
+            if (local.phase === 'recording') local.stop();
+            else {
+              stt.cancel();
+              void local.start(() => {
+                stopAudio();
+                onStopReference?.();
+                pausePracticePlayback(player, Platform.OS);
+              });
+            }
+          }}
+        >
+          {local.phase === 'recording' ? 'Terminar grabación' : 'Grabar sin conexión'}
+        </Action>
+      )}
       {showRecognition && stt.hasRecognitionModule ? (
         <>
           <Text style={f.quiet}>
@@ -221,11 +286,12 @@ export function SpeakingPanel({
               : 'El servicio de voz del sistema o del navegador puede procesar tu audio en línea.'}
           </Text>
           <Action
-            disabled={comparing || story?.saving || stt.phase === 'stopping'}
+            disabled={comparing || localBusy || story?.saving || stt.phase === 'stopping'}
             busy={stt.phase === 'starting'}
             onPress={() => {
               if (stt.phase === 'listening') stt.stop();
               else {
+                local.cancel();
                 setMessage('');
                 void stt.start(() => {
                   stopAudio();
@@ -284,9 +350,8 @@ export function SpeakingPanel({
                       : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
                 </Text>
                 <Text style={f.quiet}>
-                  Esta pista se basa en las palabras transcritas. Escucha tu grabación para comparar
-                  los sonidos. En una conversación, fíjate si la otra persona entiende lo que
-                  quieres decir.
+                  Las palabras transcritas dan una pista sobre el contenido. La pronunciación y la
+                  conversación espontánea siguen sin verificar.
                 </Text>
               </>
             )}
@@ -298,13 +363,29 @@ export function SpeakingPanel({
           {stt.message}
         </Text>
       )}
-      {stt.recordingUri && stt.phase === 'idle' && (
+      {!!local.message && (
+        <Text accessibilityRole="alert" style={f.body}>
+          {local.message}
+        </Text>
+      )}
+      {saveError && completed && (
+        <Action
+          secondary
+          onPress={() => {
+            sent.current = undefined;
+            setSaveRetry(saveRetry + 1);
+          }}
+        >
+          Reintentar guardar la práctica
+        </Action>
+      )}
+      {recordingUri && stt.phase === 'idle' && !localBusy && (
         <Action
           secondary
           disabled={story?.saving}
           onPress={() => {
             if (comparison.current) stopComparison();
-            else if (stt.recordingUri) void compareRecording(stt.recordingUri);
+            else void compareRecording(recordingUri);
           }}
         >
           {comparing ? 'Detener comparación' : 'Escuchar ejemplo y mi grabación'}
@@ -318,17 +399,17 @@ export function SpeakingPanel({
       <View style={s.privacy}>
         <ShieldCheck size={19} color={palette.muted} />
         <Text style={[f.quiet, { flex: 1 }]}>
-          Si el dispositivo permite grabar durante el reconocimiento, la copia local se elimina al
-          volver a intentarlo o salir.
+          La grabación local se elimina al volver a intentarlo o salir. Escúchala para comparar los
+          sonidos por tu cuenta.
         </Text>
       </View>
       <Action
         journal={!!story}
         busy={story?.saving}
-        disabled={!passed || stt.phase !== 'idle'}
+        disabled={(!passed && !local.capture) || localBusy || stt.phase !== 'idle'}
         onPress={() => {
-          if (passed && stt.phase === 'idle') {
-            finish(story ? (stt.recordingUri ? 'recorded' : 'imitated') : undefined);
+          if (!localBusy && (passed || local.capture) && stt.phase === 'idle') {
+            finish(story ? (recordingUri ? 'recorded' : 'imitated') : undefined);
           }
         }}
       >
@@ -359,10 +440,12 @@ export default function SpeakingPractice({
   text = 'Hello! I am learning English, one step at a time.',
   onDone,
   onClose,
+  evidenceScope,
 }: {
   text?: string;
   onDone: () => void;
   onClose?: () => void;
+  evidenceScope?: SpeechEvidenceScope;
 }) {
   return (
     <FlowFrame
@@ -371,7 +454,12 @@ export default function SpeakingPractice({
       eyebrow="Práctica de pronunciación"
       onClose={onClose ?? onDone}
     >
-      <SpeakingPanel text={text} onDone={onDone} allowSystemRecognition />
+      <SpeakingPanel
+        text={text}
+        onDone={onDone}
+        evidenceScope={evidenceScope}
+        allowSystemRecognition
+      />
     </FlowFrame>
   );
 }

@@ -1,52 +1,23 @@
 import {
   canonicalStringify,
-  sha256Hex,
   type CourseExercise,
   type CourseLesson,
 } from '@lingoquest/course-pack';
+import {
+  formalTargetReference as reference,
+  lexical,
+  textbookExerciseDependencies,
+  textbookExerciseDigest,
+  textbookFormalTargets,
+  textbookTeachingDigest,
+} from '../content/source/prerequisites/textbook-dependencies';
 import { textbookPatterns } from '../content/source/prerequisites/textbook-patterns';
 import { textbookReview } from '../content/source/prerequisites/textbook-review';
 import type { PrerequisiteFile } from '../packages/course-pack/src/prerequisites';
 
 type Target = PrerequisiteFile['targets'][number];
-type LexicalTarget = Extract<Target, { kind: 'lexical' }>;
-type PatternTarget = Extract<Target, { kind: 'pattern' }>;
 type Lesson = PrerequisiteFile['lessons'][number];
 type Stage = Lesson['stages'][number];
-type Reference = Extract<Stage, { type: 'exercise' }>['requires'][number];
-
-const lexical = (id: string, en: string, es: string): LexicalTarget => ({
-  id,
-  kind: 'lexical',
-  lemma: en,
-  senseEs: es,
-  forms: [en],
-});
-
-export function textbookFormalTargets(lesson: CourseLesson) {
-  const vocabulary = lesson.vocabulary.map((item) => lexical('lex.' + item.id, item.en, item.es));
-  const forms = (lesson.grammar.taughtForms ?? []).map(({ en, es }, index) =>
-    lexical(`form.${lesson.id}.${index + 1}`, en, es),
-  );
-  const grammar: Extract<Target, { kind: 'grammar' }> = {
-    id: lesson.grammar.skillId,
-    kind: 'grammar',
-    descriptionEs: lesson.grammar.explanationEs,
-  };
-  const patterns = (textbookPatterns[lesson.id]?.patterns ?? []).map(
-    ([id, form]): PatternTarget => ({
-      id: `pattern.${lesson.id}.${id}`,
-      kind: 'pattern',
-      descriptionEs: form,
-      forms: [form],
-    }),
-  );
-  return { vocabulary, forms, grammar, patterns };
-}
-
-function reference(target: Target): Reference {
-  return target.kind === 'grammar' ? { id: target.id } : { id: target.id, form: target.forms[0] };
-}
 
 export function textbookExerciseEnglish(exercise: CourseExercise) {
   return [
@@ -68,12 +39,6 @@ export function textbookTokens(text: string) {
       .match(/[a-z]+(?:'[a-z]+)*/g) ?? []
   );
 }
-
-export const textbookExerciseDigest = (exercise: CourseExercise) =>
-  sha256Hex(canonicalStringify(exercise));
-
-export const textbookTeachingDigest = (lesson: CourseLesson) =>
-  sha256Hex(canonicalStringify({ vocabulary: lesson.vocabulary, grammar: lesson.grammar }));
 
 export function buildTextbookPrerequisites(lessons: readonly CourseLesson[]) {
   const targets = new Map<string, Target>();
@@ -154,23 +119,23 @@ export function buildTextbookPrerequisites(lessons: readonly CourseLesson[]) {
             `${locationWithItem} Revisa el ejercicio modificado / Review changed exercise`,
           );
 
-        const lexicalRecognition = item.type === 'meaning' || item.type === 'matching';
-        const indexedPractice = reviewed.practice[exerciseId];
-        if (!lexicalRecognition && !indexedPractice) {
+        const dependencies = textbookExerciseDependencies(id, item, (targetId) => {
+          const target = targets.get(targetId);
+          return target ? reference(target) : { id: targetId };
+        });
+        if (!dependencies) {
           issues.push(
             `${locationWithItem} Faltan requisitos del ejercicio / Missing exercise dependencies`,
           );
           continue;
         }
-        const practiceReferences: Reference[] = lexicalRecognition
-          ? item.vocabularyIds.map((word) => {
-              const targetId = 'lex.' + word;
-              const target = targets.get(targetId);
-              return target ? reference(target) : { id: targetId };
-            })
-          : indexedPractice!.vocabularyAndForms.map(([targetId, form]) => ({ id: targetId, form }));
-        const requiredPatterns = indexedPractice?.patterns ?? [];
-        const needsGrammar = requiredPatterns.length > 0;
+        const {
+          lexicalRecognition,
+          vocabularyAndForms: practiceReferences,
+          patterns: requiredPatterns,
+          grammar,
+        } = dependencies;
+        const needsGrammar = grammar !== undefined;
         if (!lexicalRecognition && item.dimension !== 'vocabulary_recall' && !needsGrammar)
           issues.push(
             `${locationWithItem} Falta un patrón evaluado / Missing assessed sentence pattern`,
@@ -181,11 +146,8 @@ export function buildTextbookPrerequisites(lessons: readonly CourseLesson[]) {
           );
         const requires = [
           ...practiceReferences,
-          ...requiredPatterns.map((key) => {
-            const target = targets.get(`pattern.${id}.${key}`);
-            return target ? reference(target) : { id: `pattern.${id}.${key}` };
-          }),
-          ...(needsGrammar ? [{ id: item.skillId }] : []),
+          ...requiredPatterns,
+          ...(grammar ? [grammar] : []),
         ];
 
         const supports: NonNullable<Extract<Stage, { type: 'exercise' }>['supports']> = [];

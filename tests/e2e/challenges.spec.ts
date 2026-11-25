@@ -1,13 +1,4 @@
-import {
-  test,
-  expect,
-  click,
-  exact,
-  enterApp,
-  readyOfflineShell,
-  state,
-  learningProgress,
-} from './helpers';
+import { test, expect, click, exact, enterApp, readyOfflineShell, state } from './helpers';
 
 test('travel trials stay locked until each mission has been taught, even with a stamp', async ({
   page,
@@ -28,7 +19,7 @@ test('travel trials stay locked until each mission has been taught, even with a 
   await expect(page.getByText('1 de 3 misiones necesarias')).toBeVisible();
 });
 
-test('travel trials expose chapter questions and keep unreleased ranks unavailable', async ({
+test('partial writing evidence and an older best score do not open a travel challenge', async ({
   page,
   context,
 }) => {
@@ -40,19 +31,38 @@ test('travel trials expose chapter questions and keep unreleased ranks unavailab
     const date = new Date().toISOString();
     s.travel.completed = { hello: date, bus: date, bag: date };
     s.travel.stamps.home = date;
+    s.unifiedLearning.evidence.push({
+      id: 'verified-travel_hello_write',
+      source: 'story',
+      materialId: 'travel_home',
+      materialVersion: 'home:7',
+      exerciseId: 'travel_hello_write',
+      timestamp: Date.parse(date),
+      contextId: 'welcome-desk',
+      format: 'short_text',
+      activity: 'answer',
+      outcome: 'target',
+      aids: [],
+      retry: false,
+      independent: true,
+      targets: [{ targetId: 'home.introduce', dimension: 'writing' }],
+    });
+    s.challengeProgress = [
+      {
+        trackId: 'home_journey',
+        type: 'grammar_rush',
+        mode: 'practice',
+        highestLevel: 3,
+        bestScores: { '3': 700 },
+        badge: false,
+      },
+    ];
     localStorage.setItem(key, JSON.stringify(s));
   });
-  const before = learningProgress(await state(page));
+  const before = await state(page);
   await page.getByRole('tab', exact('Desafíos')).click();
-  await click(page, 'Explorar práctica');
-  await expect(page.getByRole('button', { name: /^Nivel \d+:/ })).toHaveCount(13);
-  await expect(page.getByRole('button', { name: /^Nivel 4:/ })).toBeDisabled();
-  await page.getByRole('button', { name: /^Nivel 3:/ }).click();
-  await page.getByRole('switch', exact('Practicar sin reloj')).check();
-  await click(page, 'Empezar práctica');
-  await expect(page.getByLabel('Sin límite de tiempo')).toBeVisible();
-  await expect(page.getByText('My name ___ Sam.', { exact: true })).toBeVisible();
-  expect(learningProgress(await state(page))).toEqual(before);
+  await expect(page.getByRole('button', exact('Practica sin ayuda primero'))).toBeDisabled();
+  expect((await state(page)).challengeProgress).toEqual(before.challengeProgress);
 });
 
 test('the separate A1–A2 challenge track lists all 13 ranks offline', async ({ page, context }) => {

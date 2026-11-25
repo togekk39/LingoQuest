@@ -8,6 +8,7 @@ import { Button, Heading, Label } from '../ui';
 import { ErrorCard, FlowFrame } from './FeatureUI';
 import { LearningFlow } from './LearningFlow';
 import { LessonReference } from './LessonReference';
+import PlacementFlow from './PlacementFlow';
 
 export function TextbookFlow({
   completed,
@@ -25,21 +26,26 @@ export function TextbookFlow({
   onVoiceSettings: () => void;
 }) {
   const { colors } = useTheme();
-  const [catalog, setCatalog] = useState<{ units: Unit[]; draftIds: string[] }>();
+  const [catalog, setCatalog] = useState<{
+    units: Unit[];
+    draftIds: string[];
+    placementAvailable: boolean;
+  }>();
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
   const [unitId, setUnitId] = useState(initialUnitId);
   const [lesson, setLesson] = useState<{ id: string; mode: 'learn' | 'reference' }>();
+  const [placement, setPlacement] = useState(false);
 
   useEffect(() => {
     if (lesson) return;
     let current = true;
     void Promise.all([
-      api<{ units: Unit[] }>('/v1/catalog'),
+      api<{ units: Unit[]; placementAvailable: boolean }>('/v1/catalog'),
       api<string[]>('/v1/lessons/resume?all=true'),
     ])
-      .then(([{ units }, draftIds]) => {
-        if (current) setCatalog({ units, draftIds });
+      .then(([{ units, placementAvailable }, draftIds]) => {
+        if (current) setCatalog({ units, draftIds, placementAvailable });
       })
       .catch((failure: Error) => {
         if (current) setError(failure.message);
@@ -58,6 +64,16 @@ export function TextbookFlow({
     if (lesson?.mode === 'learn') onRefresh();
     setLesson(undefined);
   };
+  if (placement)
+    return (
+      <PlacementFlow
+        onClose={() => setPlacement(false)}
+        onComplete={({ level }) => {
+          setUnitId(catalog?.units.find((item) => item.cefr === level)?.id);
+          setPlacement(false);
+        }}
+      />
+    );
   if (lesson?.mode === 'reference') return <LessonReference id={lesson.id} onClose={closeLesson} />;
   if (lesson)
     return (
@@ -141,6 +157,11 @@ export function TextbookFlow({
               </Button>
             </JournalLeaf>
           ))}
+          {catalog.placementAvailable && (
+            <Button variant="ghost" onPress={() => setPlacement(true)}>
+              Encuentra tu punto de partida
+            </Button>
+          )}
         </View>
       )}
     </FlowFrame>

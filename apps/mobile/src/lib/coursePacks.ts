@@ -39,8 +39,9 @@ async function initialize() {
   })();
   return initialization;
 }
-export async function getActiveCourseData(): Promise<CoursePayload> {
-  return (await initialize()).payload;
+export async function getActiveCourseData(): Promise<CoursePayload & { courseVersion: string }> {
+  const pack = await initialize();
+  return { ...pack.payload, courseVersion: pack.manifest.version };
 }
 export async function getCoursePackInfo() {
   const pack = await initialize();

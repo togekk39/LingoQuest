@@ -3,7 +3,14 @@ import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CHAPTER_CATALOG_FILE } from '@lingoquest/course-pack';
-import type { CourseData, HomeContent, OfflineState, StoryResponse } from '../src/index';
+import type {
+  CourseData,
+  HomeContent,
+  OfflineState,
+  QuickReviewState,
+  StoryResponse,
+  TravelState,
+} from '../src/index';
 
 test('Android starts with a local shell and opens the installed adventure and course', async () => {
   const resolution = registerHooks({
@@ -139,6 +146,53 @@ test('Android starts with a local shell and opens the installed adventure and co
     installHomeContent({ ...story, ...story.runtime } as HomeContent);
     const restored = await engine.request<StoryResponse>('/v1/story');
     assert.deepEqual(restored.travel.active, { ...draft, contentRevision: story.chapter.revision });
+
+    const reply = await engine.request<TravelState>('/v1/travel?source=story', {
+      action: 'answer',
+      token: restored.travel.active!.token,
+      answer: { text: 'Hello! My name is Mei Lin.' },
+    });
+    assert.equal(reply.active?.result?.correct, true);
+    const saved = JSON.parse(snapshot!) as OfflineState;
+    assert.ok(
+      saved.reviewArchive?.travel_home.lesson.exercises.some(
+        ({ id }) => id === 'travel_hello_write',
+      ),
+    );
+    assert.ok(
+      saved.reviewArchive?.travel_home.lesson.exercises.every(
+        ({ learning }) => learning?.skill !== 'listening',
+      ),
+    );
+    installHomeContent();
+    content = { ...content, lessons: {} };
+    const path = '/v1/reviews/quick?source=unified&target=writing%3Ahome.introduce';
+    const writing = await engine.request<QuickReviewState>(path);
+    assert.equal(writing.lessonId, 'travel_home');
+    assert.equal(writing.audio, undefined);
+    assert.ok(writing.prerequisiteInstruction?.sections.length);
+    const premature = await engine.request<QuickReviewState>(path, {
+      action: 'answer',
+      token: writing.token,
+      answer: { text: 'Hello! My name is Mei Lin.' },
+    });
+    assert.equal(premature.result, undefined);
+    await engine.request(path, { action: 'prepare', token: writing.token });
+    const prepared = await engine.request<QuickReviewState>(path);
+    assert.equal(prepared.token, writing.token);
+    assert.equal(prepared.prerequisiteInstruction, undefined);
+    const reviewed = await engine.request<QuickReviewState>(path, {
+      action: 'answer',
+      token: writing.token,
+      answer: { text: 'Hello! My name is Mei Lin.' },
+    });
+    assert.equal(reviewed.result?.correct, true);
+    const reviewEvent = (JSON.parse(snapshot!) as OfflineState).unifiedLearning.evidence.find(
+      ({ id }) => id === writing.token,
+    );
+    assert.equal(reviewEvent?.source, 'review');
+    assert.equal(reviewEvent?.materialVersion, `home:${story.chapter.revision}`);
+    assert.equal(reviewEvent?.independent, false);
   } finally {
     resolution.deregister();
   }

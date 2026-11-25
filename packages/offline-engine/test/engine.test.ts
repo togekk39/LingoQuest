@@ -5,13 +5,18 @@ import {
   OfflineEngine,
   OFFLINE_STATE_KEY,
   chapter,
+  getUnifiedMastery,
+  recordUnifiedEvidence,
   type CourseData,
   type OfflineState,
   type CourseExercise,
   type LessonCheckpoint,
   type LocalStore,
   type QuickReviewState,
+  type TravelOperation,
+  type TravelState,
 } from '../src/index.ts';
+import { homeFormalReferences } from '../src/learning-prerequisites.ts';
 import {
   units,
   lessons,
@@ -29,6 +34,8 @@ import {
   type RunView,
   type AttemptResult,
 } from '@lingoquest/contracts';
+import { challengeLearningGate } from '../src/challenge-learning';
+import { travelChallengeItems } from '../src/travel-challenges';
 const source: CourseData = {
   units,
   lessons,
@@ -54,14 +61,16 @@ function fixture() {
   let time = Date.parse('2026-11-08T12:00:00Z');
   let id = 0;
   let content = structuredClone(source);
-  const engine = new OfflineEngine({
-    store,
-    getContent: () => content,
-    clock: () => time,
-    randomId: () => `local-id-${++id}`,
-  });
+  const reopen = () =>
+    new OfflineEngine({
+      store,
+      getContent: () => content,
+      clock: () => time,
+      randomId: () => `local-id-${++id}`,
+    });
   return {
-    engine,
+    engine: reopen(),
+    reopen,
     store,
     advance: (ms: number) => {
       time += ms;
@@ -70,6 +79,32 @@ function fixture() {
       content = next;
     },
   };
+}
+
+async function grantHomeReviewTeaching(
+  engine: OfflineEngine,
+  store: MemoryStore,
+  item: 'hello_teach' | 'bus_teach',
+) {
+  await engine.initialize();
+  const state = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  recordUnifiedEvidence(state.unifiedLearning, {
+    id: `formal-teaching-${item}`,
+    source: 'story',
+    materialId: 'travel_home',
+    exerciseId: item,
+    materialVersion: `home:${chapter.revision}`,
+    timestamp: Date.parse('2026-11-08T12:00:00Z'),
+    contextId: 'lesson',
+    format: 'instruction',
+    activity: 'introduced',
+    aids: ['guided'],
+    retry: false,
+    independent: false,
+    targets: [],
+    teaches: homeFormalReferences(item),
+  });
+  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(state));
 }
 const wrong = (e: CourseExercise) =>
   e.type === 'matching'
@@ -100,7 +135,62 @@ async function solve(engine: OfflineEngine, lessonId: string, right = false, pre
 
 async function unlock(engine: OfflineEngine, throughUnit = 8) {
   for (const unit of source.units.slice(0, throughUnit))
-    for (const lesson of unit.lessons) await solve(engine, lesson.id);
+    for (const lesson of unit.lessons) {
+      await teachStudyReference(engine, lesson.id);
+      await solve(engine, lesson.id, true);
+    }
+}
+
+async function teachStudyReference(engine: OfflineEngine, lessonId: string) {
+  const lesson = source.lessons[lessonId];
+  const path = `/v1/lessons/${lessonId}/checkpoint`;
+  const checkpoint: LessonCheckpoint = {
+    activityId: `study-${lessonId}`,
+    eventId: `teach-${lessonId}`,
+    stage: lesson.stages!.findIndex(({ type }) => type === 'vocabulary'),
+    vocabulary: 0,
+    exercise: -1,
+    answer: {},
+    hint: false,
+    help: false,
+    xp: 0,
+    weak: [],
+    reviewAt: null,
+  };
+  for (const [vocabulary] of lesson.vocabulary!.entries())
+    await engine.request(path, { ...checkpoint, vocabulary });
+  await engine.request(path, {
+    ...checkpoint,
+    stage: lesson.stages!.findIndex(({ type }) => type === 'grammar'),
+  });
+}
+
+async function teachHomeThroughPractice(engine: OfflineEngine) {
+  const travel = (operation: TravelOperation) =>
+    engine.request<TravelState>('/v1/travel?source=story', operation);
+  for (const mission of chapter.missions) {
+    let state = await travel({ action: 'start', missionId: mission.id });
+    while (!state.active?.finished) {
+      const { token, step: index } = state.active!;
+      const step = mission.steps[index];
+      if (step.type === 'teach') {
+        for (let position = 1; position <= mission.vocabulary.length; position++)
+          await travel({ action: 'word', token, position });
+      }
+      if (step.type === 'exercise') {
+        if (step.audio) await travel({ action: 'listened', token });
+        const answer =
+          step.id === 'travel_hello_write'
+            ? { text: 'Hi! My name is Ana.' }
+            : step.id === 'travel_hello_transfer'
+              ? { text: 'I am Ana.' }
+              : correct(step.exercise);
+        await travel({ action: 'answer', token, answer });
+      }
+      state = await travel({ action: 'advance', token });
+      assert.ok(state.active!.finished || state.active!.token !== token, step.id);
+    }
+  }
 }
 
 test('fresh install has all text course content without ever contacting a service', async () => {
@@ -236,8 +326,8 @@ test('an in-progress lesson resumes appended practice once and retains progress'
   await engine.request(`/v1/lessons/${lessonId}/complete`, {});
   assert.deepEqual((await engine.initialize()).completedLessons, ['u01_l01', lessonId]);
 });
-test('related units keep standard track locked until all taught prerequisites are completed', async () => {
-  const { engine } = fixture();
+test('standard challenges require taught lessons and independent production', async () => {
+  const { engine, advance, store } = fixture();
   for (const lesson of source.units[0].lessons) await solve(engine, lesson.id);
   for (const id of ['u02_l01', 'u02_l02', 'u02_l03']) await solve(engine, id);
   const locked = await engine.request<{ tracks: { id: string; unlocked: boolean }[] }>(
@@ -245,11 +335,50 @@ test('related units keep standard track locked until all taught prerequisites ar
   );
   assert.equal(locked.tracks[0].unlocked, false);
   await solve(engine, 'u02_l04');
+  const completed = await engine.request<{
+    tracks: { unlocked: boolean; needsEvidence: boolean }[];
+  }>('/v1/challenges/tracks');
+  assert.deepEqual(
+    [completed.tracks[0].unlocked, completed.tracks[0].needsEvidence],
+    [false, true],
+  );
+  const legacy = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  legacy.challengeProgress = [
+    {
+      trackId: 'present_simple',
+      type: 'grammar_rush',
+      mode: 'practice',
+      highestLevel: 1,
+      bestScores: { '1': 600 },
+      badge: false,
+    },
+  ];
+  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(legacy));
+  const historic = await engine.request<{ levels: { unlocked: boolean; bestScore: number }[] }>(
+    '/v1/challenges/tracks/present_simple/levels',
+  );
+  assert.equal(historic.levels[0].bestScore, 600);
+  assert.equal(historic.levels[0].unlocked, false);
+  await assert.rejects(
+    engine.request('/v1/challenges/runs', {
+      clientRequestId: 'historic-score-is-not-evidence',
+      trackId: 'present_simple',
+      level: 1,
+      mode: 'practice',
+    }),
+    { code: 'CHALLENGE_LOCKED' },
+  );
+  assert.equal((await engine.request<Progress>('/v1/me/progress')).xp, 200);
+  advance(86_400_000);
+  for (const unit of source.units.slice(0, 2))
+    for (const lesson of unit.lessons) {
+      await teachStudyReference(engine, lesson.id);
+      await solve(engine, lesson.id, true, `verified-${lesson.id}`);
+    }
   const open = await engine.request<{ tracks: { id: string; unlocked: boolean }[] }>(
     '/v1/challenges/tracks',
   );
   assert.equal(open.tracks[0].unlocked, true);
-  assert.equal((await engine.request<Progress>('/v1/me/progress')).xp, 200);
 });
 test('thirteen local practice levels are available; official online/ranked modes are disabled', async () => {
   const { engine } = fixture();
@@ -295,8 +424,7 @@ test('bundling the textbook preserves the travel challenge rules and keeps rank 
   assert.ok(placed.levels.every((rank) => !rank.unlocked));
   await assert.rejects(engine.request(runPath, input), /Primero completa las lecciones/);
 
-  state.travel.completed = Object.fromEntries(chapter.missions.map((mission) => [mission.id, date]));
-  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(state));
+  await teachHomeThroughPractice(engine);
   const [travel, textbook] = await Promise.all([
     engine.request<{ levels: Rank[] }>(homeLevels),
     engine.request<{ levels: Rank[] }>('/v1/challenges/tracks/present_simple/levels'),
@@ -304,15 +432,95 @@ test('bundling the textbook preserves the travel challenge rules and keeps rank 
   assert.equal(travel.levels[0].nameEs, 'Explorador');
   assert.equal(travel.levels[0].hearts, 3);
   assert.equal(travel.levels[0].seconds, 85);
-  assert.equal(travel.levels.filter((rank) => rank.unlocked).length, 3);
+  const learned = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  assert.equal(
+    travel.levels.filter((rank) => rank.unlocked).length,
+    3,
+    JSON.stringify(
+      challengeLearningGate(learned, source)(
+        'home',
+        'grammar_rush',
+        travelChallengeItems('grammar_rush', 3),
+      ),
+    ),
+  );
   assert.equal(textbook.levels[0].nameEs, 'Primeros pasos');
   assert.equal(textbook.levels[0].seconds, 180);
   assert.equal(textbook.levels.filter((rank) => rank.unlocked).length, 0);
+  const readingLevels = homeLevels + '?type=reading_quest';
+  assert.ok(
+    (await engine.request<{ levels: Rank[] }>(readingLevels)).levels.every(
+      ({ unlocked }) => !unlocked,
+    ),
+  );
+  await teachStudyReference(engine, 'u03_l04');
+  const reading = source.lessons.u03_l04.exercises.find(({ id }) => id === 'u03_l04_practice_4')!;
+  await engine.request('/v1/attempts', {
+    lessonId: 'u03_l04',
+    exerciseId: reading.id,
+    clientAttemptId: 'home-related-independent-reading',
+    answer: correct(reading),
+  });
+  assert.equal((await engine.request<{ levels: Rank[] }>(readingLevels)).levels[0].unlocked, true);
+
+  const clozeLevels = homeLevels + '?type=cloze_battle';
+  assert.equal((await engine.request<{ levels: Rank[] }>(clozeLevels)).levels[2].unlocked, false);
+  const ownershipReview = '/v1/reviews/quick?source=unified&target=writing%3Ahome.ownership';
+  const review = await engine.request<QuickReviewState>(ownershipReview);
+  assert.equal(review.exerciseId, 'travel_review_item_owner_write');
+  await engine.request(ownershipReview, {
+    action: 'answer',
+    token: review.token,
+    answer: { text: 'My bag is red.' },
+  });
+  assert.equal((await engine.request<{ levels: Rank[] }>(clozeLevels)).levels[2].unlocked, true);
+
+  const practiced = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const noBlueRecall = structuredClone(practiced);
+  noBlueRecall.unifiedLearning.evidence = noBlueRecall.unifiedLearning.evidence.filter(
+    ({ exerciseId, activity }) => exerciseId !== 'travel_bag_write' || activity !== 'answer',
+  );
+  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(noBlueRecall));
+  assert.equal((await engine.request<{ levels: Rank[] }>(clozeLevels)).levels[1].unlocked, false);
+
+  const missingForm = structuredClone(practiced);
+  for (const event of missingForm.unifiedLearning.evidence) {
+    if (event.teaches)
+      event.teaches = event.teaches.filter(
+        ({ id, form }) => id !== 'home.statement-be' || form !== "It's",
+      );
+  }
+  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(missingForm));
+  assert.equal((await engine.request<{ levels: Rank[] }>(homeLevels)).levels[0].unlocked, false);
+  await assert.rejects(engine.request(runPath, input), { code: 'CHALLENGE_LOCKED' });
+  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(practiced));
+
   const run = await engine.request<RunView>(runPath, input);
   assert.equal(run.heartsRemaining, 3);
   assert.equal(Date.parse(run.deadlineAt!) - Date.parse(run.serverNow), 85_000);
+  const submit = (runId: string) =>
+    engine.request<RunView>(`${runPath}/${runId}/answers`, {
+      clientSubmissionId: 'verified-home-challenge-answer',
+      questionPosition: 1,
+      answer: { text: 'is' },
+    });
+  assert.deepEqual(await submit(run.runId), await submit(run.runId));
+  const repeat = await engine.request<RunView>(runPath, {
+    ...input,
+    clientRequestId: 'travel-rank-repeat',
+  });
+  await submit(repeat.runId);
 
   const beforeUpdate = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const challengeEvidence = beforeUpdate.unifiedLearning.evidence.filter(
+    (entry) => entry.source === 'challenge',
+  );
+  assert.equal(challengeEvidence.length, 2);
+  assert.equal(
+    getUnifiedMastery(beforeUpdate.unifiedLearning, 'home.introduce', 'grammar_production')
+      .independentSuccesses,
+    1,
+  );
   beforeUpdate.travel!.completed = { bag: date };
   store.data.set(OFFLINE_STATE_KEY, JSON.stringify(beforeUpdate));
   const resumed = await engine.request<RunView>(runPath, input);
@@ -336,7 +544,10 @@ test('upper travel ranks require the matching lessons and use production without
   };
   await assert.rejects(engine.request('/v1/challenges/runs', request), /Completa|completa/);
   for (const unit of source.units.slice(2))
-    for (const lesson of unit.lessons) await solve(engine, lesson.id);
+    for (const lesson of unit.lessons) {
+      await teachStudyReference(engine, lesson.id);
+      await solve(engine, lesson.id, true);
+    }
   const run = await engine.request<RunView>('/v1/challenges/runs', request);
   assert.equal(run.question?.type, 'short_text');
   assert.equal(run.question?.options, undefined);
@@ -411,6 +622,40 @@ test('delayed recall evidence survives recognition items on a later-day lesson r
   assert.ok(p.xp > 25);
   assert.ok(p.mastery.some((m) => m.lastDelayedSuccessAt));
 });
+test('backup restore preserves previous challenge answers without resuming a timed run', async () => {
+  const { engine } = fixture();
+  await unlock(engine, 2);
+  const run = await engine.request<RunView>('/v1/challenges/runs', {
+    clientRequestId: 'legacy-history-request',
+    trackId: 'present_simple',
+    type: 'grammar_rush',
+    level: 1,
+    mode: 'practice',
+    relaxed: false,
+  });
+  const question = source.challengePools.grammar_rush.find(({ id }) => id === run.question?.id)!;
+  const reply = {
+    clientSubmissionId: 'legacy-history-reply',
+    questionPosition: 1,
+    answer: correct(question),
+  };
+  await engine.request(`/v1/challenges/runs/${run.runId}/answers`, reply);
+  const backup = await engine.request<{ state: Partial<OfflineState> }>('/v1/me/export');
+  delete backup.state.unifiedLearning;
+  await engine.request('/v1/me/import', { backup });
+  const restored = await engine.request<{ state: OfflineState }>('/v1/me/export');
+  assert.deepEqual(restored.state.runs, {});
+  assert.deepEqual(restored.state.challengeProgress, backup.state.challengeProgress);
+  assert.deepEqual(restored.state.unifiedLearning.evidence, []);
+  assert.equal(restored.state.challengeHistory?.[0].answers[0].questionId, question.id);
+  assert.equal(
+    JSON.parse(
+      restored.state.challengeHistory![0].submissions[reply.clientSubmissionId].fingerprint,
+    ).clientSubmissionId,
+    reply.clientSubmissionId,
+  );
+});
+
 test('backup restore validates data, preserves learning and personal bests, and resets unfinished challenge snapshots', async () => {
   const f = fixture();
   await solve(f.engine, 'u01_l01');
@@ -439,6 +684,28 @@ test('failed device writes do not falsely award or discard progress', async () =
 test('all thirteen local levels finish with personal records and never grant official badges or learning XP', async () => {
   const f = fixture();
   await unlock(f.engine);
+  const prepared = JSON.parse(f.store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const admits = challengeLearningGate(prepared, source);
+  const blocked: object[] = [];
+  for (const type of ['grammar_rush', 'cloze_battle', 'reading_quest'] as const) {
+    for (let level = 1; level <= 13; level++) {
+      const unit = challengeRequiredUnit(source.challengePools.grammar_rush, level);
+      const eligible = new Set(
+        source.units
+          .slice(0, source.units.findIndex(({ id }) => id === unit) + 1)
+          .flatMap(({ lessons }) => lessons.map(({ id }) => id)),
+      );
+      const items = selectChallengeQuestions(
+        source.challengePools[type],
+        type,
+        level,
+        (exercise) => exercise.requiredLessonIds?.every((id) => eligible.has(id)) ?? false,
+      );
+      const gate = admits('course', type, items);
+      if (!gate.ready) blocked.push({ level, type, ...gate });
+    }
+  }
+  assert.deepEqual(blocked, []);
   const before = await f.engine.initialize();
   for (let level = 1; level <= 13; level++) {
     let run = await f.engine.request<RunView>('/v1/challenges/runs', {
@@ -671,12 +938,21 @@ test('every challenge mode uses distinct content across 13 ranks and reaches eve
     const reachable = new Set<string>();
     for (let rank = 1; rank <= 13; rank++) {
       const lastUnit = challengeRequiredUnit(challengePools.grammar_rush, rank);
-      const taught = new Set(units.slice(0, Number(lastUnit.slice(1))).flatMap((unit) => unit.lessons.map(({ id }) => id)));
+      const taught = new Set(
+        units
+          .slice(0, Number(lastUnit.slice(1)))
+          .flatMap((unit) => unit.lessons.map(({ id }) => id)),
+      );
       const selection = selectChallengeQuestions(pool, type, rank, (item) =>
         item.requiredLessonIds!.every((id) => taught.has(id)),
       );
       assert.equal(selection.length, challengeQuestionCount(type), `${type}, rank ${rank}`);
-      rankSignatures.add(selection.map(({ id }) => id).sort().join(','));
+      rankSignatures.add(
+        selection
+          .map(({ id }) => id)
+          .sort()
+          .join(','),
+      );
       for (const item of selection) reachable.add(item.id);
     }
     assert.equal(rankSignatures.size, 13, `${type} changes from rank to rank`);
@@ -695,25 +971,260 @@ test('course quick review teaches its starter word before assessment and reuses 
   const review = await engine.request<{ reviews: { exercises: { id: string }[] }[] }>(
     '/v1/reviews/today?source=course&all=true',
   );
-  assert.deepEqual(review.reviews.flatMap(({ exercises }) => exercises.map(({ id }) => id)), [question.id]);
+  assert.deepEqual(
+    review.reviews.flatMap(({ exercises }) => exercises.map(({ id }) => id)),
+    [question.id],
+  );
 });
 
 test('course placement recommends A2 only after evidence on later material', async () => {
   const { engine } = fixture();
   const answers = placementQuestions.map((question) => ({
     exerciseId: question.id,
-    answer: question.type === 'reorder'
-      ? { tokens: question.acceptedAnswers[0]!.replace(/[.?!]$/, '').split(' ') }
-      : correct(question),
+    answer:
+      question.type === 'reorder'
+        ? { tokens: question.acceptedAnswers[0]!.replace(/[.?!]$/, '').split(' ') }
+        : correct(question),
   }));
   const assess = (responses: typeof answers) =>
     engine.request<{ level: string; correct: number }>('/v1/placement', { answers: responses });
   assert.equal((await assess(answers.slice(0, 1))).level, 'A1');
-  const onlyEarlier = answers.map((entry, index) => index < 9 ? entry : { ...entry, answer: wrong(placementQuestions[index]) });
+  const onlyEarlier = answers.map((entry, index) =>
+    index < 9 ? entry : { ...entry, answer: wrong(placementQuestions[index]) },
+  );
   assert.equal((await assess(onlyEarlier)).level, 'A1');
   const result = await assess(answers);
   assert.equal(result.correct, 12);
   assert.equal(result.level, 'A2');
+});
+
+test('placement is idempotent diagnostic evidence and cannot unlock a Home challenge', async () => {
+  const { engine, store } = fixture();
+  const path = '/v1/travel/placement';
+  const request = {
+    assessmentId: 'home-orientation-session',
+    answers: [
+      { answer: { optionId: 'name' }, transcript: false },
+      { answer: { text: 'My name is Ana.' }, transcript: false },
+      { answer: { optionId: 'stop' }, transcript: false },
+      { answer: { tokens: ['It’s', 'next', 'to', 'the', 'park'] }, transcript: false },
+      { answer: { optionId: 'blue' }, transcript: false },
+      { answer: { text: 'It is blue.' }, transcript: false },
+    ],
+  };
+  await engine.request(path, request);
+  await engine.request(path, request);
+  const state = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  assert.equal(state.unifiedLearning.evidence.length, 6);
+  assert.ok(state.unifiedLearning.evidence.every(({ source }) => source === 'placement'));
+  assert.equal(
+    getUnifiedMastery(state.unifiedLearning, 'home.introduce', 'writing').state,
+    'not_introduced',
+  );
+  const result = await engine.request<{ levels: { unlocked: boolean }[] }>(
+    '/v1/challenges/tracks/home_journey/levels',
+  );
+  assert.ok(result.levels.every(({ unlocked }) => !unlocked));
+});
+
+test('canonical review persists guided support then checks the same skill in another context', async () => {
+  const { engine, store, reopen } = fixture();
+  await grantHomeReviewTeaching(engine, store, 'hello_teach');
+  async function storyAnswer(exerciseId: string, answer: object) {
+    return engine.request('/v1/attempts', {
+      lessonId: 'travel_home',
+      exerciseId,
+      answer,
+      clientAttemptId: `initial-${exerciseId}`,
+    });
+  }
+  await storyAnswer('travel_hello_recognize', { optionId: 'hello' });
+  await storyAnswer('travel_hello_write', { text: 'Hi! I is Ana.' });
+  await storyAnswer('travel_hello_transfer', { text: 'I is Ana.' });
+  const target = 'writing:home.introduce';
+  const path = `/v1/reviews/quick?source=unified&target=${encodeURIComponent(target)}`;
+  const queue = await engine.request<{ reviews: { key: string; reason: string }[] }>(
+    '/v1/reviews/today?source=unified',
+  );
+  assert.ok(queue.reviews.some((row) => row.key === target && row.reason === 'remediation'));
+  const guided = await engine.request<QuickReviewState>(path);
+  assert.equal(guided.remediation?.phase, 'support');
+  assert.match(guided.explanation ?? '', /I am/);
+  const failed = await engine.request<QuickReviewState>(path, {
+    action: 'answer',
+    token: guided.token,
+    answer: { text: 'is' },
+  });
+  assert.equal(failed.result?.correct, false);
+  const blocked = await engine.request<QuickReviewState>(path, {
+    action: 'continue',
+    token: guided.token,
+  });
+  assert.equal(blocked.remediation?.phase, 'support');
+  assert.equal(blocked.token, guided.token);
+  const restored = reopen();
+  const globalReview = '/v1/reviews/quick?source=unified';
+  const recovered = await restored.request<QuickReviewState>(globalReview);
+  assert.equal(recovered.token, failed.token);
+  const retry = await restored.request<QuickReviewState>(globalReview, {
+    action: 'retry',
+    token: recovered.token,
+  });
+  assert.notEqual(retry.token, guided.token);
+  const support = { action: 'answer', token: retry.token, answer: { text: 'am' } };
+  await engine.request(path, support);
+  await restored.request(globalReview, support);
+  const mission = '/v1/reviews/quick?source=unified&mission=hello';
+  const independent = await restored.request<QuickReviewState>(mission);
+  assert.equal(independent.remediation?.phase, 'confirmation');
+  assert.notEqual(independent.exerciseId, guided.exerciseId);
+  await restored.request(mission, {
+    action: 'draft',
+    token: independent.token,
+    answer: { text: 'My name is Ana.' },
+  });
+  const durable = await reopen().request<QuickReviewState>(path);
+  assert.equal(durable.token, independent.token);
+  assert.deepEqual(durable.answer, { text: 'My name is Ana.' });
+  const proof = await engine.request<QuickReviewState>(globalReview, {
+    action: 'answer',
+    token: independent.token,
+    answer: { text: 'My name is Ana.' },
+  });
+  assert.equal(proof.result?.correct, true);
+  const state = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const evidence = state.unifiedLearning.evidence.filter(({ source }) => source === 'remediation');
+  assert.equal(evidence.length, 3);
+  assert.deepEqual(
+    evidence.map(({ independent }) => independent),
+    [false, false, true],
+  );
+  assert.deepEqual(
+    getUnifiedMastery(state.unifiedLearning, 'home.introduce', 'writing').pendingErrors,
+    [],
+  );
+});
+
+test('guided success waits without repeating the guide until a different confirmation is eligible', async () => {
+  const { engine, store, reopen, advance } = fixture();
+  await grantHomeReviewTeaching(engine, store, 'hello_teach');
+  for (const [exerciseId, text] of [
+    ['travel_hello_write', 'Hi! I am Ana.'],
+    ['travel_review_introduction', 'I am Ana.'],
+    ['travel_hello_transfer', 'I is Ana.'],
+  ])
+    await engine.request('/v1/attempts', {
+      lessonId: 'travel_home',
+      exerciseId,
+      clientAttemptId: `initial-${exerciseId}`,
+      answer: { text },
+    });
+  const path = '/v1/reviews/quick?source=unified&target=writing%3Ahome.introduce';
+  const guided = await engine.request<QuickReviewState>(path);
+  assert.equal(guided.exerciseId, 'travel_remedy_introduction_be');
+  await engine.request(path, { action: 'answer', token: guided.token, answer: { text: 'am' } });
+  const waiting = await engine.request<QuickReviewState>(path, {
+    action: 'continue',
+    token: guided.token,
+  });
+  assert.equal(waiting.token, guided.token);
+  assert.equal(waiting.waitingForConfirmation, true);
+  const restored = await reopen().request<QuickReviewState>(path);
+  assert.equal(restored.token, guided.token);
+  assert.equal(restored.waitingForConfirmation, true);
+  const pending = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  assert.deepEqual(
+    getUnifiedMastery(pending.unifiedLearning, 'home.introduce', 'writing').pendingErrors,
+    ['be_agreement'],
+  );
+  assert.equal(
+    pending.unifiedLearning.evidence.filter(({ source }) => source === 'remediation').length,
+    1,
+  );
+  advance(86_400_000);
+  const next = await engine.request<QuickReviewState>(path);
+  assert.equal(next.remediation?.phase, 'confirmation');
+  assert.notEqual(next.exerciseId, guided.exerciseId);
+  assert.notEqual(next.exerciseId, 'travel_hello_transfer');
+});
+
+test('review teaches missing audited prerequisites before a learner can attempt the prompt', async () => {
+  const { engine, store, reopen } = fixture();
+  await engine.request('/v1/attempts', {
+    lessonId: 'travel_home',
+    exerciseId: 'travel_hello_write',
+    clientAttemptId: 'prior-introduction',
+    answer: { text: 'Hi! I am Ana.' },
+  });
+  const path = '/v1/reviews/quick?source=unified&target=writing%3Ahome.introduce';
+  const opening = await engine.request<QuickReviewState>(path);
+  assert.ok(opening.prerequisiteInstruction?.sections.some(({ title }) => title.includes('I am')));
+  const answer = { action: 'answer', token: opening.token, answer: { text: 'Hi! I am Ana.' } };
+  const blocked = await engine.request<QuickReviewState>(path, answer);
+  assert.equal(blocked.result, undefined);
+  assert.deepEqual(
+    (await reopen().request<QuickReviewState>(path)).prerequisiteInstruction,
+    opening.prerequisiteInstruction,
+  );
+  const prep = { action: 'prepare', token: opening.token };
+  const ready = await engine.request<QuickReviewState>(path, prep);
+  assert.equal(ready.prerequisiteInstruction, undefined);
+  await engine.request(path, prep);
+  const checked = await engine.request<QuickReviewState>(path, answer);
+  assert.equal(checked.result?.correct, true);
+  const saved = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const evidence = saved.unifiedLearning.evidence.filter(({ source }) => source === 'review');
+  assert.deepEqual(
+    evidence.map(({ activity, independent }) => [activity, independent]),
+    [
+      ['introduced', false],
+      ['answer', false],
+    ],
+  );
+  assert.ok(evidence[0].teaches?.length);
+  assert.ok(evidence[1].aids.includes('guided'));
+});
+
+test('an audio review needs playback or transcript before it supplies listening evidence', async () => {
+  const { engine, store } = fixture();
+  await grantHomeReviewTeaching(engine, store, 'bus_teach');
+  await engine.request('/v1/attempts', {
+    lessonId: 'travel_home',
+    exerciseId: 'travel_bus_listen',
+    clientAttemptId: 'initial-listening',
+    answer: { optionId: 'stop' },
+  });
+  const path = '/v1/reviews/quick?source=unified&target=listening%3Ahome.ask-location';
+  const first = await engine.request<QuickReviewState>(path);
+  assert.equal(first.exerciseId, 'travel_review_place_question_audio');
+  const submit = (token: string) =>
+    engine.request(path, {
+      action: 'answer',
+      token,
+      answer: { text: 'Bus stop' },
+    });
+  await submit(first.token);
+  await engine.request(path, { action: 'dismiss', token: first.token });
+  const next = await engine.request<QuickReviewState>(path);
+  assert.equal(next.exerciseId, first.exerciseId);
+  const listened = await engine.request<QuickReviewState>(path, {
+    action: 'listened',
+    token: next.token,
+  });
+  assert.equal(listened.listened, true);
+  await submit(next.token);
+  const state = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const evidence = state.unifiedLearning.evidence.filter(({ source }) => source === 'review');
+  assert.deepEqual(
+    evidence.map(({ languageOutcome, outcome, independent }) => [
+      languageOutcome ?? outcome,
+      independent,
+    ]),
+    [
+      ['ungradable', false],
+      ['target', true],
+    ],
+  );
 });
 
 test('previous development state stays untouched until a deliberate reset; previous backups are rejected clearly', async () => {

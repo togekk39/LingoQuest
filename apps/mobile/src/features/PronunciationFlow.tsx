@@ -48,6 +48,7 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
     return (
       <SpeakingPractice
         text={selected.textEn}
+        evidenceScope={{ source: 'drill', materialId: selected.category, itemId: selected.id }}
         onDone={() => setSelected(null)}
         onClose={() => setSelected(null)}
       />
@@ -69,9 +70,9 @@ export default function PronunciationFlow({ onClose }: { onClose: () => void }) 
       <JournalLeaf compact kind="notebook" style={s.disclosure}>
         <Info color={palette.teal} size={19} />
         <Text style={[f.quiet, { flex: 1 }]}>
-          Puedes escuchar y grabarte sin conexión. Usa la grabación para comparar los sonidos. El
-          reconocimiento del sistema o del navegador transcribe palabras y puede procesar el audio
-          en línea. No genera puntajes de pronunciación ni de comunicación.
+          En Android puedes grabarte sin conexión y comparar los sonidos. El reconocimiento del
+          sistema o del navegador transcribe palabras y puede procesar el audio en línea. La
+          pronunciación y la comunicación espontánea quedan sin verificar.
         </Text>
       </JournalLeaf>
       {!!speechMessage && (

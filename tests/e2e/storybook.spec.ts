@@ -463,8 +463,9 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
   await enterApp(page);
   await readyOfflineShell(page, context);
   await openAdventure(page, 'Ana O’Connor');
-  await expect.poll(async () => (await state(page)).user.name).toBe('Ana O’Connor');
+  await expect.poll(async () => (await state(page)).travel.practiceName).toBe('Ana O’Connor');
   const initial = await state(page);
+  expect(initial.user.name).toBe('Explorador');
   expect(initial.attempts).toEqual({});
   expect(initial.travelLearning?.targets ?? []).toEqual([]);
   const initialXp = initial.xp;
@@ -802,6 +803,20 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
     ]),
   );
   expect(finished.travelLearning?.targets.filter(({ skill }) => skill === 'speaking')).toEqual([]);
+
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Cursos A1–A2');
+  await click(page, '¡Hola! Mucho gusto');
+  await page
+    .getByTestId('textbook-lesson-u01_l03')
+    .getByRole('button', exact('Empezar lección'))
+    .click();
+  const status = page.getByTestId('study-learning-status');
+  await expect(status.getByTestId('study-status-writing')).toHaveText(
+    'Escritura · Dominio parcial (1 de 2 objetivos)',
+  );
+  await expect(status.getByTestId('study-status-speaking')).toHaveText('Habla · Por comprobar');
+  expect((await state(page)).completedLessons).not.toContain('u01_l03');
 });
 
 test('the player can introduce their own name without setting a profile name', async ({ page }) => {
@@ -850,6 +865,9 @@ test('a Study reorder draft survives opening the new Sam dialogue and naming the
   await page.getByRole('textbox', exact('Tu nombre')).fill('Mai-Linh Nguyễn');
   await click(page, 'Guardar nombre');
   await expect(page.getByRole('button', exact('Quitar palabra: Mai-Linh Nguyễn'))).toBeVisible();
+  const named = await state(page);
+  expect(named.user.name).toBe('Explorador');
+  expect(named.travel.practiceName).toBe('Mai-Linh Nguyễn');
   await capture(page, 'storybook-name-tile');
   expect((await state(page)).travel.active).toEqual(before);
   await click(page, 'Comprobar respuesta');

@@ -7,11 +7,11 @@ import {
 import type { Page } from '@playwright/test';
 import { chapterReaderSections } from '../curriculum/chapter-reader-sections';
 import {
-  answerTravelChoice,
   click,
   enterApp,
   exact,
   expect,
+  finishGreetingPractice,
   finishVocabulary,
   labelFirstChapterAudio,
   openLessons,
@@ -21,6 +21,28 @@ import {
 } from './helpers';
 
 const catalogUrl = '/chapter-packs/catalog-v2.json';
+
+function expectProgressWithChapterExposure(
+  before: Awaited<ReturnType<typeof state>>,
+  after: Awaited<ReturnType<typeof state>>,
+  chapterId: string,
+) {
+  const { unifiedLearning: beforeLearning, ...beforeProgress } = before;
+  const { unifiedLearning: afterLearning, ...afterProgress } = after;
+  expect(afterProgress).toEqual(beforeProgress);
+  expect(afterLearning.legacySchedules).toEqual(beforeLearning.legacySchedules);
+  expect(afterLearning.evidence.slice(0, beforeLearning.evidence.length)).toEqual(
+    beforeLearning.evidence,
+  );
+  expect(afterLearning.evidence.length).toBeGreaterThan(beforeLearning.evidence.length);
+  for (const exposure of afterLearning.evidence.slice(beforeLearning.evidence.length)) {
+    expect(exposure).toMatchObject({
+      materialId: `published.${chapterId}.card-1`,
+      activity: 'introduced',
+      independent: false,
+    });
+  }
+}
 
 async function savedChapters(page: Page) {
   return page.evaluate(
@@ -159,7 +181,9 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await finishVocabulary(page);
-  await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
+  await click(page, 'Escuchar el saludo de Sam');
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
+  await finishGreetingPractice(page);
   await click(page, 'Cerrar y volver');
   await page.evaluate(() => {
     const key = 'lq_offline_state_v1';
@@ -193,12 +217,16 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   await expect(page.getByRole('alert')).toContainText('La descarga del capítulo está incompleta');
   expect(await savedChapters(page)).toContain('home');
   expect(await savedChapters(page)).not.toContain('mexico');
+  expect(await state(page)).toEqual(before);
 
   await context.unroute(packUrl);
   await click(page, 'Reintentar');
   await expect(page.getByTestId('chapter-lesson-mexico')).toBeVisible();
   expect(await savedChapters(page)).toEqual(expect.arrayContaining(['home', 'mexico']));
-  expect(await state(page)).toEqual(before);
+  await expect
+    .poll(async () => (await state(page)).unifiedLearning.evidence.length)
+    .toBeGreaterThan(before.unifiedLearning.evidence.length);
+  expectProgressWithChapterExposure(before, await state(page), 'mexico');
 
   await readyOfflineShell(page, context);
   const transferCount = networkGuard.attempted.filter((url) =>
@@ -212,13 +240,33 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   await expect(page.getByTestId('chapter-lesson-mexico')).toBeVisible();
   await click(page, 'Cerrar y volver');
   await page.getByRole('tab', exact('Inicio')).click();
-  await click(page, 'Repaso rápido');
+  await expect(page.getByRole('button', exact('Repaso rápido'))).toBeVisible();
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Mis habilidades');
+  await page
+    .getByTestId('learning-review-vocabulary_recall:home.greeting-word')
+    .getByRole('button', { name: /^Abrir repaso rápido:/ })
+    .click();
   await expect(page.getByText('Recuerda lo aprendido · 1 min', { exact: true })).toBeVisible();
   const review = page.getByTestId('exercise-travel_review_greeting');
   await review.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hello!');
   await click(page, 'Comprobar respuesta');
   await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
+  expect((await state(page)).unifiedLearning.evidence).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ exerciseId: 'travel_hello_recognize', source: 'study' }),
+      expect.objectContaining({ exerciseId: 'travel_hello_recall', source: 'study' }),
+      expect.objectContaining({
+        exerciseId: 'travel_review_greeting',
+        source: 'review',
+        outcome: 'target',
+        independent: true,
+      }),
+    ]),
+  );
   await click(page, 'Volver al viaje');
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Inicio')).click();
   await click(page, 'Volver a La primera postal');
   const skipName = page.getByRole('button', exact('Continuar sin nombre'));
   const plaza = page.getByTestId('story-scene-plaza');
@@ -235,7 +283,7 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   );
 });
 
-test('an installed older first chapter plays its introduction model offline and updates after reconnecting', async ({
+test('an installed first chapter survives a failed update and updates after retrying', async ({
   page,
   context,
   request,
@@ -307,6 +355,21 @@ test('an installed older first chapter plays its introduction model offline and 
 
   await context.setOffline(false);
   await context.unroute(route);
+  const currentPath = `**/chapter-packs/${catalog.chapters.home.revision}/home.json`;
+  await context.route(currentPath, (request) =>
+    request.fulfill({ body: '{"incomplete":true}', contentType: 'application/json' }),
+  );
+  const beforeUpdate = await state(page);
+  const corruptUpdate = page.waitForResponse((response) =>
+    new URL(response.url()).pathname.endsWith(currentPath.slice(2)),
+  );
+  await page.reload();
+  await corruptUpdate;
+  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
+  expect(await savedChapterRevision(page)).toBe(previousRevision);
+  expect((await state(page)).unifiedLearning).toEqual(beforeUpdate.unifiedLearning);
+
+  await context.unroute(currentPath);
   await page.reload();
   await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
   await expect.poll(() => savedChapterRevision(page)).toBe(catalog.chapters.home.revision);
@@ -372,7 +435,10 @@ test('opening a destination downloads its lessons and media when needed', async 
   const { lesson: downloadedLesson }: ChapterPack = await downloaded.json();
   const openingLine = downloadedLesson.dialogue[0].en;
   await expect(page.getByTestId('chapter-lesson-london')).toBeVisible();
-  expect(await state(page)).toEqual(before);
+  await expect
+    .poll(async () => (await state(page)).unifiedLearning.evidence.length)
+    .toBeGreaterThan(before.unifiedLearning.evidence.length);
+  expectProgressWithChapterExposure(before, await state(page), 'london');
   const transferCount = networkGuard.attempted.filter((url) => url === downloaded.url()).length;
 
   await context.setOffline(true);
@@ -477,7 +543,10 @@ test('an installed chapter updates when the catalog advances beyond the bundled 
   await page.reload();
   await openToronto();
   await expect(page.getByRole('heading', exact(newTitle))).toBeVisible();
-  expect(await state(page)).toEqual(before);
+  await expect
+    .poll(async () => (await state(page)).unifiedLearning.evidence.length)
+    .toBeGreaterThan(before.unifiedLearning.evidence.length);
+  expectProgressWithChapterExposure(before, await state(page), 'toronto');
 });
 
 test('Salvador offers a fresh offline listening question with an optional translation', async ({

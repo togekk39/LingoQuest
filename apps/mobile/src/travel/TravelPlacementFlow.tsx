@@ -11,7 +11,7 @@ import {
 } from '@lingoquest/offline-engine';
 import { ExerciseInput, hasAnswer, type ExerciseAnswer } from '../features/ExerciseInput';
 import { Action, ErrorCard, FlowFrame, useFeatureStyles } from '../features/FeatureUI';
-import { api } from '../lib/api';
+import { api, newId } from '../lib/api';
 import { useTheme } from '../theme';
 import { Button, Heading, Label } from '../ui';
 import { TravelScene } from './TravelAppearance';
@@ -35,6 +35,7 @@ export function TravelPlacementFlow({
   const [transcript, setTranscript] = useState(false);
   const [started, setStarted] = useState(false);
   const [result, setResult] = useState<{ placement: TravelPlacement; travel: TravelState }>();
+  const [assessmentId] = useState(newId);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
@@ -68,7 +69,7 @@ export function TravelPlacementFlow({
     try {
       if (next.length === questions.length) {
         setBusy(true);
-        setResult(await api('/v1/travel/placement', { answers: next }));
+        setResult(await api('/v1/travel/placement', { assessmentId, answers: next }));
       }
       setAnswers(next);
       setAnswer({});

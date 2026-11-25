@@ -6,6 +6,7 @@ import { travelPlacementItems as items } from './home-content';
 
 const responsesSchema = z
   .object({
+    assessmentId: z.string().min(8).max(100).optional(),
     answers: z
       .array(z.object({ answer: answerSchema.nullable(), transcript: z.boolean() }).strict())
       .length(6),
@@ -30,20 +31,28 @@ export function placementQuestions(publish: (e: CourseExercise) => PublicExercis
 }
 
 export function assessTravelPlacement(body: unknown) {
-  const { answers } = responsesSchema.parse(body);
-  const passed = items.map(({ audio, exercise }, i) => {
+  const { answers, assessmentId } = responsesSchema.parse(body);
+  const responses = items.flatMap(({ exercise }, i) => {
     const { answer, transcript } = answers[i];
-    if (!answer || (audio && transcript)) return false;
-    const outcome = judgeAnswer(exercise, answer);
-    return outcome === 'target' || (outcome === 'communication_only' && !!exercise.introduction);
+    return answer ? [{ exercise, transcript, outcome: judgeAnswer(exercise, answer) }] : [];
+  });
+  const scored = new Map(responses.map((item) => [item.exercise.id, item]));
+  const passed = items.map(({ audio, exercise }) => {
+    const response = scored.get(exercise.id);
+    if (!response || (audio && response.transcript)) return false;
+    return (
+      response.outcome === 'target' ||
+      (response.outcome === 'communication_only' && !!exercise.introduction)
+    );
   });
   const firstToPractice = ['hello', 'bus', 'bag'].find((missionId) =>
     items.some((item, i) => item.missionId === missionId && !passed[i]),
   );
   const missionId = travelPlacementSchema.shape.missionId.parse(firstToPractice ?? 'bag');
-  return {
+  const placement = {
     missionId,
     correct: passed.filter(Boolean).length,
     total: 6,
   } satisfies TravelPlacement;
+  return { placement, responses, assessmentId };
 }

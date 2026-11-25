@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   answerOutcomeSchema,
   answerSchema,
+  playerIntroductionName,
   type AttemptInput,
   type AttemptResult,
 } from '@lingoquest/contracts';
@@ -52,6 +53,9 @@ const checkpointSchema = z
     answer: draftAnswerSchema,
     hint: z.boolean(),
     transcript: z.boolean(),
+    audioPlayed: z.literal(true).optional(),
+    answerShown: z.literal(true).optional(),
+    identityRetry: z.literal(true).optional(),
     retry: z.boolean().optional(),
     result: savedResultSchema.optional(),
     finished: z.boolean(),
@@ -62,6 +66,7 @@ export const travelStateSchema = z
   .object({
     country: countrySchema.optional(),
     introductionName: z.string().trim().min(1).max(120).optional(),
+    practiceName: z.string().trim().min(1).max(120).optional(),
     active: checkpointSchema.optional(),
     paused: z.record(checkpointSchema).optional(),
     placement: travelPlacementSchema.optional(),
@@ -100,20 +105,29 @@ export function nextTravelMission(travel: TravelState) {
 
 const operationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('country'), country: countrySchema }).strict(),
+  z.object({ action: z.literal('practiceName'), name: z.string().max(120) }).strict(),
   z.object({ action: z.literal('start'), missionId: z.string().max(100) }).strict(),
   z
     .object({
       action: z.literal('word'),
       token: z.string(),
       position: z.number().int().nonnegative(),
+      translationShown: z.boolean().optional(),
     })
     .strict(),
   z.object({ action: z.literal('note'), text: z.string().max(500) }).strict(),
   z.object({ action: z.literal('draft'), token: z.string(), answer: draftAnswerSchema }).strict(),
   z
     .object({
-      action: z.enum(['hint', 'transcript', 'retry', 'advance', 'dismiss']),
+      action: z.enum(['hint', 'transcript', 'listened', 'retry', 'dismiss']),
       token: z.string(),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal('advance'),
+      token: z.string(),
+      translationShown: z.boolean().optional(),
     })
     .strict(),
   z.object({ action: z.literal('answer'), token: z.string(), answer: answerSchema }).strict(),
@@ -122,6 +136,21 @@ const operationSchema = z.discriminatedUnion('action', [
     .strict(),
 ]);
 export type TravelOperation = z.input<typeof operationSchema>;
+
+export interface TravelLearningActivity {
+  kind: 'introduced';
+  missionId: string;
+  itemId: string;
+  token: string;
+  translation: boolean;
+  word?: string;
+}
+
+export interface TravelAttemptConditions {
+  missingAudio: boolean;
+  referenceAnswer: boolean;
+  retry: boolean;
+}
 
 const revisionOneSteps: Record<string, string[]> = {
   hello: ['hello_welcome', 'hello_sam', 'hello_teach', 'travel_hello_write', 'hello_speak'],
@@ -175,13 +204,23 @@ export function updateTravel(
   body: unknown,
   now: number,
   id: () => string,
-  attempt: (input: AttemptInput, aids: LearningAid[]) => AttemptResult,
+  attempt: (
+    input: AttemptInput,
+    aids: LearningAid[],
+    conditions: TravelAttemptConditions,
+  ) => AttemptResult,
   speaking: (target: LearningTarget, practice: SpeechPractice) => void,
   entryStepId?: string,
+  activity?: (event: TravelLearningActivity) => void,
 ) {
   const input = operationSchema.parse(body);
   if (input.action === 'country') {
     travel.country = input.country;
+    return;
+  }
+  if (input.action === 'practiceName') {
+    const name = playerIntroductionName(input.name);
+    if (name) travel.practiceName = name;
     return;
   }
   if (input.action === 'note') {
@@ -217,9 +256,26 @@ export function updateTravel(
   const mission = chapter.missions.find((item) => item.id === current.missionId);
   const step = mission?.steps[current.step];
   if (!mission || !step) return;
+  const introduce = (token: string, translation = false, word?: string) =>
+    activity?.({
+      kind: 'introduced',
+      itemId: step.id,
+      missionId: mission.id,
+      token,
+      translation,
+      ...(word && { word }),
+    });
   if (input.action === 'word') {
-    if (step.type === 'teach' && input.position <= mission.vocabulary.length)
+    const word = current.word ?? 0;
+    if (step.type === 'teach' && input.position <= mission.vocabulary.length) {
+      if (input.position === word + 1)
+        introduce(
+          `${current.token}:word:${word}`,
+          input.translationShown,
+          mission.vocabulary[word].term,
+        );
       current.word = input.position;
+    }
     return;
   }
   if (step.type === 'exercise') {
@@ -227,6 +283,10 @@ export function updateTravel(
     if (input.action === 'hint' && step.hint && !current.result) current.hint = true;
     if (input.action === 'transcript' && step.transcript && !current.result)
       current.transcript = true;
+    if (input.action === 'listened' && step.audio && !current.result && !current.audioPlayed) {
+      current.audioPlayed = true;
+      introduce(`${current.token}:audio`);
+    }
     if (input.action === 'answer' && !current.result) {
       const aids: LearningAid[] = [];
       if (current.hint) aids.push('hint');
@@ -241,6 +301,11 @@ export function updateTravel(
           hintUsed: aids.length > 0,
         },
         aids,
+        {
+          missingAudio: !!step.audio && !current.audioPlayed,
+          referenceAnswer: !!current.answerShown,
+          retry: !!(current.retry || current.identityRetry),
+        },
       );
       current.answer = input.answer;
     }
@@ -250,6 +315,9 @@ export function updateTravel(
         hint: current.result.identityMismatch ? current.hint : true,
         retry: current.result.identityMismatch ? current.retry : true,
         transcript: current.transcript,
+        ...(current.audioPlayed && { audioPlayed: current.audioPlayed }),
+        ...((current.answerShown || current.result.acceptedAnswer) && { answerShown: true }),
+        ...(current.result.identityMismatch && { identityRetry: true }),
       };
       return;
     }
@@ -265,7 +333,10 @@ export function updateTravel(
   if (input.action === 'speak') {
     if (step.type !== 'speak') return;
     if (step.learning) speaking(step.learning, input.practice);
-  } else if (input.action !== 'advance') return;
+  } else if (input.action === 'advance') {
+    if (step.type === 'teach' || (step.type === 'dialogue' && step.line))
+      introduce(current.token, input.translationShown);
+  } else return;
   if (current.step + 1 < mission.steps.length) {
     travel.active = checkpoint(mission.id, current.step + 1, id());
     return;

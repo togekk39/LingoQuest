@@ -1,3 +1,4 @@
+import { unifiedMastery } from '@lingoquest/offline-engine';
 import {
   test,
   expect,
@@ -38,7 +39,10 @@ test('first launch has one start button for the adventure and an optional assess
   await page.getByRole('textbox', exact('Tu nombre')).fill('Amaya');
   await click(page, 'Guardar y continuar');
   await expect(page.getByTestId('story-scene-plaza')).toBeVisible();
-  expect(await state(page)).toMatchObject({ user: { name: 'Amaya' }, travel: { country: 'HN' } });
+  expect(await state(page)).toMatchObject({
+    user: { name: 'Explorador' },
+    travel: { country: 'HN', practiceName: 'Amaya' },
+  });
 });
 
 test('placement from the welcome evaluates travel listening and jumps to the recommended mission', async ({
@@ -70,14 +74,23 @@ test('placement from the welcome evaluates travel listening and jumps to the rec
   await click(page, 'No lo sé todavía');
   await expect(page.getByText('4 de 6 respuestas acertadas sin ayuda.')).toBeVisible();
   await expect(page.getByText('Una mochila y una postal', { exact: true })).toBeVisible();
-  expect((await state(page)).user.name).toBe(savedName);
-  expect((await state(page)).travel.stamps).toEqual({});
-  expect((await state(page)).travel.completed).toEqual({});
+  const diagnostic = await state(page);
+  expect(diagnostic.user.name).toBe(savedName);
+  expect(diagnostic.travel.stamps).toEqual({});
+  expect(diagnostic.travel.completed).toEqual({});
+  expect(diagnostic.unifiedLearning.evidence).toHaveLength(4);
+  expect(diagnostic.unifiedLearning.evidence.every(({ source }) => source === 'placement')).toBe(
+    true,
+  );
+  expect(unifiedMastery(diagnostic.unifiedLearning)).toEqual([]);
   await click(page, 'Ir a mi misión');
   await expect(page.getByTestId('travel-step-dialogue')).toBeVisible();
   await page.reload();
   await openLessons(page);
   expect((await state(page)).travel.active?.missionId).toBe('bag');
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Desafíos')).click();
+  await expect(page.getByRole('button', exact('Completa las misiones primero'))).toBeDisabled();
 });
 
 test('placement skips can recommend the first mission without awarding progress', async ({
