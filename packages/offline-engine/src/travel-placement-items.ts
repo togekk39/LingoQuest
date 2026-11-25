@@ -29,12 +29,18 @@ export const travelPlacementItems: {
     exercise: {
       id: 'route_intro_write',
       type: 'short_text',
-      promptEs: 'Preséntate como Luz. Escribe en inglés «Soy Luz» o «Me llamo Luz».',
-      acceptedAnswers: ['I am Luz', "I'm Luz", 'My name is Luz', "My name's Luz"],
+      promptEs:
+        'Escribe una frase breve para presentarte en inglés. Usa tu nombre o elige un nombre de práctica.',
+      acceptedAnswers: [],
+      introduction: { greetingRequired: false, model: 'My name is [tu nombre].' },
+      communicationOnly: {
+        answers: [],
+        feedbackEs: 'Tu manera de presentarte permite entender el nombre que elegiste.',
+      },
       difficulty: 1,
       skillId: 'grammar.be_i_you',
       feedbackEs:
-        'Puedes decir tu nombre con I am Luz o My name is Luz. Sus formas cortas son I’m Luz y My name’s Luz.',
+        'Puedes presentarte con I am o My name is y el nombre que elegiste. Sus formas cortas son I’m y My name’s.',
     },
   },
   {

@@ -7,13 +7,14 @@ import type {
 } from '../../packages/course-pack/src/index.ts';
 import { authoredUnits, type LessonAuthoring } from './integrated-lessons.ts';
 import { advancedUnits } from './advanced-lessons.ts';
+import { textbookRefreshers } from './prerequisites/textbook-refreshers.ts';
 export type PrivateExercise = CourseExercise;
 export type PrivateLesson = CourseLesson;
 export type Unit = CourseUnit;
 export type ExerciseType = CourseExercise['type'];
 export type ChallengeType = 'grammar_rush' | 'cloze_battle' | 'reading_quest';
 export const contentStatus = {
-  version: 'phase-5b-edited-1',
+  version: 'phase-5b-edited-2',
   status: 'draft_needs_human_review',
   rankedPublished: false,
   source: 'original_authored_integrated_curriculum',
@@ -221,7 +222,7 @@ function authorLesson(
       prerequisiteSkillIds,
       explanationEs: definition.rule,
       examples: definition.examples.map(([en, es]) => ({ en, es })),
-      taughtForms: definition.forms.map(([en, es]) => ({ en, es })),
+      taughtForms: [...definition.forms, ...textbookRefreshers(id)].map(([en, es]) => ({ en, es })),
     },
     examples: definition.examples.map(([en, es]) => ({ en, es })),
     dialogue: definition.dialogue.map(([speaker, en, es]) => ({

@@ -153,7 +153,7 @@ async function main() {
     const phrases = chapterLessonPhrases([lesson, ...additionalLessons], unit?.lessons);
     if (id === 'home') phrases.push(...storyPhrases);
     const previous = parseChapterPack(
-      await readFile(chapterPath(legacy.chapters[id].revision, id), 'utf8'),
+      await readFile(chapterPath(current?.revision ?? legacy.chapters[id].revision, id), 'utf8'),
       id,
     );
     const newPhrases = phrases.filter((phrase) => !Object.hasOwn(previous.audio, phrase));

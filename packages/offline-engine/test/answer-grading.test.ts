@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import {
   equivalentAnswerText,
   judgeAnswer,
+  type Answer,
   type AnswerKey,
+  type AnswerOutcome,
   type AttemptResult,
   type ExerciseType,
 } from '@lingoquest/contracts';
+import { lessons } from '../../../content/source/curriculum';
 import { OfflineEngine, type CourseData, type CourseExercise } from '../src/index';
 
 function key(type: ExerciseType, ...acceptedAnswers: string[]): AnswerKey & { type: ExerciseType } {
@@ -61,11 +64,93 @@ test('equivalent written answers preserve grammar and meaning', () => {
     ['The park is next to the stop.', 'The park is near the stop.'],
     ['Let’s eat, Grandma.', 'Let’s eat Grandma.'],
     ['No, smoking is fine.', 'No smoking is fine.'],
+    ['Let’s wait, Ana.', 'Let’s wait Ana.'],
+    ['We’re leaving, Sam.', 'We’re leaving Sam.'],
+    ['She said, “Wait.”', 'She said? Wait.'],
     ['Do I need a ticket?', 'Do I? Need a ticket.'],
     ['It costs $1.25.', 'It costs $1 25.'],
   ];
   for (const [model, answer] of distinct)
     assert.ok(!equivalentAnswerText(answer, model), `${model} / ${answer}`);
+});
+
+test('published lesson keys accept only the intended meaning and distinguish the requested form', () => {
+  const cases: Record<string, [Answer, AnswerOutcome][]> = {
+    u01_l01_practice_4: [
+      [{ text: 'good morning! My name’s José Ortega y Gasset.' }, 'target'],
+      [{ text: 'Hello! I’m A. J. da Silva.' }, 'target'],
+      [{ text: 'hi, my name is oʼneill-blanc.' }, 'target'],
+      [{ text: 'My name is A. J. da Silva.' }, 'incorrect'],
+      [{ text: 'Hello! I am Ana and Julia.' }, 'incorrect'],
+      [{ text: 'Hello! My name is Ana or Julia.' }, 'incorrect'],
+      [{ text: 'Hello! I’m from Peru.' }, 'incorrect'],
+    ],
+    u02_l01_practice_1: [
+      [{ text: ' STUDY! ' }, 'target'],
+      [{ text: 'to study' }, 'incorrect'],
+      [{ text: 'am studying' }, 'incorrect'],
+    ],
+    u02_l01_practice_2: [
+      [{ tokens: ['Every', 'day', 'I', 'drink', 'water', '.'] }, 'target'],
+      [{ tokens: ['I', 'drink', 'water', 'every', 'day', '.'] }, 'target'],
+      [{ tokens: ['Every', 'day', 'drink', 'I', 'water', '.'] }, 'incorrect'],
+    ],
+    u02_l02_practice_3: [
+      [{ text: 'SHE STUDIES ENGLISH' }, 'target'],
+      [{ text: 'She studys English.' }, 'incorrect'],
+      [{ text: 'She studies Spanish.' }, 'incorrect'],
+    ],
+    u03_l03_practice_3: [
+      [{ text: 'Please, can you repeat?' }, 'target'],
+      [{ text: 'Can you please repeat?' }, 'target'],
+      [{ text: 'Could you please repeat?' }, 'communication_only'],
+      [{ text: 'Please repeat.' }, 'communication_only'],
+      [{ text: 'Can you please repeats?' }, 'incorrect'],
+      [{ text: 'Can you? repeat please.' }, 'incorrect'],
+    ],
+    u05_l03_practice_4: [
+      [{ text: 'It isn’t raining.' }, 'target'],
+      [{ text: 'It’s not raining.' }, 'target'],
+      [{ text: 'There’s no rain right now.' }, 'communication_only'],
+      [{ text: 'It is raining.' }, 'incorrect'],
+      [{ text: 'It isn’t rain.' }, 'incorrect'],
+    ],
+    u07_l02_practice_4: [
+      [{ text: 'Have you ever been abroad before?' }, 'target'],
+      [{ text: 'Have you been abroad before?' }, 'communication_only'],
+      [{ text: 'Have you ever went abroad?' }, 'incorrect'],
+    ],
+    u07_l03_practice_4: [
+      [{ text: 'I haven’t bought my ticket yet.' }, 'target'],
+      [{ text: 'I haven’t yet bought my ticket.' }, 'target'],
+      [{ text: 'I still haven’t bought my ticket.' }, 'communication_only'],
+      [{ text: 'I have bought my ticket.' }, 'incorrect'],
+      [{ text: 'I haven’t bought my tickets yet.' }, 'incorrect'],
+      [{ text: 'I haven’t buy my ticket yet.' }, 'incorrect'],
+    ],
+    u08_l01_practice_3: [
+      [{ text: 'Check' }, 'target'],
+      [{ text: 'bill' }, 'communication_only'],
+      [{ text: 'ticket' }, 'incorrect'],
+    ],
+    u08_l01_practice_4: [
+      [{ text: 'I’d like the menu, please!' }, 'target'],
+      [{ text: 'May I have the menu, please?' }, 'communication_only'],
+      [{ text: 'I’d like a ticket, please.' }, 'incorrect'],
+      [{ text: 'I had like the menu, please.' }, 'incorrect'],
+    ],
+  };
+  const exercises = Object.values(lessons).flatMap((lesson) => lesson.exercises);
+  for (const [exerciseId, answers] of Object.entries(cases)) {
+    const exercise = exercises.find(({ id }) => id === exerciseId);
+    assert.ok(exercise, exerciseId);
+    for (const [answer, outcome] of answers)
+      assert.equal(
+        judgeAnswer(exercise, answer),
+        outcome,
+        `${exerciseId} ${JSON.stringify(answer)}`,
+      );
+  }
 });
 
 test('authored answer keys distinguish target, communicative wording, errors and insufficient context', () => {
@@ -119,6 +204,11 @@ test('authored answer keys distinguish target, communicative wording, errors and
   assert.equal(judgeAnswer(choice, { optionId: 'wrong' }), 'incorrect');
   assert.equal(judgeAnswer(choice, { text: 'stop' }), 'incorrect');
   assert.equal(judgeAnswer(key('short_text', 'study'), { optionId: 'study' }), 'incorrect');
+  assert.equal(judgeAnswer(key('cloze'), { text: 'study' }), 'ungradable');
+  assert.equal(
+    judgeAnswer({ ...choice, correctOptionId: 'unknown' }, { optionId: 'right' }),
+    'ungradable',
+  );
 });
 
 test('personal introductions accept real name formats and keep identity separate from the target pattern', () => {

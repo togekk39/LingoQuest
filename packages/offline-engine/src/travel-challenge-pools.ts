@@ -51,15 +51,15 @@ export const travelChallengePools = {
     fill(
       'name',
       'My name ___ Sam.',
-      'Preséntate como Sam. Usa be en presente.',
+      'Completa la presentación de Sam. Usa be en presente.',
       ['is'],
-      'Con My name usamos is para decir tu nombre.',
+      'Sam dice My name is Sam. Con My name usamos is.',
       'grammar.be_i_you',
     ),
     fill(
       'introduce',
       'I ___ Luz.',
-      'Preséntate como Luz. Usa be en presente.',
+      'Completa la presentación de Luz. Usa be en presente.',
       ['am'],
       'Con I usamos am, como en I am Luz.',
       'grammar.be_i_you',
@@ -75,7 +75,7 @@ export const travelChallengePools = {
     fill(
       'color',
       'My bag ___ blue.',
-      'Indica de qué color es tu mochila. Usa be en presente.',
+      'Sam describe su mochila azul. Completa su frase con be en presente.',
       ['is'],
       'Is conecta la mochila con su color.',
       'grammar.be_it_they',

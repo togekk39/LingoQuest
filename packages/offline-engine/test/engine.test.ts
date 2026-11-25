@@ -273,12 +273,32 @@ test('bundling the textbook preserves the travel challenge rules and keeps rank 
   const { engine, store } = fixture();
   await engine.initialize();
   const state = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
-  state.travel = { completed: {}, stamps: { [chapter.id]: '2026-11-08T12:00:00.000Z' } };
+  const date = '2026-11-08T12:00:00.000Z';
+  state.travel = {
+    completed: { bag: date },
+    cleared: ['hello', 'bus'],
+    stamps: { [chapter.id]: date },
+  };
   store.data.set(OFFLINE_STATE_KEY, JSON.stringify(state));
 
   type Rank = { nameEs: string; seconds: number; hearts: number; unlocked: boolean };
+  const homeLevels = '/v1/challenges/tracks/home_journey/levels';
+  const runPath = '/v1/challenges/runs';
+  const input = {
+    clientRequestId: 'travel-rank-with-textbook',
+    trackId: 'home_journey',
+    type: 'grammar_rush',
+    level: 1,
+    mode: 'practice',
+  };
+  const placed = await engine.request<{ levels: Rank[] }>(homeLevels);
+  assert.ok(placed.levels.every((rank) => !rank.unlocked));
+  await assert.rejects(engine.request(runPath, input), /Primero completa las lecciones/);
+
+  state.travel.completed = Object.fromEntries(chapter.missions.map((mission) => [mission.id, date]));
+  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(state));
   const [travel, textbook] = await Promise.all([
-    engine.request<{ levels: Rank[] }>('/v1/challenges/tracks/home_journey/levels'),
+    engine.request<{ levels: Rank[] }>(homeLevels),
     engine.request<{ levels: Rank[] }>('/v1/challenges/tracks/present_simple/levels'),
   ]);
   assert.equal(travel.levels[0].nameEs, 'Explorador');
@@ -288,15 +308,16 @@ test('bundling the textbook preserves the travel challenge rules and keeps rank 
   assert.equal(textbook.levels[0].nameEs, 'Primeros pasos');
   assert.equal(textbook.levels[0].seconds, 180);
   assert.equal(textbook.levels.filter((rank) => rank.unlocked).length, 0);
-  const run = await engine.request<RunView>('/v1/challenges/runs', {
-    clientRequestId: 'travel-rank-with-textbook',
-    trackId: 'home_journey',
-    type: 'grammar_rush',
-    level: 1,
-    mode: 'practice',
-  });
+  const run = await engine.request<RunView>(runPath, input);
   assert.equal(run.heartsRemaining, 3);
   assert.equal(Date.parse(run.deadlineAt!) - Date.parse(run.serverNow), 85_000);
+
+  const beforeUpdate = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  beforeUpdate.travel!.completed = { bag: date };
+  store.data.set(OFFLINE_STATE_KEY, JSON.stringify(beforeUpdate));
+  const resumed = await engine.request<RunView>(runPath, input);
+  assert.equal(resumed.runId, run.runId);
+  assert.equal(resumed.heartsRemaining, run.heartsRemaining);
 });
 test('upper travel ranks require the matching lessons and use production without options', async () => {
   const { engine } = fixture();

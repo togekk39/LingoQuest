@@ -5,8 +5,14 @@ export { travelChallengePools } from './home-content';
 
 export const HOME_TRAVEL_TRACK = 'home_journey';
 export const availableTravelRanks = 3;
+export function practiceHomeChallengeItems<T extends { ungradable?: unknown }>(
+  pool: readonly T[],
+  level: number,
+) {
+  return pool.filter((item) => !item.ungradable).slice(0, level + 2);
+}
 export function travelChallengeItems(type: keyof typeof travelChallengePools, level: number) {
-  return travelChallengePools[type].filter((item) => !item.ungradable).slice(0, level + 2);
+  return practiceHomeChallengeItems(travelChallengePools[type], level);
 }
 
 const ranks = [

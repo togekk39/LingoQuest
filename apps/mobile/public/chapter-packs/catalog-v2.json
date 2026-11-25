@@ -3,44 +3,44 @@
   "schemaVersion": 1,
   "chapters": {
     "home": {
-      "revision": 6,
-      "sizeBytes": 6035454,
-      "sha256": "7d3e6fa7ecf13a817c558ea11be988c66a2774c193df4792bbd4731ceffedd5f"
+      "revision": 7,
+      "sizeBytes": 6035994,
+      "sha256": "2a76bad6a18ecd1630be5cca4cac167dc38447bc6dc39c243dbb8212cb7fd480"
     },
     "mexico": {
-      "revision": 6,
-      "sizeBytes": 974643,
-      "sha256": "9f4405feaa087f8a92506749c6b71a105d4b97a7c1dddc46566707d13e2b08fe"
+      "revision": 7,
+      "sizeBytes": 974885,
+      "sha256": "1d4bd03d3bef3166737288b0dec20cab95a1d12b5fbbea0f333bd30c17d57cf5"
     },
     "colombia": {
-      "revision": 6,
-      "sizeBytes": 1094270,
-      "sha256": "b16478cfa524586683c212df43d68c4770051322ec697e0693b173ddc05896a4"
+      "revision": 7,
+      "sizeBytes": 1094316,
+      "sha256": "bc5fa56cedc3ba8c67f690587654317e087e1d678cea28fa846e7c17484c8f3d"
     },
     "peru": {
-      "revision": 6,
-      "sizeBytes": 1080499,
-      "sha256": "3a7dca8e688f53569b265ce6573739b9939205ebc960b84bdbd9921a6c817568"
+      "revision": 7,
+      "sizeBytes": 1080871,
+      "sha256": "b5a6fa02091cdc5efb2d5b4b45499df61dc5dc95d00ee4c470491841b6f62824"
     },
     "brazil": {
-      "revision": 6,
-      "sizeBytes": 1117671,
-      "sha256": "8a015bc161770838c409b50e18d893a20abbaddfc301f6cd492f953c57d4b30d"
+      "revision": 7,
+      "sizeBytes": 1118979,
+      "sha256": "9c599f2e6cdc2dc873021bf0884139fe9deb91949a427e3974bf892bde5e0fc6"
     },
     "chile": {
-      "revision": 6,
-      "sizeBytes": 1149460,
-      "sha256": "9ae9ee7f27aef9efc641e3c7d7f14f2b4c43ed6b20602515766bc39f64522c51"
+      "revision": 7,
+      "sizeBytes": 1150514,
+      "sha256": "f4337d40fb93e247518927f23a20923e7bc3228eaa232d3b7c8d34b4e2112031"
     },
     "miami": {
-      "revision": 6,
-      "sizeBytes": 1124382,
-      "sha256": "377eb22c0daddcd538616771f054e2e72fe21d5c8e5f64d4f5c174274694a466"
+      "revision": 7,
+      "sizeBytes": 1125453,
+      "sha256": "7ae3679ee234a8e3519a89a8efb72cab04fe3e1d8ecb45c6aae9878e6740b86d"
     },
     "new-york": {
-      "revision": 6,
-      "sizeBytes": 1301355,
-      "sha256": "5fc3a6671a2902822fed148c857065bc8bb29e308b756e447bc4b361633a3368"
+      "revision": 7,
+      "sizeBytes": 1302117,
+      "sha256": "64febd4fa6677c20f0ddb6942a0ccd1a6397d93df6fe2701266c1a8c64719d3c"
     },
     "toronto": {
       "revision": 6,
@@ -93,9 +93,9 @@
       "sha256": "81bfe5f511b25a47ccbdddd54db984b1e777611a4fcb15aebb108ac09e3ea65f"
     },
     "south-africa": {
-      "revision": 6,
-      "sizeBytes": 392479,
-      "sha256": "65fc92d013115d4e2bb0d49cf820f43fb07a48897b50aa4de6c2147592430d37"
+      "revision": 7,
+      "sizeBytes": 438225,
+      "sha256": "f3c067e1a016506abfda057875fb9332b38d9f4a50a4b22d6d482ce8d68c122c"
     },
     "antarctica": {
       "revision": 6,

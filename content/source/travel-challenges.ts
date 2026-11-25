@@ -134,7 +134,7 @@ const scenarios: Scenario[] = [
     difficulty: 12,
     throughUnit: 6,
     passage:
-      'Yesterday, Leo bought a ticket for next Saturday. He is going to travel by bus. He is going to meet Ana at two. Ana is going to travel by train. Right now, Ana is writing a message. The train is going to arrive late. She will call Leo later. Leo will wait outside.',
+      'Yesterday, Leo bought a ticket. He is going to travel by bus next Saturday. He is going to meet Ana at two. Ana is going to travel by train. Right now, Ana is writing a message. The train is going to arrive late. She will call Leo later. Leo will wait outside.',
     cloze:
       'Yesterday, Leo [1] a ticket. He is [2] to travel by bus next Saturday. Ana is [3] a message right now. The train is going [4] arrive late. She [5] call Leo later.',
     blanks: [

@@ -751,7 +751,7 @@ export const chapter: TravelChapter = {
           id: 'bag_teach',
           type: 'teach',
           title: 'Describir con colores',
-          text: 'My bag es «mi mochila». Usa my delante del nombre del objeto para decir que algo es tuyo. En My bag is blue, is une la mochila con su color. Si ya sabemos qué objeto describes, puedes decir It’s blue.',
+          text: 'Antes de leer la nota, recuerda que «My name is…» significa «Me llamo…» y va seguido del nombre de quien escribe. My bag es «mi mochila». Usa my delante del nombre del objeto para decir que algo es tuyo. En My bag is blue, is une la mochila con su color. Si ya sabemos qué objeto describes, puedes decir It is blue o la forma corta It’s blue. Para nombrar un objeto conocido, usa the, como en the bag («la mochila»).',
           examples: [
             { en: 'My bag is blue.', es: 'Mi mochila es azul.' },
             { en: 'a blue bag', es: 'una mochila azul' },
@@ -1184,7 +1184,8 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     {
       id: 'travel_review_item_owner_read',
       type: 'short_text',
-      promptEs: '¿De qué color es la mochila de Emma? Responde en inglés con el color o con una oración breve.',
+      promptEs:
+        '¿De qué color es la mochila de Emma? Responde en inglés con el color o con una oración breve.',
       passage: 'Hi! My name is Emma. My bag is red. It’s next to the blue bag.',
       skillId: 'grammar.be_it_they',
       dimension: 'grammar_understanding',
@@ -1251,7 +1252,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     },
   }),
   practice(
-    'En el mercado te mandan una nota que describe un bus y una mochila. Anota el color del bus.',
+    'En el mercado te mandan una nota que describe un bus y una mochila. «Bus» significa «autobús». Anota el color del bus.',
     {
       id: 'travel_review_item_color_read',
       type: 'short_text',
@@ -1279,7 +1280,7 @@ export const travelPracticeSteps: TravelExerciseStep[] = [
     },
   ),
   practice(
-    'En el puesto de información te piden distinguir el bus rojo de otro bus. Confírmales cuál es.',
+    'En el puesto de información te piden distinguir el bus rojo de otro bus. En inglés, «bus» significa «autobús». Confírmales cuál es.',
     {
       id: 'travel_review_item_color',
       type: 'short_text',

@@ -16,7 +16,12 @@ function isName(value: string | undefined): boolean {
   )
     return false;
   const words = spelling.toLowerCase().split(' ');
-  return !nonNameStarts.test(words[0]) && !words.some((word) => nonNameWords.test(word));
+  const namesInCoordination = words.slice(1, -1).some((word) => word === 'and' || word === 'or');
+  return (
+    !nonNameStarts.test(words[0]) &&
+    !words.some((word) => nonNameWords.test(word)) &&
+    !namesInCoordination
+  );
 }
 
 export function readIntroduction(value: string, spoken = false) {

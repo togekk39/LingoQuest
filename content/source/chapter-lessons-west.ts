@@ -22,7 +22,7 @@ export const westernChapterLessons = {
       { en: 'I need help.', es: 'Necesito ayuda.' },
     ],
     grammarEs:
-      'Di «I am Luz» o «I’m Luz» para presentarte. Con «my name», usa «is»: «My name is Luz». Para pedir ayuda, empieza con «Excuse me. Can you help me?». Si necesitas ayuda de inmediato, di «I need help». Pregunta por un lugar con «Where is…?» y responde con «It’s next to…» para ubicarlo al lado de otro lugar. «It’s» significa «it is».',
+      'Luz puede decir «I am Luz», «I’m Luz» o «My name is Luz». Para presentarte, cambia «Luz» por tu nombre. Con «my name», usa «is». Para pedir ayuda, empieza con «Excuse me. Can you help me?». Si necesitas ayuda de inmediato, di «I need help». Pregunta por un lugar con «Where is…?» y responde con «It’s next to…» para ubicarlo al lado de otro lugar. «It’s» significa «it is».',
     question: {
       promptEs: '¿Dónde queda la parada que busca Sam?',
       options: ['Al lado de la mesa de bienvenida', 'Al lado del parque', 'Dentro del parque'],

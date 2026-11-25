@@ -30,6 +30,7 @@ import {
 import { verifyReleaseAudit } from './audit-release-items';
 import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
 import { inspectPublishedPrerequisites } from './published-prerequisites';
+import { inspectOptionalPrerequisites } from './published-optional-prerequisites';
 
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
@@ -369,6 +370,20 @@ async function verifyPublishedContent(inventory: boolean) {
     'Published paths / Rutas publicadas:\n' + prerequisiteCoverage.issues.join('\n'),
   );
   console.log('Published prerequisites / Requisitos publicados:', prerequisiteCoverage.statistics);
+  const optionalCoverage = inspectOptionalPrerequisites({
+    ...bundled.payload,
+    homeChallengePools: travelChallengePools,
+    homePlacementItems: travelPlacementItems,
+    homeMissionIds: chapter.missions.map(({ id }) => id),
+    instructionTrace: prerequisiteCoverage.instructionTrace,
+  });
+  assert.deepEqual(
+    optionalCoverage.issues,
+    [],
+    'Optional assessment dependencies / Requisitos de evaluaciones opcionales:\n' +
+      optionalCoverage.issues.join('\n'),
+  );
+  console.log('Optional assessments / Evaluaciones opcionales:', optionalCoverage.stats);
   if (inventory)
     console.log({
       homeMissions: chapter.missions.map((mission) => ({

@@ -535,3 +535,24 @@ test('Salvador offers a fresh offline listening question with an optional transl
   await expect(card.getByText(listening.en, { exact: true })).toBeVisible();
   await expect(card.getByText(listening.es, { exact: true })).toBeVisible();
 });
+
+test('Cape Town distinguishes what the ferry video shows from the unconfirmed departure time', async ({
+  page,
+}) => {
+  await enterApp(page);
+  await page.getByRole('tab', exact('Mapa')).click();
+  await click(page, '19. Ciudad del Cabo');
+  await click(page, 'Abrir capítulo');
+
+  const card = page.getByTestId('chapter-lesson-south-africa');
+  await expect(card.getByText(/solo se ve el ferry junto al muelle/)).toBeVisible();
+  await expect(
+    card.getByText(/Su teléfono indica que el video se grabó a las tres y cuarenta/),
+  ).toBeVisible();
+  const model = card.getByText(/Amara’s video shows the ferry next to the dock/);
+  await expect(model).toHaveCount(0);
+  await card.getByRole('button', exact('Ver un modelo')).click();
+  await expect(model).toContainText('The video doesn’t show the ferry pulling away');
+  await expect(model).toContainText('the actual departure time hasn’t been confirmed');
+  await expect(model).toContainText('compare the recording with the terminal log');
+});

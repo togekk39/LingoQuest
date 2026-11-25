@@ -81,6 +81,21 @@ test('Phase 5B reads the previous course and requires the newer answer-field cap
   assert.throws(() => parseCoursePack(text, '2.1.0'), errorCode('APP_UPDATE_REQUIRED'));
   assert.deepEqual(Object.keys(current.payload.lessons), Object.keys(old.payload.lessons));
 });
+test('updated teaching keeps the earlier Phase 5B course readable and preserves exercise IDs', () => {
+  const previous = readFileSync(
+    new URL('../../../content/releases/lingoquest-es419-enus-a1a2-2.2.0.lqp.json', import.meta.url),
+    'utf8',
+  );
+  const old = parseCoursePack(previous, '2.2.0');
+  const current = parseCoursePack(text, '2.2.0');
+  const lessonExercises = (pack: CoursePack) =>
+    Object.values(pack.payload.lessons).map(({ id, exercises }) => [
+      id,
+      exercises.map((exercise) => exercise.id),
+    ]);
+  assert.equal(current.manifest.version, '2.2.1');
+  assert.deepEqual(lessonExercises(current), lessonExercises(old));
+});
 test('canonical metadata and payload digest are stable across property insertion order', () => {
   const reordered = { payload: baseline.payload, manifest: { ...baseline.manifest } };
   assert.equal(validateCoursePack(reordered).manifest.sha256, baseline.manifest.sha256);

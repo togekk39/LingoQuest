@@ -954,7 +954,7 @@ export class OfflineEngine {
     if (route === '/v1/travel/placement') {
       if (method === 'GET') return done({ questions: placementQuestions(publicExercise) });
       const travel = (state.travel ??= emptyTravel());
-      const placement = assessTravelPlacement(body, grade);
+      const placement = assessTravelPlacement(body);
       travel.placement = placement;
       const preceding = chapter.missions.slice(
         0,
@@ -1459,7 +1459,11 @@ export class OfflineEngine {
           'Es una orientación personal, no una certificación. Explora las lecciones a tu ritmo.',
       });
     }
-    const homeChallengeOpen = chapter.missions.length > 0 && !!state.travel?.stamps[chapter.id];
+    const completedHomeMissions = chapter.missions.filter((mission) => state.travel?.completed[mission.id]);
+    const homeChallengeOpen =
+      chapter.missions.length > 0 &&
+      completedHomeMissions.length === chapter.missions.length &&
+      !!state.travel?.stamps[chapter.id];
     if (route === '/v1/challenges/tracks' && params.get('source') === 'travel')
       return done({
         tracks: [
@@ -1470,10 +1474,7 @@ export class OfflineEngine {
               'Pon en práctica los saludos, las indicaciones y las descripciones del capítulo.',
             unlocked: homeChallengeOpen,
             available: chapter.missions.length > 0,
-            completedLessons: chapter.missions.filter(
-              (m) =>
-                state.travel?.completed[m.id] || state.travel?.cleared?.some((id) => id === m.id),
-            ).length,
+            completedLessons: completedHomeMissions.length,
             requiredLessons: chapter.missions.length,
             published: false,
             rankedAvailable: false,
@@ -1562,16 +1563,6 @@ export class OfflineEngine {
           404,
           'CONTENT_UNAVAILABLE',
         );
-      if (
-        isHomeTrack
-          ? !homeChallengeOpen || input.level > availableTravelRanks
-          : !trackUnlocked(state, content, challengeUnit(content, input.level))
-      )
-        throw new LocalError(
-          'Primero completa las lecciones relacionadas. Los desafíos son opcionales y solo usan material aprendido.',
-          403,
-          'CHALLENGE_LOCKED',
-        );
       const fingerprint = JSON.stringify(input);
       const previous = own(state.runRequests, input.clientRequestId);
       if (previous) {
@@ -1586,6 +1577,16 @@ export class OfflineEngine {
         finish(state, run, now);
         return done(view(run, now));
       }
+      if (
+        isHomeTrack
+          ? !homeChallengeOpen || input.level > availableTravelRanks
+          : !trackUnlocked(state, content, challengeUnit(content, input.level))
+      )
+        throw new LocalError(
+          'Primero completa las lecciones relacionadas. Los desafíos son opcionales y solo usan material aprendido.',
+          403,
+          'CHALLENGE_LOCKED',
+        );
       const items = copy(
         isHomeTrack
           ? travelChallengeItems(input.type, input.level)

@@ -21,11 +21,11 @@ import {
 } from '../packages/course-pack/src/index.ts';
 async function main() {
   const root = resolve(process.cwd());
-  const version = process.env.COURSE_PACK_VERSION ?? '2.2.0';
+  const version = process.env.COURSE_PACK_VERSION ?? '2.2.1';
   const repository = process.env.COURSE_PACK_REPOSITORY ?? 'togekk39/LingoQuest';
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository))
     throw new Error('COURSE_PACK_REPOSITORY must be owner/repository.');
-  const createdAt = process.env.COURSE_PACK_CREATED_AT ?? '2026-11-24T00:00:00.000Z';
+  const createdAt = process.env.COURSE_PACK_CREATED_AT ?? '2026-11-25T00:00:00.000Z';
   const pack = createCoursePack(
     {
       units,

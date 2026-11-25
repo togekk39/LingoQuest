@@ -52,9 +52,13 @@ test('placement from the welcome evaluates travel listening and jumps to the rec
   await expect(page.getByRole('heading', exact('¿Desde dónde viajas?'))).toBeVisible();
   await click(page, 'Honduras');
   await click(page, 'Empezar la prueba');
+  const savedName = (await state(page)).user.name;
   await page.getByRole('radio', exact('Se está presentando.')).click();
   await click(page, 'Siguiente pregunta');
-  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill("I'm Luz.");
+  await expect(page.getByText(/Usa tu nombre o elige un nombre de práctica/)).toBeVisible();
+  await page
+    .getByRole('textbox', exact('Tu respuesta en inglés'))
+    .fill('Hello! You can call me María-José O’Neill.');
   await click(page, 'Siguiente pregunta');
   await click(page, 'Escuchar a Sam');
   await page.getByRole('radio', exact('La parada de autobús.')).click();
@@ -66,6 +70,7 @@ test('placement from the welcome evaluates travel listening and jumps to the rec
   await click(page, 'No lo sé todavía');
   await expect(page.getByText('4 de 6 respuestas acertadas sin ayuda.')).toBeVisible();
   await expect(page.getByText('Una mochila y una postal', { exact: true })).toBeVisible();
+  expect((await state(page)).user.name).toBe(savedName);
   expect((await state(page)).travel.stamps).toEqual({});
   expect((await state(page)).travel.completed).toEqual({});
   await click(page, 'Ir a mi misión');

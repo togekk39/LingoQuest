@@ -33,6 +33,7 @@ test('actual sources cover every chapter card, textbook exercise and first-chapt
   assert.equal(statistics.chapterCards, 20);
   assert.equal(statistics.chapterQuestions, statistics.chapterCards);
   assert.equal(statistics.chapterSelfChecks, statistics.chapterCards);
+  assert.ok(statistics.chapterExactPatterns > statistics.chapterCards);
   assert.equal(statistics.textbookLessons, Object.keys(lessons).length);
   assert.equal(
     statistics.textbookExercises,
@@ -40,10 +41,96 @@ test('actual sources cover every chapter card, textbook exercise and first-chapt
   );
   assert.equal(statistics.storyMissions, chapter.missions.length);
   assert.equal(statistics.travelAdaptiveItems, travelPracticeSteps.length);
+  assert.ok(statistics.travelAdaptivePaths > statistics.storyExercises);
   assert.equal(
     statistics.storyExercises,
     chapter.missions.flatMap((mission) => mission.steps.filter((step) => step.type === 'exercise'))
       .length,
+  );
+});
+
+test('Salvador progressives still require the taught vocabulary even when the transcript includes it', () => {
+  const content = published();
+  const { brazil } = content.chapters;
+  assert.ok(!Array.isArray(brazil));
+  const needs = 'wash the vegetables';
+  assert.match(brazil.question.listening!.en, /washing the vegetables/);
+  brazil.vocabulary = brazil.vocabulary.filter(({ en }) => en !== needs);
+  const { issues } = inspectPublishedPrerequisites(content);
+  assert.ok(issues.some((issue) => issue.includes(`Missing card vocabulary: ${needs}`)));
+  assert.ok(
+    issues.some((issue) =>
+      /chapter=brazil .*exercise=chapter-question .*Missing target: wash the vegetables/.test(
+        issue,
+      ),
+    ),
+  );
+  assert.ok(
+    !issues.some(
+      (issue) => issue.includes('Missing teaching evidence') && issue.includes('brazil'),
+    ),
+  );
+});
+
+test('a grammatical but unreviewed Story reading is rejected before its existing tags can pass', () => {
+  const content = published();
+  const read = content.missions
+    .find(({ id }) => id === 'bag')
+    ?.steps.find(({ id }) => id === 'travel_bag_owner');
+  assert.ok(read?.type === 'exercise');
+  read.exercise.passage = 'Hi! My name is Luz. My satchel is crimson.';
+  const { issues } = inspectPublishedPrerequisites(content);
+  assert.ok(
+    issues.some((issue) =>
+      /step=travel_bag_owner Changed instructional or assessment text/.test(issue),
+    ),
+  );
+});
+
+test('direct Bag Study cannot rely on Hello being taught or on a preview or text passage', () => {
+  const content = published();
+  const bag = content.missions.find(({ id }) => id === 'bag')!;
+  const lesson = bag.steps.find(({ id }) => id === 'bag_teach');
+  const opening = bag.steps.find(({ type }) => type === 'dialogue');
+  assert.ok(lesson?.type === 'teach' && opening?.type === 'dialogue');
+  opening.line = { en: 'My name is Luz.', es: 'Me llamo Luz.' };
+  lesson.text = lesson.text.replace(/^Antes de leer .*?\. My bag/u, 'My bag');
+  const { issues } = inspectPublishedPrerequisites(content);
+  assert.ok(
+    issues.some((issue) =>
+      /lesson=published\.home\.bag path=direct-study exercise=travel_bag_owner missing=home\.introduce\[My name is\]/.test(
+        issue,
+      ),
+    ),
+  );
+  assert.ok(
+    issues.some((issue) =>
+      /adaptive=travel_review_item_owner_read .*Target absent from concept teaching: home\.introduce/.test(
+        issue,
+      ),
+    ),
+  );
+});
+
+test('a Study explanation hidden in Story cannot cover a missing visible introduction lesson', () => {
+  const content = published();
+  const intro = content.missions
+    .find(({ id }) => id === 'hello')
+    ?.steps.find(({ id }) => id === 'hello_teach');
+  assert.ok(intro?.type === 'teach' && intro.storyPrompt);
+  intro.storyPrompt.text = 'Ahora te presentas ante Sam.';
+  const { issues } = inspectPublishedPrerequisites(content);
+  assert.ok(
+    issues.some((issue) =>
+      /path=story-greet-sam exercise=travel_hello_build missing=home\.intro-agreement/.test(issue),
+    ),
+  );
+  assert.ok(
+    !issues.some((issue) =>
+      /lesson=published\.home\.hello path=direct-study exercise=travel_hello_build missing=/.test(
+        issue,
+      ),
+    ),
   );
 });
 
@@ -127,7 +214,7 @@ test('adaptive review detects drift in the concept gate and the local word suppo
   );
   assert.ok(
     issues.some((issue) =>
-      /adaptive=travel_review_place_location .*Missing teaching evidence: the bag/.test(issue),
+      /adaptive=travel_review_place_location .*Missing support evidence: the bag/.test(issue),
     ),
   );
 });

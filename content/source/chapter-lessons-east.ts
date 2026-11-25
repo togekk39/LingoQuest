@@ -447,6 +447,8 @@ export const easternChapterLessons = {
     vocabulary: [
       { en: 'departure board', es: 'tablero de salidas' },
       { en: 'pull away', es: 'zarpar' },
+      { en: 'next to the dock', es: 'junto al muelle' },
+      { en: 'terminal log', es: 'bitácora de la terminal' },
       { en: 'actually', es: 'en realidad' },
       { en: 'currently', es: 'actualmente, en este momento' },
     ],
@@ -464,10 +466,10 @@ export const easternChapterLessons = {
         'Lebo puede confirmar lo que decía el tablero. Sofia vio a pasajeros subir al ferry. La hora real de salida todavía no se ha verificado.',
     },
     practiceEs:
-      'Una tercera viajera, Amara, te muestra un video del ferry que su teléfono registró a las tres y cuarenta. Explica en inglés qué aporta el video y qué habría que comprobar antes de cambiar el informe.',
+      'Una tercera viajera, Amara, te muestra un video en el que solo se ve el ferry junto al muelle. Su teléfono indica que el video se grabó a las tres y cuarenta. Explica en inglés qué muestra el video, qué dato sigue sin confirmarse y qué habría que comprobar antes de cambiar el informe.',
     model: {
-      en: 'Amara showed us a video of the ferry pulling away. Her phone logged the video at three forty. We still need to check the phone’s clock and compare that time with the terminal log.',
-      es: 'Amara nos mostró un video del ferry al zarpar. Su teléfono registró el video a las tres y cuarenta. Aún tenemos que revisar el reloj de su teléfono y comparar esa hora con la bitácora de la terminal.',
+      en: 'Amara’s video shows the ferry next to the dock. Her phone says the video was recorded at three forty. The video doesn’t show the ferry pulling away, so the actual departure time hasn’t been confirmed. We need to check the phone’s clock and compare the recording with the terminal log.',
+      es: 'El video de Amara muestra el ferry junto al muelle. Su teléfono indica que se grabó a las tres y cuarenta. El video no muestra al ferry zarpar, así que la hora real de salida sigue sin confirmarse. Tenemos que revisar el reloj del teléfono y comparar la grabación con la bitácora de la terminal.',
     },
   },
   antarctica: {

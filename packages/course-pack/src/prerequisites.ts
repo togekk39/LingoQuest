@@ -38,6 +38,7 @@ const stage = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ id, type: z.literal('context'), supports: z.array(context).min(1) }).strict(),
+  z.object({ id, type: z.literal('preview'), text }).strict(),
   z
     .object({
       id,
@@ -196,6 +197,7 @@ export function checkPrerequisites(
               taught.add(referenceKey(ref));
           continue;
         }
+        if (entry.type === 'preview') continue;
 
         const itemLocation =
           pathLocation + (entry.type === 'exercise' ? ' exercise=' : ' stage=') + entry.id;

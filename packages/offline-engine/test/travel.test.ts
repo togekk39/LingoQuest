@@ -12,6 +12,8 @@ import {
   type OfflineState,
   type QuickReviewState,
   type TravelOperation,
+  type TravelPlacement,
+  type TravelPlacementQuestion,
   type TravelState,
   type TravelReviewRow,
   type TravelLearningState,
@@ -172,7 +174,7 @@ test('a new traveler can finish a tiny practice and resume its feedback without 
 
 const travelTestAnswers = [
   { optionId: 'name' },
-  { text: "I'm Luz." },
+  { text: 'I’m María-José de la Cruz.' },
   { optionId: 'stop' },
   { tokens: ['It’s', 'next', 'to', 'the', 'park'] },
   { optionId: 'blue' },
@@ -204,6 +206,48 @@ test('travel placement recommends the first unverified skill and does not comple
     (await update(engine, { action: 'start', missionId: 'bag' })).active?.missionId,
     'bag',
   );
+});
+
+test('travel placement accepts a real or practice name without changing player identity', async () => {
+  const phone = device();
+  const engine = phone.open();
+  await engine.request('/v1/me', { name: 'María-José de la Cruz' }, 'PATCH');
+  const { questions } = await engine.request<{ questions: TravelPlacementQuestion[] }>(
+    '/v1/travel/placement',
+  );
+  const introduction = questions[1].exercise;
+  assert.equal(introduction.id, 'route_intro_write');
+  assert.match(introduction.promptEs, /tu nombre.*nombre de práctica/);
+  assert.doesNotMatch(introduction.promptEs, /Sam|Luz/);
+  assert.equal(Object.hasOwn(introduction, 'introduction'), false);
+  assert.equal(Object.hasOwn(introduction, 'acceptedAnswers'), false);
+
+  for (const [text, accepted] of [
+    ['I’m María-José de la Cruz.', true],
+    ['My name is J. R. O’Neill.', true],
+    ['Hello! You can call me Núria.', true],
+    ['I are María-José de la Cruz.', false],
+    ['My name María-José de la Cruz.', false],
+    ['I am not Sofía.', false],
+    ['Luz is my friend.', false],
+  ] as const) {
+    const { placement, travel } = await engine.request<{
+      placement: TravelPlacement;
+      travel: TravelState;
+    }>('/v1/travel/placement', {
+      answers: travelTestAnswers.map((answer, index) => ({
+        answer: index === 1 ? { text } : index === 0 ? answer : null,
+        transcript: false,
+      })),
+    });
+    assert.equal(placement.correct, accepted ? 2 : 1, text);
+    assert.equal(placement.missionId, accepted ? 'bus' : 'hello', text);
+    assert.equal(phone.state().user.name, 'María-José de la Cruz');
+    assert.equal(travel.introductionName, undefined);
+    assert.deepEqual(travel.stamps, {});
+    assert.deepEqual(travel.completed, {});
+    assert.equal(phone.state().xp, 0);
+  }
 });
 
 test('a learner can change missions after placement and recover a vocabulary checkpoint', async () => {

@@ -1,14 +1,24 @@
+import { buildTextbookPrerequisites } from './published-textbook-prerequisites';
 import type { ChapterLessonSource, CourseLesson } from '@lingoquest/course-pack';
 import { chapterReaderSections } from '../apps/mobile/src/travel/chapterReaderSections';
 import { starterGreetingInstruction } from '../apps/mobile/src/travel/starterGreeting';
 import {
+  chapterLexicalForms,
+  chapterPatterns,
   homeExercises,
+  homeLocalTeaching,
   homeReviewExercises,
   homeReviewGlosses,
   homeTargets,
   homeTeaching,
   travelCards,
 } from '../content/source/prerequisites/published-travel';
+import {
+  reviewedChapterCards,
+  reviewedHomeLocal,
+  reviewedHomeReview,
+  reviewedHomeSteps,
+} from '../content/source/prerequisites/published-travel-review';
 import {
   checkPrerequisites,
   prerequisiteFileSchema,
@@ -20,6 +30,7 @@ import type {
   TravelExerciseStep,
   TravelMission,
 } from '../packages/offline-engine/src/travel-content';
+import { checkReviewedTravelContent } from './reviewed-travel-content';
 
 type Stage = PrerequisiteFile['lessons'][number]['stages'][number];
 type CheckStage = Extract<Stage, { type: 'exercise' }>;
@@ -40,12 +51,19 @@ function canonicalText(value: string) {
   return value.normalize('NFC').replace(/[’‘]/gu, "'").toLowerCase();
 }
 
-function evidenceIssues(material: string, evidence: readonly string[], location: string) {
+function evidenceIssues(
+  material: string,
+  evidence: readonly string[],
+  location: string,
+  source: 'instruction' | 'support' = 'instruction',
+) {
+  const diagnostic =
+    source === 'instruction'
+      ? 'Falta evidencia de enseñanza / Missing teaching evidence'
+      : 'Falta evidencia del apoyo / Missing support evidence';
   return evidence
     .filter((phrase) => !canonicalText(material).includes(canonicalText(phrase)))
-    .map(
-      (phrase) => `${location} Falta evidencia de enseñanza / Missing teaching evidence: ${phrase}`,
-    );
+    .map((phrase) => `${location} ${diagnostic}: ${phrase}`);
 }
 
 const path = (id: string, stages: readonly Stage[]) => ({
@@ -77,6 +95,7 @@ export function inspectPublishedPrerequisites(
     chapterCards: 0,
     chapterQuestions: 0,
     chapterSelfChecks: 0,
+    chapterExactPatterns: 0,
     textbookLessons: 0,
     textbookExercises: 0,
     storyMissions: 0,
@@ -85,6 +104,7 @@ export function inspectPublishedPrerequisites(
     storyGuidedDialogues: 0,
     travelAdaptiveItems: 0,
     travelGuidedStarters: 0,
+    travelAdaptivePaths: 0,
     paths: 0,
   };
   const addLesson = (lesson: PrerequisiteFile['lessons'][number]) => {
@@ -104,7 +124,14 @@ export function inspectPublishedPrerequisites(
       const id = `published.${chapterId}.card-${index + 1}`;
       statistics.chapterCards++;
       const location = `chapter=${chapterId} lesson=${id}`;
-      const terms = new Map<string, Reference>();
+      issues.push(...checkReviewedTravelContent(reviewedChapterCards, id, card, location));
+      const patterns = authoredEntry(chapterPatterns, chapterId);
+      if (!patterns) {
+        issues.push(`${location} Falta anotación de patrones / Missing pattern annotation`);
+        continue;
+      }
+      const terms = new Map<string, Reference[]>();
+      const knownPatterns = new Set<string>();
       const vocabulary: Stage[] = [];
       for (const [position, term] of definition.vocabulary.entries()) {
         const word = card.vocabulary.find(({ en }) => canonicalText(en) === canonicalText(term));
@@ -114,73 +141,118 @@ export function inspectPublishedPrerequisites(
           );
           continue;
         }
-        const ref = { id: `${id}.word-${position + 1}`, form: word.en };
-        terms.set(term, ref);
+        const wordId = `${id}.word-${position + 1}`;
+        const forms = [...(chapterLexicalForms[chapterId]?.[term] ?? [word.en])];
+        const refs = forms.map((form) => ({ id: wordId, form }));
+        const displayed = [word.en, ...word.en.split(' → ')];
+        const teaches = refs.filter(({ form }) => displayed.includes(form));
+        for (const { form } of refs.filter(({ form }) => !displayed.includes(form)))
+          issues.push(
+            `${location} form=${form} Forma ausente del glosario / Form absent from the glossary`,
+          );
+        terms.set(term, refs);
         file.targets.push({
-          id: ref.id,
+          id: wordId,
           kind: 'lexical',
-          lemma: word.en,
-          forms: [word.en],
+          lemma: forms[0],
+          forms,
           senseEs: word.es,
         });
-        vocabulary.push({
-          id: `vocabulary-${position + 1}`,
-          type: 'teach',
-          teaches: [ref],
-          instructionEs: word.es,
-          exampleEn: word.en,
-        });
+        if (teaches.length)
+          vocabulary.push({
+            id: `vocabulary-${position + 1}`,
+            type: 'teach',
+            teaches,
+            instructionEs: word.es,
+            exampleEn: word.en,
+          });
       }
       const grammar = definition.grammar.map((item): Stage => {
         const ref = { id: `${id}.grammar.${item.id}` };
-        terms.set(item.id, ref);
+        terms.set(item.id, [ref]);
         file.targets.push({ ...ref, kind: 'grammar', descriptionEs: item.descriptionEs });
-        issues.push(
-          ...evidenceIssues(card.grammarEs, item.evidence, location + ' grammar=' + item.id),
+        const patternId = `${id}.pattern.${item.id}`;
+        const forms = [
+          ...new Set([
+            ...(patterns.question[item.id] ?? []),
+            ...(patterns.practice[item.id] ?? []),
+          ]),
+        ];
+        knownPatterns.add(item.id);
+        if (forms.length)
+          file.targets.push({
+            id: patternId,
+            kind: 'pattern',
+            descriptionEs: item.descriptionEs,
+            forms,
+          });
+        const taughtIssues = evidenceIssues(
+          card.grammarEs,
+          [...item.evidence, ...forms],
+          location + ' grammar=' + item.id,
         );
+        issues.push(...taughtIssues);
+        statistics.chapterExactPatterns += forms.length;
+        if (taughtIssues.length)
+          return { id: 'grammar-' + item.id, type: 'preview', text: card.grammarEs };
         return {
           id: 'grammar-' + item.id,
           type: 'teach',
-          teaches: [ref],
+          teaches: [ref, ...forms.map((form) => ({ id: patternId, form }))],
           instructionEs: card.grammarEs,
           exampleEn: item.evidence[0],
         };
       });
-      function dependencies(names: readonly string[], exercise: string) {
-        return names.map((name) => {
-          const ref = terms.get(name);
-          if (ref) return ref;
+      function dependencies(
+        names: readonly string[],
+        exact: Readonly<Record<string, readonly string[]>>,
+        exercise: string,
+      ) {
+        const refs = names.flatMap((name) => {
+          const registered = terms.get(name);
+          if (registered) return registered;
           issues.push(`${location} exercise=${exercise} Falta objetivo / Missing target: ${name}`);
-          return { id: 'missing' };
+          return [{ id: 'missing' }];
         });
+        for (const [grammarId, forms] of Object.entries(exact)) {
+          if (!names.includes(grammarId) || !knownPatterns.has(grammarId))
+            issues.push(
+              `${location} exercise=${exercise} Falta objetivo del patrón / Missing pattern target: ${grammarId}`,
+            );
+          refs.push(...forms.map((form) => ({ id: `${id}.pattern.${grammarId}`, form })));
+        }
+        return refs;
       }
       const question: CheckStage = {
         id: 'chapter-question',
         type: 'exercise',
         mode: 'guided',
-        requires: dependencies(definition.question, 'chapter-question'),
+        requires: dependencies(definition.question, patterns.question, 'chapter-question'),
       };
       const practice: CheckStage = {
         id: 'chapter-practice',
         type: 'exercise',
         mode: 'self-check',
-        requires: dependencies(definition.practice, 'chapter-practice'),
+        requires: dependencies(definition.practice, patterns.practice, 'chapter-practice'),
       };
       const preview: Stage = {
         id: 'bilingual-dialogue',
-        type: 'context',
-        supports: question.requires.map((target) => ({
-          use: 'gloss',
-          target,
-          reasonEs: 'El diálogo bilingüe anticipa el escenario, con las traducciones visibles.',
-        })),
+        type: 'preview',
+        text: 'El diálogo bilingüe anticipa el escenario con las traducciones visibles.',
       };
       const sections: Record<ReaderSection, Stage[]> = {
         dialogue: [preview],
         vocabulary,
         grammar,
         question: [question],
-        practice: [practice],
+        practice: [
+          practice,
+          {
+            id: 'practice-model',
+            type: 'preview',
+            text: 'Modelo de autocorrección opcional, disponible después de leer la consigna.',
+          },
+        ],
       };
       statistics.chapterQuestions++;
       statistics.chapterSelfChecks++;
@@ -201,110 +273,39 @@ export function inspectPublishedPrerequisites(
     if (!Object.hasOwn(chapters, chapterId))
       issues.push(`chapter=${chapterId} Anotación sin tarjeta / Annotation without card`);
 
-  const textbookVocabulary = new Set<string>();
-  const textbookGrammar = new Set<string>();
-  for (const lesson of lessons) {
-    statistics.textbookLessons++;
-    const id = lesson.id;
-    const chapterId = 'textbook';
-    const stages: Stage[] = [];
-    const skillRef = { id: lesson.grammar.skillId };
-    if (!textbookGrammar.has(skillRef.id)) {
-      textbookGrammar.add(skillRef.id);
-      file.targets.push({
-        ...skillRef,
-        kind: 'grammar',
-        descriptionEs: lesson.grammar.explanationEs,
-      });
-    }
-    const vocabulary = lesson.vocabulary.map((item) => {
-      const ref = { id: 'lex.' + item.id, form: item.en };
-      if (!textbookVocabulary.has(ref.id)) {
-        textbookVocabulary.add(ref.id);
-        file.targets.push({
-          id: ref.id,
-          kind: 'lexical',
-          lemma: item.en,
-          forms: [item.en],
-          senseEs: item.es,
-        });
-      }
-      return ref;
-    });
-    for (const runtimeStage of lesson.stages) {
-      if (runtimeStage.type === 'vocabulary')
-        stages.push({
-          id: 'teach-vocabulary',
-          type: 'teach',
-          teaches: vocabulary,
-          instructionEs: lesson.vocabulary[0].es,
-          exampleEn: lesson.vocabulary[0].example.en,
-        });
-      if (runtimeStage.type === 'grammar') {
-        if (!lesson.grammar.taughtForms?.length)
-          issues.push(`lesson=${id} Falta enseñanza de formas / Missing taught forms`);
-        stages.push({
-          id: 'teach-grammar',
-          type: 'teach',
-          teaches: [skillRef],
-          instructionEs: lesson.grammar.explanationEs,
-          exampleEn: lesson.grammar.examples[0].en,
-        });
-      }
-      for (const exerciseId of runtimeStage.exerciseIds ?? []) {
-        const exercise = lesson.exercises.find(({ id }) => id === exerciseId);
-        if (!exercise) {
-          issues.push(`lesson=${id} exercise=${exerciseId} Falta ejercicio / Missing exercise`);
-          continue;
-        }
-        const vocabularyTarget =
-          exercise.dimension === 'vocabulary_recognition' ||
-          exercise.dimension === 'vocabulary_recall';
-        const requires = vocabularyTarget
-          ? exercise.vocabularyIds.map(
-              (target) =>
-                vocabulary.find((ref) => ref.id === 'lex.' + target) ?? { id: 'lex.' + target },
-            )
-          : [{ id: exercise.skillId }];
-        if (!requires.length)
-          issues.push(
-            `lesson=${id} exercise=${exerciseId} Falta objetivo evaluado / Missing assessed target`,
-          );
-        stages.push({
-          id: exerciseId,
-          type: 'exercise',
-          mode: ['reorder', 'meaning', 'matching'].includes(exercise.type)
-            ? 'guided'
-            : 'independent',
-          requires,
-        });
-        statistics.textbookExercises++;
-      }
-    }
-    const traced = new Set(stages.map((stage) => stage.id));
-    for (const exercise of lesson.exercises)
-      if (!traced.has(exercise.id))
-        issues.push(
-          `lesson=${id} exercise=${exercise.id} Ejercicio fuera de la secuencia / Exercise absent from path`,
-        );
-    addLesson({
-      id,
-      chapterId,
-      stages,
-      paths: [path('direct-study', stages), path('lesson-review', stages)],
-    });
-  }
+  const textbook = buildTextbookPrerequisites(lessons);
+  file.targets.push(...textbook.targets);
+  textbook.traces.forEach(addLesson);
+  issues.push(...textbook.issues);
+  statistics.textbookLessons = textbook.traces.length;
+  statistics.textbookExercises = textbook.exerciseCount;
 
   const actualTeaching = new Set<string>();
   const actualHomeExercises = new Set<string>();
-  const taughtByConcept = new Map<string, Reference[]>();
+  const taughtBeforeReview = new Map<string, ReadonlySet<string>>();
+  const referenceKey = ({ id, form }: Reference) => `${id}:${form ?? ''}`;
   for (const mission of missions) {
     statistics.storyMissions++;
     const id = 'published.home.' + mission.id;
     const chapterId = 'home';
+    issues.push(
+      ...checkReviewedTravelContent(
+        reviewedHomeLocal,
+        `${mission.id}-vocabulary`,
+        mission.vocabulary,
+        `chapter=${chapterId} lesson=${id} vocabulary`,
+      ),
+    );
     const stagesByStep = new Map<string, Stage>();
+    const storyStagesByStep = new Map<string, Stage>();
+    const exerciseConcepts = new Map<string, string>();
     for (const step of mission.steps) {
       const location = `chapter=${chapterId} lesson=${id} step=${step.id}`;
+      issues.push(...checkReviewedTravelContent(reviewedHomeSteps, step.id, step, location));
+      if (step.type === 'dialogue') {
+        stagesByStep.set(step.id, { id: step.id, type: 'preview', text: step.text });
+        continue;
+      }
       if (step.type === 'teach') {
         actualTeaching.add(step.id);
         const annotated = authoredEntry(homeTeaching, step.id);
@@ -312,24 +313,60 @@ export function inspectPublishedPrerequisites(
           issues.push(`${location} Falta anotación de enseñanza / Missing teaching annotation`);
           continue;
         }
-        issues.push(
-          ...evidenceIssues(
-            [
-              step.text,
-              ...step.examples.map(({ en }) => en),
-              ...mission.vocabulary.map(({ term, explanation }) => term + ' ' + explanation),
-            ].join('\n'),
+        const vocabulary = mission.vocabulary.map(
+          ({ term, meaning, explanation }) => `${term} ${meaning} ${explanation}`,
+        );
+        const examples = step.examples.map(({ en, es }) => `${en} ${es}`);
+        const exampleEn = step.examples[0].en;
+        const { teaches } = annotated;
+        function instruction(
+          id: string,
+          text: string,
+          shown: string,
+          evidence: readonly string[],
+          source: string,
+        ): Stage {
+          const missing = evidenceIssues(shown, evidence, source);
+          issues.push(...missing);
+          return missing.length
+            ? { id, type: 'preview', text }
+            : {
+                id,
+                type: 'teach',
+                teaches,
+                instructionEs: text,
+                exampleEn,
+              };
+        }
+        stagesByStep.set(
+          step.id,
+          instruction(
+            step.id,
+            step.text,
+            [step.text, ...vocabulary, ...examples].join('\n'),
             annotated.evidence,
             location,
           ),
         );
-        stagesByStep.set(step.id, {
-          id: step.id,
-          type: 'teach',
-          teaches: annotated.teaches,
-          instructionEs: step.text,
-          exampleEn: step.examples[0].en,
-        });
+        if (step.storyPrompt) {
+          const storyWords = mission.vocabulary.map((word) => word.storyPrompt?.text ?? '');
+          const shown = [step.storyPrompt.text, ...vocabulary, ...storyWords, ...examples].join(
+            '\n',
+          );
+          const evidence =
+            'storyEvidence' in annotated ? annotated.storyEvidence : annotated.evidence;
+          storyStagesByStep.set(
+            step.id,
+            instruction(
+              `${step.id}-story`,
+              step.storyPrompt.text,
+              shown,
+              evidence,
+              location + ' path=story',
+            ),
+          );
+        }
+        continue;
       }
       if (step.type === 'exercise' || step.type === 'speak') {
         if (step.type === 'exercise') statistics.storyExercises++;
@@ -341,28 +378,29 @@ export function inspectPublishedPrerequisites(
           issues.push(`${location} Falta anotación de ejercicio / Missing exercise annotation`);
           continue;
         }
+        if (step.type === 'exercise' && step.exercise.learning)
+          exerciseConcepts.set(targetId, step.exercise.learning.conceptId);
         stagesByStep.set(step.id, {
           id: targetId,
           type: 'exercise',
-          mode: step.type === 'speak' || step.exercise.learning?.guided ? 'guided' : 'independent',
+          mode:
+            step.type === 'speak'
+              ? 'self-check'
+              : step.exercise.learning?.guided
+                ? 'guided'
+                : 'independent',
           requires,
         });
       }
     }
-    const trace = (stepIds: readonly string[]) =>
+    const trace = (stepIds: readonly string[], story = false) =>
       stepIds.flatMap((id) => {
-        const stage = stagesByStep.get(id);
+        const stage = (story ? storyStagesByStep.get(id) : undefined) ?? stagesByStep.get(id);
         return stage ? [stage] : [];
       });
     const stepIds = mission.steps.map(({ id }) => id);
-    const stages = trace(stepIds);
-    const taught = stages.flatMap((stage) => (stage.type === 'teach' ? stage.teaches : []));
-    for (const step of mission.steps) {
-      if (step.type !== 'exercise' || !step.exercise.learning) continue;
-      const { conceptId } = step.exercise.learning;
-      taughtByConcept.set(conceptId, [...(taughtByConcept.get(conceptId) ?? []), ...taught]);
-    }
-    const paths = [path('direct-study', stages)];
+    const direct = trace(stepIds);
+    const routes = new Map<string, Stage[]>([['direct-study', direct]]);
     for (const encounter of encounters.filter(({ missionId }) => missionId === mission.id)) {
       const entry = encounter.freshEntryStepId ?? encounter.entryStepId;
       const start = entry ? stepIds.indexOf(entry) : 0;
@@ -375,10 +413,33 @@ export function inspectPublishedPrerequisites(
         );
         continue;
       }
-      const storyStages = trace(stepIds.slice(start, end));
-      if (storyStages.length) paths.push(path('story-' + encounter.id, storyStages));
+      const storyStages = trace(stepIds.slice(start, end), true);
+      if (storyStages.length) routes.set('story-' + encounter.id, storyStages);
     }
-    addLesson({ id, chapterId, stages, paths });
+    for (const stages of routes.values()) {
+      const seenTeaching = new Set<string>();
+      for (const stage of stages) {
+        if (stage.type === 'teach') {
+          stage.teaches.forEach((reference) => seenTeaching.add(referenceKey(reference)));
+        } else if (stage.type === 'exercise') {
+          const concept = exerciseConcepts.get(stage.id);
+          if (!concept) continue;
+          const previous = taughtBeforeReview.get(concept);
+          taughtBeforeReview.set(
+            concept,
+            new Set([...seenTeaching].filter((known) => !previous || previous.has(known))),
+          );
+          statistics.travelAdaptivePaths++;
+        }
+      }
+    }
+    const stages = new Map([...routes.values()].flat().map((stage) => [stage.id, stage]));
+    addLesson({
+      id,
+      chapterId,
+      stages: [...stages.values()],
+      paths: [...routes].map(([key, route]) => path(key, route)),
+    });
   }
   for (const id of Object.keys(homeTeaching))
     if (!actualTeaching.has(id))
@@ -395,8 +456,9 @@ export function inspectPublishedPrerequisites(
     issues.push('chapter=home Falta la práctica con Luz / Missing practice with Luz');
   } else {
     const id = 'published.home.luz-introduction-practice';
-    const teaches = homeExercises.travel_hello_build;
-    issues.push(...evidenceIssues(coach.text, ['I am Luz', 'Con «I» va «am»'], 'lesson=' + id));
+    const { teaches, evidence } = homeLocalTeaching.luz;
+    issues.push(...checkReviewedTravelContent(reviewedHomeLocal, coach.id, coach, 'lesson=' + id));
+    issues.push(...evidenceIssues(coach.text, evidence, 'lesson=' + id));
     const stages: Stage[] = [
       {
         id: 'luz-explanation',
@@ -413,10 +475,16 @@ export function inspectPublishedPrerequisites(
 
   if (reviewStarter.id === 'travel_quick_hello' && reviewStarter.learning?.guided) {
     const id = 'published.home.quick-review';
-    const teaches = homeExercises.travel_hello_recall;
+    const { teaches, evidence } = homeLocalTeaching.starter;
     issues.push(
-      ...evidenceIssues(starterGreetingInstruction, ['Hi', 'Hello', 'hola'], 'lesson=' + id),
+      ...checkReviewedTravelContent(
+        reviewedHomeLocal,
+        reviewStarter.id,
+        [starterGreetingInstruction, reviewStarter],
+        'lesson=' + id,
+      ),
     );
+    issues.push(...evidenceIssues(starterGreetingInstruction, evidence, 'lesson=' + id));
     const stages: Stage[] = [
       {
         id: 'starter-explanation',
@@ -439,8 +507,10 @@ export function inspectPublishedPrerequisites(
   }
 
   const reviewIds = new Set<string>();
-  for (const { exercise, situation } of reviewSteps) {
+  for (const step of reviewSteps) {
+    const { exercise, situation } = step;
     const location = 'chapter=home adaptive=' + exercise.id;
+    issues.push(...checkReviewedTravelContent(reviewedHomeReview, exercise.id, step, location));
     const requires = authoredEntry(homeReviewExercises, exercise.id);
     if (!requires || reviewIds.has(exercise.id)) {
       issues.push(
@@ -450,9 +520,9 @@ export function inspectPublishedPrerequisites(
       continue;
     }
     reviewIds.add(exercise.id);
-    const taught = taughtByConcept.get(exercise.learning?.conceptId ?? '') ?? [];
+    const taught = taughtBeforeReview.get(exercise.learning?.conceptId ?? '');
     for (const target of requires) {
-      if (!taught.some((candidate) => candidate.id === target.id && candidate.form === target.form))
+      if (!taught?.has(referenceKey(target)))
         issues.push(
           location +
             ' Objetivo ausente de la enseñanza del concepto / Target absent from concept teaching: ' +
@@ -467,7 +537,7 @@ export function inspectPublishedPrerequisites(
             ' Se evalúa el apoyo contextual / Contextual support is assessed: ' +
             gloss.target.id,
         );
-      issues.push(...evidenceIssues(situation, [gloss.text], location));
+      issues.push(...evidenceIssues(situation, [gloss.text], location, 'support'));
     }
     statistics.travelAdaptiveItems++;
   }
@@ -481,5 +551,5 @@ export function inspectPublishedPrerequisites(
       ...validated.error.issues.map(({ path, message }) => path.join('.') + ' ' + message),
     );
   else issues.push(...checkPrerequisites([validated.data], curriculum));
-  return { issues, statistics };
+  return { issues, statistics, instructionTrace: file };
 }
