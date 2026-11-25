@@ -1,8 +1,18 @@
 import React, { useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Image, Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Keyboard,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+  type ImageSourcePropType,
+} from 'react-native';
 import { Check, Compass, RotateCcw, Stamp, Volume2 } from 'lucide-react-native';
 import {
-  chapter,
+  chapter as homeChapter,
+  travelStepVocabulary,
+  type TravelChapter,
   type TravelCheckpoint,
   type TravelMission,
   type TravelOperation,
@@ -35,7 +45,12 @@ import { useTheme } from '../theme';
 import { Celebration } from '../motion';
 import { useChapterAudio } from './useChapterAudio';
 import { illustrations, placeIllustration } from './illustrations';
-import { GrammarWorkbench, TravelScene, VocabularyCard } from './TravelAppearance';
+import {
+  GrammarWorkbench,
+  PrerequisiteNotice,
+  TravelScene,
+  VocabularyCard,
+} from './TravelAppearance';
 import {
   StoryActivity,
   StoryPhrase,
@@ -71,17 +86,29 @@ function DialoguePostcard({
   step,
   opening,
   play,
+  portrait,
 }: {
   mission: TravelMission;
   step: Extract<TravelMission['steps'][number], { type: 'dialogue' }>;
   opening: boolean;
   play: (phrase: string) => void;
+  portrait?: ImageSourcePropType;
 }) {
   const s = useStyles();
   const { colors: C } = useTheme();
   const plaza = mission.id === 'hello';
   const sam = step.speaker === 'Sam';
+  const luz = step.speaker === 'Luz';
+  const buddy = step.speaker === 'QuestBuddy';
   const samPostcard = plaza && sam;
+  const avatar = portrait ?? (sam ? illustrations.sam : luz ? illustrations.luz : undefined);
+  const role = sam
+    ? 'Viajero'
+    : luz
+      ? 'Mesa de bienvenida'
+      : buddy
+        ? 'Tu compañero de viaje'
+        : undefined;
   return (
     <View testID="travel-dialogue-postcard" style={s.dialogue}>
       {samPostcard ? (
@@ -92,22 +119,14 @@ function DialoguePostcard({
           <JournalLeaf style={[s.speakerCard, opening && s.overlappingSpeaker]}>
             <PaperGrain opacity={0.18} />
             <View style={s.speakerRow}>
-              {sam ? (
-                <Image source={illustrations.sam} accessible={false} style={s.avatar} />
-              ) : step.speaker === 'QuestBuddy' ? (
+              {avatar ? (
+                <Image source={avatar} accessible={false} style={s.avatar} />
+              ) : buddy ? (
                 <QuestBuddy size={54} />
-              ) : (
-                <Image source={illustrations.luz} accessible={false} style={s.avatar} />
-              )}
+              ) : null}
               <View style={{ flex: 1 }}>
                 <Heading style={{ fontSize: 25 }}>{step.speaker}</Heading>
-                <Label>
-                  {step.speaker === 'Luz'
-                    ? 'Mesa de bienvenida'
-                    : sam
-                      ? 'Viajero'
-                      : 'Tu compañero de viaje'}
-                </Label>
+                {role && <Label>{role}</Label>}
               </View>
               <JournalStamp source={placeIllustration(mission.place)} size={46} />
             </View>
@@ -133,14 +152,22 @@ export type TravelFlowHandle = {
   suspend: () => Promise<boolean>;
 };
 
-export function travelStoryPrompt(mission: TravelMission, checkpoint: TravelCheckpoint) {
+export function travelStoryCue(mission: TravelMission, checkpoint: TravelCheckpoint) {
   const step = mission.steps[checkpoint.step];
-  if (checkpoint.finished || !step || step.type === 'dialogue') return;
-  const word = step.type === 'teach' && mission.vocabulary[checkpoint.word ?? 0];
-  return word ? word.storyPrompt : step.storyPrompt;
+  if (checkpoint.finished || !step) return;
+  if (step.type === 'dialogue') return { speaker: step.speaker };
+  const word = step.type === 'teach' && travelStepVocabulary(mission, step)[checkpoint.word ?? 0];
+  const prompt = word ? word.storyPrompt : step.storyPrompt;
+  return {
+    speaker: prompt?.speaker ?? (step.type === 'teach' ? step.speaker : undefined),
+    text: prompt?.text,
+  };
 }
 
 export function TravelFlow({
+  chapter = homeChapter,
+  portraits,
+  sceneImage,
   initial,
   playerName,
   onEditName,
@@ -152,6 +179,9 @@ export function TravelFlow({
   embedded,
   ref,
 }: {
+  chapter?: TravelChapter;
+  portraits?: Readonly<Record<string, ImageSourcePropType>>;
+  sceneImage?: ImageSourcePropType;
   initial: TravelCheckpoint;
   playerName?: string;
   onEditName: () => void;
@@ -179,14 +209,23 @@ export function TravelFlow({
   const savedDraft = useRef(initial.answer);
   const mission: TravelMission = chapter.missions.find((m) => m.id === current.missionId)!;
   const step = mission.steps[current.step];
+  const instruction = current.prerequisiteInstruction;
+  const prerequisiteUnavailable = current.prerequisiteUnavailable;
+  const prerequisiteBlocked = !!(instruction || prerequisiteUnavailable);
   const inline = !!embedded;
-  const travelPath = inline ? '/v1/travel?source=story' : '/v1/travel';
+  const travelPath =
+    chapter.id === 'home'
+      ? inline
+        ? '/v1/travel?source=story'
+        : '/v1/travel'
+      : `/v1/travel?chapter=${encodeURIComponent(chapter.id)}&source=${inline ? 'story' : 'study'}`;
   const briefing = inline && step.type === 'teach' && step.presentation === 'reply-briefing';
-  const requiredReply = step.type === 'exercise' && step.response === 'personal-introduction';
-  const storyPrompt = inline ? travelStoryPrompt(mission, current) : undefined;
-  const speaker =
-    storyPrompt?.speaker ??
-    (step.type === 'dialogue' || step.type === 'teach' ? step.speaker : undefined);
+  const requiredReply =
+    step.type === 'exercise' && (step.requiredReply || step.response === 'personal-introduction');
+  const selfCheck = step.type === 'exercise' && !!step.exercise.ungradable;
+  const cue = inline ? travelStoryCue(mission, current) : undefined;
+  const speaker = cue?.speaker;
+  const storyPrompt = cue?.text;
   const personalResponse =
     (step.type === 'exercise' || step.type === 'speak') &&
     step.response === 'personal-introduction';
@@ -213,10 +252,10 @@ export function TravelFlow({
     </View>
   );
   const Section = inline ? StoryActivity : Notebook;
-  const { play, playSequence, stop, speechMessage } = useChapterAudio();
+  const { play, playSequence, stop, speechMessage } = useChapterAudio(chapter.id);
   const wordIndex = current.word ?? 0;
-  const word =
-    !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
+  const vocabulary = step.type === 'teach' ? travelStepVocabulary(mission, step) : [];
+  const word = current.finished ? undefined : vocabulary[wordIndex];
   const translationKey = `${current.token}:${wordIndex}`;
   const lastTranslation = useRef('');
   const markTranslationShown = () => {
@@ -240,14 +279,18 @@ export function TravelFlow({
   const storyReply =
     embedded &&
     step.type === 'exercise' &&
-    (current.result?.correct || current.result?.communicationOnly)
+    (current.result?.correct ||
+      current.result?.communicationOnly ||
+      (selfCheck && current.result?.outcome === 'ungradable'))
       ? step.storyReply
       : undefined;
   const line = !current.finished && step.type === 'dialogue' ? step.line : storyReply?.line;
   const referenceAudio =
     word?.term ??
     line?.en ??
-    (!current.finished && step.type === 'exercise' ? step.audio : undefined);
+    (!current.finished && !prerequisiteBlocked && step.type === 'exercise'
+      ? step.audio
+      : undefined);
   const activity = useRef<View>(null);
   const feedbackView = useRef<View>(null);
   const speaking = useRef<SpeakingPanelHandle>(null);
@@ -269,7 +312,7 @@ export function TravelFlow({
       if (view) revealItem(view, () => target.current === view);
     });
     return () => cancelAnimationFrame(frame);
-  }, [current.token, hasFeedback, inline, revealItem, wordIndex]);
+  }, [current.token, hasFeedback, inline, prerequisiteBlocked, revealItem, wordIndex]);
 
   function draft(next: ExerciseAnswer) {
     if (actionInFlight.current) return;
@@ -370,7 +413,13 @@ export function TravelFlow({
   }
   const review = onReview ? () => void close(() => onReview(mission.id)) : undefined;
   const lastStep = current.step === mission.steps.length - 1;
-  const canSubmit = step.type === 'exercise' && hasAnswer(answer, step.exercise);
+  const canSubmit =
+    !prerequisiteBlocked && step.type === 'exercise' && hasAnswer(answer, step.exercise);
+  function submitAnswer() {
+    if (!canSubmit || current.finished || current.result || actionInFlight.current) return;
+    Keyboard.dismiss();
+    void act({ action: 'answer', token: current.token, answer: latestDraft.current });
+  }
   const footer = current.finished ? (
     <Action
       journal
@@ -379,10 +428,26 @@ export function TravelFlow({
     >
       {mission.id === 'bag' ? 'Abrir pasaporte' : 'Volver al viaje'}
     </Action>
+  ) : prerequisiteBlocked ? (
+    <Action
+      journal
+      busy={busy}
+      onPress={
+        instruction
+          ? () => void act({ action: 'prepare', token: current.token })
+          : () => void close()
+      }
+    >
+      {instruction
+        ? 'Practicar con esta explicación'
+        : inline
+          ? 'Volver a la escena'
+          : 'Volver al viaje'}
+    </Action>
   ) : step.type === 'exercise' ? (
     current.result ? (
       <View style={{ gap: 8 }}>
-        {!current.result.correct && (
+        {!current.result.correct && !selfCheck && (
           <Action
             journal
             secondary
@@ -395,7 +460,7 @@ export function TravelFlow({
         {!current.result.identityMismatch &&
           (!requiredReply || current.result.correct || current.result.communicationOnly) && (
             <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
-              {current.result.correct || current.result.communicationOnly
+              {current.result.correct || current.result.communicationOnly || selfCheck
                 ? 'Seguir la historia'
                 : 'Usar la respuesta de QuestBuddy'}
             </Action>
@@ -407,12 +472,9 @@ export function TravelFlow({
         busy={busy}
         disabled={!canSubmit}
         style={inline && [s.storyAction, !canSubmit && s.inactiveStoryAction]}
-        onPress={() => {
-          Keyboard.dismiss();
-          void act({ action: 'answer', token: current.token, answer: latestDraft.current });
-        }}
+        onPress={submitAnswer}
       >
-        Comprobar respuesta
+        {selfCheck ? 'Revisar mi respuesta' : 'Comprobar respuesta'}
       </Action>
     )
   ) : word ? (
@@ -429,14 +491,16 @@ export function TravelFlow({
         })
       }
     >
-      {wordIndex + 1 < mission.vocabulary.length ? 'Siguiente palabra' : 'Ver la explicación'}
+      {wordIndex + 1 < vocabulary.length ? 'Siguiente palabra' : 'Ver la explicación'}
     </Action>
   ) : step.type !== 'speak' ? (
     <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
       {lastStep
         ? 'Completar misión'
         : briefing
-          ? 'Escuchar a Sam'
+          ? chapter.id === 'home'
+            ? 'Escuchar a Sam'
+            : 'Escuchar la conversación'
           : step.type === 'teach'
             ? 'Probar en la historia'
             : 'Continuar'}
@@ -445,21 +509,24 @@ export function TravelFlow({
 
   const inlineAdvance = current.finished || step.type === 'dialogue';
   const progress = current.finished ? 1 : (current.step + 1) / mission.steps.length;
-  const feedback = step.type === 'exercise' && current.result && (
+  const feedback = !prerequisiteBlocked && step.type === 'exercise' && current.result && (
     <View ref={feedbackView} collapsable={false} style={{ gap: 8 }}>
       <AnswerFeedback
         result={
-          tokenLabel
-            ? {
-                ...current.result,
-                acceptedAnswer: current.result.acceptedAnswer?.replace(
-                  '[tu nombre]',
-                  () => playerName!,
-                ),
-              }
-            : current.result
+          selfCheck
+            ? { ...current.result, acceptedAnswer: step.exercise.acceptedAnswers[0] }
+            : tokenLabel
+              ? {
+                  ...current.result,
+                  acceptedAnswer: current.result.acceptedAnswer?.replace(
+                    '[tu nombre]',
+                    () => playerName!,
+                  ),
+                }
+              : current.result
         }
         exercise={step.exercise}
+        selfCheck={selfCheck}
         answer={
           tokenLabel
             ? { ...current.answer, tokens: current.answer.tokens?.map(tokenLabel) }
@@ -468,7 +535,7 @@ export function TravelFlow({
       />
       {storyReply && embedded && (
         <View testID="travel-story-reply" style={s.dialogue}>
-          <StorySpeaker name={storyReply.speaker} />
+          <StorySpeaker name={storyReply.speaker} portrait={portraits?.[storyReply.speaker]} />
           <StoryPhrase
             line={storyReply.line}
             showTranslation={embedded.translationsVisible}
@@ -479,6 +546,7 @@ export function TravelFlow({
         </View>
       )}
       {review &&
+        !selfCheck &&
         !current.result.correct &&
         !current.result.identityMismatch &&
         !current.result.communicationOnly && (
@@ -493,9 +561,9 @@ export function TravelFlow({
       {error && <ErrorCard message={error} />}
       {inline && !current.finished && (
         <View ref={activity} collapsable={false}>
-          {speaker && (
-            <StorySpeaker name={speaker}>
-              {storyPrompt && <Label style={s.storyText}>{storyPrompt.text}</Label>}
+          {!prerequisiteBlocked && speaker && (
+            <StorySpeaker name={speaker} portrait={portraits?.[speaker]}>
+              {storyPrompt && <Label style={s.storyText}>{storyPrompt}</Label>}
             </StorySpeaker>
           )}
           <ProgressBar
@@ -521,7 +589,8 @@ export function TravelFlow({
         {current.finished ? (
           <JournalSpread
             source={
-              mission.id === 'bag' ? illustrations.passport : placeIllustration(mission.place)
+              sceneImage ??
+              (mission.id === 'bag' ? illustrations.passport : placeIllustration(mission.place))
             }
             title="¡Misión completada!"
             detail={mission.success}
@@ -546,6 +615,12 @@ export function TravelFlow({
               </Button>
             )}
           </JournalSpread>
+        ) : prerequisiteBlocked ? (
+          <PrerequisiteNotice
+            instruction={instruction}
+            inline={inline}
+            updateRequired={current.prerequisiteUpdateRequired}
+          />
         ) : step.type === 'dialogue' ? (
           embedded ? (
             <View testID="travel-dialogue-postcard" style={s.dialogue}>
@@ -567,9 +642,10 @@ export function TravelFlow({
               step={step}
               opening={current.step === 0}
               play={play}
+              portrait={portraits?.[step.speaker]}
             />
           )
-        ) : word && embedded && storyPrompt ? (
+        ) : word && embedded && storyPrompt && chapter.id === 'home' ? (
           <>
             <Button variant="secondary" icon={Volume2} onPress={() => void play(word.term, true)}>
               Escuchar: {word.term}
@@ -588,14 +664,14 @@ export function TravelFlow({
             <View style={s.chapterHead}>
               <Heading style={{ flex: 1, fontSize: 26 }}>Palabras del viaje</Heading>
               <Label>
-                {wordIndex + 1} / {mission.vocabulary.length}
+                {wordIndex + 1} / {vocabulary.length}
               </Label>
             </View>
             <VocabularyCard
               key={word.term}
               word={word}
               play={(phrase) => void play(phrase, inline)}
-              recall={!inline || mission.id !== 'hello'}
+              recall={chapter.id === 'home' && (!inline || mission.id !== 'hello')}
               inline={inline}
             />
           </>
@@ -607,11 +683,16 @@ export function TravelFlow({
             stop={stop}
             embedded={embedded}
             onTranslationShown={markTranslationShown}
+            showExplanation={chapter.id !== 'home' ? true : undefined}
+            showAll={chapter.id !== 'home'}
           />
         ) : step.type === 'exercise' ? (
           <>
             {!!step.visual && (
-              <JournalArt source={placeIllustration(mission.place)} aspectRatio={2.8} />
+              <JournalArt
+                source={sceneImage ?? placeIllustration(mission.place)}
+                aspectRatio={2.8}
+              />
             )}
             {!!step.audio && !inline && (
               <JournalArt source={illustrations.review} aspectRatio={3.1} taped />
@@ -627,7 +708,9 @@ export function TravelFlow({
                       : 'Ahora te toca a ti')
                 }
               >
-                {!storyPrompt && <Label style={s.storyText}>{step.situation}</Label>}
+                {(!storyPrompt || chapter.id !== 'home') && (
+                  <Label style={s.storyText}>{step.situation}</Label>
+                )}
                 {!!step.visual && (
                   <Label style={f.quiet}>
                     {step.visualDescription ??
@@ -644,7 +727,8 @@ export function TravelFlow({
                       icon={Volume2}
                       onPress={() => listenExercise(step.audio!)}
                     >
-                      {step.listeningButton ?? 'Escuchar a Sam'}
+                      {step.listeningButton ??
+                        (chapter.id === 'home' ? 'Escuchar a Sam' : 'Escuchar el mensaje')}
                     </Button>
                     {current.transcript || current.result ? (
                       <Text {...english} style={f.body}>
@@ -670,6 +754,7 @@ export function TravelFlow({
                   kindLabel={step.audio ? 'Comprensión auditiva' : undefined}
                   answer={answer}
                   setAnswer={draft}
+                  onSubmit={submitAnswer}
                   disabled={busy || !!current.result}
                 />
                 {step.hint &&
@@ -691,13 +776,17 @@ export function TravelFlow({
           </>
         ) : (
           <>
-            {!storyPrompt && <Label style={s.storyText}>{step.text}</Label>}
+            {(!storyPrompt || chapter.id !== 'home') && (
+              <Label style={s.storyText}>{step.text}</Label>
+            )}
             {responseContext}
             <SpeakingPanel
               ref={speaking}
               inline={inline}
               text={speakingText}
-              chapterId="home"
+              chapterId={chapter.id}
+              selfCheck={chapter.id === 'mexico'}
+              allowSystemRecognition={chapter.id === 'mexico'}
               evidenceScope={{
                 source: inline ? 'story' : 'study',
                 materialId: mission.id,

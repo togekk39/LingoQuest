@@ -1,0 +1,40 @@
+{
+  "teaching": {
+    "mexico-routine-lesson": "e4a3c8864926597225fc13d364087184c2782fa428c93f15d96b7e91cab3019d",
+    "mexico-others-lesson": "3afc9f43b2dd9c9b37f2188bdc6591d94a73888bf1318ad9befaed862a14870b",
+    "mexico-frequency-lesson": "43caa5848aa5ec744be35625d9702517d2106861f5302aa1e9b01acf2f97f7f0",
+    "mexico-time-numbers": "e403fef25edf7edd6b3148a3ec5e4b5f899c23f98f599fca4448921f93fb1fae",
+    "mexico-time-lesson": "7a4914eaa349139a1e5565937e2e89b91d9a4972f98d366a8a5793fffaeb21fe",
+    "mexico-questions-lesson": "2143b292fb2716d4998fbb3dae1c510b8607eddbadc32a6de106e26544a1b8af",
+    "mexico-negative-lesson": "fcfa1093eec933e2058505ad118efead5de56b4122d53f6e2111d0f36ae3e45e",
+    "mexico-transfer-intro": "6b32c35d0945509997ba4fff20e7492e82cff45a41185fd18c5d0e68b4d8f2fa"
+  },
+  "assessments": {
+    "mexico-routine-audio": "a03a8c63a192ab01bd5cd65c48994d43151a6044a7b53dc28731afbf6f472c17",
+    "mexico-routine-planner": "35a848785dcead9741c6066da23e15d677d222dbe1c960d5249b86657bf23fd6",
+    "mexico-routine-write": "d84a31ce35da4b07c671b1dd9db45faba1eff39c8880ba3ca24429bacc24cb51",
+    "mexico-routine-self-check": "997487d1954d336425d5c87a5dd4d6598ddfed30b5762a6d982be23818533ff1",
+    "mexico-others-audio": "a80c8279b0123b089a4980e2850e8fd5de76b2c93915d0e480cb99c3e4859c32",
+    "mexico-others-read": "d4bf9a615de6d4d7aaca91f9b3b77430bf972d90cb425d71a01f3e98f6a057a6",
+    "mexico-others-write": "69ff4e491ae540fb4562688b211e9c1fd70be3402f8234b6ac7f6338f1b6d39f",
+    "mexico-time-audio": "2cb84b25cb4299565f5b03d15fedf29ade7ab2ac340f60c70d3c290a73ff60c4",
+    "mexico-time-read": "1deeaafa5e9d49c90fd19889aad561013929b487ca3f27c82a57dbe83e48aa10",
+    "mexico-time-write": "77e670c57043ed1ce4c19078ad102bbabcbb5f9dcd2f60a20c429baec1aea3d5",
+    "mexico-agreement-build": "696ef0eab8bbdbc90ceeae5e785c3ae91ef9da206735327ee5eeafbda6d58f10",
+    "mexico-agreement-listen": "b0665ac9226ff3deb3f9a7a224361cb3dc983429845a42f4142f9c80ebbdac6a",
+    "mexico-agreement-read": "1587d705bcdc7fac5a434dc4c836a144c54217766d2f76a49e982ddb884510d9",
+    "mexico-agreement-question": "c454c68d6d361f0d37265ad25e8e2d720e5070d14ac4352d11ee7a8a65336e6d",
+    "mexico-agreement-confirm": "f6445af5112732cede83d7ba8965cce45e0e928b9f7bbb05b053afb8f2a104e0",
+    "mexico-transfer-read": "9125bae8fe3a96e23a16cc18bcdb1fc40483c3d555a76c19e78c1febfbfe9ae2",
+    "mexico-transfer-ask": "63949d72eb68291735f0e4672f1bfa73726900cef768fc98577a378c3e6aed57",
+    "mexico-transfer-write": "6f3a1addc87842aff74ef200a1480cbf958f07488e5162d6580a838fe4d0778a",
+    "mexico-review-routine": "30eefaea701be84b7f5f9ef700fec1401d9d33e16d471daebe5607b54f014c93",
+    "mexico-review-others-guide": "c56de35c8fc94d30df8a54f53ce587bc7b072dda1bb4fb87480d362ae843502a",
+    "mexico-review-others": "543dad67f9820b07e14897df70657c920add1ab94055e3c6ab7e3ea7a6ce7021",
+    "mexico-review-time-guide": "7f596da12a20ac71dffccc241717281fbd35f29f9eeff5b60e8b6714de3cf0db",
+    "mexico-review-time": "65ccfd21d8b857b3e1b36a07d8e0041b4dc04e3380e46eb8f32403016e00ec4c",
+    "mexico-review-ask-guide": "6131461c3c774b1b2af62c75c0ab2aaedd4ec59ef896d076fda729f41965e8c6",
+    "mexico-review-ask": "fb38386c4b0c700c744d04940e2cd52a96f5e97d830955c1416a057be22c6e9c",
+    "mexico-review-negative": "cac2304f8bef0c8081506d0b1d39c2a09314306093fc686e0b656f417ff420eb"
+  }
+}

@@ -125,7 +125,7 @@ export function inspectPublishedPrerequisites(
       statistics.chapterCards++;
       const location = `chapter=${chapterId} lesson=${id}`;
       issues.push(...checkReviewedTravelContent(reviewedChapterCards, id, card, location));
-      const patterns = authoredEntry(chapterPatterns, chapterId);
+      const patterns = definition.patterns ?? authoredEntry(chapterPatterns, chapterId);
       if (!patterns) {
         issues.push(`${location} Falta anotación de patrones / Missing pattern annotation`);
         continue;

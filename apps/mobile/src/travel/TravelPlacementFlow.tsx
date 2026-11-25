@@ -82,6 +82,8 @@ export function TravelPlacementFlow({
     }
   }
 
+  const submitAnswer = () => void submit();
+
   async function openMission() {
     if (!result || pending.current) return;
     pending.current = true;
@@ -105,11 +107,7 @@ export function TravelPlacementFlow({
     <Action onPress={() => setStarted(true)}>Empezar la prueba</Action>
   ) : started && item ? (
     <View style={{ gap: 8 }}>
-      <Action
-        busy={busy}
-        disabled={!hasAnswer(answer, item.exercise)}
-        onPress={() => void submit()}
-      >
+      <Action busy={busy} disabled={!hasAnswer(answer, item.exercise)} onPress={submitAnswer}>
         {answers.length + 1 === questions.length ? 'Ver mi punto de partida' : 'Siguiente pregunta'}
       </Action>
       <Action secondary disabled={busy} onPress={() => void submit(true)}>
@@ -182,6 +180,7 @@ export function TravelPlacementFlow({
               exercise={item.exercise}
               answer={answer}
               setAnswer={setAnswer}
+              onSubmit={submitAnswer}
               disabled={busy}
             />
           </Notebook>

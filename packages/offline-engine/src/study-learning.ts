@@ -1,6 +1,7 @@
 import { exerciseEvidenceTargets, lessonEvidenceTargets } from './learning-registry';
 import { sha256Hex } from '@lingoquest/course-pack';
 import { travelLesson } from './home-content';
+import { formalTeachingKeys, reviewPrerequisites } from './learning-prerequisites';
 import {
   masteryAtLeast,
   unifiedMastery,
@@ -35,6 +36,7 @@ function masteryByTarget(learning: UnifiedLearningState) {
 }
 
 function provenExercise(
+  learning: UnifiedLearningState,
   evidence: ReadonlyMap<string, UnifiedMastery>,
   completedLessons: readonly string[],
   content: CourseData,
@@ -47,15 +49,8 @@ function provenExercise(
     exercise.requiredLessonIds?.some((id) => !completedLessons.includes(id))
   )
     return false;
-  const prerequisites = lesson.grammar?.prerequisiteSkillIds ?? [];
-  if (
-    !prerequisites.every((skill) =>
-      completedLessons.some((id) => content.lessons[id]?.grammar?.skillId === skill),
-    )
-  )
-    return false;
   const targets = exerciseEvidenceTargets(exercise, lesson.id);
-  return (
+  const demonstrated =
     targets.length > 0 &&
     targets.every((target) => {
       const mastery = evidence.get(unifiedMasteryKey(target));
@@ -65,7 +60,19 @@ function provenExercise(
         !mastery.needsReview &&
         (!mastery.nextReviewAt || Date.parse(mastery.nextReviewAt) > now)
       );
-    })
+    });
+  if (!demonstrated) return false;
+
+  const prerequisites = lesson.grammar?.prerequisiteSkillIds ?? [];
+  if (
+    prerequisites.every((skill) =>
+      completedLessons.some((id) => content.lessons[id]?.grammar?.skillId === skill),
+    )
+  )
+    return true;
+  return (
+    reviewPrerequisites(content, lesson, exercise, formalTeachingKeys(learning))?.missing.length ===
+    0
   );
 }
 
@@ -78,6 +85,7 @@ export function canSkipStudyExercise(
   now: number,
 ) {
   return provenExercise(
+    learning,
     masteryByTarget(learning),
     completedLessons,
     content,
@@ -179,7 +187,7 @@ export function studyLearningStatus(
     abilities,
     skippableExerciseIds: lesson.exercises
       .filter((exercise) =>
-        provenExercise(evidence, completedLessons, content, lesson, exercise, now),
+        provenExercise(learning, evidence, completedLessons, content, lesson, exercise, now),
       )
       .map(({ id }) => id),
     nextReviewAt,

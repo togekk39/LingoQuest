@@ -11,6 +11,7 @@ import { Button } from '../ui';
 import { illustrations } from './illustrations';
 import { AnswerFeedback } from '../features/LessonStages';
 import { useChapterAudio } from './useChapterAudio';
+import { PrerequisiteNotice } from './TravelAppearance';
 import { starterGreetingInstruction } from './starterGreeting';
 
 export function QuickReview({
@@ -18,20 +19,23 @@ export function QuickReview({
   onVoiceSettings,
   target,
   missionId,
+  chapterId,
 }: {
   onClose: () => void;
   onVoiceSettings?: () => void;
   target?: string;
   missionId?: string;
+  chapterId?: string;
 }) {
   const path =
     '/v1/reviews/quick?source=unified' +
+    (chapterId ? `&chapter=${encodeURIComponent(chapterId)}` : '') +
     (target ? `&target=${encodeURIComponent(target)}` : '') +
     (missionId ? `&mission=${encodeURIComponent(missionId)}` : '');
   const { colors } = useTheme();
   const f = useFeatureStyles();
-  const { play, stop, speechMessage } = useChapterAudio();
   const [review, setReview] = useState<QuickReviewState | null>(null);
+  const { play, stop, speechMessage } = useChapterAudio(review?.chapterId ?? chapterId);
   const [answer, setAnswer] = useState<ExerciseAnswer>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -132,6 +136,15 @@ export function QuickReview({
           : submitAction === 'continue' && !missionId
             ? 'Probar otra escena'
             : 'Volver al viaje';
+  const answerBlocked =
+    submitAction === 'answer' &&
+    (!exercise ||
+      !hasAnswer(answer, exercise) ||
+      (!!audio && !review?.listened && !review?.transcript));
+  function submit() {
+    if (answerBlocked) return;
+    void act(submitAction);
+  }
   return (
     <FlowFrame
       journal={{}}
@@ -160,15 +173,7 @@ export function QuickReview({
       }
       footer={
         exercise ? (
-          <Action
-            journal
-            busy={busy}
-            disabled={
-              submitAction === 'answer' &&
-              (!hasAnswer(answer, exercise) || (!!audio && !review.listened && !review.transcript))
-            }
-            onPress={() => void act(submitAction)}
-          >
+          <Action journal busy={busy} disabled={answerBlocked} onPress={submit}>
             {submitLabel}
           </Action>
         ) : undefined
@@ -186,29 +191,8 @@ export function QuickReview({
                 cuando haya otra situación para practicar.
               </Text>
             </Notebook>
-          ) : unavailable ? (
-            <Notebook title="Primero aprende lo necesario">
-              <Text style={f.body}>
-                Cuando hayas practicado las ideas de esta pregunta en tu lección, podrás volver a
-                intentarla.
-              </Text>
-            </Notebook>
-          ) : instruction ? (
-            <Notebook title="Primero aprende lo necesario">
-              {instruction.sections.map(({ title, examples }) => (
-                <View key={title} style={{ gap: 4 }}>
-                  <Text style={f.cardTitle}>{title}</Text>
-                  {examples.map(({ en, es }) => (
-                    <View key={en}>
-                      <Text accessibilityLanguage="en-US" style={f.body}>
-                        {en}
-                      </Text>
-                      <Text style={f.quiet}>{es}</Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </Notebook>
+          ) : unavailable || instruction ? (
+            <PrerequisiteNotice instruction={instruction} />
           ) : (
             review.explanation && (
               <Notebook title="Revisa esta idea">
@@ -253,6 +237,7 @@ export function QuickReview({
                 kindLabel={audio ? 'Comprensión auditiva' : undefined}
                 answer={answer}
                 setAnswer={draft}
+                onSubmit={submitAction === 'answer' ? submit : undefined}
                 disabled={busy || !!review.result}
               />
               {review.hintText &&

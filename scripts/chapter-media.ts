@@ -30,6 +30,22 @@ const homeImages = {
   'story-sam-portrait': 'journal/story-sam-portrait.png',
   'story-luz-portrait': 'journal/story-luz-portrait.png',
 };
+const storyImages = new Map<string, Record<string, URL>>([
+  [
+    'home',
+    Object.fromEntries(
+      Object.entries(homeImages).map(([id, file]) => [id, new URL(file, mobileAssets)]),
+    ),
+  ],
+  [
+    'mexico',
+    {
+      'mexico-reading-room': new URL('mexico-reading-room.jpg', chapterArt),
+      'portrait-ines': new URL('mexico-ines.jpg', chapterArt),
+      'portrait-sam': new URL('journal/story-sam-portrait.png', mobileAssets),
+    },
+  ],
+]);
 
 const recordedPhrases = new Map([
   ['Hi! My name is Sam.', 'line-1'],
@@ -66,21 +82,13 @@ async function readMedia(url: URL, mimeType: ChapterMedia['mimeType']): Promise<
 }
 
 export async function loadChapterImages(chapterId: string): Promise<Record<string, ChapterMedia>> {
-  if (chapterId !== 'home') {
-    if (!/^[a-z]+(?:-[a-z]+)*$/.test(chapterId)) {
-      throw new Error(`Invalid chapter ID: ${chapterId}`);
-    }
-    return { cover: await readMedia(new URL(`${chapterId}.jpg`, chapterArt), 'image/jpeg') };
-  }
-
+  if (!/^[a-z]+(?:-[a-z]+)*$/.test(chapterId)) throw new Error(`Invalid chapter ID: ${chapterId}`);
+  const images = { cover: new URL(`${chapterId}.jpg`, chapterArt), ...storyImages.get(chapterId) };
   return Object.fromEntries(
     await Promise.all(
-      Object.entries(homeImages).map(async ([id, file]) => [
+      Object.entries(images).map(async ([id, file]) => [
         id,
-        await readMedia(
-          new URL(file, mobileAssets),
-          file.endsWith('.png') ? 'image/png' : 'image/jpeg',
-        ),
+        await readMedia(file, file.pathname.endsWith('.png') ? 'image/png' : 'image/jpeg'),
       ]),
     ),
   );

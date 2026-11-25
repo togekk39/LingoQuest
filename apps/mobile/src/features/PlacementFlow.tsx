@@ -48,7 +48,7 @@ export default function PlacementFlow({
     void load();
   }, []);
   async function next() {
-    if (!questions[position] || !hasAnswer(answer)) return;
+    if (busy || result || !questions[position] || !hasAnswer(answer)) return;
     const nextAnswers = [...answers, { exerciseId: questions[position].id, answer }];
     if (position + 1 < questions.length) {
       setAnswers(nextAnswers);
@@ -91,13 +91,7 @@ export default function PlacementFlow({
             </Action>
           </View>
         ) : questions[position] ? (
-          <Action
-            disabled={!hasAnswer(answer)}
-            busy={busy}
-            onPress={() => {
-              void next();
-            }}
-          >
+          <Action disabled={!hasAnswer(answer)} busy={busy} onPress={next}>
             {position + 1 === questions.length ? 'Ver mi orientación' : 'Siguiente pregunta'}
           </Action>
         ) : undefined
@@ -145,6 +139,7 @@ export default function PlacementFlow({
             exercise={questions[position]}
             answer={answer}
             setAnswer={setAnswer}
+            onSubmit={next}
             disabled={busy}
           />
         </>

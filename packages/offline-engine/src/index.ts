@@ -1,5 +1,5 @@
 import { z, ZodError } from 'zod';
-import type { ChapterPack } from '@lingoquest/course-pack';
+import type { ChapterPack, RpgAdventureAudit } from '@lingoquest/course-pack';
 import {
   answerSchema,
   attemptSchema,
@@ -43,6 +43,7 @@ import {
   updateStory,
   upgradeStory,
   type StoryContext,
+  type StoryDefinition,
   type StoryState,
   type StoryView,
 } from './story';
@@ -56,15 +57,21 @@ import {
   unifiedReviewPlans,
 } from './unified-review';
 import {
+  exactRpgAssessment,
+  exactRpgReferences,
   formalDefinitions,
   formalTeachingKeys,
   recordReviewInstruction,
   reviewPrerequisites,
   reviewedHomeInstruction,
+  rpgAssessmentDigest,
+  rpgIntroductionTargets,
+  rpgTeachingDigest,
   textbookFormalReferences,
   type ReviewInstruction,
 } from './learning-prerequisites';
-import { archivedReviewLessons, archivedTravelReviewStep } from './learning-persistence';
+import type { TravelChapter, TravelExerciseStep } from './travel-content';
+import { travelStepVocabulary } from './travel-vocabulary';
 import {
   emptyUnifiedLearning,
   getUnifiedMastery,
@@ -79,6 +86,7 @@ import {
   type UnifiedLearningState,
 } from './learning-evidence';
 import {
+  canonicalLearningId,
   exerciseEvidenceContext,
   exerciseEvidenceTargets,
   homeChoiceEvidenceTargets,
@@ -93,11 +101,18 @@ import {
 } from './study-learning';
 export type { StudyLearningStatus } from './study-learning';
 import {
+  archivedChapterReviews,
+  archivedReviewLessons,
+  archivedTravelReviewStep,
+  chapterReviewArchiveSchema,
   challengeHistorySchema,
   freezeChallengeHistory,
   migrateUnifiedLearning,
+  rememberChapterReview,
   rememberReviewLessons,
   reviewArchiveSchema,
+  type ChapterPractice,
+  type ChapterReviewArchive,
   type ChallengeHistory,
   type ReviewArchive,
 } from './learning-persistence';
@@ -123,7 +138,11 @@ import {
   HOME_TRAVEL_TRACK,
   travelChallengeItems,
 } from './travel-challenges';
-import { challengeLearningGate, type ChallengeType } from './challenge-learning';
+import {
+  challengeLearningGate,
+  selectAdventureChallengeVariation,
+  type ChallengeType,
+} from './challenge-learning';
 import {
   emptyTravel,
   travelStateSchema,
@@ -157,7 +176,8 @@ export type {
   TravelLearningState,
 } from './travel-learning';
 export { homeCountries, route, type Destination, type HomeCountry } from './travel-route';
-export type { TravelMission, TravelStep, TravelVocabulary } from './travel-content';
+export type { TravelChapter, TravelMission, TravelStep, TravelVocabulary } from './travel-content';
+export { travelStepVocabulary } from './travel-vocabulary';
 export { canStartTravelMission, nextTravelMission } from './travel';
 export type {
   TravelPlacement,
@@ -229,13 +249,93 @@ export interface LocalStore {
 export interface OfflineEngineOptions {
   store: LocalStore;
   getContent: () => Promise<CourseData> | CourseData;
-  getChapterCards?: (
-    id: string,
-  ) => Promise<Pick<ChapterPack, 'chapterId' | 'revision' | 'lesson' | 'additionalLessons'> | null>;
+  getChapterCards?: (id: string) => Promise<ChapterContent | null>;
   lock?: <T>(work: () => Promise<T>) => Promise<T>;
   clock?: () => number;
   randomId?: () => string;
 }
+type ChapterContent = Pick<
+  ChapterPack,
+  'chapterId' | 'revision' | 'lesson' | 'additionalLessons' | 'story' | 'unit'
+>;
+
+interface InstalledAdventure {
+  chapter: TravelChapter;
+  definition: StoryDefinition;
+  lessons: Map<string, CourseLesson>;
+  exercises: Map<string, ChapterPractice>;
+  practice: ChapterPractice[];
+  version: string;
+  audit?: RpgAdventureAudit;
+  requiresUpdate: boolean;
+  definitions: ReturnType<typeof formalDefinitions>;
+  challenges?: CourseData['challengePools'];
+}
+
+function installedAdventure(pack: ChapterContent | null): InstalledAdventure | undefined {
+  if (!pack?.story || !pack.unit) return;
+  const chapter = pack.story.chapter as unknown as TravelChapter;
+  const definition = pack.story.adventure as unknown as StoryDefinition;
+  const lessons = new Map(
+    [...pack.unit.lessons, ...(pack.story.supportingLessons ?? [])].map((lesson) => [
+      lesson.id,
+      lesson,
+    ]),
+  );
+  const version = `${pack.chapterId}:${pack.revision}`;
+  const chapterLessons = { lessons: Object.fromEntries(lessons) };
+  const existingDefinitions = formalDefinitions(chapterLessons);
+  const knownIds = new Set([...existingDefinitions.keys()].map(canonicalLearningId));
+  const auditDefinitions = pack.story.audit?.definitions ?? [];
+  const introducedIds = new Set(auditDefinitions.map(({ id }) => canonicalLearningId(id)));
+  const audit =
+    introducedIds.size === auditDefinitions.length && [...introducedIds].every((id) => !knownIds.has(id))
+      ? pack.story.audit
+      : undefined;
+  const definitions = formalDefinitions(chapterLessons, [], audit?.definitions);
+  const exercises = new Map<string, ChapterPractice>();
+  const add = (step: TravelExerciseStep) => {
+    const lesson = step.lessonId && lessons.get(step.lessonId);
+    if (!lesson) return;
+    const reviewedDigest = audit && own(audit.assessments, step.id);
+    const entry: ChapterPractice = {
+      step,
+      lesson,
+      version,
+      chapterId: pack.chapterId,
+      definitions: audit?.definitions,
+      reviewedDigest:
+        reviewedDigest && exactRpgAssessment(step, definitions) && reviewedDigest === rpgAssessmentDigest(step)
+          ? reviewedDigest
+          : undefined,
+    };
+    exercises.set(step.exercise.id, entry);
+    return entry;
+  };
+  for (const { steps } of chapter.missions)
+    for (const step of steps) if (step.type === 'exercise') add(step);
+  const practice = (pack.story.practice as TravelExerciseStep[]).flatMap((step) => {
+    const entry = add(step);
+    return entry?.reviewedDigest ? [entry] : [];
+  });
+  return {
+    chapter,
+    definition,
+    lessons,
+    version,
+    exercises,
+    practice,
+    audit,
+    requiresUpdate: !pack.story.audit,
+    definitions,
+    challenges: pack.story.challenges as CourseData['challengePools'] | undefined,
+  };
+}
+
+const chapterProgressSchema = z
+  .object({ travel: travelStateSchema, story: storyStateSchema.optional() })
+  .strict();
+type ChapterProgress = z.infer<typeof chapterProgressSchema>;
 interface StoredRun {
   id: string;
   trackId: string;
@@ -246,6 +346,7 @@ interface StoredRun {
   items: CourseExercise[];
   startedAt: number;
   contentVersion?: string;
+  itemVersions?: Record<string, string>;
   deadline: number | null;
   heartsInitial: number;
   hearts: number;
@@ -274,9 +375,11 @@ export interface OfflineState {
   skillDayBaseline: Record<string, { day: string; lastPracticedAt: string | null }>;
   travel?: TravelState;
   story?: StoryState;
+  chapterProgress?: Record<string, ChapterProgress>;
   travelLearning?: TravelLearningState;
   unifiedLearning: UnifiedLearningState;
   reviewArchive?: ReviewArchive;
+  chapterReviewArchive?: ChapterReviewArchive;
   lessonCheckpoints?: Record<string, LessonCheckpoint>;
   quickReview?: QuickCheckpoint;
   travelQuickReview?: QuickCheckpoint;
@@ -511,15 +614,18 @@ function createUnifiedReviewCandidates(
   state: OfflineState,
   content: CourseData,
   archive: ReturnType<typeof archivedReviewLessons>,
+  chapterPractice: readonly ChapterPractice[] = [],
 ) {
   const active = [...Object.values(content.lessons), travelLesson];
   const available = new Set<string>();
   const taught = formalTeachingKeys(state.unifiedLearning);
-  const definitions = formalDefinitions(
-    content,
-    archive.map(({ lesson }) => lesson),
-  );
-  return [...active, ...archive.map(({ lesson }) => lesson)].flatMap((lesson) =>
+  const historicLessons = archive.map(({ lesson }) => lesson);
+  const definitions = formalDefinitions(content, historicLessons);
+  const resolvedDefinitions = new Map<
+    NonNullable<ChapterPractice['definitions']>,
+    ReturnType<typeof formalDefinitions>
+  >();
+  const courseCandidates = [...active, ...archive.map(({ lesson }) => lesson)].flatMap((lesson) =>
     lesson.exercises.flatMap((exercise) => {
       const id = `${lesson.id}:${exercise.id}`;
       if (available.has(id) || exercise.ungradable) return [];
@@ -536,6 +642,33 @@ function createUnifiedReviewCandidates(
       ];
     }),
   );
+  return [
+    ...courseCandidates,
+    ...chapterPractice.flatMap(({ lesson, step, definitions: chapterDefinitions }) => {
+      const { exercise, requires } = step;
+      if (exercise.ungradable) return [];
+      let candidatesDefinitions = chapterDefinitions && resolvedDefinitions.get(chapterDefinitions);
+      if (!candidatesDefinitions && chapterDefinitions?.length) {
+        candidatesDefinitions = formalDefinitions(content, historicLessons, chapterDefinitions);
+        resolvedDefinitions.set(chapterDefinitions, candidatesDefinitions);
+      }
+      return [
+        reviewCandidate(
+          lesson,
+          exercise,
+          reviewPrerequisites(
+            content,
+            lesson,
+            exercise,
+            taught,
+            candidatesDefinitions ?? definitions,
+            requires,
+          ),
+          step.targets,
+        ),
+      ];
+    }),
+  ];
 }
 
 function progress(state: OfflineState, now: number): Progress {
@@ -547,6 +680,14 @@ function progress(state: OfflineState, now: number): Progress {
     streak++;
     current = today(Date.parse(`${current}T12:00:00Z`) - dayMs);
   }
+  const travelStamps = Object.fromEntries(
+    travelRoute.flatMap(({ id }) => {
+      const destination = own(state.chapterProgress ?? {}, id);
+      const earned =
+        own(destination?.travel.stamps ?? {}, id) ?? own(state.travel?.stamps ?? {}, id);
+      return earned ? [[id, earned]] : [];
+    }),
+  );
   return {
     user: state.user,
     completedLessons: state.completedLessons,
@@ -558,6 +699,7 @@ function progress(state: OfflineState, now: number): Progress {
       ({ needsReview }) => needsReview,
     ).length,
     challengeProgress: state.challengeProgress,
+    travelStamps,
   };
 }
 function finish(state: OfflineState, run: StoredRun, now: number) {
@@ -671,6 +813,7 @@ const quickCheckpointSchema = z
   .strict();
 type QuickCheckpoint = z.infer<typeof quickCheckpointSchema>;
 export type QuickReviewState = QuickCheckpoint & {
+  chapterId?: string;
   exercise: PublicExercise;
   situation?: string;
   hintText?: string;
@@ -757,10 +900,12 @@ const backupStateSchema = z
     reviewRewards: z.array(z.string().max(500)).max(200000),
     travel: travelStateSchema.optional(),
     story: storyStateSchema.optional(),
+    chapterProgress: z.record(chapterProgressSchema).optional(),
     travelLearning: travelLearningSchema.optional(),
     challengeHistory: challengeHistorySchema.optional(),
     unifiedLearning: unifiedLearningSchema.optional(),
     reviewArchive: reviewArchiveSchema.optional(),
+    chapterReviewArchive: chapterReviewArchiveSchema.optional(),
     lessonCheckpoints: z.record(lessonCheckpointSchema).optional(),
     quickReview: quickCheckpointSchema.optional(),
     travelQuickReview: quickCheckpointSchema.optional(),
@@ -787,14 +932,17 @@ function storyContext(
   travel: TravelState,
   learning?: TravelLearningState,
   unified?: UnifiedLearningState,
+  definition: StoryDefinition = chapterStory,
+  travelChapter: TravelChapter = chapter,
+  origin = travel.country,
 ): StoryContext {
-  const encounter = chapterStory.encounters.find((entry) => entry.id === story.encounterId);
+  const encounter = definition.encounters.find((entry) => entry.id === story.encounterId);
   let readyEncounterId: string | undefined;
   if (encounter) {
     const { missionId, endBeforeStepId } = encounter;
     const saved =
       travel.active?.missionId === missionId ? travel.active : travel.paused?.[missionId];
-    const boundary = chapter.missions
+    const boundary = travelChapter.missions
       .find((mission) => mission.id === missionId)
       ?.steps.findIndex((step) => step.id === endBeforeStepId);
     if (
@@ -802,7 +950,7 @@ function storyContext(
       (endBeforeStepId &&
         boundary !== undefined &&
         boundary >= 0 &&
-        saved?.contentRevision === chapter.revision &&
+        saved?.contentRevision === travelChapter.revision &&
         saved.step >= boundary)
     )
       readyEncounterId = encounter.id;
@@ -821,7 +969,7 @@ function storyContext(
   )
     demonstratedConcepts.push('introduction');
   return {
-    country: travel.country,
+    country: origin,
     completedMissions: Object.keys(travel.completed),
     clearedMissions: travel.cleared ?? [],
     demonstratedConcepts,
@@ -915,7 +1063,42 @@ export class OfflineEngine {
             state,
             value: recordChapterCardEvent(state.unifiedLearning, pack, event, this.clock()),
           };
-        } else result = this.dispatch(state, content, path, body, verb);
+        } else {
+          const [route, query] = path.split('?');
+          const params = new URLSearchParams(query);
+          const chapterId = params.get('chapter');
+          const isReview = route.startsWith('/v1/reviews/') && params.get('source') === 'unified';
+          const isChallenge = route.startsWith('/v1/challenges/');
+          const explicit = chapterId && chapterId !== 'home' ? chapterId : undefined;
+          const requested =
+            route === '/v1/story' ||
+            route === '/v1/story/encounter' ||
+            route === '/v1/travel' ||
+            route === '/v1/speech/practice' ||
+            isReview
+              ? explicit
+              : undefined;
+          const ids = requested
+            ? [requested]
+            : isReview || isChallenge || route === '/v1/me/export'
+              ? Object.keys(state.chapterProgress ?? {})
+              : [];
+          const adventures = new Map<string, InstalledAdventure>();
+          for (const id of ids) {
+            const pack = await this.options.getChapterCards?.(id);
+            const adventure = pack?.chapterId === id ? installedAdventure(pack) : undefined;
+            if (adventure) adventures.set(id, adventure);
+          }
+          if (
+            requested &&
+            !adventures.has(requested) &&
+            (!isReview || !archivedChapterReviews(state).has(requested))
+          )
+            throw new LocalError('Descarga el capítulo para practicar.', 404);
+          result = this.dispatch(state, content, path, body, verb, adventures);
+          for (const { chapter, practice, version, definitions } of adventures.values())
+            rememberChapterReview(result.state, chapter, practice, version, definitions);
+        }
         rememberReviewLessons(result.state, content);
         const serialized = JSON.stringify(result.state);
         if (serialized !== raw) await this.options.store.setItem(OFFLINE_STATE_KEY, serialized);
@@ -953,6 +1136,7 @@ export class OfflineEngine {
       remediates?: LearningError[];
       errors?: LearningError[];
       evidenceOutcome?: AnswerOutcome;
+      authored?: ChapterPractice;
     } = {},
   ) {
     const parsed = attemptSchema.parse(input);
@@ -968,15 +1152,18 @@ export class OfflineEngine {
       return previous.result;
     }
     const lesson =
+      context.authored?.lesson ??
       own(content.lessons, parsed.lessonId) ??
       (parsed.lessonId === travelLesson.id ? travelLesson : undefined);
-    const exercise = lesson?.exercises.find((e) => e.id === parsed.exerciseId);
+    const exercise =
+      context.authored?.step.exercise ?? lesson?.exercises.find((e) => e.id === parsed.exerciseId);
     if (!lesson || !exercise)
       throw new LocalError('Ejercicio no disponible en el curso instalado.', 404);
     const outcome = judgeAnswer(exercise, parsed.answer, playerName);
     const correct = outcome === 'target';
     const now = this.clock();
-    const learning = lesson.id === travelLesson.id ? exercise.learning : undefined;
+    const learning =
+      lesson.id === travelLesson.id || context.authored ? exercise.learning : undefined;
     const date = today(now);
     const introduction =
       exercise.introduction && parsed.answer.text !== undefined
@@ -1031,7 +1218,9 @@ export class OfflineEngine {
             formalDefinitions(
               content,
               archivedReviewLessons(state).map(({ lesson }) => lesson),
+              context.authored?.definitions,
             ),
+            context.authored?.step.requires,
           )
         : { missing: [] };
     const evidenceOutcome =
@@ -1056,7 +1245,9 @@ export class OfflineEngine {
       aids: [...supports],
       retry,
       independent: !supports.size,
-      targets: exerciseEvidenceTargets(exercise, lesson.id, parsed.answer),
+      targets: context.authored?.step.targets
+        ? [...context.authored.step.targets]
+        : exerciseEvidenceTargets(exercise, lesson.id, parsed.answer),
       error: evidenceOutcome === 'ungradable' ? undefined : errorType,
       errors: checksErrors,
       remediates: context.remediates ?? learning?.remediates,
@@ -1074,13 +1265,14 @@ export class OfflineEngine {
     }
     if (!visited.includes(exercise.id)) visited.push(exercise.id);
     if (!state.learningDays.includes(date)) state.learningDays.push(date);
+    const countLegacy = !context.authored || evidenceOutcome !== 'ungradable';
     if (
       outcome === 'communication_only' ||
       outcome === 'ungradable' ||
       (identityMismatch && !formCorrect)
     ) {
       const communicates = outcome === 'communication_only';
-      if (communicates && learning)
+      if (communicates && learning && countLegacy)
         recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning, {
           exerciseId: exercise.id,
           now,
@@ -1102,7 +1294,7 @@ export class OfflineEngine {
       return result;
     }
     let unassisted = !parsed.hintUsed;
-    if (learning && learning.skill !== 'speaking') {
+    if (learning && learning.skill !== 'speaking' && countLegacy) {
       const support = parsed.hintUsed && !aids.length ? (['hint'] as const) : aids;
       unassisted = recordLearningAttempt(
         (state.travelLearning ??= { targets: [] }),
@@ -1113,14 +1305,14 @@ export class OfflineEngine {
         now,
       );
     }
-    if (learning && correct && exercise.communicationOnly)
+    if (learning && correct && exercise.communicationOnly && countLegacy)
       recordCommunicationSuccess((state.travelLearning ??= { targets: [] }), learning);
     let xpAwarded = 0;
     const dimension = exercise.dimension ?? 'grammar_understanding';
     const targets = dimension.startsWith('vocabulary_')
       ? (exercise.vocabularyIds ?? [])
       : [exercise.skillId];
-    for (const targetId of new Set(targets)) {
+    for (const targetId of countLegacy ? new Set(targets) : []) {
       const key = `${dimension}:${targetId}`;
       let mastery = state.mastery.find((m) => m.targetId === targetId && m.dimension === dimension);
       if (!mastery) {
@@ -1210,12 +1402,86 @@ export class OfflineEngine {
     path: string,
     body: unknown,
     method: string,
+    adventures: ReadonlyMap<string, InstalledAdventure>,
   ): { state: OfflineState; value: unknown } {
     const [route, query = ''] = path.split('?');
     const params = new URLSearchParams(query);
     const now = this.clock();
     const done = (value: unknown) => ({ state, value });
+    const requestedChapterId = params.get('chapter') ?? '';
+    const adventure = adventures.get(requestedChapterId);
+    const activeChapter = adventure?.chapter ?? chapter;
+    const definition = adventure?.definition ?? chapterStory;
+    const reviewedLessons = Object.fromEntries(
+      [...adventures.values()].flatMap(({ lessons }) => [...lessons]),
+    );
+    const reviewContent = adventures.size
+      ? { ...content, lessons: { ...reviewedLessons, ...content.lessons } }
+      : content;
+    const unavailableArchives =
+      route.startsWith('/v1/reviews/') && params.get('source') === 'unified'
+        ? [...archivedChapterReviews(state)].filter(([id, archive]) => {
+            if (requestedChapterId && requestedChapterId !== 'home' && id !== requestedChapterId)
+              return false;
+            const installed = adventures.get(id);
+            return (
+              !installed ||
+              Number(installed.version.split(':')[1]) < Number(archive.version.split(':')[1])
+            );
+          })
+        : [];
+    const archivesByChapter = new Map(unavailableArchives);
+    const chapterPractice = [
+      ...(adventure ? [adventure] : [...adventures.values()])
+        .filter(({ chapter }) => !archivesByChapter.has(chapter.id))
+        .flatMap(({ practice }) => practice),
+      ...unavailableArchives.flatMap(([, archive]) => archive.practice),
+    ];
+    const adventureExercises = new Map(
+      chapterPractice.map((entry) => [entry.step.exercise.id, entry]),
+    );
+    const journey = () => {
+      if (!adventure) return state;
+      const progress = (state.chapterProgress ??= {});
+      let entry = own(progress, activeChapter.id);
+      if (!entry) {
+        entry = { travel: emptyTravel() };
+        set(progress, activeChapter.id, entry);
+      }
+      return entry;
+    };
     const homeVersion = `home:${chapter.revision}`;
+    const adventurePrerequisites = (step: TravelExerciseStep) => {
+      const reviewed = adventure?.exercises.get(step.exercise.id);
+      if (!adventure || !reviewed?.reviewedDigest) return;
+      return reviewPrerequisites(
+        reviewContent,
+        reviewed.lesson,
+        step.exercise,
+        formalTeachingKeys(state.unifiedLearning),
+        adventure.definitions,
+        step.requires,
+      );
+    };
+    const travelView = (travel: TravelState): TravelState => {
+      const current = travel.active;
+      if (!adventure || !current || current.finished || current.result) return travel;
+      const step = activeChapter.missions.find(({ id }) => id === current.missionId)?.steps[current.step];
+      if (step?.type !== 'exercise') return travel;
+      const prerequisites = adventurePrerequisites(step);
+      if (prerequisites?.missing.length === 0) return travel;
+      const instruction = prerequisites?.instruction;
+      return {
+        ...travel,
+        active: {
+          ...current,
+          ...(instruction
+            ? { prerequisiteInstruction: { sections: instruction.sections } }
+            : { prerequisiteUnavailable: true }),
+          ...(adventure.requiresUpdate && { prerequisiteUpdateRequired: true }),
+        },
+      };
+    };
     const exposeHome = (
       source: 'story' | 'study',
       token: string,
@@ -1261,9 +1527,13 @@ export class OfflineEngine {
         now,
         this.id,
         (input, aids, conditions) => {
+          const authored = adventure?.exercises.get(input.exerciseId);
+          if (adventure && !authored?.reviewedDigest)
+            throw new LocalError('Esta actividad no está instalada.', 404);
           const identifiesPlayer =
-            input.exerciseId === 'travel_hello_write' ||
-            input.exerciseId === 'travel_hello_transfer';
+            !adventure &&
+            (input.exerciseId === 'travel_hello_write' ||
+              input.exerciseId === 'travel_hello_transfer');
           const playerName = identifiesPlayer
             ? (travel.practiceName ??
               playerIntroductionName(state.user.name) ??
@@ -1271,11 +1541,13 @@ export class OfflineEngine {
             : undefined;
           const result = this.attempt(state, content, input, aids, playerName, {
             source,
-            contentVersion: homeVersion,
+            contentVersion: adventure?.version ?? homeVersion,
+            authored,
             retry: conditions.retry,
             ...(conditions.referenceAnswer && { aids: ['answer_shown'] }),
-            ...(conditions.missingAudio &&
-              !aids.includes('transcript') && { evidenceOutcome: 'ungradable' }),
+            ...((conditions.missingAudio && (authored || !aids.includes('transcript'))) && {
+              evidenceOutcome: 'ungradable',
+            }),
           });
           if (identifiesPlayer && !playerName && (result.correct || result.communicationOnly))
             travel.introductionName = readIntroduction(input.answer.text ?? '').name;
@@ -1284,7 +1556,39 @@ export class OfflineEngine {
         (target, practice) =>
           recordSpeakingPractice((state.travelLearning ??= { targets: [] }), target, practice),
         entryStepId,
-        ({ itemId, missionId, token, translation, word }) =>
+        ({ itemId, missionId, token, translation, word }) => {
+          const mission = activeChapter.missions.find(({ id }) => id === missionId);
+          const step = mission?.steps.find(({ id }) => id === itemId);
+          if (adventure) {
+            if (!mission || step?.type !== 'teach' || !step.instruction || !adventure.audit) return;
+            const vocabulary = travelStepVocabulary(mission, step);
+            if (own(adventure.audit.teaching, step.id) !== rpgTeachingDigest(step, vocabulary)) return;
+            const { instruction } = step;
+            const stage = word === undefined ? 'grammar' : 'vocabulary';
+            if (instruction.stage !== 'both' && instruction.stage !== stage) return;
+            const teaches =
+              stage === 'grammar'
+                ? instruction.references
+                : vocabulary.find(({ term }) => term === word)?.teaches;
+            if (!exactRpgReferences(teaches, adventure.definitions)) return;
+            recordUnifiedEvidence(state.unifiedLearning, {
+              id: `rpg-instruction:${activeChapter.id}:${token}:${itemId}`,
+              source,
+              materialId: instruction.lessonId,
+              exerciseId: itemId,
+              materialVersion: adventure.version,
+              timestamp: now,
+              contextId: missionId,
+              format: 'instruction',
+              activity: 'introduced',
+              aids: translation ? ['guided', 'translation'] : ['guided'],
+              retry: false,
+              independent: false,
+              targets: rpgIntroductionTargets(teaches, adventure.definitions),
+              teaches: [...teaches],
+            });
+            return;
+          }
           exposeHome(
             source,
             token,
@@ -1294,13 +1598,34 @@ export class OfflineEngine {
             'instruction',
             homeTeachingEvidenceTargets(itemId, word),
             undefined,
-            reviewedHomeInstruction(
-              chapter.missions
-                .find(({ id }) => id === missionId)
-                ?.steps.find(({ id }) => id === itemId),
-              word,
-            ),
-          ),
+            reviewedHomeInstruction(step, word),
+          );
+        },
+        activeChapter,
+        adventure && {
+          allow: (step) => adventurePrerequisites(step)?.missing.length === 0,
+          prepare: (step, token) => {
+            const instruction = adventurePrerequisites(step)?.instruction;
+            if (!instruction) return false;
+            recordUnifiedEvidence(state.unifiedLearning, {
+              id: `rpg-instruction:${activeChapter.id}:${token}:prepare`,
+              source,
+              materialId: step.lessonId!,
+              exerciseId: step.exercise.id,
+              materialVersion: adventure.version,
+              timestamp: now,
+              contextId: exerciseEvidenceContext(step.exercise, step.lessonId!),
+              format: 'instruction',
+              activity: 'introduced',
+              aids: ['guided'],
+              retry: false,
+              independent: false,
+              targets: rpgIntroductionTargets(instruction.teaches, adventure.definitions),
+              teaches: instruction.teaches,
+            });
+            return true;
+          },
+        },
       );
     if (route.startsWith('/v1/auth/') || route.startsWith('/v1/sync/'))
       throw new LocalError(
@@ -1311,7 +1636,14 @@ export class OfflineEngine {
     if (route === '/health')
       return done({ status: 'ok', mode: 'offline', storage: 'device', paidProviders: false });
     if (route === '/v1/speech/practice' && method === 'POST') {
-      const practice = recordSpeechPractice(state.unifiedLearning, content, body, now);
+      const practice = recordSpeechPractice(
+        state.unifiedLearning,
+        content,
+        body,
+        now,
+        activeChapter,
+        adventure?.version,
+      );
       if (!practice) throw new LocalError('La práctica oral no está disponible.', 404);
       return done(practice);
     }
@@ -1327,7 +1659,7 @@ export class OfflineEngine {
     if (route === '/v1/me/progress') return done(progress(state, now));
     if (
       !chapter.missions.length &&
-      (route.startsWith('/v1/story') ||
+      ((!adventure && route.startsWith('/v1/story')) ||
         route === '/v1/travel/placement' ||
         (route === '/v1/reviews/quick' && params.get('source') === 'travel'))
     )
@@ -1361,20 +1693,36 @@ export class OfflineEngine {
       return done({ placement, travel });
     }
     if (route === '/v1/travel') {
-      const travel = (state.travel ??= emptyTravel());
-      upgradeTravelCheckpoints(travel);
+      const travel = (journey().travel ??= emptyTravel());
+      upgradeTravelCheckpoints(travel, activeChapter);
       if (method === 'POST')
         changeTravel(travel, body, params.get('source') === 'story' ? 'story' : 'study');
-      return done(travel);
+      return done(travelView(travel));
     }
     if (route === '/v1/story' || (route === '/v1/story/encounter' && method === 'POST')) {
-      const travel = (state.travel ??= emptyTravel());
-      const firstVisit = method === 'GET' && route === '/v1/story' && !state.story;
-      const story = (state.story ??= emptyStory(chapterStory));
-      if (story.revision > chapterStory.revision)
-        throw new LocalError('Actualiza La primera postal para continuar con esta partida.', 409);
-      upgradeTravelCheckpoints(travel);
-      upgradeStory(chapterStory, story);
+      const progress = journey();
+      const travel = (progress.travel ??= emptyTravel());
+      const firstVisit = method === 'GET' && route === '/v1/story' && !progress.story;
+      const story = (progress.story ??= emptyStory(definition));
+      if (story.revision > definition.revision)
+        throw new LocalError(
+          adventure
+            ? 'Actualiza el capítulo para continuar con esta partida.'
+            : 'Actualiza La primera postal para continuar con esta partida.',
+          409,
+        );
+      upgradeTravelCheckpoints(travel, activeChapter);
+      upgradeStory(definition, story);
+      const context = () =>
+        storyContext(
+          story,
+          travel,
+          state.travelLearning,
+          state.unifiedLearning,
+          definition,
+          activeChapter,
+          travel.country ?? state.travel?.country,
+        );
       const before = story.encounterId;
       let launch = false;
       if (route === '/v1/story/encounter') {
@@ -1385,11 +1733,12 @@ export class OfflineEngine {
         launch = resumeStoryEncounter(story, request.turn);
       } else if (method === 'POST') {
         updateStory(
-          chapterStory,
+          definition,
           story,
-          storyContext(story, travel, state.travelLearning, state.unifiedLearning),
+          context(),
           body,
           ({ kind, itemId, dialogueId, token, translation }) => {
+            if (adventure) return;
             const guided = kind === 'guided';
             exposeHome(
               'story',
@@ -1405,13 +1754,12 @@ export class OfflineEngine {
         );
         launch = story.encounterId !== before;
         if (launch && before && travel.active?.finished) {
-          const previous = chapterStory.encounters.find((entry) => entry.id === before);
+          const previous = definition.encounters.find((entry) => entry.id === before);
           if (travel.active.missionId === previous?.missionId)
             changeTravel(travel, { action: 'dismiss', token: travel.active.token }, 'story');
         }
       }
-      const context = storyContext(story, travel, state.travelLearning, state.unifiedLearning);
-      const view = readStory(chapterStory, story, context);
+      const view = readStory(definition, story, context());
       if (
         view.encounter &&
         !view.encounter.ready &&
@@ -1427,7 +1775,7 @@ export class OfflineEngine {
       }
       return done({
         story: view,
-        travel,
+        travel: travelView(travel),
         ...(firstVisit && { firstVisit: true }),
       } satisfies StoryResponse);
     }
@@ -1561,7 +1909,20 @@ export class OfflineEngine {
       const unified = params.get('source') === 'unified';
       const target = travelOnly || unified ? params.get('target') : null;
       const mission = travelOnly || unified ? params.get('mission') : null;
-      const scopedKey = target ? `target:${target}` : mission ? `mission:${mission}` : undefined;
+      const reviewKey = target ? `target:${target}` : mission ? `mission:${mission}` : undefined;
+      const archivedChapter = archivesByChapter.get(requestedChapterId);
+      const chapterScoped = !!(adventure || archivedChapter);
+      const scopedKey = chapterScoped
+        ? `chapter:${requestedChapterId}:${reviewKey ?? 'all'}`
+        : reviewKey;
+      if (
+        chapterScoped &&
+        mission &&
+        (archivedChapter
+          ? !Object.hasOwn(archivedChapter.missionTargets, mission)
+          : !activeChapter.missions.some(({ id }) => id === mission))
+      )
+        throw new LocalError('Esta misión no está disponible.', 404);
       const checkpointKey = travelOnly || unified ? 'travelQuickReview' : 'quickReview';
       const travelStarter = travelLesson.exercises[0];
       const archive = unified ? archivedReviewLessons(state) : [];
@@ -1607,14 +1968,41 @@ export class OfflineEngine {
               .parse(body)
           : undefined;
       const checkpoints = state.travelReviewCheckpoints ?? {};
+      const missionTargets = archivedChapter
+        ? new Set(
+            mission
+              ? archivedChapter.missionTargets[mission]
+              : Object.values(archivedChapter.missionTargets).flat(),
+          )
+        : adventure
+        ? new Set(
+            activeChapter.missions
+              .filter(({ id }) => !mission || id === mission)
+              .flatMap(({ steps }) =>
+                steps.flatMap((step) =>
+                  step.type === 'exercise' && step.lessonId
+                    ? (step.targets ?? exerciseEvidenceTargets(step.exercise, step.lessonId)).map(
+                        ({ targetId }) => canonicalLearningId(targetId),
+                      )
+                    : [],
+                ),
+              ),
+          )
+        : mission
+          ? reviewTargetsForMission(mission)
+          : undefined;
       let cachedPlans: ReturnType<typeof unifiedReviewPlans> | undefined;
       const plans = () =>
         (cachedPlans ??= unifiedReviewPlans(
           state,
           content,
-          createUnifiedReviewCandidates(state, content, archive),
+          createUnifiedReviewCandidates(state, reviewContent, archive, chapterPractice).filter(
+            ({ exerciseId }) => !chapterScoped || adventureExercises.has(exerciseId),
+          ),
           now,
           mission,
+          missionTargets,
+          chapterPractice.flatMap(({ definitions }) => definitions ?? []),
         ));
       let recent: Set<string> | undefined;
       const recentExercises = () =>
@@ -1633,7 +2021,6 @@ export class OfflineEngine {
         key: scopedKey,
         saved: scopedKey ? own(checkpoints, scopedKey) : state[checkpointKey],
       };
-      const missionTargets = mission ? reviewTargetsForMission(mission) : undefined;
       const recovery = unified
         ? [
             ...Object.entries(checkpoints).map(([key, saved]) => ({ key, saved })),
@@ -1643,6 +2030,7 @@ export class OfflineEngine {
               ({ saved }) =>
                 saved?.remediation &&
                 saved.reviewKey &&
+                (!chapterScoped || adventureExercises.has(saved.exerciseId)) &&
                 (!target || saved.reviewKey === target) &&
                 (!missionTargets ||
                   missionTargets.has(saved.reviewKey.slice(saved.reviewKey.indexOf(':') + 1))),
@@ -1666,6 +2054,7 @@ export class OfflineEngine {
         recovery.find((entry) => target || !isWaiting(entry)) ||
         scope;
       const previous = slot.saved;
+      const savedAuthored = previous && adventureExercises.get(previous.exerciseId);
       const remove = (key: string | undefined) => {
         if (key) delete checkpoints[key];
         else delete state[checkpointKey];
@@ -1681,17 +2070,21 @@ export class OfflineEngine {
           remove(slot.key);
       };
       const savedLesson =
-        previous &&
-        lessons.find(
-          (lesson) =>
-            lesson.id === previous.lessonId &&
-            lesson.exercises.some(({ id }) => id === previous.exerciseId),
-        );
-      const savedExercise = savedLesson?.exercises.find((e) => e.id === previous?.exerciseId);
+        savedAuthored?.lesson ??
+        (previous &&
+          lessons.find(
+            (lesson) =>
+              lesson.id === previous.lessonId &&
+              lesson.exercises.some(({ id }) => id === previous.exerciseId),
+          ));
+      const savedExercise =
+        savedAuthored?.step.exercise ??
+        savedLesson?.exercises.find((e) => e.id === previous?.exerciseId);
       const existing =
         savedLesson &&
         savedExercise &&
-        (savedLesson.id === travelLesson.id ||
+        (savedAuthored ||
+          savedLesson.id === travelLesson.id ||
           taughtForReview(state, savedLesson.id, savedExercise) ||
           reviewStarterWord(savedLesson, savedExercise))
           ? savedExercise
@@ -1699,29 +2092,37 @@ export class OfflineEngine {
       if (
         previous &&
         existing &&
+        !savedAuthored &&
         savedLesson?.id !== travelLesson.id &&
         !taughtForReview(state, previous.lessonId, existing)
       )
         previous.starter = true;
       let definitions: ReturnType<typeof formalDefinitions> | undefined;
-      const prerequisiteFor = (lesson: CourseLesson, exercise: CourseExercise) =>
-        reviewPrerequisites(
-          content,
+      const archivedLessons = archive.map(({ lesson }) => lesson);
+      const definitionsFor = (authored?: ChapterPractice) =>
+        authored?.definitions?.length
+          ? formalDefinitions(reviewContent, archivedLessons, authored.definitions)
+          : (definitions ??= formalDefinitions(reviewContent, archivedLessons));
+      const prerequisiteFor = (lesson: CourseLesson, exercise: CourseExercise) => {
+        const authored = adventureExercises.get(exercise.id);
+        return reviewPrerequisites(
+          reviewContent,
           lesson,
           exercise,
           formalTeachingKeys(state.unifiedLearning),
-          (definitions ??= formalDefinitions(
-            content,
-            archive.map(({ lesson }) => lesson),
-          )),
+          definitionsFor(authored),
+          authored?.step.requires,
         );
+      };
       const forReview = (
         saved: QuickCheckpoint,
         exercise: CourseExercise,
         waiting = false,
       ): QuickReviewState => {
+        const authored = adventureExercises.get(exercise.id);
         const step =
-          saved.lessonId === travelLesson.id ? travelPracticeStep(exercise.id) : undefined;
+          authored?.step ??
+          (saved.lessonId === travelLesson.id ? travelPracticeStep(exercise.id) : undefined);
         const archivedStep =
           saved.lessonId === travelLesson.id && !step
             ? archivedTravelReviewStep(state, exercise.id)
@@ -1733,10 +2134,11 @@ export class OfflineEngine {
         const word = lesson && reviewStarterWord(lesson, exercise);
         const material =
           unified && !saved.starter && !saved.result && !waiting
-            ? lessons.find(
+            ? (authored?.lesson ??
+              lessons.find(
                 ({ id, exercises }) =>
                   id === saved.lessonId && exercises.some((item) => item.id === exercise.id),
-              )
+              ))
             : undefined;
         const prerequisites = material && prerequisiteFor(material, exercise);
         const instruction = prerequisites?.instruction;
@@ -1754,6 +2156,7 @@ export class OfflineEngine {
           );
         return {
           ...saved,
+          chapterId: authored?.chapterId,
           exercise: publicExercise(
             word
               ? {
@@ -1860,7 +2263,8 @@ export class OfflineEngine {
           }
           if (!previous.result) {
             const step =
-              previous.lessonId === travelLesson.id ? travelPracticeStep(existing.id) : undefined;
+              savedAuthored?.step ??
+              (previous.lessonId === travelLesson.id ? travelPracticeStep(existing.id) : undefined);
             if (update.action === 'draft') {
               previous.answer = update.answer;
               if (unified) return done(null);
@@ -1882,6 +2286,7 @@ export class OfflineEngine {
                 : undefined;
             if (update.action === 'prepare' && prerequisites?.instruction) {
               const version =
+                savedAuthored?.version ??
                 (isArchived ? archivedVersion?.version : undefined) ??
                 (previous.lessonId === travelLesson.id
                   ? `home:${chapter.revision}`
@@ -1894,6 +2299,8 @@ export class OfflineEngine {
                 now,
                 previous.token,
                 version,
+                savedAuthored &&
+                  rpgIntroductionTargets(prerequisites.instruction.teaches, definitionsFor(savedAuthored)),
               );
               previous.prerequisite = 'prepared';
             }
@@ -1909,7 +2316,7 @@ export class OfflineEngine {
               const gradingContent =
                 isArchived && savedLesson
                   ? { ...content, lessons: { ...content.lessons, [savedLesson.id]: savedLesson } }
-                  : content;
+                  : reviewContent;
               previous.result = this.attempt(
                 state,
                 gradingContent,
@@ -1924,37 +2331,44 @@ export class OfflineEngine {
                 undefined,
                 {
                   source: previous.reason === 'remediation' ? 'remediation' : 'review',
+                  ...(savedAuthored && {
+                    authored: savedAuthored,
+                    contentVersion: savedAuthored.version,
+                  }),
                   ...(previous.prerequisite && { aids: ['guided'] }),
                   ...(isArchived && { contentVersion: archivedVersion?.version }),
                   ...(previous.remediation?.phase === 'support' && {
                     remediates: [previous.remediation.error],
                   }),
-                  ...(step?.audio &&
-                    !previous.listened &&
-                    !previous.transcript && { evidenceOutcome: 'ungradable' }),
+                  ...(step?.audio && !previous.listened && { evidenceOutcome: 'ungradable' }),
                 },
               );
               previous.answer = update.answer;
+              const progress = adventure ? journey() : state;
               if (
-                state.story &&
-                state.travel &&
+                !archivedChapter &&
+                progress.story &&
+                progress.travel &&
                 (travelOnly || unified) &&
                 mission &&
                 !previous.starter &&
-                (!step?.audio || previous.listened || previous.transcript) &&
+                (!step?.audio || previous.listened) &&
                 previous.result.correct
-              )
+              ) {
                 recordStoryReview(
-                  chapterStory,
-                  state.story,
+                  definition,
+                  progress.story,
                   mission,
                   storyContext(
-                    state.story,
-                    state.travel,
+                    progress.story,
+                    progress.travel,
                     state.travelLearning,
                     state.unifiedLearning,
+                    definition,
+                    activeChapter,
                   ),
                 );
+              }
             }
           }
         }
@@ -1969,7 +2383,7 @@ export class OfflineEngine {
         if (!confirmed) return done(forReview(previous, existing));
       }
       if (unified) {
-        if (mission && !chapter.missions.some((item) => item.id === mission))
+        if (!chapterScoped && mission && !chapter.missions.some((item) => item.id === mission))
           throw new LocalError('Esta misión no está disponible.', 404);
         for (const plan of plans()) {
           if (target && plan.row.key !== target) continue;
@@ -1998,12 +2412,15 @@ export class OfflineEngine {
         const waiting = recovery.find(isWaiting)?.saved;
         const waitingExercise =
           waiting &&
-          lessons
-            .find(({ id }) => id === waiting.lessonId)
-            ?.exercises.find(({ id }) => id === waiting.exerciseId);
+          (adventureExercises.get(waiting.exerciseId)?.step.exercise ??
+            lessons
+              .find(({ id }) => id === waiting.lessonId)
+              ?.exercises.find(({ id }) => id === waiting.exerciseId));
         if (waiting && waitingExercise) return done(forReview(waiting, waitingExercise, true));
         if (target)
           throw new LocalError('Por ahora falta otra pregunta para practicar esta habilidad.', 404);
+        if (chapterScoped)
+          throw new LocalError('Aún no hay un repaso disponible para este capítulo.', 404);
         if (travelStarter) return create(travelLesson, travelStarter, true);
         for (const lesson of lessons) {
           const exercise = lesson.exercises.find((item) => reviewStarterWord(lesson, item));
@@ -2221,8 +2638,11 @@ export class OfflineEngine {
         const reviews: UnifiedReviewRow[] = unifiedReviewPlans(
           state,
           content,
-          createUnifiedReviewCandidates(state, content, archive),
+          createUnifiedReviewCandidates(state, reviewContent, archive, chapterPractice),
           now,
+          undefined,
+          undefined,
+          chapterPractice.flatMap(({ definitions }) => definitions ?? []),
         )
           .map(({ row }) => row)
           .filter((row) => all || (row.reason !== 'practice' && row.canPractice));
@@ -2359,6 +2779,26 @@ export class OfflineEngine {
       completedHomeMissions.length === chapter.missions.length &&
       !!state.travel?.stamps[chapter.id];
     let learningGate: ReturnType<typeof challengeLearningGate> | undefined;
+    const chapterExercises = [...adventures.values()].flatMap(({ exercises }) =>
+      [...exercises.values()].flatMap(({ step, lesson, version, reviewedDigest }) =>
+        reviewedDigest
+          ? [{
+              lessonId: lesson.id,
+              exercise: step.exercise,
+              version,
+              requires: step.requires,
+              targets: step.targets,
+            }]
+          : [],
+      ),
+    );
+    const challengeGate = () =>
+      (learningGate ??= challengeLearningGate(
+        state,
+        reviewContent,
+        chapterExercises,
+        formalDefinitions(reviewContent, [], [...adventures.values()].flatMap(({ audit }) => audit?.definitions ?? [])),
+      ));
     const rankAdmission = (home: boolean, type: ChallengeType, level: number) => {
       const unit = challengeUnit(content, level);
       const taught = home
@@ -2367,14 +2807,30 @@ export class OfflineEngine {
       const items = home ? travelChallengeItems(type, level) : questions(content, type, level);
       const complete = items.length === (home ? level + 2 : challengeQuestionCount(type));
       const gate =
-        taught && complete
-          ? (learningGate ??= challengeLearningGate(state, content))(
-              home ? 'home' : 'course',
-              type,
-              items,
-            )
-          : undefined;
-      return { taught, ready: gate?.ready ?? false, items };
+        taught && complete ? challengeGate()(home ? 'home' : 'course', type, items) : undefined;
+      if (home || !gate?.ready) return { taught, ready: gate?.ready ?? false, items };
+      const alternatives = new Map(
+        [...adventures.values()].flatMap(({ challenges, audit, version }) =>
+          (challenges?.[type] ?? []).map((item) => [item, { version, reviews: audit?.challenges }] as const),
+        ),
+      );
+      const variation = Object.values(state.runs).filter(
+        (run) => run.trackId === 'present_simple' && run.type === type && run.level === level,
+      ).length;
+      const selected = selectAdventureChallengeVariation(
+        items,
+        [...alternatives.keys()],
+        level,
+        variation,
+        (item) => challengeGate()('adventure', type, [item], alternatives.get(item)?.reviews).ready,
+      );
+      const selectedVersion = alternatives.get(selected[0])?.version;
+      return {
+        taught,
+        ready: true,
+        items: selected,
+        itemVersions: selectedVersion ? { [selected[0].id]: selectedVersion } : undefined,
+      };
     };
     const challengeTypes: readonly ChallengeType[] = [
       'grammar_rush',
@@ -2500,6 +2956,7 @@ export class OfflineEngine {
         taught,
         ready,
         items: selected,
+        itemVersions,
       } = rankAdmission(isHomeTrack, input.type, input.level);
       if (!ready)
         throw new LocalError(
@@ -2524,6 +2981,7 @@ export class OfflineEngine {
         contentVersion: isHomeTrack
           ? `home:${chapter.revision}`
           : studyMaterialVersion(content, ''),
+        ...(itemVersions && { itemVersions }),
         deadline: input.relaxed
           ? null
           : now + timeBudget(challengeContent, input.type, input.level, items) * 1000,
@@ -2575,6 +3033,7 @@ export class OfflineEngine {
             source: 'challenge',
             materialId,
             materialVersion:
+              run.itemVersions?.[exercise.id] ??
               run.contentVersion ??
               (run.trackId === HOME_TRAVEL_TRACK
                 ? `home:${chapter.revision}`

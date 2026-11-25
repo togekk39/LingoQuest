@@ -1,4 +1,5 @@
 import { normalizeAnswerText, type Answer, type EvidenceDimension } from '@lingoquest/contracts';
+import type { RpgFormalDefinition } from '@lingoquest/course-pack';
 import earlyTravel from '../../../content/source/prerequisites/early-travel.json';
 import {
   chapterLexicalForms,
@@ -94,6 +95,7 @@ for (const [lessonId, { patterns }] of Object.entries(textbookPatterns)) {
 for (const [chapterId, cards] of Object.entries(travelCards)) {
   for (const [index, card] of cards.entries()) {
     const prefix = `published.${chapterId}.card-${index + 1}`;
+    const patterns = card.patterns ?? chapterPatterns[chapterId];
     const register = (
       id: string,
       kind: RegisteredKind,
@@ -103,20 +105,20 @@ for (const [chapterId, cards] of Object.entries(travelCards)) {
       if (!registered.has(canonicalLearningId(id)))
         registered.set(id, { id, kind, labelEs, forms, aliases: [], prerequisiteIds: [] });
     };
-    for (const [position, term] of card.vocabulary.entries())
+    for (const [position, term] of card.vocabulary.entries()) {
+      if (card.canonical?.[term]) continue;
       register(
         `${prefix}.word-${position + 1}`,
         'lexical',
         term,
         chapterLexicalForms[chapterId]?.[term] ?? [term],
       );
+    }
     for (const { id, descriptionEs } of card.grammar) {
+      if (card.canonical?.[id]) continue;
       register(`${prefix}.grammar.${id}`, 'grammar', descriptionEs, []);
       const forms = [
-        ...new Set([
-          ...(chapterPatterns[chapterId]?.question[id] ?? []),
-          ...(chapterPatterns[chapterId]?.practice[id] ?? []),
-        ]),
+        ...new Set([...(patterns?.question[id] ?? []), ...(patterns?.practice[id] ?? [])]),
       ];
       if (forms.length) register(`${prefix}.pattern.${id}`, 'pattern', descriptionEs, forms);
     }
@@ -127,7 +129,10 @@ export function describeLearningTarget(targetId: string) {
   return registered.get(canonicalLearningId(targetId));
 }
 
-export function buildLearningRegistry(content?: Pick<CourseData, 'lessons' | 'speechDrills'>) {
+export function buildLearningRegistry(
+  content?: Pick<CourseData, 'lessons' | 'speechDrills'>,
+  authored: readonly RpgFormalDefinition[] = [],
+) {
   const index = new Map(registered);
   const register = (
     id: string,
@@ -159,6 +164,10 @@ export function buildLearningRegistry(content?: Pick<CourseData, 'lessons' | 'sp
       continue;
     if (typeof drill.category === 'string' && typeof drill.titleEs === 'string')
       register(`speech.${drill.category}`, 'speech', drill.titleEs, []);
+  }
+  for (const { id, kind, labelEs, forms } of authored) {
+    const label = kind === 'lexical' ? `${forms[0]} · ${labelEs}` : labelEs;
+    register(id, kind, label, forms);
   }
   return index;
 }
@@ -384,10 +393,15 @@ export function chapterCardEvidenceTargets(
   const ids = new Map<string, string[]>();
   for (const [index, term] of source.vocabulary.entries())
     ids.set(term, [
-      `${prefix}.word-${index + 1}`,
+      source.canonical?.[term] ?? `${prefix}.word-${index + 1}`,
       ...(chapterId === 'home' && term === 'Hi' ? [greetingLexemes.hi] : []),
     ]);
   for (const { id } of source.grammar) {
+    const canonical = source.canonical?.[id];
+    if (canonical) {
+      ids.set(id, [canonical]);
+      continue;
+    }
     const pattern = `${prefix}.pattern.${id}`;
     if (chapterId === 'home' && id === 'location') {
       ids.set(id, ['home.ask-location', 'home.adjacency']);
@@ -397,7 +411,11 @@ export function chapterCardEvidenceTargets(
   }
   if (stage === 'vocabulary') {
     const terms = word ? source.vocabulary.filter((term) => term === word) : source.vocabulary;
-    return introducedTargets(terms.flatMap((term) => ids.get(term) ?? []));
+    return distinct(
+      terms.flatMap((term) =>
+        (ids.get(term) ?? []).map((id) => target(id, 'vocabulary_recognition')),
+      ),
+    );
   }
   if (stage === 'grammar')
     return introducedTargets(source.grammar.flatMap(({ id }) => ids.get(id) ?? []));

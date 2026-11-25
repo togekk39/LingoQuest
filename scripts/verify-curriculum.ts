@@ -9,8 +9,10 @@ import {
   utf8Bytes,
   type ChapterPack,
   type ChapterLessonSource,
+  type CourseLesson,
 } from '@lingoquest/course-pack';
 import { route } from '@lingoquest/offline-engine';
+import { judgeAnswer } from '@lingoquest/contracts';
 import * as courseSource from '../content/source/curriculum';
 import { easternChapterLessons } from '../content/source/chapter-lessons-east';
 import { westernChapterLessons } from '../content/source/chapter-lessons-west';
@@ -21,7 +23,16 @@ import {
   chapter,
   travelLesson,
   travelPracticeSteps,
+  travelStepVocabulary,
 } from '../packages/offline-engine/src/travel-content';
+import {
+  formalDefinitions,
+  reviewedHomeInstruction,
+  reviewPrerequisites,
+  teachingReferenceKey,
+  textbookFormalReferences,
+} from '../packages/offline-engine/src/learning-prerequisites';
+import { exerciseEvidenceTargets } from '../packages/offline-engine/src/learning-registry';
 import {
   checkPrerequisites,
   prerequisiteFileSchema,
@@ -31,6 +42,9 @@ import { verifyReleaseAudit } from './audit-release-items';
 import { travelPlacementItems } from '../packages/offline-engine/src/travel-placement-items';
 import { inspectPublishedPrerequisites } from './published-prerequisites';
 import { inspectOptionalPrerequisites } from './published-optional-prerequisites';
+import { chapterAdventures } from './chapter-adventures';
+import { inspectAdventurePrerequisites } from './published-adventure-prerequisites';
+import { inspectAdventureChallenges } from './published-adventure-challenges';
 
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
@@ -231,6 +245,120 @@ function counts<T>(rows: readonly T[], key: (row: T) => string) {
   return totals;
 }
 
+function verifyAdventure(
+  pack: ChapterPack,
+  authored: NonNullable<ReturnType<typeof chapterAdventures.get>>,
+  studyLessons: readonly CourseLesson[],
+  priorTeaching: ReadonlySet<string>,
+) {
+  const { story } = authored;
+  const label = `chapter=${pack.chapterId}`;
+  assert.deepEqual(pack.story, JSON.parse(JSON.stringify(story)), label);
+  for (const phrase of authored.phrases)
+    assert.ok(Object.hasOwn(pack.audio, phrase), `${label} Missing audio / Falta audio: ${phrase}`);
+  if (!('audit' in story)) return;
+
+  const lessons = Object.fromEntries(
+    [...studyLessons, ...(pack.unit?.lessons ?? []), ...(story.supportingLessons ?? [])].map(
+      (lesson) => [lesson.id, lesson],
+    ),
+  );
+  const content = { lessons };
+  const definitions = formalDefinitions(content, [], story.audit.definitions);
+  const properNames = [
+    ...story.adventure.npcs.map(({ name }) => name),
+    ...(authored.properNames ?? []),
+  ];
+  const audit = inspectAdventurePrerequisites({
+    chapter: story.chapter,
+    audit: story.audit,
+    practice: story.practice,
+    definitions,
+    priorTeaching,
+    properNames,
+  });
+  assert.deepEqual(audit.issues, [], audit.issues.join('\n'));
+  const challengePools = story.challenges ?? {
+    grammar_rush: [],
+    cloze_battle: [],
+    reading_quest: [],
+  };
+
+  const taught = new Set(audit.taught);
+  for (const lesson of studyLessons)
+    for (const stage of ['grammar', 'vocabulary'] as const)
+      for (const reference of textbookFormalReferences(lesson, stage))
+        taught.add(teachingReferenceKey(reference));
+  const study = studyLessons.flatMap((lesson) =>
+    lesson.exercises.flatMap((exercise) => {
+      const requirements = reviewPrerequisites(content, lesson, exercise, taught, definitions);
+      return !exercise.ungradable &&
+        exercise.type !== 'reorder' &&
+        requirements?.missing.length === 0
+        ? [{ exercise, targets: exerciseEvidenceTargets(exercise, lesson.id) }]
+        : [];
+    }),
+  );
+  const challenges = inspectAdventureChallenges({
+    chapterId: story.chapter.id,
+    pools: challengePools,
+    reviews: story.audit.challenges ?? {},
+    definitions,
+    taught,
+    practice: [
+      ...study,
+      ...audit.independent.map(({ exercise, targets }) => ({ exercise, targets: targets ?? [] })),
+    ],
+    properNames,
+  });
+  assert.deepEqual(challenges.issues, [], challenges.issues.join('\n'));
+  const practice = [
+    ...story.chapter.missions.flatMap(({ steps }) =>
+      steps.flatMap((step) => (step.type === 'exercise' ? [step.exercise] : [])),
+    ),
+    ...story.practice.map(({ exercise }) => exercise),
+    ...Object.values(challengePools).flat(),
+  ];
+  unique(
+    practice.map(({ id }) => id),
+    `${label} Exercise IDs / IDs de ejercicios`,
+  );
+  let probes = 0;
+  for (const exercise of practice) {
+    if (exercise.ungradable) {
+      assert.equal(
+        judgeAnswer(exercise, { text: 'I work in the morning.' }),
+        'ungradable',
+        exercise.id,
+      );
+      probes++;
+      continue;
+    }
+    if (exercise.options) {
+      for (const { id } of exercise.options) {
+        assert.equal(
+          judgeAnswer(exercise, { optionId: id }),
+          id === exercise.correctOptionId ? 'target' : 'incorrect',
+          exercise.id,
+        );
+        probes++;
+      }
+      continue;
+    }
+    assert.ok(exercise.acceptedAnswers.length, exercise.id);
+    for (const text of exercise.acceptedAnswers) {
+      assert.equal(judgeAnswer(exercise, { text }), 'target', exercise.id);
+      probes++;
+    }
+    assert.equal(judgeAnswer(exercise, { text: ':::?' }), 'incorrect', exercise.id);
+    probes++;
+  }
+  console.log(
+    `${label}: ${audit.teaching} reviewed instruction steps/pasos, ${audit.assessments} assessments/evaluaciones, ${challenges.items} challenge items/retos, ${probes} grading checks/pruebas.`,
+  );
+  return audit.taught;
+}
+
 async function verifyPublishedContent(inventory: boolean) {
   const bundled = parseCoursePack(await read('apps/mobile/src/content/bundled-course.json'));
   const { units, lessons, ...activities } = bundled.payload;
@@ -253,7 +381,9 @@ async function verifyPublishedContent(inventory: boolean) {
   );
 
   const chapterRoot = 'apps/mobile/public/chapter-packs/';
-  const catalog = chapterCatalogSchema.parse(JSON.parse(await read(chapterRoot + CHAPTER_CATALOG_FILE)));
+  const catalog = chapterCatalogSchema.parse(
+    JSON.parse(await read(chapterRoot + CHAPTER_CATALOG_FILE)),
+  );
   const authored: Record<string, ChapterLessonSource> = {
     ...westernChapterLessons,
     ...easternChapterLessons,
@@ -294,6 +424,8 @@ async function verifyPublishedContent(inventory: boolean) {
   }
 
   const activeChapters = new Map<string, ChapterPack>();
+  let priorTeaching: ReadonlySet<string> = new Set();
+  const studyLessons: CourseLesson[] = [];
   for (const { id, unitId } of route) {
     const entry = catalog.chapters[id];
     const bytes = await read(chapterRoot + entry.revision + '/' + id + '.json');
@@ -316,6 +448,7 @@ async function verifyPublishedContent(inventory: boolean) {
     if (unitId) {
       const unit = units.find((unit) => unit.id === unitId);
       assert.ok(unit, 'Unknown legacy unit / Unidad anterior desconocida: ' + unitId);
+      studyLessons.push(...unit.lessons.map(({ id }) => lessons[id]));
       assert.deepEqual(
         pack.unit,
         {
@@ -326,25 +459,24 @@ async function verifyPublishedContent(inventory: boolean) {
         'Chapter textbook copy / Copia del curso por capítulo: ' + id,
       );
     }
-    if (id === 'home') {
-      assert.deepEqual(
-        pack.story,
-        JSON.parse(
-          JSON.stringify({
-            chapter,
-            adventure: chapterStory,
-            practice: travelPracticeSteps,
-            runtime: {
-              lesson: travelLesson,
-              placement: travelPlacementItems,
-              challenges: travelChallengePools,
-              course: activities,
-            },
-          }),
-        ),
-        'Home story runtime / Historia del lugar de origen',
-      );
-    }
+    const adventure = chapterAdventures.get(id);
+    if (adventure) {
+      const taught = verifyAdventure(pack, adventure, studyLessons, priorTeaching);
+      if (taught) priorTeaching = taught;
+      else if (adventure.story.chapter.id === chapter.id) {
+        const reviewed = chapter.missions.flatMap((mission) =>
+          mission.steps.flatMap((step) => [
+            ...reviewedHomeInstruction(step),
+            ...(step.type === 'teach'
+              ? travelStepVocabulary(mission, step).flatMap(({ term }) =>
+                  reviewedHomeInstruction(step, term),
+                )
+              : []),
+          ]),
+        );
+        priorTeaching = new Set([...priorTeaching, ...reviewed.map(teachingReferenceKey)]);
+      }
+    } else assert.equal(pack.story, undefined, id);
     if (inventory)
       console.log(
         id,

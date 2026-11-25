@@ -7,6 +7,7 @@ import {
   Text,
   View,
   useWindowDimensions,
+  type ImageSourcePropType,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -24,12 +25,12 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react-native';
-import {
-  chapter,
-  type StoryOperation,
-  type StoryView,
-  type TravelCheckpoint,
-  type TravelState,
+import type {
+  StoryOperation,
+  StoryView,
+  TravelChapter,
+  TravelCheckpoint,
+  TravelState,
 } from '@lingoquest/offline-engine';
 import { FlowFrame, InputViewportContext } from '../features/FeatureUI';
 import { JournalLeaf, PaperGrain } from '../Journal';
@@ -38,7 +39,7 @@ import { useTheme } from '../theme';
 import { StoryPhrase, StorySpeaker } from './StoryDialogueAppearance';
 import { StoryGuide, type GuideStep, type StoryGuideStage } from './StoryGuide';
 import { StoryScene } from './StoryScene';
-import { TravelFlow, travelStoryPrompt, type TravelFlowHandle } from './TravelFlow';
+import { TravelFlow, travelStoryCue, type TravelFlowHandle } from './TravelFlow';
 import { useChapterAudio } from './useChapterAudio';
 
 const itemKinds = { story: 'Historia', quest: 'Misión', souvenir: 'Recuerdo' };
@@ -145,7 +146,10 @@ function StoryButton({
 }
 
 export function StoryAdventure({
+  chapter,
   story,
+  images,
+  portraits,
   guideStage,
   onGuideStageChange,
   checkpoint,
@@ -161,7 +165,10 @@ export function StoryAdventure({
   onPassport,
   onVoiceSettings,
 }: {
+  chapter: TravelChapter;
   story: StoryView;
+  images?: Readonly<Record<string, ImageSourcePropType>>;
+  portraits?: Readonly<Record<string, ImageSourcePropType>>;
   guideStage: StoryGuideStage;
   onGuideStageChange: (stage: StoryGuideStage) => Promise<void>;
   checkpoint?: TravelCheckpoint;
@@ -180,11 +187,11 @@ export function StoryAdventure({
   const s = useStyles();
   const { colors } = useTheme();
   const { width, fontScale } = useWindowDimensions();
-  const { play, stop, speechMessage } = useChapterAudio();
+  const { play, stop, speechMessage } = useChapterAudio(chapter.id);
   const { scene, dialogue, encounter, hotspots, inventory, quests, turn, origin } = story;
   const lesson = useRef<TravelFlowHandle>(null);
   const [guideAnchor, setGuideAnchor] = useState<View | null>(null);
-  const guidePending = scene.id === 'plaza' && guideStage !== 'done';
+  const guidePending = chapter.id === 'home' && scene.id === 'plaza' && guideStage !== 'done';
   const introductionComplete = quests.some(
     ({ id, status }) => id === 'meet-sam' && status === 'completed',
   );
@@ -232,10 +239,14 @@ export function StoryAdventure({
       ? checkpoint
       : undefined;
   const encounterMission = chapter.missions.find(({ id }) => id === encounter?.missionId);
-  const teachingNpc =
+  const teachingSpeaker =
     activeCheckpoint && encounterMission
-      ? travelStoryPrompt(encounterMission, activeCheckpoint)?.speaker.toLowerCase()
+      ? travelStoryCue(encounterMission, activeCheckpoint)?.speaker
       : undefined;
+  const teachingNpc =
+    encounter?.npc && teachingSpeaker === encounter.npc.name
+      ? encounter.npc.id
+      : teachingSpeaker?.toLowerCase();
   const hasPanel = !!(dialogue || activeCheckpoint || finishing || encounter?.ready);
   const wide = hasPanel && width >= 1024 && fontScale < 1.35;
   const locked = busy || finishing;
@@ -375,6 +386,7 @@ export function StoryAdventure({
           {dialogue.npc ? (
             <StorySpeaker
               name={dialogue.npc.name}
+              portrait={portraits?.[dialogue.npc.name]}
               heading={
                 <SectionHeading focusKey={dialogueFocus} style={s.panelTitle}>
                   {dialogue.npc.name}
@@ -452,6 +464,9 @@ export function StoryAdventure({
         <TravelFlow
           key={encounter.id}
           ref={lesson}
+          chapter={chapter}
+          portraits={portraits}
+          sceneImage={images?.[scene.art]}
           initial={activeCheckpoint}
           playerName={playerName}
           onEditName={onEditName}
@@ -512,7 +527,9 @@ export function StoryAdventure({
       <View style={[s.spread, wide && s.wideSpread]}>
         <View style={[s.scenePage, wide && s.wideScenePage]}>
           <StoryScene
+            chapterId={chapter.id}
             scene={scene}
+            sceneImage={images?.[scene.art]}
             hotspots={hotspots}
             activeNpc={
               dialogue?.npc?.id ??

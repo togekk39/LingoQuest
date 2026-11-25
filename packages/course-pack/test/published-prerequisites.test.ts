@@ -30,7 +30,7 @@ const published = () => ({
 test('actual sources cover every chapter card, textbook exercise and first-chapter encounter', () => {
   const { issues, statistics } = inspectPublishedPrerequisites(published());
   assert.deepEqual(issues, []);
-  assert.equal(statistics.chapterCards, 20);
+  assert.equal(statistics.chapterCards, 24);
   assert.equal(statistics.chapterQuestions, statistics.chapterCards);
   assert.equal(statistics.chapterSelfChecks, statistics.chapterCards);
   assert.ok(statistics.chapterExactPatterns > statistics.chapterCards);

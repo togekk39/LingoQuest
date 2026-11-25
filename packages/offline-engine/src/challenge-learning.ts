@@ -1,5 +1,5 @@
 import { canonicalStringify, sha256Hex } from '@lingoquest/course-pack';
-import { attemptSchema, normalizeAnswerText } from '@lingoquest/contracts';
+import { attemptSchema, judgeAnswer, normalizeAnswerText } from '@lingoquest/contracts';
 import {
   optionalCourseItems,
   optionalHomeItems,
@@ -11,24 +11,40 @@ import {
 import type { CourseData, CourseExercise, OfflineState } from './index';
 import { travelLesson } from './home-content';
 import {
+  exactRpgReferences,
   formalDefinitions,
   formalTeachingKeys,
+  reviewPrerequisites,
   teachingReferenceKey,
   type TeachingReference,
 } from './learning-prerequisites';
 import { canonicalLearningId, exerciseEvidenceTargets } from './learning-registry';
 import type { LearningEvidence, UnifiedEvidenceTarget } from './learning-evidence';
 
-type ChallengeScope = 'course' | 'home';
+type ChallengeScope = 'course' | 'home' | 'adventure';
 export type ChallengeType = keyof CourseData['challengePools'];
+type PracticeItem = {
+  lessonId: string;
+  exercise: CourseExercise;
+  version?: string;
+  requires?: readonly TeachingReference[];
+  targets?: readonly UnifiedEvidenceTarget[];
+};
 type Review = { digest: string; requires: readonly (string | readonly [string, string])[] };
+export type AdventureChallengeReview = { digest: string; requires: readonly TeachingReference[] };
 type Definitions = ReturnType<typeof formalDefinitions>;
 type Proof = {
   context: 'reading' | 'production' | 'recognition';
   targets: ReadonlySet<string>;
+  event: LearningEvidence;
+  item: PracticeItem;
+  position: number;
 };
 
-const authoredReviews: Record<ChallengeScope, Readonly<Record<string, Review>>> = {
+const authoredReviews: Record<
+  Exclude<ChallengeScope, 'adventure'>,
+  Readonly<Record<string, Review>>
+> = {
   course: optionalCourseItems,
   home: optionalHomeItems,
 };
@@ -51,13 +67,25 @@ export function reviewedChallengeRequirements(
   exercise: CourseExercise,
   scope: ChallengeScope,
   content: CourseData | Definitions,
+  adventureReview?: AdventureChallengeReview,
 ): TeachingReference[] | undefined {
-  const registry = authoredReviews[scope];
-  const review = Object.hasOwn(registry, exercise.id) ? registry[exercise.id] : undefined;
+  const review =
+    scope === 'adventure'
+      ? adventureReview
+      : Object.hasOwn(authoredReviews[scope], exercise.id)
+        ? authoredReviews[scope][exercise.id]
+        : undefined;
   if (!review || review.digest !== sha256Hex(canonicalStringify(exercise))) return;
   const definitions = 'lessons' in content ? formalDefinitions(content) : content;
+  if (scope === 'adventure') {
+    const references = adventureReview?.requires;
+    if (!exactRpgReferences(references, definitions)) return;
+    const kinds = new Set(references.map(({ id }) => definitions.get(id)?.kind));
+    if (!kinds.has('lexical') || !kinds.has('pattern') || !kinds.has('grammar')) return;
+    return [...references];
+  }
   const references: TeachingReference[] = [];
-  for (const requirement of review.requires) {
+  for (const requirement of authoredReviews[scope][exercise.id].requires) {
     const [id, requested] = typeof requirement === 'string' ? [requirement] : requirement;
     const definition = definitions.get(id);
     if (!definition) return;
@@ -108,7 +136,7 @@ function observedWords(text: string) {
     .trim()} `;
 }
 
-function savedTextAnswer(state: OfflineState, event: LearningEvidence) {
+function savedAnswer(state: OfflineState, event: LearningEvidence) {
   const saved = Object.hasOwn(state.attempts, event.id) ? state.attempts[event.id] : undefined;
   if (!saved) return;
   try {
@@ -119,7 +147,7 @@ function savedTextAnswer(state: OfflineState, event: LearningEvidence) {
       parsed.data.exerciseId !== event.exerciseId
     )
       return;
-    return parsed.data.answer.text?.trim();
+    return parsed.data.answer;
   } catch {
     return;
   }
@@ -135,16 +163,23 @@ function producedHomeLexicalTargets(exerciseId: string, text: string, definition
   );
 }
 
-function normalPracticeProof(state: OfflineState, content: CourseData, definitions: Definitions) {
+function normalPracticeProof(
+  state: OfflineState,
+  content: CourseData,
+  definitions: Definitions,
+  chapterExercises: readonly PracticeItem[],
+) {
   const lessons = { ...content.lessons, [travelLesson.id]: travelLesson };
-  const items = new Map(
-    Object.values(lessons).flatMap((lesson) =>
-      lesson.exercises.map(
-        (exercise) => [`${lesson.id}:${exercise.id}`, { lesson, exercise }] as const,
-      ),
-    ),
+  const practice = Object.values(lessons).flatMap(({ id: lessonId, exercises }) =>
+    exercises.map((exercise) => ({ lessonId, exercise })),
   );
-  return state.unifiedLearning.evidence.flatMap((event): Proof[] => {
+  const items = new Map(
+    [...practice, ...chapterExercises].map((item) => [
+      `${item.lessonId}:${item.exercise.id}`,
+      item,
+    ]),
+  );
+  return state.unifiedLearning.evidence.flatMap((event, position): Proof[] => {
     if (
       event.source === 'challenge' ||
       event.source === 'placement' ||
@@ -157,8 +192,10 @@ function normalPracticeProof(state: OfflineState, content: CourseData, definitio
       return [];
     const item = items.get(`${event.materialId}:${event.exerciseId}`);
     if (!item || item.exercise.ungradable || item.exercise.type !== event.format) return [];
-    const { lesson, exercise } = item;
-    const text = productionFormats.has(event.format) ? savedTextAnswer(state, event) : undefined;
+    const { lessonId, exercise } = item;
+    const text = productionFormats.has(event.format)
+      ? savedAnswer(state, event)?.text?.trim()
+      : undefined;
     const context = proofContext(event, exercise, text);
     if (!context) return [];
     const proofDimensions: ReadonlySet<UnifiedEvidenceTarget['dimension']> =
@@ -171,11 +208,64 @@ function normalPracticeProof(state: OfflineState, content: CourseData, definitio
       ...event.targets
         .filter(({ dimension }) => proofDimensions.has(dimension))
         .map(({ targetId }) => canonicalLearningId(targetId)),
-      ...(lesson.id === travelLesson.id && context === 'production' && text
+      ...(lessonId === travelLesson.id && context === 'production' && text
         ? producedHomeLexicalTargets(event.exerciseId, text, definitions)
         : []),
     ]);
-    return [{ context, targets }];
+    return [{ context, targets, event, item, position }];
+  });
+}
+
+function reviewedAdventurePractice(
+  state: OfflineState,
+  content: CourseData,
+  definitions: Definitions,
+  proofs: readonly Proof[],
+) {
+  const firstInstruction = new Map<string, { timestamp: number; position: number }>();
+  for (const [position, event] of state.unifiedLearning.evidence.entries()) {
+    if (event.activity !== 'introduced' || !event.teaches?.length) continue;
+    for (const key of formalTeachingKeys({ evidence: [event], legacySchedules: [] })) {
+      const previous = firstInstruction.get(key);
+      if (!previous || event.timestamp < previous.timestamp)
+        firstInstruction.set(key, { timestamp: event.timestamp, position });
+    }
+  }
+  return proofs.flatMap((proof): Proof[] => {
+    const { event, item, position, targets } = proof;
+    const answer = savedAnswer(state, event);
+    if (!answer || judgeAnswer(item.exercise, answer) !== 'target') return [];
+    const lesson = content.lessons[item.lessonId];
+    if (item.version && event.materialVersion !== item.version) return [];
+    const requires = item.version
+      ? item.requires
+      : lesson &&
+        reviewPrerequisites(content, lesson, item.exercise, new Set(), definitions)?.missing;
+    if (
+      !requires?.length ||
+      !requires.every((ref) => {
+        const teaching = firstInstruction.get(teachingReferenceKey(ref));
+        return (
+          teaching &&
+          (teaching.timestamp < event.timestamp ||
+            (teaching.timestamp === event.timestamp && teaching.position < position))
+        );
+      })
+    )
+      return [];
+    const authoredTargets = item.targets ?? exerciseEvidenceTargets(item.exercise, item.lessonId);
+    const qualified = new Set(
+      authoredTargets.flatMap(({ targetId, dimension }) => {
+        const canonical = canonicalLearningId(targetId);
+        return targets.has(canonical) &&
+          event.targets.some(
+            (target) => target.targetId === canonical && target.dimension === dimension,
+          )
+          ? [canonical]
+          : [];
+      }),
+    );
+    return qualified.size ? [{ ...proof, targets: qualified }] : [];
   });
 }
 
@@ -222,6 +312,10 @@ function covered(
   const patterns = requirements
     .filter(({ id }) => definitions.get(id)?.kind === 'pattern')
     .map(({ id }) => id);
+  if (scope === 'adventure') {
+    const targets = [exercise.skillId, ...patterns.map(canonicalLearningId)];
+    return sameAbility.some((proof) => targets.some((id) => proof.targets.has(id)));
+  }
   const related = patterns.filter(
     (id) => content.lessons[id.split('.')[1]]?.grammar?.skillId === exercise.skillId,
   );
@@ -251,28 +345,73 @@ function covered(
   );
 }
 
-export function challengeLearningGate(state: OfflineState, content: CourseData) {
-  const definitions = formalDefinitions(content);
+export function challengeLearningGate(
+  state: OfflineState,
+  content: CourseData,
+  chapterExercises: readonly PracticeItem[] = [],
+  definitions = formalDefinitions(content),
+) {
   const introduced = formalTeachingKeys(state.unifiedLearning);
-  const proofs = normalPracticeProof(state, content, definitions);
+  const proofs = normalPracticeProof(state, content, definitions, chapterExercises);
   const reviewed = new Map<CourseExercise, TeachingReference[] | undefined>();
-  return (scope: ChallengeScope, type: ChallengeType, items: readonly CourseExercise[]) => {
+  let adventureProofs: Proof[] | undefined;
+  return (
+    scope: ChallengeScope,
+    type: ChallengeType,
+    items: readonly CourseExercise[],
+    reviews?: Readonly<Record<string, AdventureChallengeReview>>,
+  ) => {
     const missingTeaching: string[] = [];
     const missingPractice: string[] = [];
     for (const exercise of items) {
       if (!reviewed.has(exercise))
-        reviewed.set(exercise, reviewedChallengeRequirements(exercise, scope, definitions));
+        reviewed.set(
+          exercise,
+          reviewedChallengeRequirements(
+            exercise,
+            scope,
+            definitions,
+            reviews && Object.hasOwn(reviews, exercise.id) ? reviews[exercise.id] : undefined,
+          ),
+        );
       const requirements = reviewed.get(exercise);
       if (
         !requirements?.length ||
         requirements.some((ref) => !introduced.has(teachingReferenceKey(ref)))
       ) {
         missingTeaching.push(exercise.id);
-      } else if (!covered(proofs, exercise, requirements, definitions, content, scope, type)) {
+      } else if (
+        !covered(
+          scope === 'adventure'
+            ? (adventureProofs ??= reviewedAdventurePractice(state, content, definitions, proofs))
+            : proofs,
+          exercise,
+          requirements,
+          definitions,
+          content,
+          scope,
+          type,
+        )
+      ) {
         missingPractice.push(exercise.id);
       }
     }
     const taught = !!items.length && !missingTeaching.length;
     return { taught, ready: taught && !missingPractice.length, missingTeaching, missingPractice };
   };
+}
+
+export function selectAdventureChallengeVariation(
+  items: CourseExercise[],
+  candidates: readonly CourseExercise[],
+  level: number,
+  variation: number,
+  eligible: (item: CourseExercise) => boolean,
+) {
+  if (!items.length) return items;
+  const minimum = level <= 8 ? 1 : level;
+  const allowed = candidates.filter(
+    (item) => item.difficulty >= minimum && item.difficulty <= level && eligible(item),
+  );
+  return allowed.length ? [allowed[variation % allowed.length], ...items.slice(1)] : items;
 }

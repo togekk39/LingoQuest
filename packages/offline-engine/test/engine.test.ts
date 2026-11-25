@@ -12,6 +12,7 @@ import {
   type CourseExercise,
   type LessonCheckpoint,
   type LocalStore,
+  type OfflineEngineOptions,
   type QuickReviewState,
   type TravelOperation,
   type TravelState,
@@ -29,12 +30,21 @@ import {
 import {
   challengeQuestionCount,
   challengeRequiredUnit,
+  judgeAnswer,
   selectChallengeQuestions,
   type Progress,
   type RunView,
   type AttemptResult,
 } from '@lingoquest/contracts';
-import { challengeLearningGate } from '../src/challenge-learning';
+import {
+  challengeLearningGate,
+  reviewedChallengeRequirements,
+  selectAdventureChallengeVariation,
+  type AdventureChallengeReview,
+} from '../src/challenge-learning';
+import { mexicoChallengePools } from '../../../content/source/mexico-challenges';
+import { mexicoChallengeReviews } from '../../../content/source/prerequisites/mexico-challenges';
+import { chapterCatalogSchema, parseChapterPack } from '@lingoquest/course-pack';
 import { travelChallengeItems } from '../src/travel-challenges';
 const source: CourseData = {
   units,
@@ -56,7 +66,7 @@ class MemoryStore implements LocalStore {
     this.data.set(key, value);
   }
 }
-function fixture() {
+function fixture(getChapterCards?: OfflineEngineOptions['getChapterCards']) {
   const store = new MemoryStore();
   let time = Date.parse('2026-11-08T12:00:00Z');
   let id = 0;
@@ -65,6 +75,7 @@ function fixture() {
     new OfflineEngine({
       store,
       getContent: () => content,
+      getChapterCards,
       clock: () => time,
       randomId: () => `local-id-${++id}`,
     });
@@ -681,6 +692,172 @@ test('failed device writes do not falsely award or discard progress', async () =
   assert.equal((await f.engine.initialize()).user.name, 'Explorador');
 });
 
+test('Mexico challenge variations preserve rank size and require reviewed instruction and matching practice', async () => {
+  const { engine, store } = fixture();
+  await unlock(engine, 3);
+  const learned = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const reviews: Readonly<Record<string, AdventureChallengeReview>> = mexicoChallengeReviews;
+  const gate = challengeLearningGate(learned, source);
+  for (const item of Object.values(mexicoChallengePools).flat()) {
+    assert.ok(
+      reviewedChallengeRequirements(item, 'adventure', source, reviews[item.id])?.length,
+      item.id,
+    );
+    assert.equal(judgeAnswer(item, correct(item)), 'target', item.id);
+    assert.equal(judgeAnswer(item, wrong(item)), 'incorrect', item.id);
+  }
+
+  const cloze = mexicoChallengePools.cloze_battle.find(({ id }) => id.endsWith('_does'))!;
+  assert.equal(gate('adventure', 'cloze_battle', [cloze], reviews).ready, true);
+  assert.equal(
+    gate('adventure', 'cloze_battle', [{ ...cloze, sentence: '___ Leo open the market?' }], reviews)
+      .taught,
+    false,
+  );
+  const instructionOnly = {
+    ...learned,
+    unifiedLearning: {
+      ...learned.unifiedLearning,
+      evidence: learned.unifiedLearning.evidence.filter(
+        ({ activity }) => activity === 'introduced',
+      ),
+    },
+  };
+  assert.deepEqual(
+    challengeLearningGate(instructionOnly, source)('adventure', 'cloze_battle', [cloze], reviews),
+    {
+      taught: true,
+      ready: false,
+      missingTeaching: [],
+      missingPractice: [cloze.id],
+    },
+  );
+
+  const normal = learned.unifiedLearning.evidence.find(
+    ({ exerciseId }) => exerciseId === 'u03_l01_practice_3',
+  )!;
+  const teaching = instructionOnly.unifiedLearning.evidence;
+  const withProof = (evidence: typeof teaching) => ({
+    ...learned,
+    unifiedLearning: { ...learned.unifiedLearning, evidence },
+  });
+  const invalidProofs: [string, typeof teaching][] = [
+    ['taught later', [normal, ...teaching]],
+    ['hinted', [...teaching, { ...normal, aids: ['hint'] }]],
+  ];
+  for (const [label, evidence] of invalidProofs) {
+    const gate = challengeLearningGate(withProof(evidence), source);
+    assert.equal(gate('adventure', 'cloze_battle', [cloze], reviews).ready, false, label);
+  }
+  const onePractice = withProof([...teaching, normal]);
+  assert.equal(
+    challengeLearningGate(onePractice, source)('adventure', 'cloze_battle', [cloze], reviews).ready,
+    true,
+  );
+  const removed = {
+    ...source,
+    lessons: {
+      ...source.lessons,
+      [normal.materialId]: {
+        ...source.lessons[normal.materialId],
+        exercises: source.lessons[normal.materialId].exercises.filter(
+          ({ id }) => id !== normal.exerciseId,
+        ),
+      },
+    },
+  };
+  assert.equal(
+    challengeLearningGate(onePractice, removed)('adventure', 'cloze_battle', [cloze], reviews)
+      .ready,
+    false,
+  );
+  for (const ref of [{ id: 'form.u03_l01.2' }, { id: 'form.u03_l01.1', form: 'does' }]) {
+    const malformed = {
+      ...reviews[cloze.id],
+      requires: [...reviews[cloze.id].requires.filter(({ id }) => id !== 'form.u03_l01.2'), ref],
+    };
+    assert.equal(reviewedChallengeRequirements(cloze, 'adventure', source, malformed), undefined);
+  }
+
+  const base = source.challengePools.grammar_rush.slice(0, 10);
+  const eligible = (item: CourseExercise) =>
+    gate('adventure', 'grammar_rush', [item], reviews).ready;
+  const first = selectAdventureChallengeVariation(
+    base,
+    mexicoChallengePools.grammar_rush,
+    2,
+    0,
+    eligible,
+  );
+  const replay = selectAdventureChallengeVariation(
+    base,
+    mexicoChallengePools.grammar_rush,
+    2,
+    1,
+    eligible,
+  );
+  assert.equal(first[0].id, 'challenge_mexico_grammar_routine');
+  assert.equal(replay[0].id, 'challenge_mexico_grammar_third');
+  assert.deepEqual(first.slice(1), base.slice(1));
+  assert.equal(
+    selectAdventureChallengeVariation(base, mexicoChallengePools.grammar_rush, 9, 0, eligible),
+    base,
+  );
+  assert.equal(
+    selectAdventureChallengeVariation(base, mexicoChallengePools.grammar_rush, 2, 0, () => false),
+    base,
+  );
+});
+
+test('an installed Mexico pack supplies eligible variations to new runs and preserves existing runs', async () => {
+  const packs = new URL('../../../apps/mobile/public/chapter-packs/', import.meta.url);
+  const catalog = chapterCatalogSchema.parse(
+    JSON.parse(readFileSync(new URL('catalog-v4.json', packs), 'utf8')),
+  );
+  const { revision } = catalog.chapters.mexico;
+  const pack = parseChapterPack(
+    readFileSync(new URL(`${revision}/mexico.json`, packs), 'utf8'),
+    'mexico',
+  );
+  const { engine, reopen, store } = fixture(async (id) => (id === 'mexico' ? pack : null));
+  const path = '/v1/challenges/runs';
+  const request = {
+    clientRequestId: 'mexico-market-challenge-one',
+    trackId: 'present_simple',
+    type: 'grammar_rush',
+    level: 2,
+    mode: 'practice',
+  };
+  await engine.request('/v1/story?chapter=mexico');
+  await assert.rejects(engine.request(path, request), { code: 'CHALLENGE_LOCKED' });
+  await unlock(engine, 2);
+
+  const first = await engine.request<RunView>(path, request);
+  assert.equal(first.question?.id, 'challenge_mexico_grammar_routine');
+  const item = mexicoChallengePools.grammar_rush[0];
+  const submitted = await engine.request<RunView>(`${path}/${first.runId}/answers`, {
+    clientSubmissionId: 'mexico-market-first-answer',
+    questionPosition: 1,
+    answer: correct(item),
+  });
+  assert.equal(submitted.completedQuestions, 1);
+  const saved = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  assert.equal(saved.runs[first.runId].answers[0].correct, true);
+  assert.equal(
+    saved.unifiedLearning.evidence.find(({ exerciseId }) => exerciseId === item.id)
+      ?.materialVersion,
+    `mexico:${revision}`,
+  );
+  const resumed = await reopen().request<RunView>(path, request);
+  assert.equal(resumed.runId, first.runId);
+  assert.equal(resumed.question?.id, submitted.question?.id);
+  const replay = await engine.request<RunView>(path, {
+    ...request,
+    clientRequestId: 'mexico-market-challenge-two',
+  });
+  assert.equal(replay.question?.id, 'challenge_mexico_grammar_third');
+});
+
 test('all thirteen local levels finish with personal records and never grant official badges or learning XP', async () => {
   const f = fixture();
   await unlock(f.engine);
@@ -1185,7 +1362,7 @@ test('review teaches missing audited prerequisites before a learner can attempt 
   assert.ok(evidence[1].aids.includes('guided'));
 });
 
-test('an audio review needs playback or transcript before it supplies listening evidence', async () => {
+test('an audio review requires playback for listening evidence', async () => {
   const { engine, store } = fixture();
   await grantHomeReviewTeaching(engine, store, 'bus_teach');
   await engine.request('/v1/attempts', {

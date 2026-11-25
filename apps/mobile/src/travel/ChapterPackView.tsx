@@ -25,11 +25,15 @@ export function ChapterPackView({
   chapterId,
   onClose,
   onAdventure,
+  adventureError,
+  adventureBusy,
   onOpenTextbookUnit,
 }: {
   chapterId: string;
   onClose: () => void;
-  onAdventure?: () => void;
+  onAdventure?: (pack: ChapterPack) => void;
+  adventureError?: string;
+  adventureBusy?: boolean;
   onOpenTextbookUnit?: (unitId: string) => void;
 }) {
   const { colors } = useTheme();
@@ -240,9 +244,17 @@ export function ChapterPackView({
           )}
           <Label style={{ fontSize: 17 }}>{lesson.objectiveEs}</Label>
           {pack.story && onAdventure && (
-            <Button icon={Compass} variant="secondary" onPress={onAdventure}>
-              Explorar aventura de este capítulo
-            </Button>
+            <>
+              <Button
+                icon={Compass}
+                variant="secondary"
+                loading={adventureBusy}
+                onPress={() => onAdventure(pack)}
+              >
+                Explorar aventura de este capítulo
+              </Button>
+              {!!adventureError && <ErrorCard message={adventureError} />}
+            </>
           )}
           {renderSections(lesson)}
           {pack.unit && (

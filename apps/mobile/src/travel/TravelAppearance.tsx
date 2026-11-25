@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Eye, MapPin, Volume2 } from 'lucide-react-native';
 import type { TravelMission, TravelVocabulary } from '@lingoquest/offline-engine';
+import type { Translation } from '@lingoquest/contracts';
+import { useFeatureStyles } from '../features/FeatureUI';
 import { Button, Label } from '../ui';
 import { useTheme } from '../theme';
 import { JournalArt, JournalLeaf, Notebook } from '../Journal';
@@ -9,6 +11,48 @@ import { illustrations, placeIllustration, wordIllustration } from './illustrati
 import { StoryActivity, type StoryTranslation } from './StoryDialogueAppearance';
 
 const english = Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' };
+
+export function PrerequisiteNotice({
+  instruction,
+  inline = false,
+  updateRequired = false,
+}: {
+  instruction?: { sections: readonly { title: string; examples: readonly Translation[] }[] };
+  inline?: boolean;
+  updateRequired?: boolean;
+}) {
+  const f = useFeatureStyles();
+  const Section = inline ? StoryActivity : Notebook;
+  return (
+    <Section title={updateRequired ? 'Actualiza este capítulo' : 'Primero aprende lo necesario'}>
+      {instruction ? (
+        instruction.sections.map(({ title, examples }) => (
+          <View key={title} style={{ gap: 4 }}>
+            <Text style={f.cardTitle}>{title}</Text>
+            {examples.map(({ en, es }) => (
+              <View key={en}>
+                <Text {...english} style={f.body}>
+                  {en}
+                </Text>
+                <Text style={f.quiet}>{es}</Text>
+              </View>
+            ))}
+          </View>
+        ))
+      ) : updateRequired ? (
+        <Text style={f.body}>
+          Vuelve a abrir la aplicación cuando tengas conexión para actualizar este capítulo. Tu
+          respuesta queda guardada.
+        </Text>
+      ) : (
+        <Text style={f.body}>
+          Cuando hayas practicado las ideas de esta pregunta en tu lección, podrás volver a
+          intentarla.
+        </Text>
+      )}
+    </Section>
+  );
+}
 
 export function TravelScene({ place, compact = false }: { place: string; compact?: boolean }) {
   const { colors: C } = useTheme();
@@ -98,6 +142,8 @@ export function GrammarWorkbench({
   stop,
   embedded,
   onTranslationShown,
+  showExplanation = !embedded || !step.storyPrompt,
+  showAll = false,
 }: {
   step: Extract<TravelMission['steps'][number], { type: 'teach' }>;
   play: (value: string) => void;
@@ -109,6 +155,8 @@ export function GrammarWorkbench({
   stop: () => void;
   embedded?: StoryTranslation;
   onTranslationShown?: () => void;
+  showExplanation?: boolean;
+  showAll?: boolean;
 }) {
   const { colors: C } = useTheme();
   const [selected, select] = useState(0);
@@ -118,7 +166,7 @@ export function GrammarWorkbench({
   const dialogue = step.presentation === 'question-answer';
   const inline = !!embedded;
   const replyBriefing = inline && step.presentation === 'reply-briefing';
-  const showAllExamples = dialogue || replyBriefing;
+  const showAllExamples = dialogue || replyBriefing || showAll;
   const Section = inline ? StoryActivity : Notebook;
   const alternative = showAllExamples
     ? undefined
@@ -132,15 +180,15 @@ export function GrammarWorkbench({
     if (replyBriefing) return;
     void playSequence(
       step.examples.map(({ en }) => en),
-      dialogue ? undefined : showExample,
+      showAllExamples ? undefined : showExample,
       inline,
     );
-  }, [dialogue, inline, playSequence, replyBriefing, showExample, step.examples]);
+  }, [inline, playSequence, replyBriefing, showAllExamples, showExample, step.examples]);
   return (
     <View testID="grammar-workbench" style={{ gap: 12 }}>
       {!inline && <JournalArt source={illustrations.writing} aspectRatio={3.1} taped />}
       <Section title={step.title}>
-        {(!inline || !step.storyPrompt) && <Label style={styles.copy}>{step.text}</Label>}
+        {showExplanation && <Label style={styles.copy}>{step.text}</Label>}
         {!!step.exampleLabel && (
           <Text style={[styles.meaning, { color: C.teal }]}>{step.exampleLabel}</Text>
         )}

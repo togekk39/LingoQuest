@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { chapter } from './home-content';
+import { chapter as homeChapter } from './home-content';
+import type { TravelChapter } from './travel-content';
 import type { CourseData } from './index';
 import {
   recordUnifiedEvidence,
@@ -41,6 +42,8 @@ const homeGuideConcepts: Readonly<Record<string, string>> = {
 function speechTarget(
   content: CourseData,
   input: Practice,
+  chapter: TravelChapter,
+  chapterVersion: string,
 ): Pick<LearningEvidence, 'materialVersion' | 'contextId' | 'source' | 'targets'> | undefined {
   const { source, materialId, itemId } = input;
   if (source === 'drill') {
@@ -59,15 +62,14 @@ function speechTarget(
     };
   }
   const mission = chapter.missions.find(({ id }) => id === materialId);
-  const homeVersion = `home:${chapter.revision}`;
   if (source === 'travel-guide') {
     const key = `${materialId}:${itemId}`;
     const word = mission?.vocabulary.some(({ term }) => term === itemId);
-    if (!word || !Object.hasOwn(homeGuideConcepts, key)) return undefined;
+    if (chapter.id !== 'home' || !word || !Object.hasOwn(homeGuideConcepts, key)) return undefined;
     return {
       source: 'speech',
       contextId: `home:guide:${materialId}`,
-      materialVersion: homeVersion,
+      materialVersion: chapterVersion,
       targets: homeSpeakingEvidenceTargets({ conceptId: homeGuideConcepts[key] }),
     };
   }
@@ -76,7 +78,7 @@ function speechTarget(
     return {
       source,
       contextId: step.learning.contextId,
-      materialVersion: homeVersion,
+      materialVersion: chapterVersion,
       targets: homeSpeakingEvidenceTargets(step.learning),
     };
   }
@@ -99,9 +101,11 @@ export function recordSpeechPractice(
   content: CourseData,
   body: unknown,
   now: number,
+  chapter: TravelChapter = homeChapter,
+  chapterVersion = `${chapter.id}:${chapter.revision}`,
 ) {
   const input = practiceSchema.parse(body);
-  const target = speechTarget(content, input);
+  const target = speechTarget(content, input, chapter, chapterVersion);
   if (!target) return undefined;
   const metadata = {
     ...target,

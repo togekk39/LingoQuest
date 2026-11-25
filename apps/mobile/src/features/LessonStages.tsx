@@ -265,24 +265,28 @@ export function AnswerFeedback({
   exercise,
   answer,
   speaker,
+  selfCheck = false,
 }: {
   result: AttemptResult;
   exercise: PublicExercise;
   answer: Partial<Answer>;
   speaker?: React.ReactNode;
+  selfCheck?: boolean;
 }) {
   const { colors: palette, tone } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
-  const feedbackTitle = result.identityMismatch
-    ? 'Usa tu nombre'
-    : result.outcome === 'ungradable'
-      ? 'Esta pregunta necesita más contexto'
-      : result.communicationOnly
-        ? 'Lograste comunicarte'
-        : result.correct
-          ? '¡Muy bien!'
-          : 'Buen intento. Veamos por qué…';
+  const feedbackTitle = selfCheck
+    ? 'Revisa tu respuesta'
+    : result.identityMismatch
+      ? 'Usa tu nombre'
+      : result.outcome === 'ungradable'
+        ? 'Esta pregunta necesita más contexto'
+        : result.communicationOnly
+          ? 'Lograste comunicarte'
+          : result.correct
+            ? '¡Muy bien!'
+            : 'Buen intento. Veamos por qué…';
   const submittedAnswer = exercise.matchingPairs?.length
     ? exercise.matchingPairs
         .map((pair) => {
@@ -338,9 +342,11 @@ export function AnswerFeedback({
         )}
         {result.acceptedAnswer && !result.correct && (
           <Text style={s.accepted}>
-            {result.communicationOnly
-              ? 'Ejemplo de la forma practicada:'
-              : 'Una respuesta posible:'}{' '}
+            {selfCheck
+              ? 'Modelo para comparar:'
+              : result.communicationOnly
+                ? 'Ejemplo de la forma practicada:'
+                : 'Una respuesta posible:'}{' '}
             {result.acceptedAnswer}
           </Text>
         )}

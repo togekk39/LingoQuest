@@ -336,7 +336,7 @@ export function ChallengesScreen({
     }
   }
   async function submitAnswer() {
-    if (!run || !run.question) return;
+    if (!run?.question || busy || (!pending.current && option === null && !text.trim())) return;
     if (!pending.current) {
       const answer: Answer = option !== null ? { optionId: option } : { text: text.trim() };
       pending.current = {
@@ -856,9 +856,7 @@ export function ChallengesScreen({
                 autoCapitalize="none"
                 placeholder="Escribe tu respuesta en inglés"
                 placeholderTextColor={C.muted}
-                onSubmitEditing={() => {
-                  if (text.trim()) void submitAnswer();
-                }}
+                onSubmit={submitAnswer}
               />
             )}
             {error ? <ErrorBox message={error} /> : null}
@@ -866,7 +864,7 @@ export function ChallengesScreen({
               label={pending.current ? 'Reintentar envío' : 'Enviar respuesta'}
               disabled={!pending.current && option === null && !text.trim()}
               busy={busy}
-              onPress={() => void submitAnswer()}
+              onPress={submitAnswer}
             />
             <Text style={s.centerNote}>Verás las explicaciones al terminar la práctica.</Text>
             {error && (

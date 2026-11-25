@@ -9,7 +9,7 @@ import {
 } from '../features/offlineSpeech';
 import { audioClips } from './audioClips';
 
-export function useChapterAudio() {
+export function useChapterAudio(chapterId = 'home') {
   const player = useClipPlayer();
   const [speechMessage, setSpeechMessage] = useState('');
   const playback = useRef<AbortController | null>(null);
@@ -45,7 +45,7 @@ export function useChapterAudio() {
           if (result.played) continue;
           if (!result.message) return;
 
-          const downloaded = await getAvailableChapterAudio('home', phrase);
+          const downloaded = await getAvailableChapterAudio(chapterId, phrase);
           if (signal.aborted) return;
           if (downloaded) {
             setSpeechMessage(DOWNLOADED_AUDIO_NOTICE);
@@ -53,7 +53,7 @@ export function useChapterAudio() {
               continue;
             if (signal.aborted) return;
           }
-          const clip = audioClips[phrase];
+          const clip = chapterId === 'home' ? audioClips[phrase] : undefined;
           if (!clip || (preferences.voice !== null && !useBundledIfUnavailable)) {
             setSpeechMessage(result.message);
             completed = false;
@@ -70,7 +70,7 @@ export function useChapterAudio() {
         if (playback.current === controller) playback.current = null;
       }
     },
-    [player],
+    [chapterId, player],
   );
   const play = useCallback(
     (phrase: string, useBundledIfUnavailable = false, onPlayed?: () => void) =>

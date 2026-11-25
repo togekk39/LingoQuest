@@ -32,6 +32,7 @@ export function ExerciseInput({
   exercise,
   answer,
   setAnswer,
+  onSubmit,
   disabled,
   journal = false,
   inline = false,
@@ -41,6 +42,7 @@ export function ExerciseInput({
   exercise: Exercise;
   answer: ExerciseAnswer;
   setAnswer: (a: ExerciseAnswer) => void;
+  onSubmit?: () => void;
   disabled?: boolean;
   journal?: boolean;
   inline?: boolean;
@@ -293,6 +295,7 @@ export function ExerciseInput({
             placeholder="Escribe tu respuesta en inglés…"
             placeholderTextColor="#91A09B"
             value={answer.text ?? ''}
+            onSubmit={onSubmit}
             onChangeText={(text) => {
               setAnswer({ text });
               revealFocusedInput();

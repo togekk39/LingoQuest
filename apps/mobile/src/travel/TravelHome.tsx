@@ -658,22 +658,28 @@ export function CountryPicker({
 
 export function Passport({
   travel,
+  stamps,
   onNote,
   onContinue,
   onNextChapter,
 }: {
   travel: TravelState;
+  stamps: Readonly<TravelState['stamps']>;
   onNote: (value: string) => Promise<void>;
   onContinue: () => void;
-  onNextChapter: () => void;
+  onNextChapter: (chapterId: string) => void;
 }) {
   const s = useStyles();
   const { colors: C } = useTheme();
   const [note, setNote] = useState(travel.note ?? '');
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
-  const stamp = travel.stamps.home;
+  const stamp = stamps.home;
+  const earned = route.filter(({ id }) => stamps[id]);
+  const latest = earned.at(-1);
+  const next = route[latest ? route.indexOf(latest) + 1 : 0];
   async function save() {
+    if (saving) return;
     setSaving(true);
     try {
       await onNote(note.trim());
@@ -689,7 +695,7 @@ export function Passport({
       <JournalSpread
         source={illustrations.passport}
         title="Pasaporte"
-        detail={`${homeName(travel)} · ${stamp ? '1 sello' : '0 sellos'}`}
+        detail={`${homeName(travel)} · ${earned.length} ${earned.length === 1 ? 'sello' : 'sellos'}`}
       />
       <Notebook title="Sellos del viaje">
         {stamp ? (
@@ -706,11 +712,28 @@ export function Passport({
         <Label style={s.copy}>
           {stamp
             ? `${chapter.stamp} · ${new Date(stamp).toLocaleDateString('es-419')}`
-            : 'Completa La primera postal para recibir tu primer sello.'}
+            : earned.length
+              ? 'Completa La primera postal para ganar el sello de tu lugar de origen.'
+              : 'Completa La primera postal para recibir tu primer sello.'}
         </Label>
-        <Button icon={ArrowRight} onPress={stamp ? onNextChapter : onContinue}>
-          {stamp ? 'Continuar a Ciudad de México' : 'Continuar viaje'}
-        </Button>
+        {earned
+          .filter(({ id }) => id !== 'home')
+          .map(({ id, name }) => (
+            <View key={id} style={s.row}>
+              <Stamp size={22} color={C.teal} />
+              <Label style={s.copy}>
+                {`${name} · ${new Date(stamps[id]).toLocaleDateString('es-419')}`}
+              </Label>
+            </View>
+          ))}
+        {next && (
+          <Button
+            icon={ArrowRight}
+            onPress={next.id === 'home' ? onContinue : () => onNextChapter(next.id)}
+          >
+            {next.id === 'home' ? 'Continuar viaje' : `Continuar a ${next.name}`}
+          </Button>
+        )}
       </Notebook>
       {stamp && (
         <>
@@ -733,11 +756,12 @@ export function Passport({
                 setNote(text);
                 setStatus('');
               }}
+              onSubmit={save}
               placeholder="Escribe un recuerdo"
               placeholderTextColor={C.muted}
               style={[s.input, { minHeight: 90, textAlignVertical: 'top' }]}
             />
-            <Button loading={saving} icon={Check} onPress={() => void save()}>
+            <Button loading={saving} icon={Check} onPress={save}>
               Guardar recuerdo
             </Button>
             {!!status && (

@@ -116,6 +116,19 @@ test('the canonical registry covers the published course and travel prerequisite
       ({ dimension }) => dimension === 'reading',
     ),
   );
+  assert.deepEqual(chapterCardEvidenceTargets('mexico', 2, 'vocabulary', 'study'), [
+    { targetId: 'lex.u02_l01_v02', dimension: 'vocabulary_recognition' },
+  ]);
+  const mexicoClockTargets = chapterCardEvidenceTargets('mexico', 4, 'grammar');
+  assert.deepEqual(mexicoClockTargets, [
+    { targetId: 'grammar.routine_time', dimension: 'grammar_understanding' },
+  ]);
+  const mexicoTargets = [2, 3, 4, 5].flatMap((card) =>
+    (['vocabulary', 'grammar', 'question', 'practice'] as const).flatMap((stage) =>
+      chapterCardEvidenceTargets('mexico', card, stage),
+    ),
+  );
+  for (const { targetId } of mexicoTargets) assert.ok(registry.has(targetId), targetId);
 });
 
 test('independent same-day transfer verifies application while retention stays unverified', () => {

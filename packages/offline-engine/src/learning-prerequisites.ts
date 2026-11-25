@@ -1,5 +1,5 @@
 import type { Translation } from '@lingoquest/contracts';
-import { canonicalStringify, sha256Hex } from '@lingoquest/course-pack';
+import { canonicalStringify, sha256Hex, type RpgFormalDefinition } from '@lingoquest/course-pack';
 import {
   homeExercises,
   homeReviewExercises,
@@ -21,23 +21,29 @@ import type { CourseData, CourseExercise, CourseLesson } from './index';
 import {
   recordUnifiedEvidence,
   type LearningEvidence,
+  type UnifiedEvidenceTarget,
   type UnifiedLearningState,
 } from './learning-evidence';
 import { canonicalLearningId, exerciseEvidenceTargets } from './learning-registry';
-import type { TravelStep } from './travel-content';
+import type { TravelExerciseStep, TravelStep, TravelVocabulary } from './travel-content';
 
 export type TeachingReference = PrerequisiteReference;
 export type ReviewInstruction = {
   sections: { title: string; examples: Translation[] }[];
   teaches: TeachingReference[];
 };
-type FormalDefinition = {
-  id: string;
-  kind: 'lexical' | 'grammar' | 'pattern';
-  labelEs: string;
-  forms: readonly string[];
-  examples: Translation[];
-};
+export type FormalDefinition = RpgFormalDefinition;
+
+export function rpgTeachingDigest(
+  step: Extract<TravelStep, { type: 'teach' }>,
+  visibleWords: readonly TravelVocabulary[],
+) {
+  return sha256Hex(canonicalStringify({ step, vocabulary: visibleWords }));
+}
+
+export function rpgAssessmentDigest(step: TravelExerciseStep) {
+  return sha256Hex(canonicalStringify(step));
+}
 
 const normalizeForm = (form: string) =>
   form.normalize('NFC').replace(/[’‘]/g, "'").trim().toLowerCase();
@@ -93,6 +99,8 @@ export function formalTeachingKeys(state: UnifiedLearningState): ReadonlySet<str
       (event.source !== 'story' && event.source !== 'study' && event.source !== 'review')
     )
       continue;
+    const chapterId = event.materialVersion.split(':')[0];
+    if (chapterId !== 'home' && event.id.startsWith(`${chapterId}:`)) continue;
     for (const ref of event.teaches ?? legacyHomeLesson(event)) {
       keys.add(teachingReferenceKey(ref));
       const equivalent =
@@ -134,6 +142,7 @@ export function textbookFormalReferences(
 export function formalDefinitions(
   content: Pick<CourseData, 'lessons'>,
   archived: readonly CourseLesson[] = [],
+  authored: readonly RpgFormalDefinition[] = [],
 ) {
   const definitions = new Map<string, FormalDefinition>();
   for (const target of homeTargets) {
@@ -141,7 +150,7 @@ export function formalDefinitions(
     definitions.set(target.id, {
       ...target,
       labelEs,
-      forms: 'forms' in target ? target.forms : [],
+      forms: 'forms' in target ? [...target.forms] : [],
       examples: [],
     });
   }
@@ -180,7 +189,65 @@ export function formalDefinitions(
       });
     }
   }
+  for (const target of authored)
+    if (!definitions.has(target.id)) definitions.set(target.id, target);
   return definitions;
+}
+
+export function exactRpgReferences(
+  refs: readonly TeachingReference[] | undefined,
+  definitions: ReadonlyMap<string, FormalDefinition>,
+): refs is readonly TeachingReference[] {
+  if (!refs?.length) return false;
+  if (new Set(refs.map(teachingReferenceKey)).size !== refs.length) return false;
+  return refs.every(({ id, form }) => {
+    const target = definitions.get(id) ?? definitions.get(canonicalLearningId(id));
+    if (!target) return false;
+    if (target.kind === 'grammar') return form === undefined;
+    return (
+      form !== undefined &&
+      target.forms.some((entry) => normalizeForm(entry) === normalizeForm(form))
+    );
+  });
+}
+
+export function exactRpgAssessment(
+  step: TravelExerciseStep,
+  definitions: ReadonlyMap<string, FormalDefinition>,
+) {
+  if (!exactRpgReferences(step.requires, definitions) || !step.targets?.length) return false;
+  const { exercise } = step;
+  const writes =
+    !exercise.options?.length && ['short_text', 'cloze', 'correction'].includes(exercise.type);
+  const supportedReorder = exercise.type === 'reorder' && exercise.learning?.guided;
+  const ids = new Set(step.requires.map(({ id }) => canonicalLearningId(id)));
+  const seen = new Set<string>();
+  return step.targets.every(({ targetId, dimension }) => {
+    const target = canonicalLearningId(targetId);
+    const key = `${dimension}:${target}`;
+    if (!ids.has(target) || seen.has(key)) return false;
+    if (dimension === 'listening' && !step.audio) return false;
+    if (dimension === 'speaking') return false;
+    if (dimension === 'reading' && !exercise.passage && !exercise.sentence) return false;
+    if ((dimension === 'writing' || dimension === 'vocabulary_recall') && !writes) return false;
+    if (dimension === 'grammar_production' && !writes && !supportedReorder) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function rpgIntroductionTargets(
+  teaches: readonly TeachingReference[],
+  definitions: ReadonlyMap<string, FormalDefinition>,
+): UnifiedEvidenceTarget[] {
+  const targets = new Map<string, UnifiedEvidenceTarget>();
+  for (const { id } of teaches) {
+    const targetId = canonicalLearningId(id);
+    const kind = (definitions.get(id) ?? definitions.get(targetId))?.kind;
+    const dimension = kind === 'lexical' ? 'vocabulary_recognition' : 'grammar_understanding';
+    targets.set(targetId, { targetId, dimension });
+  }
+  return [...targets.values()];
 }
 
 export function reviewPrerequisites(
@@ -189,14 +256,16 @@ export function reviewPrerequisites(
   exercise: CourseExercise,
   taught: ReadonlySet<string>,
   definitions = formalDefinitions(content, [lesson]),
+  authoredRequirements?: readonly TeachingReference[],
 ): { missing: TeachingReference[]; instruction?: ReviewInstruction } | undefined {
-  let requires: TeachingReference[] | undefined;
-  if (lesson.id === 'travel_home') {
+  let requires = authoredRequirements;
+  if (!requires && lesson.id === 'travel_home') {
     if (Object.hasOwn(homeReviewExercises, exercise.id))
       requires = homeReviewExercises[exercise.id as keyof typeof homeReviewExercises];
     else if (Object.hasOwn(homeExercises, exercise.id))
       requires = homeExercises[exercise.id as keyof typeof homeExercises];
   } else if (
+    !requires &&
     textbookReview[lesson.id]?.exercises[exercise.id] === textbookExerciseDigest(exercise)
   ) {
     const dependencies = textbookExerciseDependencies(lesson.id, exercise, (id) => {
@@ -215,12 +284,13 @@ export function reviewPrerequisites(
   const missing = requires.filter((ref) => !taught.has(teachingReferenceKey(ref)));
   if (!missing.length) return { missing };
   const sections = missing.flatMap((ref) => {
-    const definition = definitions.get(ref.id);
+    const definition = definitions.get(ref.id) ?? definitions.get(canonicalLearningId(ref.id));
     if (
       !definition ||
-      (definition.kind !== 'grammar' &&
-        (!ref.form ||
-          !definition.forms.some((form) => normalizeForm(form) === normalizeForm(ref.form!))))
+      (definition.kind === 'grammar'
+        ? ref.form !== undefined
+        : !ref.form ||
+          !definition.forms.some((form) => normalizeForm(form) === normalizeForm(ref.form!)))
     )
       return [];
     return [
@@ -244,6 +314,7 @@ export function recordReviewInstruction(
   now: number,
   id: string,
   version: string,
+  authoredTargets?: readonly UnifiedEvidenceTarget[],
 ) {
   return recordUnifiedEvidence(state, {
     id: `review-teaching:${id}`,
@@ -258,7 +329,7 @@ export function recordReviewInstruction(
     aids: ['guided'],
     retry: false,
     independent: false,
-    targets: exerciseEvidenceTargets(exercise, lesson.id),
+    targets: authoredTargets ? [...authoredTargets] : exerciseEvidenceTargets(exercise, lesson.id),
     teaches: instruction.teaches,
   });
 }

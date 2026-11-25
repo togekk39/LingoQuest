@@ -312,26 +312,37 @@ export function JournalLeaf({
   );
 }
 
-export const PaperInput = React.forwardRef<TextInput, TextInputProps>(function PaperInput(
-  { style, ...props },
-  ref,
-) {
-  const { colors } = useTheme();
-  return (
-    <JournalLeaf kind="notebook" compact tint="paper">
-      <TextInput
-        underlineColorAndroid="transparent"
-        {...props}
-        ref={ref}
-        style={[
-          style,
-          styles.paperInput,
-          Platform.OS === 'web' && [styles.paperInputWeb, { outlineColor: colors.teal }],
-        ]}
-      />
-    </JournalLeaf>
-  );
-});
+export const PaperInput = React.forwardRef<TextInput, TextInputProps & { onSubmit?: () => void }>(
+  function PaperInput({ style, onSubmit, ...props }, ref) {
+    const { colors } = useTheme();
+    return (
+      <JournalLeaf kind="notebook" compact tint="paper">
+        <TextInput
+          underlineColorAndroid="transparent"
+          {...props}
+          {...(onSubmit &&
+            props.editable !== false &&
+            !props.readOnly && {
+              ...(Platform.OS === 'web'
+                ? { blurOnSubmit: true }
+                : { submitBehavior: 'blurAndSubmit' as const }),
+              enterKeyHint: 'send',
+              onSubmitEditing: (event) => {
+                if ('repeat' in event.nativeEvent && event.nativeEvent.repeat) return;
+                onSubmit();
+              },
+            })}
+          ref={ref}
+          style={[
+            style,
+            styles.paperInput,
+            Platform.OS === 'web' && [styles.paperInputWeb, { outlineColor: colors.teal }],
+          ]}
+        />
+      </JournalLeaf>
+    );
+  },
+);
 
 export function JournalSpread({
   source,
