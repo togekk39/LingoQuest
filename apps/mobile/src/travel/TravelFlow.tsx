@@ -11,6 +11,7 @@ import {
 import { Check, Compass, RotateCcw, Stamp, Volume2 } from 'lucide-react-native';
 import {
   chapter as homeChapter,
+  eventScenarioReady,
   travelStepVocabulary,
   travelStoryReply,
   type TravelChapter,
@@ -45,6 +46,7 @@ import {
 import { useTheme } from '../theme';
 import { Celebration } from '../motion';
 import { useChapterAudio } from './useChapterAudio';
+import { EventJournal } from './EventJournal';
 import { ScenarioBoard } from './ScenarioBoard';
 import { illustrations, placeIllustration } from './illustrations';
 import {
@@ -293,6 +295,10 @@ export function TravelFlow({
     !step.acceptedPhrases?.length &&
     !step.learning.guided;
   const scenarioResultAccepted = current.result?.correct || current.result?.communicationOnly;
+  const timeline = mission.scenario && 'kind' in mission.scenario ? mission.scenario : undefined;
+  const eventState = current.scenario && 'kind' in current.scenario ? current.scenario : undefined;
+  const isInquiry = scenarioTurn?.action === 'inquire';
+  const moreQuestions = !!(isInquiry && timeline && !eventScenarioReady(timeline, eventState));
   const planningOrder = scenarioTurn?.action === 'request' && !scenarioResultAccepted;
   const showScenarioMenu =
     planningOrder ||
@@ -302,7 +308,7 @@ export function TravelFlow({
     step.type === 'exercise' && (embedded || step.storyReplies || scenarioTurn)
       ? travelStoryReply(step, current)
       : undefined;
-  const replyAudio = current.scenarioReply ? undefined : storyReply?.line.en;
+  const replyAudio = current.scenarioReply && !timeline ? undefined : storyReply?.line.en;
   const dialogueAudio = !current.finished && step.type === 'dialogue' ? step.line?.en : undefined;
   const lineAudio = dialogueAudio ?? replyAudio;
   const referenceAudio =
@@ -487,7 +493,9 @@ export function TravelFlow({
           (!requiredReply || current.result.correct || current.result.communicationOnly) && (
             <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
               {current.result.correct || current.result.communicationOnly || selfCheck
-                ? 'Seguir la historia'
+                ? moreQuestions
+                  ? 'Hacer otra pregunta'
+                  : 'Seguir la historia'
                 : 'Usar la respuesta de QuestBuddy'}
             </Action>
           )}
@@ -613,16 +621,33 @@ export function TravelFlow({
           <Label style={{ flex: 1 }}>Retomamos donde lo dejaste. {mission.objective}</Label>
         </JournalLeaf>
       )}
-      {!prerequisiteBlocked && mission.scenario && (
+      {!prerequisiteBlocked && mission.scenario && !('kind' in mission.scenario) && (
         <ScenarioBoard
           key={mission.scenario.id}
           definition={mission.scenario}
-          state={current.scenario}
+          state={current.scenario && !('kind' in current.scenario) ? current.scenario : undefined}
           showMenu={showScenarioMenu}
           planning={planningOrder}
           disabled={busy || !!current.result}
         />
       )}
+      {timeline &&
+        !prerequisiteBlocked &&
+        (scenarioTurn || eventState?.phase === 'complete') &&
+        !current.finished && (
+          <EventJournal
+            definition={timeline}
+            state={eventState}
+            selectedId={current.scenarioSpeaker ?? timeline.participants[0].id}
+            onSelect={
+              isInquiry
+                ? (personId) =>
+                    void act({ action: 'scenarioSpeaker', token: current.token, personId })
+                : undefined
+            }
+            disabled={busy || !!current.result}
+          />
+        )}
       <View
         key={current.token}
         nativeID={`travel-step-id-${step.id}`}

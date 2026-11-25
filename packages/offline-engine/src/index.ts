@@ -198,10 +198,14 @@ export {
   rpgScenarioDigest,
   scenarioSelectionTotal,
   type ScenarioDefinition,
+  type MenuScenarioDefinition,
+  type MenuScenarioState,
+  type EventScenarioDefinition,
   type ScenarioLine,
   type ScenarioState,
   type ScenarioTurn,
 } from './scenario';
+export { confirmedEventFact, eventScenarioReady, type EventScenarioState } from './event-scenario';
 export type {
   TravelPlacement,
   TravelPlacementQuestion,

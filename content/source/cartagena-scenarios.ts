@@ -1,6 +1,6 @@
-import type { ScenarioDefinition } from '@lingoquest/course-pack';
+import type { MenuScenarioDefinition } from '@lingoquest/course-pack';
 
-type Item = ScenarioDefinition['menu'][number];
+type Item = MenuScenarioDefinition['menu'][number];
 type Unit = NonNullable<Item['units']>[number];
 type Modifier = NonNullable<Item['modifiers']>[number];
 
@@ -131,7 +131,7 @@ export const cartagenaCafeScenario = {
       required: true,
     },
   ],
-} satisfies ScenarioDefinition;
+} satisfies MenuScenarioDefinition;
 
 export const cartagenaSeaScenario = {
   id: 'cartagena-seaside-table',
@@ -163,9 +163,9 @@ export const cartagenaSeaScenario = {
       required: true,
     },
   ],
-} satisfies ScenarioDefinition;
+} satisfies MenuScenarioDefinition;
 
-function printedMenu({ menu, currency }: ScenarioDefinition) {
+function printedMenu({ menu, currency }: MenuScenarioDefinition) {
   return menu
     .map(({ label, price }) => `${label.en} — ${currency} ${price.toLocaleString('en-US')}`)
     .join('\n');

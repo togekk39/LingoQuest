@@ -108,6 +108,11 @@ export const learningErrorSchema = z.enum([
   'price_question',
   'request_form',
   'replacement_form',
+  'did_base',
+  'past_be',
+  'past_spelling',
+  'past_ending',
+  'past_order',
   'vocabulary_form',
 ]);
 export type LearningError = z.infer<typeof learningErrorSchema>;

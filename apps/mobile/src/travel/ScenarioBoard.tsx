@@ -5,8 +5,8 @@ import {
   formatScenarioAmount,
   formatScenarioSelection,
   scenarioSelectionTotal,
-  type ScenarioDefinition,
-  type ScenarioState,
+  type MenuScenarioDefinition,
+  type MenuScenarioState,
 } from '@lingoquest/offline-engine';
 import { JournalLeaf } from '../Journal';
 import { useTheme } from '../theme';
@@ -29,8 +29,8 @@ export function ScenarioBoard({
   planning,
   disabled,
 }: {
-  definition: ScenarioDefinition;
-  state?: ScenarioState;
+  definition: MenuScenarioDefinition;
+  state?: MenuScenarioState;
   showMenu: boolean;
   planning: boolean;
   disabled: boolean;

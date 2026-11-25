@@ -250,7 +250,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
-export const CHAPTER_CATALOG_FILE = 'catalog-v8.json';
+export const CHAPTER_CATALOG_FILE = 'catalog-v9.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -378,10 +378,14 @@ export const rpgAssessmentTargetsSchema = z
   .min(1)
   .max(100);
 export const rpgAnswerEvidenceSchema = z
-  .array(z.object({
-    answers: z.array(answerText).min(1).max(100),
-    targets: rpgAssessmentTargetsSchema,
-  }).strict())
+  .array(
+    z
+      .object({
+        answers: z.array(answerText).min(1).max(100),
+        targets: rpgAssessmentTargetsSchema,
+      })
+      .strict(),
+  )
   .min(1)
   .max(20);
 const rpgAdventureAuditSchema = z
@@ -446,7 +450,8 @@ const storyStepSchema = z
   .refine(
     ({ storyReplies, scenarioTurn, type, exercise, requiredReply }) =>
       (!storyReplies && !scenarioTurn) ||
-      (type === 'exercise' && exercise?.type === 'short_text' &&
+      (type === 'exercise' &&
+        exercise?.type === 'short_text' &&
         (!scenarioTurn || (!!requiredReply && !storyReplies))),
   );
 
@@ -499,17 +504,43 @@ export const chapterPackSchema = z
                   })
                   .passthrough()
                   .refine(({ steps, scenario }) => {
-                    const turns = steps.flatMap(({ scenarioTurn }) => scenarioTurn ? [scenarioTurn.action] : []);
+                    const turns = steps.flatMap(({ scenarioTurn }) =>
+                      scenarioTurn ? [scenarioTurn.action] : [],
+                    );
                     if (!scenario) return !turns.length;
+                    if ('kind' in scenario) {
+                      return (
+                        turns.length === 2 &&
+                        turns[0] === 'inquire' &&
+                        turns[1] === 'record' &&
+                        steps.every(
+                          ({ scenarioTurn }) =>
+                            !scenarioTurn ||
+                            ('focusEventIds' in scenarioTurn &&
+                              [
+                                ...scenarioTurn.focusEventIds,
+                                ...(scenarioTurn.eventTargets ?? []).map(({ eventId }) => eventId),
+                              ].every((eventId) =>
+                                scenario.events.some(({ id }) => id === eventId),
+                              )),
+                        )
+                      );
+                    }
                     const menu = turns[0] === 'menu';
                     const request = turns.indexOf('request');
                     const firstConfirmation = turns.indexOf('confirm');
                     const replacement = turns.indexOf('replace');
                     const lastConfirmation = turns.lastIndexOf('confirm');
                     const finish = turns.indexOf('finish');
-                    return menu && request > 0 && firstConfirmation > request &&
-                      (replacement === -1 || (replacement > request && lastConfirmation > replacement)) &&
-                      finish > lastConfirmation && turns.at(-1) === 'bill';
+                    return (
+                      menu &&
+                      request > 0 &&
+                      firstConfirmation > request &&
+                      (replacement === -1 ||
+                        (replacement > request && lastConfirmation > replacement)) &&
+                      finish > lastConfirmation &&
+                      turns.at(-1) === 'bill'
+                    );
                   }),
               )
               .min(1),

@@ -233,7 +233,11 @@ export function exactRpgAssessment(
   if (!exactRpgReferences(step.requires, definitions) || !step.targets?.length) return false;
   if (!exactRpgAnswerEvidence(step)) return false;
   const declaredTargets = new Set(step.targets.map(unifiedMasteryKey));
-  for (const { targets } of step.scenarioTurn?.formTargets ?? []) {
+  const eventTargets =
+    step.scenarioTurn && 'eventTargets' in step.scenarioTurn
+      ? (step.scenarioTurn.eventTargets ?? [])
+      : [];
+  for (const { targets } of [...(step.scenarioTurn?.formTargets ?? []), ...eventTargets]) {
     const keys = targets.map(unifiedMasteryKey);
     if (new Set(keys).size !== keys.length || keys.some((key) => !declaredTargets.has(key)))
       return false;

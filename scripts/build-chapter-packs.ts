@@ -31,7 +31,7 @@ import { loadChapterAudio, loadChapterImages } from './chapter-media';
 
 const root = new URL('../apps/mobile/public/chapter-packs/', import.meta.url);
 const catalogPath = new URL(CHAPTER_CATALOG_FILE, root);
-const previousCatalogPath = new URL('catalog-v7.json', root);
+const previousCatalogPath = new URL('catalog-v8.json', root);
 const course = bundled.payload as CoursePayload;
 const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
@@ -148,6 +148,7 @@ async function main() {
     await verifyCatalog(catalog);
     await verifyCatalog(previousCatalog, false);
     for (const name of [
+      'catalog-v7.json',
       'catalog-v6.json',
       'catalog-v5.json',
       'catalog-v4.json',

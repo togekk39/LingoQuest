@@ -5,12 +5,20 @@ import {
   scenarioLineSchema,
   sha256Hex,
   type ScenarioDefinition,
+  type MenuScenarioDefinition,
+  type MenuScenarioTurn,
+  type EventScenarioDefinition,
   type ScenarioForm,
   type ScenarioItem,
   type ScenarioLine,
   type ScenarioTurn,
 } from '@lingoquest/course-pack';
 import { unifiedMasteryKey, type UnifiedEvidenceTarget } from './learning-evidence';
+import {
+  evaluateEventTurn,
+  eventScenarioStateSchema,
+  type EventScenarioState,
+} from './event-scenario';
 import { parseScenarioLanguage } from './scenario-language';
 import type { LearningError } from './travel-learning';
 
@@ -20,6 +28,9 @@ export type {
   ScenarioForm,
   ScenarioItem,
   ScenarioLine,
+  MenuScenarioDefinition,
+  MenuScenarioTurn,
+  EventScenarioDefinition,
   ScenarioTurn,
 } from '@lingoquest/course-pack';
 
@@ -34,7 +45,7 @@ export const scenarioReplySchema = z
 
 const maximumScenarioLines = 30;
 
-export const scenarioStateSchema = z
+const menuScenarioStateSchema = z
   .object({
     scenarioId: z.string().min(1).max(100),
     definitionDigest: z.string().regex(/^[a-f0-9]{64}$/),
@@ -47,6 +58,8 @@ export const scenarioStateSchema = z
   })
   .strict();
 
+export const scenarioStateSchema = z.union([menuScenarioStateSchema, eventScenarioStateSchema]);
+export type MenuScenarioState = z.infer<typeof menuScenarioStateSchema>;
 export type ScenarioState = z.infer<typeof scenarioStateSchema>;
 export type ScenarioReply = z.infer<typeof scenarioReplySchema>;
 export interface ScenarioVerdict {
@@ -60,10 +73,22 @@ export function rpgScenarioDigest(definition: ScenarioDefinition) {
   return sha256Hex(canonicalStringify(definition));
 }
 
+export function startScenario(definition: MenuScenarioDefinition): MenuScenarioState;
+export function startScenario(definition: EventScenarioDefinition): EventScenarioState;
+export function startScenario(definition: ScenarioDefinition): ScenarioState;
 export function startScenario(definition: ScenarioDefinition): ScenarioState {
+  const identity = { scenarioId: definition.id, definitionDigest: rpgScenarioDigest(definition) };
+  if ('kind' in definition)
+    return {
+      ...identity,
+      kind: 'timeline',
+      phase: 'investigating',
+      confirmed: [],
+      answers: [],
+      submitted: [],
+    };
   return {
-    scenarioId: definition.id,
-    definitionDigest: rpgScenarioDigest(definition),
+    ...identity,
     phase: 'initial',
     lines: [],
     changes: [],
@@ -71,7 +96,7 @@ export function startScenario(definition: ScenarioDefinition): ScenarioState {
 }
 
 export function scenarioSelectionTotal(
-  definition: ScenarioDefinition,
+  definition: MenuScenarioDefinition,
   lines: readonly ScenarioLine[],
 ) {
   return lines.reduce(
@@ -81,7 +106,7 @@ export function scenarioSelectionTotal(
   );
 }
 
-export function formatScenarioAmount(definition: ScenarioDefinition, value: number) {
+export function formatScenarioAmount(definition: MenuScenarioDefinition, value: number) {
   return `${definition.currency} ${value.toLocaleString('en-US')}`;
 }
 
@@ -139,8 +164,8 @@ function formatItemLine(item: ScenarioItem, line: ScenarioLine, locale: Scenario
 }
 
 export function formatScenarioSelection(
-  definition: ScenarioDefinition,
-  state: Pick<ScenarioState, 'lines'>,
+  definition: MenuScenarioDefinition,
+  state: Pick<MenuScenarioState, 'lines'>,
   locale: ScenarioLocale = 'en',
 ) {
   return formatJoin(
@@ -167,7 +192,7 @@ function selectionProblem(feedbackEs: string): SelectionCheck {
 }
 
 function validateSelection(
-  definition: ScenarioDefinition,
+  definition: MenuScenarioDefinition,
   lines: readonly ScenarioLine[],
 ): SelectionCheck {
   if (lines.length > maximumScenarioLines)
@@ -239,13 +264,13 @@ function validateSelection(
   return { allowed: true, lines: accepted };
 }
 
-type ScenarioEvaluation = {
+type ScenarioEvaluation<State = ScenarioState> = {
   verdict: ScenarioVerdict;
-  state?: ScenarioState;
+  state?: State;
   reply?: ScenarioReply;
 };
 
-function orderRecap(definition: ScenarioDefinition, state: ScenarioState): ScenarioReply {
+function orderRecap(definition: MenuScenarioDefinition, state: MenuScenarioState): ScenarioReply {
   const en = formatScenarioSelection(definition, state, 'en');
   const es = formatScenarioSelection(definition, state, 'es');
   const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -255,7 +280,7 @@ function orderRecap(definition: ScenarioDefinition, state: ScenarioState): Scena
   };
 }
 
-function errorTargets(turn: ScenarioTurn, error: LearningError, form?: ScenarioForm) {
+function errorTargets(turn: MenuScenarioTurn, error: LearningError, form?: ScenarioForm) {
   const groups = turn.formTargets ?? [];
   const shared = new Set(
     groups.length > 1
@@ -277,19 +302,19 @@ function errorTargets(turn: ScenarioTurn, error: LearningError, form?: ScenarioF
     : targets;
 }
 
-export function evaluateScenarioTurn(
-  definition: ScenarioDefinition,
-  state: ScenarioState,
-  turn: ScenarioTurn,
+function evaluateMenuTurn(
+  definition: MenuScenarioDefinition,
+  state: MenuScenarioState,
+  turn: MenuScenarioTurn,
   input: string | undefined,
-): ScenarioEvaluation {
+): ScenarioEvaluation<MenuScenarioState> {
   const parsed = parseScenarioLanguage(definition, turn.action, input);
   const reject = (
     outcome: Exclude<AnswerOutcome, 'target' | 'communication_only'>,
     feedbackEs?: string,
     error?: LearningError,
     form?: ScenarioForm,
-  ): ScenarioEvaluation => {
+  ): ScenarioEvaluation<MenuScenarioState> => {
     const defaults = {
       context_mismatch: 'Revisa lo que se necesita en este momento de la conversación.',
       incorrect: 'Revisa la forma de tu respuesta y vuelve a intentarlo.',
@@ -304,14 +329,9 @@ export function evaluateScenarioTurn(
     };
   };
   if (parsed.kind !== 'parsed') return reject(parsed.kind, undefined, parsed.error, parsed.form);
-  if (
-    state.scenarioId !== definition.id ||
-    state.definitionDigest !== rpgScenarioDigest(definition)
-  )
-    return reject('context_mismatch');
 
   const { speaker } = definition;
-  let next: ScenarioState;
+  let next: MenuScenarioState;
   let reply: ScenarioReply;
   switch (turn.action) {
     case 'menu':
@@ -418,4 +438,41 @@ export function evaluateScenarioTurn(
     state: next,
     reply,
   };
+}
+
+export function evaluateScenarioTurn(
+  definition: MenuScenarioDefinition,
+  state: MenuScenarioState,
+  turn: MenuScenarioTurn,
+  input: string | undefined,
+): ScenarioEvaluation<MenuScenarioState>;
+export function evaluateScenarioTurn(
+  definition: ScenarioDefinition,
+  state: ScenarioState,
+  turn: ScenarioTurn,
+  input: string | undefined,
+  personId?: string,
+): ScenarioEvaluation;
+export function evaluateScenarioTurn(
+  definition: ScenarioDefinition,
+  state: ScenarioState,
+  turn: ScenarioTurn,
+  input: string | undefined,
+  personId?: string,
+): ScenarioEvaluation {
+  if (
+    state.scenarioId !== definition.id ||
+    state.definitionDigest !== rpgScenarioDigest(definition)
+  )
+    return {
+      verdict: {
+        outcome: 'context_mismatch',
+        feedbackEs: 'Vuelve a abrir la actividad para recuperar su contexto.',
+      },
+    };
+  if ('kind' in definition && 'kind' in state && 'focusEventIds' in turn)
+    return evaluateEventTurn(definition, state, turn, input, personId);
+  if (!('kind' in definition) && !('kind' in state) && !('focusEventIds' in turn))
+    return evaluateMenuTurn(definition, state, turn, input);
+  return { verdict: { outcome: 'ungradable' } };
 }

@@ -102,10 +102,21 @@ export const learningErrorFeedback: Record<LearningError, string> = {
   countability: 'Fíjate en qué estás contando. Si hace falta, cuenta vasos, tazas o porciones.',
   quantity_question: 'Usa how many para unidades y how much para una cantidad sin unidades.',
   quantity_count_question: 'Para contar unidades, usa how many y nombra la unidad en plural.',
-  quantity_mass_question: 'Para preguntar cuánto hay sin contar envases, usa how much seguido del alimento o la bebida.',
-  price_question: 'Para preguntar el precio, usa how much is con un producto y how much are con varios.',
+  quantity_mass_question:
+    'Para preguntar cuánto hay sin contar envases, usa how much seguido del alimento o la bebida.',
+  price_question:
+    'Para preguntar el precio, usa how much is con un producto y how much are con varios.',
   request_form: 'Para hacer un pedido, empieza con una petición cortés como I’d like.',
-  replacement_form: 'Di primero qué quieres recibir. Después de instead of, nombra lo que vas a cambiar.',
+  replacement_form:
+    'Di primero qué quieres recibir. Después de instead of, nombra lo que vas a cambiar.',
+  did_base:
+    'Usa la forma base después de did o didn’t. Para preguntas con was o were, invierte el sujeto y esa forma.',
+  past_be:
+    'Usa was con I, he o she. Usa were con you, we o they. Agrega not si el dato es negativo.',
+  past_spelling: 'Compara la forma base con el pasado y revisa cómo cambia la terminación.',
+  past_ending:
+    'Escucha el último sonido. Solo la terminación que sigue a /t/ o /d/ añade una sílaba.',
+  past_order: 'Busca qué evento ocurrió antes. After indica lo que pasó después.',
   vocabulary_form: 'Fíjate si la situación pide el singular o el plural de esa palabra.',
 };
 
