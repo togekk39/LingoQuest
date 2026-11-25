@@ -97,6 +97,7 @@ export function GrammarWorkbench({
   playSequence,
   stop,
   embedded,
+  onTranslationShown,
 }: {
   step: Extract<TravelMission['steps'][number], { type: 'teach' }>;
   play: (value: string) => void;
@@ -107,6 +108,7 @@ export function GrammarWorkbench({
   ) => Promise<void>;
   stop: () => void;
   embedded?: StoryTranslation;
+  onTranslationShown?: () => void;
 }) {
   const { colors: C } = useTheme();
   const [selected, select] = useState(0);
@@ -221,6 +223,7 @@ export function GrammarWorkbench({
                     variant="ghost"
                     icon={Eye}
                     onPress={() => {
+                      if (!translationVisible) onTranslationShown?.();
                       if (embedded) {
                         embedded.onToggleTranslation();
                       } else if (dialogue) {
@@ -239,6 +242,8 @@ export function GrammarWorkbench({
                     variant="ghost"
                     onPress={() => {
                       stop();
+                      if (!compare && (!embedded || embedded.translationsVisible))
+                        onTranslationShown?.();
                       setCompare(!compare);
                     }}
                   >
@@ -268,7 +273,10 @@ export function GrammarWorkbench({
           <Button
             variant="ghost"
             icon={Eye}
-            onPress={embedded.onToggleTranslation}
+            onPress={() => {
+              if (!embedded.translationsVisible) onTranslationShown?.();
+              embedded.onToggleTranslation();
+            }}
             style={{ alignSelf: 'flex-start' }}
           >
             {embedded.translationsVisible ? 'Ocultar traducción' : 'Mostrar traducción'}

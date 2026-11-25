@@ -1,0 +1,23 @@
+# Repaso adaptativo de la fase 5C
+
+[English](PHASE_5C_ADAPTIVE_REVIEW.md)
+
+La cola común calcula el estado a partir del historial por objetivo canónico y dimensión. La historia y las lecciones pueden abrir la misma cola de repaso. El diagnóstico sigue siendo una fuente de evidencia diagnóstica. Las respuestas elegibles de los desafíos aportan a las dimensiones correspondientes. La app también puede retomar un repaso que quedó en curso en una ruta anterior. [Modelo de evidencia](PHASE_5C_LEARNING_EVIDENCE.es-419.md) · [Cola y candidatos](../packages/offline-engine/src/unified-review.ts)
+
+## Programación y selección de ejercicios
+
+La cola da prioridad a los errores pendientes y al material cuya fecha de repaso llegó. Después usa la próxima fecha. Una respuesta autónoma correcta programa otra comprobación con intervalos de 1, 3, 7, 14 y 30 días. Para ampliar el intervalo, el estudiante responde bien después de una demora, con una consigna distinta y tras demostrar el dominio inicial. Una respuesta incorrecta adelanta el repaso. Una respuesta con apoyo o que solo alcanza el fin comunicativo también puede reducir la espera. Los logros autónomos y los estados de evidencia anteriores se conservan. La fecha y el indicador de refuerzo señalan qué conviene volver a practicar. [Programación](../packages/offline-engine/src/learning-evidence.ts)
+
+Los ejercicios candidatos deben evaluar el objetivo y la dimensión seleccionados, estar disponibles en el dispositivo y cumplir los prerrequisitos de enseñanza o lección que apliquen. El orden favorece consignas nuevas, contextos diferentes y ejercicios que no se han intentado recientemente. Un repaso puede mostrar otra dimensión elegible del objetivo si todavía tiene poca evidencia. Repetir sigue siendo útil como práctica con apoyo cuando el banco tiene pocas alternativas. [Integración del repaso](../packages/offline-engine/src/index.ts)
+
+## Refuerzo
+
+Cuando las reglas de evaluación identifican un error, la cola adelanta una explicación breve y un ejercicio guiado para ese error si está disponible. La app usa las categorías compartidas de omisión, concordancia, tiempo verbal, preposiciones, artículos, orden de palabras y falsos cognados cuando existe una regla de respuesta o evidencia confiable. Después de la respuesta guiada, **Probar otra escena** abre un ejercicio autónomo elegible que evalúa el mismo objetivo en otro contexto. En una misión, **Volver al viaje** guarda el siguiente ejercicio y retoma la historia. Un acierto autónomo en el contexto nuevo puede resolver el refuerzo pendiente. Si el banco instalado carece de una alternativa elegible, el refuerzo queda pendiente. Un error menos específico también puede adelantar el repaso. [Reglas de errores](../packages/offline-engine/src/travel-learning.ts) · [Banco de práctica de Casa](../packages/offline-engine/src/travel-review.ts)
+
+## Diagnóstico y desafíos
+
+El diagnóstico recomienda un punto de partida. El estudiante puede volver a abrir el material introductorio. Los 13 niveles del curso conservan el temporizador, las vidas y los bancos diferenciados por dificultad. Para desbloquear un nivel, se comprueban los prerrequisitos de enseñanza existentes y la evidencia de producción autónoma en una dimensión pertinente para cada lección o misión requerida. Si el estudiante ya aprobó el mismo tema, modalidad y nivel, puede volver a jugar después de completar los prerrequisitos de enseñanza. El menú de Casa tiene tres niveles jugables. Los sellos y las partidas anteriores se conservan en el historial. El tiempo y las penalizaciones corresponden a los desafíos opcionales. La historia, las lecciones y el repaso habituales son práctica sin temporizador. [Diseño de desafíos de la fase 5B](PHASE_5B_CONTENT_AUDIT.es-419.md)
+
+## Cobertura sin conexión
+
+Un paquete instalado ofrece práctica que depende de los recursos audiovisuales. El archivo de repaso conserva las preguntas de texto elegibles con su versión original, por lo que se pueden volver a practicar contenidos anteriores entre capítulos y después de cambios de paquetes. La app valida el paquete de reemplazo antes de usarlo. Si falta una grabación, la pregunta requiere una fuente de audio compatible para medir la comprensión auditiva autónoma. La pronunciación y la comunicación espontánea quedan sin verificar mediante la transcripción y la grabación local. [Archivo y migración](PHASE_5C_LEARNING_ARCHITECTURE.es-419.md) · [Validación](PHASE_5C_VALIDATION.es-419.md)

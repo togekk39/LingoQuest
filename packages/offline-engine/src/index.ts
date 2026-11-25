@@ -1,10 +1,12 @@
 import { z, ZodError } from 'zod';
+import type { ChapterPack } from '@lingoquest/course-pack';
 import {
   answerSchema,
   attemptSchema,
   challengeQuestionCount,
   challengeRequiredUnit,
   judgeAnswer,
+  learningErrorSchema,
   matchesIntroductionName,
   normalizeAnswerText,
   playerIntroductionName,
@@ -16,6 +18,7 @@ import {
   submissionSchema,
   type Answer,
   type AnswerKey,
+  type AnswerOutcome,
   type AttemptInput,
   type AttemptResult,
   type ChallengeProgress,
@@ -25,6 +28,7 @@ import {
   type PublicLesson,
   type EvidenceDimension,
   type ExerciseType,
+  type LearningError,
   type RunView,
   type User,
 } from '@lingoquest/contracts';
@@ -43,6 +47,46 @@ import {
   type StoryView,
 } from './story';
 import { travelPracticeStep, travelReviewPlans, travelReviewRows } from './travel-review';
+import type { UnifiedReviewRow } from './unified-review';
+import { reviewCandidate, unifiedReviewPlans } from './unified-review';
+import { archivedReviewLessons, archivedTravelReviewStep } from './learning-persistence';
+import {
+  emptyUnifiedLearning,
+  getUnifiedMastery,
+  masteryAtLeast,
+  recordUnifiedEvidence,
+  unifiedMasteryKey,
+  unifiedLearningSchema,
+  unifiedReviewQueue,
+  type LearningEvidence,
+  type UnifiedLearningAid,
+  type UnifiedLearningSource,
+  type UnifiedLearningState,
+} from './learning-evidence';
+import {
+  exerciseEvidenceContext,
+  exerciseEvidenceTargets,
+  homeChoiceEvidenceTargets,
+  homeTeachingEvidenceTargets,
+  lessonEvidenceTargets,
+} from './learning-registry';
+import {
+  canSkipStudyExercise,
+  studyIntroEventId,
+  studyLearningStatus,
+  studyMaterialVersion,
+} from './study-learning';
+export type { StudyLearningStatus } from './study-learning';
+import {
+  challengeHistorySchema,
+  freezeChallengeHistory,
+  migrateUnifiedLearning,
+  rememberReviewLessons,
+  reviewArchiveSchema,
+  type ChallengeHistory,
+  type ReviewArchive,
+} from './learning-persistence';
+import { chapterCardEventSchema, recordChapterCardEvent } from './chapter-card-learning';
 import {
   findLearningError,
   learningErrorFeedback,
@@ -57,6 +101,7 @@ import {
   type TravelLearningState,
 } from './travel-learning';
 import { assessTravelPlacement, placementQuestions } from './travel-placement';
+import { recordSpeechPractice } from './speech-learning';
 import {
   activeTravelCourse,
   availableTravelRanks,
@@ -80,8 +125,12 @@ export {
   readIntroduction,
 } from '@lingoquest/contracts';
 export { chapter, installHomeContent, type HomeContent } from './home-content';
+export * from './learning-evidence';
+export * from './learning-registry';
+export { learningErrorFeedback } from './travel-learning';
 export { learningSkills, travelConcepts, travelCurriculum } from './travel-curriculum';
 export type { TravelReviewRow } from './travel-review';
+export type { UnifiedReviewRow } from './unified-review';
 export type {
   LearningError,
   LearningRecord,
@@ -154,6 +203,8 @@ export interface CourseData {
   missions: unknown[];
   speechDrills: unknown[];
   contentStatus?: unknown;
+  courseVersion?: string;
+  lessonVersions?: Record<string, string>;
 }
 export interface LocalStore {
   getItem(key: string): Promise<string | null>;
@@ -162,6 +213,9 @@ export interface LocalStore {
 export interface OfflineEngineOptions {
   store: LocalStore;
   getContent: () => Promise<CourseData> | CourseData;
+  getChapterCards?: (
+    id: string,
+  ) => Promise<Pick<ChapterPack, 'chapterId' | 'revision' | 'lesson' | 'additionalLessons'> | null>;
   lock?: <T>(work: () => Promise<T>) => Promise<T>;
   clock?: () => number;
   randomId?: () => string;
@@ -175,6 +229,7 @@ interface StoredRun {
   relaxed: boolean;
   items: CourseExercise[];
   startedAt: number;
+  contentVersion?: string;
   deadline: number | null;
   heartsInitial: number;
   hearts: number;
@@ -198,11 +253,14 @@ export interface OfflineState {
   runs: Record<string, StoredRun>;
   runRequests: Record<string, { fingerprint: string; runId: string }>;
   challengeProgress: ChallengeProgress[];
+  challengeHistory?: ChallengeHistory;
   reviewRewards: string[];
   skillDayBaseline: Record<string, { day: string; lastPracticedAt: string | null }>;
   travel?: TravelState;
   story?: StoryState;
   travelLearning?: TravelLearningState;
+  unifiedLearning: UnifiedLearningState;
+  reviewArchive?: ReviewArchive;
   lessonCheckpoints?: Record<string, LessonCheckpoint>;
   quickReview?: QuickCheckpoint;
   travelQuickReview?: QuickCheckpoint;
@@ -219,6 +277,16 @@ export class LocalError extends Error {
   }
 }
 const dayMs = 86400000;
+const writtenErrors: LearningError[] = [
+  'subject_omission',
+  'be_omission',
+  'be_agreement',
+  'third_person',
+  'tense',
+  'preposition',
+  'article',
+  'word_order',
+];
 const today = (time: number) => new Date(time).toISOString().slice(0, 10);
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 function own<T>(record: Record<string, T>, key: string): T | undefined {
@@ -320,6 +388,54 @@ function trackUnlocked(state: OfflineState, content: CourseData, requiredUnitId:
 function challengeUnit(content: CourseData, level: number) {
   return challengeRequiredUnit(content.challengePools.grammar_rush, level);
 }
+function challengeReadiness(state: OfflineState) {
+  const productive = new Set<LearningEvidence['format']>(['short_text', 'cloze', 'correction']);
+  const known = new Set(
+    state.unifiedLearning.evidence.flatMap((event) =>
+      event.source !== 'placement' &&
+      event.activity === 'answer' &&
+      (event.languageOutcome ?? event.outcome) === 'target' &&
+      event.independent &&
+      productive.has(event.format)
+        ? event.targets.map(unifiedMasteryKey)
+        : [],
+    ),
+  );
+  const canProduce = (exercise: CourseExercise, lessonId: string) =>
+    !exercise.ungradable &&
+    !exercise.options?.length &&
+    productive.has(exercise.type) &&
+    exerciseEvidenceTargets(exercise, lessonId).some((target) =>
+      known.has(unifiedMasteryKey(target)),
+    );
+  return {
+    home: chapter.missions.every((mission) =>
+      mission.steps.some(
+        (step) => step.type === 'exercise' && canProduce(step.exercise, travelLesson.id),
+      ),
+    ),
+    course: (content: CourseData, unitId: string) =>
+      requiredLessons(content, unitId).every((id) =>
+        content.lessons[id]?.exercises.some((exercise) => canProduce(exercise, id)),
+      ),
+  };
+}
+
+function hasPriorChallengePass(
+  state: OfflineState,
+  trackId: string,
+  type?: StoredRun['type'],
+  level?: number,
+) {
+  return state.challengeProgress.some(
+    (record) =>
+      record.trackId === trackId &&
+      (!type || record.type === type) &&
+      record.mode === 'practice' &&
+      (level ? (record.bestScores[String(level)] ?? 0) > 0 : record.highestLevel > 0),
+  );
+}
+
 function questions(
   content: CourseData,
   type: StoredRun['type'],
@@ -343,6 +459,35 @@ function questions(
   );
 }
 
+function recordAssessmentAnswer(
+  state: OfflineState,
+  exercise: CourseExercise,
+  context: Pick<
+    LearningEvidence,
+    'id' | 'source' | 'materialId' | 'materialVersion' | 'timestamp' | 'outcome'
+  >,
+  aids: UnifiedLearningAid[] = [],
+  lessonId = context.materialId,
+  answer?: Answer,
+) {
+  const error =
+    context.outcome === 'incorrect' && exercise.learning && answer
+      ? findLearningError(exercise.learning, answer, exercise.acceptedAnswers)
+      : undefined;
+  recordUnifiedEvidence(state.unifiedLearning, {
+    ...context,
+    exerciseId: exercise.id,
+    contextId: exerciseEvidenceContext(exercise, lessonId),
+    format: exercise.type,
+    activity: 'answer',
+    aids,
+    retry: false,
+    independent: aids.length === 0,
+    targets: exerciseEvidenceTargets(exercise, lessonId),
+    error,
+  });
+}
+
 function taughtForReview(state: OfflineState, lessonId: string, exercise: CourseExercise) {
   return (
     !exercise.ungradable &&
@@ -354,6 +499,54 @@ function taughtForReview(state: OfflineState, lessonId: string, exercise: Course
 function reviewStarterWord(lesson: CourseLesson, exercise: CourseExercise) {
   if (exercise.type === 'meaning' && !exercise.ungradable)
     return lesson.vocabulary?.find((entry) => exercise.vocabularyIds?.includes(entry.id));
+}
+
+function studyIntroduction(
+  state: OfflineState,
+  content: CourseData,
+  lesson: CourseLesson,
+  stage: 'vocabulary' | 'grammar',
+  now: number,
+) {
+  const materialVersion = studyMaterialVersion(content, lesson.id);
+  for (const target of lessonEvidenceTargets(lesson, stage)) {
+    const exerciseId = `${stage}:${target.targetId}:${target.dimension}`;
+    recordUnifiedEvidence(state.unifiedLearning, {
+      id: studyIntroEventId(lesson.id, materialVersion, exerciseId),
+      source: 'study',
+      materialId: lesson.id,
+      exerciseId,
+      materialVersion,
+      timestamp: now,
+      contextId: lesson.id,
+      format: 'instruction',
+      activity: 'introduced',
+      aids: ['guided', 'translation'],
+      retry: false,
+      independent: false,
+      targets: [target],
+    });
+  }
+}
+
+function createUnifiedReviewCandidates(
+  state: OfflineState,
+  content: CourseData,
+  archive: ReturnType<typeof archivedReviewLessons>,
+) {
+  const active = [...Object.values(content.lessons), travelLesson];
+  const available = new Set<string>();
+  return [...active, ...archive.map(({ lesson }) => lesson)].flatMap((lesson) =>
+    lesson.exercises.flatMap((exercise) => {
+      const id = `${lesson.id}:${exercise.id}`;
+      if (available.has(id) || exercise.ungradable) return [];
+      available.add(id);
+      if (lesson.id !== travelLesson.id && !taughtForReview(state, lesson.id, exercise)) return [];
+      if (exercise.learning?.skill === 'listening' && !travelPracticeStep(exercise.id)?.audio)
+        return [];
+      return [reviewCandidate(lesson, exercise)];
+    }),
+  );
 }
 
 function progress(state: OfflineState, now: number): Progress {
@@ -372,7 +565,9 @@ function progress(state: OfflineState, now: number): Progress {
     learningDays: state.learningDays,
     streak,
     mastery: state.mastery,
-    reviewCount: state.mastery.filter((m) => Date.parse(m.nextReviewAt) <= now).length,
+    reviewCount: unifiedReviewQueue(state.unifiedLearning, now).filter(
+      ({ needsReview }) => needsReview,
+    ).length,
     challengeProgress: state.challengeProgress,
   };
 }
@@ -453,6 +648,10 @@ const lessonCheckpointSchema = z
     weak: z.array(z.string().max(100)).max(1000),
     reviewAt: iso.nullable(),
     activityId: z.string().min(8).max(100),
+    retry: z.boolean().optional(),
+    referenceUsed: z.boolean().optional(),
+    skipped: z.array(z.string().max(100)).max(30).optional(),
+    skippedVersion: z.string().max(250).optional(),
   })
   .strict();
 export type LessonCheckpoint = z.infer<typeof lessonCheckpointSchema>;
@@ -467,7 +666,16 @@ const quickCheckpointSchema = z
     starter: z.boolean(),
     hint: z.boolean().optional(),
     transcript: z.boolean().optional(),
+    listened: z.boolean().optional(),
     reason: reviewReasonSchema.optional(),
+    remediation: z
+      .object({
+        phase: z.enum(['support', 'confirmation']),
+        error: learningErrorSchema,
+      })
+      .strict()
+      .optional(),
+    reviewKey: z.string().min(1).max(250).optional(),
   })
   .strict();
 type QuickCheckpoint = z.infer<typeof quickCheckpointSchema>;
@@ -477,6 +685,7 @@ export type QuickReviewState = QuickCheckpoint & {
   hintText?: string;
   audio?: string;
   transcriptText?: string;
+  explanation?: string;
 };
 const userSchema = z
   .object({
@@ -554,6 +763,9 @@ const backupStateSchema = z
     travel: travelStateSchema.optional(),
     story: storyStateSchema.optional(),
     travelLearning: travelLearningSchema.optional(),
+    challengeHistory: challengeHistorySchema.optional(),
+    unifiedLearning: unifiedLearningSchema.optional(),
+    reviewArchive: reviewArchiveSchema.optional(),
     lessonCheckpoints: z.record(lessonCheckpointSchema).optional(),
     quickReview: quickCheckpointSchema.optional(),
     travelQuickReview: quickCheckpointSchema.optional(),
@@ -579,6 +791,7 @@ function storyContext(
   story: StoryState,
   travel: TravelState,
   learning?: TravelLearningState,
+  unified?: UnifiedLearningState,
 ): StoryContext {
   const encounter = chapterStory.encounters.find((entry) => entry.id === story.encounterId);
   let readyEncounterId: string | undefined;
@@ -599,17 +812,24 @@ function storyContext(
     )
       readyEncounterId = encounter.id;
   }
-  return {
-    country: travel.country,
-    completedMissions: Object.keys(travel.completed),
-    clearedMissions: travel.cleared ?? [],
-    demonstratedConcepts: learning?.targets
+  const demonstratedConcepts =
+    learning?.targets
       .filter(
         ({ successes }) =>
           (successes.production?.independent ?? 0) > 0 ||
           (successes.transfer?.independent ?? 0) > 0,
       )
-      .map(({ conceptId }) => conceptId),
+      .map(({ conceptId }) => conceptId) ?? [];
+  if (
+    unified &&
+    masteryAtLeast(getUnifiedMastery(unified, 'home.introduce', 'writing').state, 'demonstrated')
+  )
+    demonstratedConcepts.push('introduction');
+  return {
+    country: travel.country,
+    completedMissions: Object.keys(travel.completed),
+    clearedMissions: travel.cleared ?? [],
+    demonstratedConcepts,
     readyEncounterId,
   };
 }
@@ -648,6 +868,7 @@ export class OfflineEngine {
       challengeProgress: [],
       reviewRewards: [],
       skillDayBaseline: {},
+      unifiedLearning: emptyUnifiedLearning(),
     };
   }
   async initialize() {
@@ -667,14 +888,17 @@ export class OfflineEngine {
         let state: OfflineState;
         if (raw) {
           try {
-            state = JSON.parse(raw) as OfflineState;
-            if (state.formatVersion !== 2)
+            const saved = JSON.parse(raw) as Omit<OfflineState, 'unifiedLearning'> & {
+              unifiedLearning?: OfflineState['unifiedLearning'];
+            };
+            if (saved.formatVersion !== 2)
               throw new LocalError(
                 'El curso de desarrollo cambió. Tus datos anteriores siguen guardados. Exporta una copia y restablece el progreso para empezar el nuevo curso; los respaldos de la versión anterior no se pueden restaurar aquí.',
                 409,
                 'LOCAL_DATA_RESET_REQUIRED',
               );
-            if (!state.user || !Array.isArray(state.completedLessons)) throw new Error();
+            if (!saved.user || !Array.isArray(saved.completedLessons)) throw new Error();
+            state = { ...saved, unifiedLearning: migrateUnifiedLearning(saved) };
           } catch (error) {
             if (error instanceof LocalError) throw error;
             throw new LocalError(
@@ -685,7 +909,19 @@ export class OfflineEngine {
           }
         } else state = this.initial();
         const content = await this.options.getContent();
-        const result = this.dispatch(state, content, path, body, verb);
+        let result;
+        if (path === '/v1/learning/chapter-card' && verb === 'POST') {
+          const event = chapterCardEventSchema.parse(body);
+          const pack = await this.options.getChapterCards?.(event.chapterId);
+          if (!pack) throw new LocalError('Descarga el capítulo para practicar.', 404);
+          if (pack.revision !== event.revision)
+            throw new LocalError('Vuelve a abrir el capítulo para ver la versión actual.', 409);
+          result = {
+            state,
+            value: recordChapterCardEvent(state.unifiedLearning, pack, event, this.clock()),
+          };
+        } else result = this.dispatch(state, content, path, body, verb);
+        rememberReviewLessons(result.state, content);
         const serialized = JSON.stringify(result.state);
         if (serialized !== raw) await this.options.store.setItem(OFFLINE_STATE_KEY, serialized);
         return copy(result.value) as T;
@@ -713,6 +949,16 @@ export class OfflineEngine {
     input: AttemptInput,
     aids: LearningAid[] = [],
     playerName?: string,
+    context: {
+      source?: UnifiedLearningSource;
+      aids?: UnifiedLearningAid[];
+      retry?: boolean;
+      contentVersion?: string;
+      contextId?: string;
+      remediates?: LearningError[];
+      errors?: LearningError[];
+      evidenceOutcome?: AnswerOutcome;
+    } = {},
   ) {
     const parsed = attemptSchema.parse(input);
     const fingerprint = JSON.stringify(parsed);
@@ -727,7 +973,8 @@ export class OfflineEngine {
       return previous.result;
     }
     const lesson =
-      parsed.lessonId === travelLesson.id ? travelLesson : own(content.lessons, parsed.lessonId);
+      own(content.lessons, parsed.lessonId) ??
+      (parsed.lessonId === travelLesson.id ? travelLesson : undefined);
     const exercise = lesson?.exercises.find((e) => e.id === parsed.exerciseId);
     if (!lesson || !exercise)
       throw new LocalError('Ejercicio no disponible en el curso instalado.', 404);
@@ -738,7 +985,7 @@ export class OfflineEngine {
     const date = today(now);
     const introduction =
       exercise.introduction && parsed.answer.text !== undefined
-        ? readIntroduction(parsed.answer.text)
+        ? readIntroduction(parsed.answer.text, false, playerName)
         : undefined;
     const identityMismatch = !!(
       playerName &&
@@ -747,6 +994,77 @@ export class OfflineEngine {
       !matchesIntroductionName(introduction.name, playerName)
     );
     const formCorrect = correct || (identityMismatch && introduction?.form === 'target');
+    const contextId = context.contextId ?? exerciseEvidenceContext(exercise, lesson.id);
+    const assessesLexicalSense =
+      exercise.type === 'meaning' && exercise.vocabularyIds?.length === 1;
+    const checksErrors =
+      context.errors ??
+      (learning
+        ? [
+            ...new Set([
+              ...(learning.errors ?? []),
+              ...(Object.keys(learning.errorAnswers ?? {}) as LearningError[]),
+            ]),
+          ]
+        : assessesLexicalSense
+          ? ['vocabulary_sense' as const]
+          : exercise.options
+            ? []
+            : writtenErrors);
+    const errorType =
+      !formCorrect && outcome !== 'ungradable'
+        ? (introduction?.error ??
+          (assessesLexicalSense &&
+          !learning &&
+          exercise.options?.some(({ id }) => id === parsed.answer.optionId)
+            ? 'vocabulary_sense'
+            : findLearningError(
+                learning ?? {
+                  conceptId: exercise.skillId,
+                  skill: 'writing',
+                  evidence: 'production',
+                  contextId,
+                  errors: checksErrors,
+                },
+                parsed.answer,
+                exercise.acceptedAnswers,
+              )))
+        : undefined;
+    const supports = new Set<UnifiedLearningAid>([
+      ...aids.filter((aid): aid is Exclude<LearningAid, 'none'> => aid !== 'none'),
+      ...(context.aids ?? []),
+    ]);
+    if (parsed.hintUsed && !supports.size) supports.add('hint');
+    if (learning?.guided) supports.add('guided');
+    const retry = !!context.retry || supports.has('retry');
+    if (retry) supports.add('retry');
+    recordUnifiedEvidence(state.unifiedLearning, {
+      id: parsed.clientAttemptId,
+      source: context.source ?? (lesson.id === travelLesson.id ? 'story' : 'study'),
+      materialId: lesson.id,
+      exerciseId: exercise.id,
+      materialVersion:
+        context.contentVersion ??
+        (lesson.id === travelLesson.id
+          ? `home:${chapter.revision}`
+          : studyMaterialVersion(content, lesson.id)),
+      timestamp: now,
+      contextId,
+      format: exercise.type,
+      activity: 'answer',
+      outcome: context.evidenceOutcome ?? outcome,
+      languageOutcome:
+        !context.evidenceOutcome && identityMismatch && formCorrect ? 'target' : undefined,
+      identityMismatch: identityMismatch ? true : undefined,
+      aids: [...supports],
+      retry,
+      independent: !supports.size,
+      targets: exerciseEvidenceTargets(exercise, lesson.id, parsed.answer),
+      error: context.evidenceOutcome === 'ungradable' ? undefined : errorType,
+      errors: checksErrors,
+      remediates: context.remediates ?? learning?.remediates,
+      transfer: learning?.evidence === 'transfer',
+    });
     const identityFeedback = `Usa tu propio nombre para presentarte: ${playerName}.`;
     const model =
       exercise.introduction && playerName
@@ -786,11 +1104,6 @@ export class OfflineEngine {
       set(state.attempts, parsed.clientAttemptId, { fingerprint, result });
       return result;
     }
-    const errorType =
-      learning && !formCorrect
-        ? (introduction?.error ??
-          findLearningError(learning, parsed.answer, exercise.acceptedAnswers))
-        : undefined;
     let unassisted = !parsed.hintUsed;
     if (learning && learning.skill !== 'speaking') {
       const support = parsed.hintUsed && !aids.length ? (['hint'] as const) : aids;
@@ -905,20 +1218,66 @@ export class OfflineEngine {
     const params = new URLSearchParams(query);
     const now = this.clock();
     const done = (value: unknown) => ({ state, value });
-    const changeTravel = (travel: TravelState, operation: unknown, entryStepId?: string) =>
+    const homeVersion = `home:${chapter.revision}`;
+    const exposeHome = (
+      source: 'story' | 'study',
+      token: string,
+      itemId: string,
+      contextId: string,
+      translation: boolean,
+      format: 'instruction' | 'dialogue' | 'single_choice',
+      targets: LearningEvidence['targets'],
+      outcome?: 'target' | 'incorrect',
+    ) => {
+      if (targets.length)
+        recordUnifiedEvidence(state.unifiedLearning, {
+          id: `home:${token}:${itemId}`,
+          source,
+          materialId: travelLesson.id,
+          exerciseId: itemId,
+          materialVersion: homeVersion,
+          timestamp: now,
+          contextId,
+          format,
+          activity: outcome ? 'answer' : 'introduced',
+          outcome,
+          aids: [
+            ...(translation ? (['translation'] as const) : []),
+            ...(outcome ? (['guided'] as const) : []),
+          ],
+          retry: false,
+          independent: false,
+          targets,
+        } satisfies LearningEvidence);
+    };
+    const changeTravel = (
+      travel: TravelState,
+      operation: unknown,
+      source: 'story' | 'study',
+      entryStepId?: string,
+    ) =>
       updateTravel(
         travel,
         operation,
         now,
         this.id,
-        (input, aids) => {
+        (input, aids, conditions) => {
           const identifiesPlayer =
             input.exerciseId === 'travel_hello_write' ||
             input.exerciseId === 'travel_hello_transfer';
           const playerName = identifiesPlayer
-            ? (playerIntroductionName(state.user.name) ?? travel.introductionName)
+            ? (travel.practiceName ??
+              playerIntroductionName(state.user.name) ??
+              travel.introductionName)
             : undefined;
-          const result = this.attempt(state, content, input, aids, playerName);
+          const result = this.attempt(state, content, input, aids, playerName, {
+            source,
+            contentVersion: homeVersion,
+            retry: conditions.retry,
+            ...(conditions.referenceAnswer && { aids: ['answer_shown'] }),
+            ...(conditions.missingAudio &&
+              !aids.includes('transcript') && { evidenceOutcome: 'ungradable' }),
+          });
           if (identifiesPlayer && !playerName && (result.correct || result.communicationOnly))
             travel.introductionName = readIntroduction(input.answer.text ?? '').name;
           return result;
@@ -926,6 +1285,16 @@ export class OfflineEngine {
         (target, practice) =>
           recordSpeakingPractice((state.travelLearning ??= { targets: [] }), target, practice),
         entryStepId,
+        ({ itemId, missionId, token, translation, word }) =>
+          exposeHome(
+            source,
+            token,
+            itemId,
+            missionId,
+            translation,
+            'instruction',
+            homeTeachingEvidenceTargets(itemId, word),
+          ),
       );
     if (route.startsWith('/v1/auth/') || route.startsWith('/v1/sync/'))
       throw new LocalError(
@@ -935,9 +1304,15 @@ export class OfflineEngine {
       );
     if (route === '/health')
       return done({ status: 'ok', mode: 'offline', storage: 'device', paidProviders: false });
+    if (route === '/v1/speech/practice' && method === 'POST') {
+      const practice = recordSpeechPractice(state.unifiedLearning, content, body, now);
+      if (!practice) throw new LocalError('La práctica oral no está disponible.', 404);
+      return done(practice);
+    }
     if (route === '/v1/catalog')
       return done({
         units: content.units,
+        placementAvailable: content.placementQuestions.length > 0,
         contentVersion: 1,
         contentStatus: 'draft',
         locale: 'es-419',
@@ -954,7 +1329,21 @@ export class OfflineEngine {
     if (route === '/v1/travel/placement') {
       if (method === 'GET') return done({ questions: placementQuestions(publicExercise) });
       const travel = (state.travel ??= emptyTravel());
-      const placement = assessTravelPlacement(body);
+      const { placement, responses, assessmentId } = assessTravelPlacement(body);
+      for (const { exercise, transcript, outcome } of responses)
+        recordAssessmentAnswer(
+          state,
+          exercise,
+          {
+            id: `placement:home:${assessmentId ?? `${outcome}:${transcript}`}:${exercise.id}`,
+            source: 'placement',
+            materialId: travelLesson.id,
+            materialVersion: `home:${chapter.revision}`,
+            timestamp: now,
+            outcome,
+          },
+          transcript ? ['transcript'] : [],
+        );
       travel.placement = placement;
       const preceding = chapter.missions.slice(
         0,
@@ -968,7 +1357,8 @@ export class OfflineEngine {
     if (route === '/v1/travel') {
       const travel = (state.travel ??= emptyTravel());
       upgradeTravelCheckpoints(travel);
-      if (method === 'POST') changeTravel(travel, body);
+      if (method === 'POST')
+        changeTravel(travel, body, params.get('source') === 'story' ? 'story' : 'study');
       return done(travel);
     }
     if (route === '/v1/story' || (route === '/v1/story/encounter' && method === 'POST')) {
@@ -988,15 +1378,33 @@ export class OfflineEngine {
           .parse(body);
         launch = resumeStoryEncounter(story, request.turn);
       } else if (method === 'POST') {
-        updateStory(chapterStory, story, storyContext(story, travel, state.travelLearning), body);
+        updateStory(
+          chapterStory,
+          story,
+          storyContext(story, travel, state.travelLearning, state.unifiedLearning),
+          body,
+          ({ kind, itemId, dialogueId, token, translation }) => {
+            const guided = kind === 'guided';
+            exposeHome(
+              'story',
+              token,
+              itemId,
+              dialogueId,
+              translation,
+              guided ? 'single_choice' : 'dialogue',
+              guided ? homeChoiceEvidenceTargets(itemId) : homeTeachingEvidenceTargets(itemId),
+              guided ? (itemId === 'luz-practice-is' ? 'incorrect' : 'target') : undefined,
+            );
+          },
+        );
         launch = story.encounterId !== before;
         if (launch && before && travel.active?.finished) {
           const previous = chapterStory.encounters.find((entry) => entry.id === before);
           if (travel.active.missionId === previous?.missionId)
-            changeTravel(travel, { action: 'dismiss', token: travel.active.token });
+            changeTravel(travel, { action: 'dismiss', token: travel.active.token }, 'story');
         }
       }
-      const context = storyContext(story, travel, state.travelLearning);
+      const context = storyContext(story, travel, state.travelLearning, state.unifiedLearning);
       const view = readStory(chapterStory, story, context);
       if (
         view.encounter &&
@@ -1007,7 +1415,7 @@ export class OfflineEngine {
             travel.active?.missionId === view.encounter.missionId))
       ) {
         const { missionId, entryStepId } = view.encounter;
-        changeTravel(travel, { action: 'start', missionId }, entryStepId);
+        changeTravel(travel, { action: 'start', missionId }, 'story', entryStepId);
         if (travel.active?.missionId !== missionId)
           throw new LocalError('Completa la misión anterior para continuar.', 409);
       }
@@ -1025,6 +1433,55 @@ export class OfflineEngine {
         .filter((id) => own(content.lessons, id));
       return done(params.get('all') === 'true' ? recent : (recent[0] ?? null));
     }
+    const studyMatch = route.match(/^\/v1\/lessons\/([^/]+)\/(learning|study-events)$/);
+    if (studyMatch) {
+      const lesson = own(content.lessons, studyMatch[1]);
+      if (!lesson) throw new LocalError('Esta lección no está instalada.', 404);
+      if (studyMatch[2] === 'learning')
+        return done(
+          studyLearningStatus(state.unifiedLearning, state.completedLessons, content, lesson, now),
+        );
+      const input = z
+        .discriminatedUnion('action', [
+          z.object({ action: z.literal('skip'), eventId: z.string().min(8).max(100) }).strict(),
+          z.object({ action: z.literal('reference') }).strict(),
+        ])
+        .parse(body);
+      if (input.action === 'reference') {
+        studyIntroduction(state, content, lesson, 'vocabulary', now);
+        studyIntroduction(state, content, lesson, 'grammar', now);
+        return done({ saved: true });
+      }
+      const checkpoint = own(state.lessonCheckpoints ?? {}, lesson.id);
+      const id =
+        checkpoint && lesson.stages?.[checkpoint.stage]?.exerciseIds?.[checkpoint.exercise];
+      const exercise = lesson.exercises.find((item) => item.id === id);
+      if (
+        !checkpoint ||
+        checkpoint.eventId !== input.eventId ||
+        !exercise ||
+        !canSkipStudyExercise(
+          state.unifiedLearning,
+          state.completedLessons,
+          content,
+          lesson,
+          exercise,
+          now,
+        )
+      )
+        throw new LocalError(
+          'Todavía puedes practicar este ejercicio.',
+          409,
+          'STUDY_SKIP_UNAVAILABLE',
+        );
+      const version = studyMaterialVersion(content, lesson.id);
+      if (checkpoint.skippedVersion !== version) {
+        checkpoint.skippedVersion = version;
+        checkpoint.skipped = [];
+      }
+      if (!checkpoint.skipped?.includes(exercise.id)) (checkpoint.skipped ??= []).push(exercise.id);
+      return done({ saved: checkpoint });
+    }
     const checkpointMatch = route.match(/^\/v1\/lessons\/([^/]+)\/checkpoint$/);
     if (checkpointMatch) {
       const lesson = own(content.lessons, checkpointMatch[1]);
@@ -1032,7 +1489,22 @@ export class OfflineEngine {
       const checkpoints = (state.lessonCheckpoints ??= {});
       if (method === 'DELETE') delete checkpoints[lesson.id];
       if (method === 'POST') {
-        const next = lessonCheckpointSchema.parse(body);
+        const parsed = lessonCheckpointSchema.parse(body);
+        const prior = own(checkpoints, lesson.id);
+        const sameActivity = prior?.activityId === parsed.activityId;
+        const next = {
+          ...parsed,
+          skipped: sameActivity ? prior.skipped : undefined,
+          skippedVersion: sameActivity ? prior.skippedVersion : undefined,
+        };
+        const stage = lesson.stages?.[next.stage];
+        if (stage?.type === 'vocabulary' && next.exercise < 0) {
+          const item = lesson.vocabulary?.[next.vocabulary];
+          if (item)
+            studyIntroduction(state, content, { ...lesson, vocabulary: [item] }, 'vocabulary', now);
+        }
+        if (stage?.type === 'grammar' && next.exercise < 0)
+          studyIntroduction(state, content, lesson, 'grammar', now);
         delete checkpoints[lesson.id];
         set(checkpoints, lesson.id, next);
       }
@@ -1048,19 +1520,28 @@ export class OfflineEngine {
         return done(null);
       // Resume newly added practice before completion. / Retoma la práctica nueva antes de completar.
       if (method === 'GET' && stage.type === 'speaking') {
-        const practice = stages.findIndex(({ type }) => type === 'practice');
+        const skipped =
+          saved.skippedVersion === studyMaterialVersion(content, lesson.id)
+            ? saved.skipped
+            : undefined;
         const visited = own(state.visitedExercises, lesson.id) ?? [];
-        const unfinished = stages[practice]?.exerciseIds?.findIndex((id) => !visited.includes(id));
-        if (unfinished !== undefined && unfinished >= 0) {
+        const remaining = stages.map(
+          ({ exerciseIds }) =>
+            exerciseIds?.findIndex((id) => !visited.includes(id) && !skipped?.includes(id)) ?? -1,
+        );
+        const nextStage = remaining.findIndex((index) => index >= 0);
+        if (nextStage >= 0) {
           saved = {
             ...saved,
             eventId: this.id(),
-            stage: practice,
-            exercise: unfinished,
+            stage: nextStage,
+            exercise: remaining[nextStage],
             vocabulary: 0,
             answer: {},
             hint: false,
             help: false,
+            retry: false,
+            referenceUsed: false,
           };
           set(checkpoints, lesson.id, saved);
         }
@@ -1071,17 +1552,32 @@ export class OfflineEngine {
     if (route === '/v1/reviews/quick') {
       const travelOnly = params.get('source') === 'travel';
       const courseOnly = params.get('source') === 'course';
-      const target = travelOnly ? params.get('target') : null;
-      const mission = travelOnly ? params.get('mission') : null;
+      const unified = params.get('source') === 'unified';
+      const target = travelOnly || unified ? params.get('target') : null;
+      const mission = travelOnly || unified ? params.get('mission') : null;
       const scopedKey = target ? `target:${target}` : mission ? `mission:${mission}` : undefined;
-      const checkpointKey = travelOnly ? 'travelQuickReview' : 'quickReview';
+      const checkpointKey = travelOnly || unified ? 'travelQuickReview' : 'quickReview';
       const travelStarter = travelLesson.exercises[0];
+      const archive = unified ? archivedReviewLessons(state) : [];
+      const archiveById = new Map(
+        archive.map(({ lesson, version }) => [lesson.id, { lesson, version }]),
+      );
       const lessons = travelOnly
         ? [travelLesson]
-        : [...Object.values(content.lessons), ...(courseOnly ? [] : [travelLesson])];
+        : [
+            ...Object.values(content.lessons),
+            ...(courseOnly ? [] : [travelLesson]),
+            ...archive.map(({ lesson }) => lesson),
+          ];
       const checkpoints = state.travelReviewCheckpoints ?? {};
       const previous = scopedKey ? own(checkpoints, scopedKey) : state[checkpointKey];
-      const savedLesson = previous && lessons.find((l) => l.id === previous.lessonId);
+      const savedLesson =
+        previous &&
+        lessons.find(
+          (lesson) =>
+            lesson.id === previous.lessonId &&
+            lesson.exercises.some(({ id }) => id === previous.exerciseId),
+        );
       const savedExercise = savedLesson?.exercises.find((e) => e.id === previous?.exerciseId);
       const existing =
         savedLesson &&
@@ -1101,6 +1597,10 @@ export class OfflineEngine {
       const forReview = (saved: QuickCheckpoint, exercise: CourseExercise): QuickReviewState => {
         const step =
           saved.lessonId === travelLesson.id ? travelPracticeStep(exercise.id) : undefined;
+        const archivedStep =
+          saved.lessonId === travelLesson.id && !step
+            ? archivedTravelReviewStep(state, exercise.id)
+            : undefined;
         const lesson =
           saved.starter && saved.lessonId !== travelLesson.id
             ? lessons.find((entry) => entry.id === saved.lessonId)
@@ -1116,11 +1616,46 @@ export class OfflineEngine {
                 }
               : exercise,
           ),
-          situation: step?.situation,
-          hintText: step?.hint,
+          situation: step?.situation ?? archivedStep?.situation,
+          hintText: step?.hint ?? archivedStep?.hint,
           audio: step?.audio,
           transcriptText: step?.transcript,
+          explanation:
+            saved.remediation?.phase === 'support'
+              ? learningErrorFeedback[saved.remediation.error]
+              : undefined,
         };
+      };
+      const plans = () =>
+        unifiedReviewPlans(
+          state,
+          content,
+          createUnifiedReviewCandidates(state, content, archive),
+          now,
+          mission,
+          !target,
+        );
+      const create = (
+        lesson: CourseLesson,
+        exercise: CourseExercise,
+        starter = false,
+        reason?: LearningReviewReason,
+        reviewKey?: string,
+        remediation?: QuickCheckpoint['remediation'],
+      ) => {
+        const saved: QuickCheckpoint = {
+          token: this.id(),
+          lessonId: lesson.id,
+          exerciseId: exercise.id,
+          answer: {},
+          starter,
+          reason,
+          reviewKey,
+          remediation,
+        };
+        if (scopedKey) set((state.travelReviewCheckpoints ??= {}), scopedKey, saved);
+        else state[checkpointKey] = saved;
+        return done(forReview(saved, exercise));
       };
       if (method === 'POST') {
         const update = z
@@ -1132,11 +1667,48 @@ export class OfflineEngine {
               .object({ action: z.literal('answer'), token: z.string(), answer: answerSchema })
               .strict(),
             z
-              .object({ action: z.enum(['dismiss', 'hint', 'transcript']), token: z.string() })
+              .object({
+                action: z.enum(['dismiss', 'hint', 'transcript', 'listened', 'continue']),
+                token: z.string(),
+              })
               .strict(),
           ])
           .parse(body);
         if (previous && existing && update.token === previous.token) {
+          if (
+            update.action === 'continue' &&
+            previous.result &&
+            previous.remediation?.phase === 'support'
+          ) {
+            const plan = plans().find(({ row }) => row.key === previous.reviewKey);
+            const contextId = reviewCandidate(savedLesson!, existing).contextId;
+            const recentExercises = new Set(
+              state.unifiedLearning.evidence.flatMap((event) =>
+                event.activity === 'answer' && now - event.timestamp < dayMs
+                  ? [event.exerciseId]
+                  : [],
+              ),
+            );
+            const candidate = plan?.candidates.find(
+              (item) =>
+                !item.guided &&
+                item.exerciseId !== existing.id &&
+                !recentExercises.has(item.exerciseId) &&
+                (item.contextId !== contextId || item.lesson.id !== travelLesson.id),
+            );
+            if (candidate)
+              return create(
+                candidate.lesson,
+                candidate.exercise,
+                false,
+                'remediation',
+                previous.reviewKey,
+                { phase: 'confirmation', error: previous.remediation.error },
+              );
+            if (scopedKey) delete checkpoints[scopedKey];
+            else delete state[checkpointKey];
+            return done(null);
+          }
           if (update.action === 'dismiss' && previous.result) {
             if (scopedKey) delete checkpoints[scopedKey];
             else delete state[checkpointKey];
@@ -1146,16 +1718,28 @@ export class OfflineEngine {
             const step =
               previous.lessonId === travelLesson.id ? travelPracticeStep(existing.id) : undefined;
             if (update.action === 'draft') previous.answer = update.answer;
-            if (update.action === 'hint' && step?.hint) previous.hint = true;
+            if (
+              update.action === 'hint' &&
+              (step?.hint || archivedTravelReviewStep(state, existing.id)?.hint)
+            )
+              previous.hint = true;
             if (update.action === 'transcript' && step?.transcript) previous.transcript = true;
+            if (update.action === 'listened' && step?.audio) previous.listened = true;
             if (update.action === 'answer') {
               const aids: LearningAid[] = [];
               if (previous.starter) aids.push('starter');
               if (previous.hint) aids.push('hint');
               if (previous.transcript) aids.push('transcript');
+              if (previous.remediation?.phase === 'support') aids.push('guided');
+              const archivedVersion = archiveById.get(previous.lessonId);
+              const isArchived = savedLesson === archivedVersion?.lesson;
+              const gradingContent =
+                isArchived && savedLesson
+                  ? { ...content, lessons: { ...content.lessons, [savedLesson.id]: savedLesson } }
+                  : content;
               previous.result = this.attempt(
                 state,
-                content,
+                gradingContent,
                 {
                   lessonId: previous.lessonId,
                   exerciseId: previous.exerciseId,
@@ -1164,45 +1748,72 @@ export class OfflineEngine {
                   hintUsed: aids.length > 0,
                 },
                 aids,
+                undefined,
+                {
+                  source: previous.reason === 'remediation' ? 'remediation' : 'review',
+                  ...(isArchived && { contentVersion: archivedVersion?.version }),
+                  ...(previous.remediation?.phase === 'support' && {
+                    remediates: [previous.remediation.error],
+                  }),
+                  ...(previous.remediation?.phase === 'confirmation' &&
+                    savedLesson?.id !== travelLesson.id && {
+                      contextId: `${previous.lessonId}:${existing.id}`,
+                    }),
+                  ...(step?.audio &&
+                    !previous.listened &&
+                    !previous.transcript && { evidenceOutcome: 'ungradable' }),
+                },
               );
               previous.answer = update.answer;
               if (
                 state.story &&
                 state.travel &&
-                travelOnly &&
+                (travelOnly || unified) &&
                 mission &&
                 !previous.starter &&
+                (!step?.audio || previous.listened || previous.transcript) &&
                 previous.result.correct
               )
                 recordStoryReview(
                   chapterStory,
                   state.story,
                   mission,
-                  storyContext(state.story, state.travel, state.travelLearning),
+                  storyContext(
+                    state.story,
+                    state.travel,
+                    state.travelLearning,
+                    state.unifiedLearning,
+                  ),
                 );
             }
           }
         }
       }
       if (previous && existing) return done(forReview(previous, existing));
-      const create = (
-        lesson: CourseLesson,
-        exercise: CourseExercise,
-        starter = false,
-        reason?: LearningReviewReason,
-      ) => {
-        const saved = {
-          token: this.id(),
-          lessonId: lesson.id,
-          exerciseId: exercise.id,
-          answer: {},
-          starter,
-          reason,
-        };
-        if (scopedKey) set((state.travelReviewCheckpoints ??= {}), scopedKey, saved);
-        else state[checkpointKey] = saved;
-        return done(forReview(saved, exercise));
-      };
+      if (unified) {
+        if (mission && !chapter.missions.some((item) => item.id === mission))
+          throw new LocalError('Esta misión no está disponible.', 404);
+        const plan = plans().find(
+          (entry) => entry.candidates.length && (!target || entry.row.key === target),
+        );
+        if (plan) {
+          const error = plan.mastery.pendingErrors[0];
+          const candidate = error
+            ? (plan.candidates.find((item) => item.remediates?.includes(error)) ??
+              plan.candidates[0])
+            : plan.candidates[0];
+          return create(
+            candidate.lesson,
+            candidate.exercise,
+            false,
+            plan.row.reason,
+            plan.row.key,
+            error ? { phase: 'support', error } : undefined,
+          );
+        }
+        if (target)
+          throw new LocalError('Esta habilidad todavía no tiene un repaso disponible.', 404);
+      }
       if (travelOnly) {
         if (mission && !chapter.missions.some((item) => item.id === mission))
           throw new LocalError('Esta misión no está disponible.', 404);
@@ -1270,6 +1881,11 @@ export class OfflineEngine {
       const imported = backupSchema.parse(input.backup);
       const next = {
         ...imported.state,
+        unifiedLearning: migrateUnifiedLearning(imported.state),
+        challengeHistory: freezeChallengeHistory(
+          imported.state.challengeHistory,
+          imported.state.runs,
+        ),
         user: { ...imported.state.user, email: undefined, isGuest: false },
         runs: {},
         runRequests: {},
@@ -1293,7 +1909,19 @@ export class OfflineEngine {
           .object({ checkpoint: lessonCheckpointSchema.optional() })
           .strict()
           .parse(body ?? {});
-        if (!lesson.exercises.every((e) => own(state.visitedExercises, lesson.id)?.includes(e.id)))
+        const prior = own(state.lessonCheckpoints ?? {}, lesson.id);
+        const version = studyMaterialVersion(content, lesson.id);
+        const skipped =
+          prior?.skippedVersion === version &&
+          (!input.checkpoint || prior.activityId === input.checkpoint.activityId)
+            ? prior.skipped
+            : undefined;
+        if (
+          !lesson.exercises.every(
+            (e) =>
+              own(state.visitedExercises, lesson.id)?.includes(e.id) || skipped?.includes(e.id),
+          )
+        )
           throw new LocalError(
             'Practica los ejercicios primero. Puedes continuar aunque te equivoques.',
             409,
@@ -1308,7 +1936,6 @@ export class OfflineEngine {
         if (!state.learningDays.includes(today(now))) state.learningDays.push(today(now));
         if (input.checkpoint) {
           const checkpoints = (state.lessonCheckpoints ??= {});
-          const prior = own(checkpoints, lesson.id);
           if (
             prior?.activityId === input.checkpoint.activityId &&
             prior.stage === input.checkpoint.stage
@@ -1318,9 +1945,21 @@ export class OfflineEngine {
               pending: false,
               xpAwarded: 0,
               progress: progress(state, now),
+              learning: studyLearningStatus(
+                state.unifiedLearning,
+                state.completedLessons,
+                content,
+                lesson,
+                now,
+              ),
               checkpoint: prior,
             });
-          const next = { ...input.checkpoint, xp: input.checkpoint.xp + xpAwarded };
+          const next = {
+            ...input.checkpoint,
+            skipped,
+            skippedVersion: skipped ? version : undefined,
+            xp: input.checkpoint.xp + xpAwarded,
+          };
           set(checkpoints, lesson.id, next);
         }
         return done({
@@ -1328,6 +1967,13 @@ export class OfflineEngine {
           pending: false,
           xpAwarded,
           progress: progress(state, now),
+          learning: studyLearningStatus(
+            state.unifiedLearning,
+            state.completedLessons,
+            content,
+            lesson,
+            now,
+          ),
           checkpoint: own(state.lessonCheckpoints ?? {}, lesson.id),
         });
       }
@@ -1341,17 +1987,50 @@ export class OfflineEngine {
     }
     if (route === '/v1/attempts' && method === 'POST') {
       const input = z
-        .object({ checkpoint: lessonCheckpointSchema.optional() })
+        .object({
+          checkpoint: lessonCheckpointSchema.optional(),
+          learningSource: z.enum(['study', 'review']).optional(),
+        })
         .passthrough()
         .parse(body);
-      const { checkpoint, ...answer } = input;
+      const { checkpoint, learningSource, ...answer } = input;
       const parsed = attemptSchema.parse(answer);
-      const result = this.attempt(state, content, parsed);
-      if (checkpoint?.eventId === parsed.clientAttemptId)
-        set((state.lessonCheckpoints ??= {}), parsed.lessonId, checkpoint);
+      const prior = own(state.lessonCheckpoints ?? {}, parsed.lessonId);
+      const studyAids: UnifiedLearningAid[] = [];
+      if (checkpoint?.retry) studyAids.push('answer_shown');
+      if (checkpoint?.referenceUsed || (checkpoint?.hint && !checkpoint.retry))
+        studyAids.push('hint', 'translation');
+      const result = this.attempt(state, content, parsed, [], undefined, {
+        source: learningSource,
+        // The Study correction shows the reference answer. / La corrección del curso muestra la respuesta modelo.
+        aids: studyAids,
+        retry: checkpoint?.retry,
+      });
+      if (
+        checkpoint?.eventId === parsed.clientAttemptId &&
+        (!prior || prior.eventId === checkpoint.eventId)
+      )
+        set((state.lessonCheckpoints ??= {}), parsed.lessonId, {
+          ...checkpoint,
+          skipped: prior?.skipped,
+          skippedVersion: prior?.skippedVersion,
+        });
       return done(result);
     }
     if (route === '/v1/reviews/today') {
+      if (params.get('source') === 'unified') {
+        const all = params.get('all') === 'true';
+        const archive = archivedReviewLessons(state);
+        const reviews: UnifiedReviewRow[] = unifiedReviewPlans(
+          state,
+          content,
+          createUnifiedReviewCandidates(state, content, archive),
+          now,
+        )
+          .map(({ row }) => row)
+          .filter((row) => all || (row.reason !== 'practice' && row.canPractice));
+        return done({ reviews, total: reviews.length });
+      }
       if (params.get('source') === 'travel') {
         const reviews = travelReviewRows(state, now, params.get('all') === 'true', publicExercise);
         return done({ reviews, total: reviews.length });
@@ -1435,6 +2114,7 @@ export class OfflineEngine {
         });
       const input = z
         .object({
+          assessmentId: z.string().min(8).max(100).optional(),
           answers: z
             .array(z.object({ exerciseId: z.string(), answer: answerSchema }).strict())
             .min(1)
@@ -1449,7 +2129,22 @@ export class OfflineEngine {
         seen.add(answer.exerciseId);
         const exercise = content.placementQuestions.find((e) => e.id === answer.exerciseId);
         if (!exercise) throw new LocalError('Pregunta no instalada.');
-        if (grade(exercise, answer.answer)) correct.add(exercise.id);
+        const outcome = judgeAnswer(exercise, answer.answer);
+        if (outcome === 'target') correct.add(exercise.id);
+        recordAssessmentAnswer(
+          state,
+          exercise,
+          {
+            id: `placement:course:${input.assessmentId ?? outcome}:${exercise.id}`,
+            source: 'placement',
+            materialId: 'course-placement',
+            materialVersion: studyMaterialVersion(content, exercise.requiredLessonIds?.[0] ?? ''),
+            timestamp: now,
+            outcome,
+          },
+          [],
+          exercise.requiredLessonIds?.[0],
+        );
       }
       return done({
         level: suggestPlacementLevel(content.placementQuestions, input.answers.length, correct),
@@ -1459,11 +2154,16 @@ export class OfflineEngine {
           'Es una orientación personal, no una certificación. Explora las lecciones a tu ritmo.',
       });
     }
-    const completedHomeMissions = chapter.missions.filter((mission) => state.travel?.completed[mission.id]);
-    const homeChallengeOpen =
+    const completedHomeMissions = chapter.missions.filter(
+      (mission) => state.travel?.completed[mission.id],
+    );
+    const homeChallengeTaught =
       chapter.missions.length > 0 &&
       completedHomeMissions.length === chapter.missions.length &&
       !!state.travel?.stamps[chapter.id];
+    const readiness = challengeReadiness(state);
+    const homeChallengeOpen =
+      homeChallengeTaught && (readiness.home || hasPriorChallengePass(state, HOME_TRAVEL_TRACK));
     if (route === '/v1/challenges/tracks' && params.get('source') === 'travel')
       return done({
         tracks: [
@@ -1473,6 +2173,7 @@ export class OfflineEngine {
             descriptionEs:
               'Pon en práctica los saludos, las indicaciones y las descripciones del capítulo.',
             unlocked: homeChallengeOpen,
+            needsEvidence: homeChallengeTaught && !homeChallengeOpen,
             available: chapter.missions.length > 0,
             completedLessons: completedHomeMissions.length,
             requiredLessons: chapter.missions.length,
@@ -1491,9 +2192,15 @@ export class OfflineEngine {
       return done({
         tracks: tracks.map((track) => {
           const required = requiredLessons(content, track.requiredUnitId);
+          const taught = trackUnlocked(state, content, track.requiredUnitId);
+          const unlocked =
+            taught &&
+            (readiness.course(content, track.requiredUnitId) ||
+              hasPriorChallengePass(state, track.id));
           return {
             ...track,
-            unlocked: trackUnlocked(state, content, track.requiredUnitId),
+            unlocked,
+            needsEvidence: taught && !unlocked,
             completedLessons: required.filter((id) => state.completedLessons.includes(id)).length,
             requiredLessons: required.length,
             available: track.id === 'present_simple' && content.challengeLevels.length > 0,
@@ -1523,25 +2230,34 @@ export class OfflineEngine {
         (p) => p.trackId === levelMatch[1] && p.type === type,
       );
       return done({
-        levels: challengeContent.challengeLevels.map((level) => ({
-          level: level.level,
-          nameEs: level.name_es,
-          hearts: level.hearts,
-          seconds: timeBudget(
-            challengeContent,
-            type,
-            level.level,
-            isHomeTrack
-              ? travelChallengeItems(type, level.level)
-              : questions(content, type, level.level, state),
-          ),
-          unlocked: isHomeTrack
-            ? homeChallengeOpen && level.level <= availableTravelRanks
-            : trackUnlocked(state, content, challengeUnit(content, level.level)),
-          unlockUnit: challengeUnit(challengeContent, level.level),
-          planned: isHomeTrack && level.level > availableTravelRanks,
-          bestScore: record?.bestScores[String(level.level)] ?? 0,
-        })),
+        levels: challengeContent.challengeLevels.map((level) => {
+          const unit = challengeUnit(challengeContent, level.level);
+          const taught = isHomeTrack
+            ? homeChallengeTaught && level.level <= availableTravelRanks
+            : trackUnlocked(state, content, unit);
+          const unlocked =
+            taught &&
+            ((isHomeTrack ? readiness.home : readiness.course(content, unit)) ||
+              hasPriorChallengePass(state, levelMatch[1], type, level.level));
+          return {
+            level: level.level,
+            nameEs: level.name_es,
+            hearts: level.hearts,
+            seconds: timeBudget(
+              challengeContent,
+              type,
+              level.level,
+              isHomeTrack
+                ? travelChallengeItems(type, level.level)
+                : questions(content, type, level.level, state),
+            ),
+            unlocked,
+            needsEvidence: taught && !unlocked,
+            unlockUnit: unit,
+            planned: isHomeTrack && level.level > availableTravelRanks,
+            bestScore: record?.bestScores[String(level.level)] ?? 0,
+          };
+        }),
         practiceOnly: true,
       });
     }
@@ -1577,13 +2293,17 @@ export class OfflineEngine {
         finish(state, run, now);
         return done(view(run, now));
       }
-      if (
-        isHomeTrack
-          ? !homeChallengeOpen || input.level > availableTravelRanks
-          : !trackUnlocked(state, content, challengeUnit(content, input.level))
-      )
+      const requiredUnit = challengeUnit(content, input.level);
+      const taught = isHomeTrack
+        ? homeChallengeTaught && input.level <= availableTravelRanks
+        : trackUnlocked(state, content, requiredUnit);
+      const hasPriorPass = hasPriorChallengePass(state, input.trackId, input.type, input.level);
+      const ready = isHomeTrack ? readiness.home : readiness.course(content, requiredUnit);
+      if (!taught || (!ready && !hasPriorPass))
         throw new LocalError(
-          'Primero completa las lecciones relacionadas. Los desafíos son opcionales y solo usan material aprendido.',
+          taught
+            ? 'Practica las ideas necesarias y acierta sin ayuda para abrir este desafío.'
+            : 'Primero completa las lecciones relacionadas. Los desafíos son opcionales y solo usan material aprendido.',
           403,
           'CHALLENGE_LOCKED',
         );
@@ -1606,6 +2326,9 @@ export class OfflineEngine {
         relaxed: input.relaxed,
         items,
         startedAt: now,
+        contentVersion: isHomeTrack
+          ? `home:${chapter.revision}`
+          : studyMaterialVersion(content, ''),
         deadline: input.relaxed
           ? null
           : now + timeBudget(challengeContent, input.type, input.level, items) * 1000,
@@ -1648,6 +2371,26 @@ export class OfflineEngine {
           throw new LocalError('La pregunta ya cambió.', 409, 'QUESTION_ORDER');
         const exercise = run.items[run.position];
         const outcome = judgeAnswer(exercise, input.answer);
+        const materialId = run.trackId === HOME_TRAVEL_TRACK ? travelLesson.id : run.trackId;
+        recordAssessmentAnswer(
+          state,
+          exercise,
+          {
+            id: `challenge:${run.id}:${run.position}`,
+            source: 'challenge',
+            materialId,
+            materialVersion:
+              run.contentVersion ??
+              (run.trackId === HOME_TRAVEL_TRACK
+                ? `home:${chapter.revision}`
+                : studyMaterialVersion(content, '')),
+            timestamp: now,
+            outcome,
+          },
+          [],
+          exercise.requiredLessonIds?.at(-1),
+          input.answer,
+        );
         const correct = outcome === 'target';
         if (correct) run.correctCount++;
         else if (outcome !== 'ungradable') run.hearts = Math.max(0, run.hearts - 1);

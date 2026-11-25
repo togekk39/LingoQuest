@@ -21,7 +21,10 @@ export function LessonReference({ id, onClose }: { id: string; onClose: () => vo
   const load = () => {
     setError('');
     void api<IntegratedLesson>(`/v1/lessons/${id}`)
-      .then(setLesson)
+      .then((next) => {
+        setLesson(next);
+        void api(`/v1/lessons/${id}/study-events`, { action: 'reference' }).catch(() => {});
+      })
       .catch((e) => setError(e.message));
   };
   useEffect(() => {

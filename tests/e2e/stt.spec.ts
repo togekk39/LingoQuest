@@ -1,4 +1,12 @@
-import { test, expect, enterApp, openTravelWriting, answerTravelText, click } from './helpers';
+import {
+  test,
+  expect,
+  enterApp,
+  openTravelWriting,
+  answerTravelText,
+  click,
+  state,
+} from './helpers';
 import type { Page } from '@playwright/test';
 
 async function openPractice(page: Page) {
@@ -170,6 +178,36 @@ test('only a completed matching final transcript enables continuation', async ({
   await expect(continueButton).toBeEnabled();
   await continueButton.click();
   await expect(page.getByRole('button', { name: /^Practicar: / }).first()).toBeVisible();
+  await expect
+    .poll(async () => {
+      const { unifiedLearning } = await state(page);
+      return unifiedLearning.evidence
+        .filter(({ activity }) => activity === 'speech_transcript')
+        .map(({ source, outcome, independent, retry, targets }) => ({
+          source,
+          outcome,
+          independent,
+          retry,
+          targets,
+        }));
+    })
+    .toEqual([
+      {
+        source: 'speech',
+        outcome: 'ungradable',
+        independent: false,
+        retry: false,
+        targets: [{ targetId: 'home.greeting-word', dimension: 'speaking' }],
+      },
+      {
+        source: 'speech',
+        outcome: 'target',
+        independent: false,
+        retry: true,
+        targets: [{ targetId: 'home.greeting-word', dimension: 'speaking' }],
+      },
+    ]);
+  expect(JSON.stringify((await state(page)).unifiedLearning)).not.toContain("My name's Sam");
 });
 
 test('travel speaking on an unsupported platform skips directly without opening the microphone', async ({

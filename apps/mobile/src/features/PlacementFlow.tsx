@@ -3,7 +3,7 @@ import { useTheme } from '../theme';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Compass, Sparkles } from 'lucide-react-native';
-import { api } from '../lib/api';
+import { api, newId } from '../lib/api';
 import { Action, ErrorCard, useFeatureStyles, FlowFrame } from './FeatureUI';
 import { ExerciseInput, hasAnswer, type Exercise, type ExerciseAnswer } from './ExerciseInput';
 interface PlacementResult {
@@ -17,7 +17,7 @@ export default function PlacementFlow({
   onComplete,
 }: {
   onClose: () => void;
-  onComplete?: () => void;
+  onComplete?: (result: PlacementResult) => void;
 }) {
   const { colors: palette } = useTheme();
   const s = useStyles();
@@ -31,6 +31,7 @@ export default function PlacementFlow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<PlacementResult | null>(null);
+  const [assessmentId] = useState(newId);
   async function load() {
     setLoading(true);
     setError('');
@@ -58,7 +59,9 @@ export default function PlacementFlow({
     setBusy(true);
     setError('');
     try {
-      setResult(await api<PlacementResult>('/v1/placement', { answers: nextAnswers }));
+      setResult(
+        await api<PlacementResult>('/v1/placement', { assessmentId, answers: nextAnswers }),
+      );
     } catch (e) {
       setError(
         e instanceof Error
@@ -77,7 +80,9 @@ export default function PlacementFlow({
       progress={result ? 1 : Math.max(0, position) / Math.max(questions.length, 1)}
       footer={
         result ? (
-          <Action onPress={onComplete ?? onClose}>Seguir aprendiendo</Action>
+          <Action onPress={() => (onComplete ? onComplete(result) : onClose())}>
+            Seguir aprendiendo
+          </Action>
         ) : position < 0 && questions.length ? (
           <View style={{ gap: 9 }}>
             <Action onPress={() => setPosition(0)}>Explorar mi nivel</Action>

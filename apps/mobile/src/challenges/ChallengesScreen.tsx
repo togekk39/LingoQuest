@@ -37,6 +37,7 @@ type Track = {
   descriptionEs: string;
   requiredUnitId: string;
   unlocked: boolean;
+  needsEvidence?: boolean;
   completedLessons: number;
   requiredLessons: number;
   published: boolean;
@@ -50,6 +51,7 @@ type Level = {
   hearts: number;
   seconds: number;
   unlocked: boolean;
+  needsEvidence?: boolean;
   bestScore: number;
   unlockUnit: string;
   planned?: boolean;
@@ -456,7 +458,9 @@ export function ChallengesScreen({
                   <Text style={s.requirementText}>
                     {item.unlocked
                       ? 'Requisitos de práctica completos'
-                      : `${item.completedLessons} de ${item.requiredLessons} ${item.id === 'present_simple' ? 'lecciones' : 'misiones'} necesarias`}
+                      : item.needsEvidence
+                        ? 'Falta práctica sin ayuda'
+                        : `${item.completedLessons} de ${item.requiredLessons} ${item.id === 'present_simple' ? 'lecciones' : 'misiones'} necesarias`}
                   </Text>
                 </JournalLeaf>
                 <Text style={s.previewCopy}>
@@ -464,9 +468,11 @@ export function ChallengesScreen({
                     ? 'Este paquete todavía no incluye preguntas para este tema.'
                     : item.unlocked
                       ? 'Practica a tu ritmo, sin conexión.'
-                      : item.id === 'present_simple'
-                        ? 'Completa las primeras dos unidades del curso A1–A2 para practicar.'
-                        : 'Completa las tres misiones de La primera postal para abrir estas pruebas.'}
+                      : item.needsEvidence
+                        ? 'Repasa las lecciones relacionadas y prueba responder sin pistas.'
+                        : item.id === 'present_simple'
+                          ? 'Completa las primeras dos unidades del curso A1–A2 para practicar.'
+                          : 'Completa las tres misiones de La primera postal para abrir estas pruebas.'}
                 </Text>
                 <Action
                   label={
@@ -475,7 +481,9 @@ export function ChallengesScreen({
                       : item.available
                         ? item.unlocked
                           ? 'Explorar práctica'
-                          : 'Completa las misiones primero'
+                          : item.needsEvidence
+                            ? 'Practica sin ayuda primero'
+                            : 'Completa las misiones primero'
                         : 'En preparación'
                   }
                   disabled={
@@ -539,9 +547,9 @@ export function ChallengesScreen({
           <JournalLeaf compact kind="notebook" style={s.notice}>
             <LockKeyhole color={C.teal} size={18} />
             <Text style={s.noticeText}>
-              Completa primero las{' '}
-              {Math.max(0, (track?.requiredLessons ?? 4) - (track?.completedLessons ?? 0))}{' '}
-              lecciones relacionadas para desbloquear estos retos sin conexión.
+              {track?.needsEvidence
+                ? 'Intenta responder sin ayuda en las lecciones relacionadas para abrir estos retos.'
+                : `Completa primero las ${Math.max(0, (track?.requiredLessons ?? 4) - (track?.completedLessons ?? 0))} lecciones relacionadas para abrir estos retos.`}
             </Text>
           </JournalLeaf>
         )}
@@ -604,9 +612,11 @@ export function ChallengesScreen({
                       {!item.unlocked
                         ? item.planned
                           ? 'En preparación'
-                          : track?.id === 'present_simple'
-                            ? 'Completa las lecciones'
-                            : 'Completa el capítulo'
+                          : item.needsEvidence
+                            ? 'Practica sin ayuda'
+                            : track?.id === 'present_simple'
+                              ? 'Completa las lecciones'
+                              : 'Completa el capítulo'
                         : item.level > 10
                           ? 'Reto avanzado'
                           : 'Listo para explorar'}
@@ -620,8 +630,8 @@ export function ChallengesScreen({
         <View style={s.softFooter}>
           <ShieldCheck size={19} color={C.teal} />
           <Text style={s.muted}>
-            Cada nivel se abre al completar sus lecciones. Los puntos de estos retos se guardan en
-            tu dispositivo y son independientes de tus XP de aprendizaje.
+            Completa las lecciones y demuestra lo aprendido con respuestas sin ayuda. Los puntos de
+            los retos se guardan en este dispositivo.
           </Text>
         </View>
       </View>

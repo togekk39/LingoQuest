@@ -1,8 +1,8 @@
 import { useTheme } from '../theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Text, View } from 'react-native';
-import type { AttemptResult, Progress } from '@lingoquest/contracts';
-import type { LessonCheckpoint } from '@lingoquest/offline-engine';
+import type { AttemptResult } from '@lingoquest/contracts';
+import type { LessonCheckpoint, StudyLearningStatus } from '@lingoquest/offline-engine';
 import { useOfflineSpeech } from './offlineSpeech';
 import { api } from '../lib/api';
 import { chapterForUnit } from '../lib/chapterPacks';
@@ -38,6 +38,7 @@ export default function LearningFlow({
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
   const [lesson, setLesson] = useState<IntegratedLesson | null>(null);
+  const [learning, setLearning] = useState<StudyLearningStatus>();
   const chapterId = lesson ? chapterForUnit(lesson.unitId) : undefined;
   const { playOffline, speechMessage, stop: stopAudio } = useOfflineSpeech(chapterId);
   const [error, setError] = useState('');
@@ -61,6 +62,7 @@ export default function LearningFlow({
   const [result, setResult] = useState<AttemptResult | null>(null);
   const writeCount = useRef(0);
   const checkpointPath = `/v1/lessons/${lessonId}/checkpoint`;
+  const learningPath = `/v1/lessons/${lessonId}/learning`;
   function display(next: LessonCheckpoint) {
     latest.current = next;
     setCheckpoint(next);
@@ -81,13 +83,15 @@ export default function LearningFlow({
     setLoading(true);
     setError('');
     try {
-      const [nextLesson, initial] = await Promise.all([
+      const [nextLesson, initial, nextLearning] = await Promise.all([
         api<IntegratedLesson>(`/v1/lessons/${lessonId}`),
         review
           ? null
           : api<{ saved: LessonCheckpoint; result?: AttemptResult } | null>(checkpointPath),
+        api<StudyLearningStatus>(learningPath),
       ]);
       setLesson(nextLesson);
+      setLearning(nextLearning);
       display(initial?.saved ?? fresh());
       setResult(initial?.result ?? null);
     } catch (e) {
@@ -104,6 +108,7 @@ export default function LearningFlow({
   }, [lessonId, stopAudio]);
   const {
     stage: stagePosition,
+    eventId,
     vocabulary: vocabularyPosition,
     exercise: exercisePosition,
     answer,
@@ -151,6 +156,8 @@ export default function LearningFlow({
       answer: {},
       hint: needsPractice,
       help: false,
+      retry: false,
+      referenceUsed: false,
       xp: current.xp + (result?.xpAwarded ?? 0),
       weak,
     };
@@ -187,9 +194,12 @@ export default function LearningFlow({
         exerciseId: exercise.id,
         answer: current.answer,
         hintUsed: current.hint,
-        ...(!review ? { checkpoint: current } : {}),
+        ...(review ? { learningSource: 'review' } : { checkpoint: current }),
       });
       setResult(response);
+      void api<StudyLearningStatus>(learningPath)
+        .then(setLearning)
+        .catch(() => {});
     } catch (e) {
       setError(
         e instanceof Error
@@ -204,6 +214,28 @@ export default function LearningFlow({
     if (exercisePosition + 1 < stageExercises.length)
       move({ exercise: exercisePosition + 1, hint: false });
     else advanceStage();
+  }
+  async function skipExercise() {
+    const current = latest.current;
+    setBusy(true);
+    setError('');
+    try {
+      const { saved } = await api<{ saved: LessonCheckpoint }>(
+        `/v1/lessons/${lessonId}/study-events`,
+        {
+          action: 'skip',
+          eventId: current.eventId,
+        },
+      );
+      display(saved);
+      nextExercise();
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'Puedes hacer el ejercicio y continuar con la lección.',
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   function nextVocabulary() {
     stopAudio();
@@ -220,17 +252,13 @@ export default function LearningFlow({
       const response = await api<{
         completed: boolean;
         xpAwarded: number;
-        progress: Progress;
+        learning: StudyLearningStatus;
         checkpoint?: LessonCheckpoint;
       }>(`/v1/lessons/${lessonId}/complete`, review ? {} : { checkpoint: next });
-      const targets = new Set([...lesson!.review.vocabularyIds, ...lesson!.review.skillIds]);
-      const reviews = response.progress.mastery
-        .filter((item) => targets.has(item.targetId ?? item.skillId))
-        .map((item) => item.nextReviewAt)
-        .sort();
+      setLearning(response.learning);
       save({
         ...(response.checkpoint ?? { ...next, xp: next.xp + response.xpAwarded }),
-        reviewAt: reviews[0] ?? null,
+        reviewAt: response.learning.nextReviewAt,
       });
     } catch (e) {
       setError(
@@ -271,7 +299,7 @@ export default function LearningFlow({
       footer = result ? (
         <View style={{ gap: 12 }}>
           {!result.correct && result.outcome !== 'ungradable' && (
-            <Action secondary onPress={() => move()}>
+            <Action secondary onPress={() => move({ retry: true })}>
               Intentar otra vez
             </Action>
           )}
@@ -390,12 +418,25 @@ export default function LearningFlow({
                 <Action
                   secondary
                   onPress={() => {
-                    save({ ...latest.current, help: !latest.current.help, hint: true });
+                    save({
+                      ...latest.current,
+                      help: !latest.current.help,
+                      hint: true,
+                      referenceUsed: true,
+                    });
                   }}
                 >
                   {helpOpen ? 'Ocultar la ayuda' : 'Volver a ver las palabras'}
                 </Action>
               )}
+              {!review &&
+                !result &&
+                !hasAnswer(answer, exercise) &&
+                learning?.skippableExerciseIds.includes(exercise.id) && (
+                  <Action secondary busy={busy} onPress={() => void skipExercise()}>
+                    Omitir ejercicio que ya dominas
+                  </Action>
+                )}
               {helpOpen && (
                 <JournalLeaf compact kind="postcard" style={f.card}>
                   <Text style={f.cardTitle}>Una ayuda para seguir</Text>
@@ -417,7 +458,10 @@ export default function LearningFlow({
               )}
             </View>
           ) : stage.type === 'goal' ? (
-            <GoalStage lesson={lesson} review={review} onListen={onListen} />
+            <>
+              <GoalStage lesson={lesson} review={review} onListen={onListen} />
+              {learning && <StudyAbilitySummary learning={learning} intro={isPlaza} />}
+            </>
           ) : stage.type === 'vocabulary' ? (
             <VocabularyCard
               key={lesson.vocabulary[vocabularyPosition].id}
@@ -438,6 +482,12 @@ export default function LearningFlow({
                 text={lesson.speakingText}
                 chapterId={chapterId}
                 allowSystemRecognition
+                evidenceScope={{
+                  source: 'study',
+                  materialId: lesson.id,
+                  itemId: `${lesson.id}:speaking`,
+                  submissionId: eventId,
+                }}
                 onDone={() => {
                   if (!busy) void complete();
                 }}
@@ -445,16 +495,63 @@ export default function LearningFlow({
               {busy && <ActivityIndicator color={palette.teal} />}
             </>
           ) : stage.type === 'recap' ? (
-            <RecapStage
-              lesson={lesson}
-              xp={xp}
-              nextReviewAt={nextReviewAt}
-              weakExerciseIds={weakExerciseIds}
-            />
+            <>
+              <RecapStage
+                lesson={lesson}
+                xp={xp}
+                nextReviewAt={nextReviewAt}
+                weakExerciseIds={weakExerciseIds}
+              />
+              {learning && <StudyAbilitySummary learning={learning} intro={isPlaza} />}
+            </>
           ) : null}
         </View>
       )}
     </FlowFrame>
+  );
+}
+
+const abilityLabel = {
+  listening: 'Escucha',
+  speaking: 'Habla',
+  reading: 'Lectura',
+  writing: 'Escritura',
+};
+const abilityStatus = {
+  unverified: 'Por comprobar',
+  practicing: 'En práctica',
+  verified: 'Con objetivos demostrados',
+  needs_review: 'Por repasar',
+};
+
+function StudyAbilitySummary({
+  learning,
+  intro,
+}: {
+  learning: StudyLearningStatus;
+  intro: boolean;
+}) {
+  const f = useFeatureStyles();
+  const recommendReview = learning.abilities.some(({ status }) => status === 'needs_review');
+  const recommendListening =
+    intro &&
+    learning.abilities.some(
+      ({ dimension, status }) => dimension === 'listening' && status === 'unverified',
+    );
+  return (
+    <JournalLeaf compact kind="notebook" testID="study-learning-status" style={f.card}>
+      <Text style={f.cardTitle}>Lo que has practicado en esta lección</Text>
+      {learning.abilities.map(({ dimension, status }) => (
+        <Text key={dimension} testID={`study-status-${dimension}`} style={f.body}>
+          {abilityLabel[dimension]} · {abilityStatus[status]}
+        </Text>
+      ))}
+      {recommendReview ? (
+        <Text style={f.quiet}>Vuelve a estos objetivos desde Repasar.</Text>
+      ) : recommendListening ? (
+        <Text style={f.quiet}>Puedes practicar la escucha de saludos en La primera postal.</Text>
+      ) : null}
+    </JournalLeaf>
   );
 }
 export { LearningFlow };

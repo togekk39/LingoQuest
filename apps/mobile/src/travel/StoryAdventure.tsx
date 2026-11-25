@@ -202,6 +202,7 @@ export function StoryAdventure({
   const [journal, setJournal] = useState<JournalPanel>(null);
   const [translationsVisible, setTranslationsVisible] = useState(true);
   const translationTouched = useRef(false);
+  const translatedDialogueTurn = useRef<number | undefined>(undefined);
   const translationWrites = useRef(Promise.resolve());
   const knownItems = useRef(new Set(inventory.map(({ id }) => id)));
   const [newItem, setNewItem] = useState('');
@@ -242,6 +243,10 @@ export function StoryAdventure({
   useEffect(() => {
     if (dialogueAudio) void play(dialogueAudio, true);
   }, [dialogueAudio, play]);
+
+  useEffect(() => {
+    if (dialogueAudio && translationsVisible) translatedDialogueTurn.current = turn;
+  }, [dialogueAudio, translationsVisible, turn]);
 
   useEffect(() => {
     let mounted = true;
@@ -300,7 +305,19 @@ export function StoryAdventure({
 
   const act = (operation: StoryOperation, afterAction?: () => Promise<void>) =>
     void perform(async () => {
-      await onAction(operation);
+      const observesDialogue =
+        dialogue &&
+        (operation.action === 'interact' ||
+          operation.action === 'choose' ||
+          operation.action === 'closeDialogue');
+      await onAction(
+        observesDialogue
+          ? {
+              ...operation,
+              translationShown: translationsVisible || translatedDialogueTurn.current === turn,
+            }
+          : operation,
+      );
       setJournal(null);
       await afterAction?.();
     });

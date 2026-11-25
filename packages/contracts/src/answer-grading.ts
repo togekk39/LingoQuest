@@ -209,7 +209,7 @@ export function judgeAnswer(
   if (exercise.ungradable) return 'ungradable';
   if (exercise.introduction) {
     if (answer.text === undefined) return 'incorrect';
-    const response = readIntroduction(answer.text);
+    const response = readIntroduction(answer.text, false, playerName);
     if (playerName && response.name && !matchesIntroductionName(response.name, playerName))
       return 'incorrect';
     if (meetsIntroduction(response, exercise.introduction.greetingRequired)) return 'target';

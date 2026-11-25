@@ -180,6 +180,7 @@ export function TravelFlow({
   const mission: TravelMission = chapter.missions.find((m) => m.id === current.missionId)!;
   const step = mission.steps[current.step];
   const inline = !!embedded;
+  const travelPath = inline ? '/v1/travel?source=story' : '/v1/travel';
   const briefing = inline && step.type === 'teach' && step.presentation === 'reply-briefing';
   const requiredReply = step.type === 'exercise' && step.response === 'personal-introduction';
   const storyPrompt = inline ? travelStoryPrompt(mission, current) : undefined;
@@ -216,6 +217,19 @@ export function TravelFlow({
   const wordIndex = current.word ?? 0;
   const word =
     !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
+  const translationKey = `${current.token}:${wordIndex}`;
+  const lastTranslation = useRef('');
+  const markTranslationShown = () => {
+    lastTranslation.current = translationKey;
+  };
+  const translationShown = () =>
+    lastTranslation.current === translationKey ||
+    (embedded?.translationsVisible ?? (step.type === 'dialogue' || !!word));
+  function toggleTeachingTranslation() {
+    if (!embedded) return;
+    if (!embedded.translationsVisible) markTranslationShown();
+    embedded.onToggleTranslation();
+  }
   const speakingText =
     step.type === 'speak'
       ? personalResponse && playerName
@@ -244,6 +258,10 @@ export function TravelFlow({
     if (text) void play(text, inline);
   }, [inline, line, play, word]);
   useEffect(() => {
+    if (embedded?.translationsVisible && (step.type === 'teach' || step.type === 'dialogue'))
+      lastTranslation.current = translationKey;
+  }, [embedded?.translationsVisible, step.type, translationKey]);
+  useEffect(() => {
     if (!inline) return;
     const target = hasFeedback ? feedbackView : activity;
     const frame = requestAnimationFrame(() => {
@@ -264,7 +282,7 @@ export function TravelFlow({
     const token = current.token;
     writes.current = writes.current
       .then(() =>
-        api<TravelState>('/v1/travel', {
+        api<TravelState>(travelPath, {
           action: 'draft',
           token,
           answer: next,
@@ -296,7 +314,7 @@ export function TravelFlow({
     setError('');
     try {
       if (!(await flushDraft())) return false;
-      const travel = await api<TravelState>('/v1/travel', operation);
+      const travel = await api<TravelState>(travelPath, operation);
       onUpdate(travel);
       if (travel.active) {
         if (travel.active.token !== current.token || travel.active.word !== current.word) stop();
@@ -338,7 +356,18 @@ export function TravelFlow({
       return;
     exit();
   }
-  const advance = () => void act({ action: 'advance', token: current.token });
+  const advance = () =>
+    void act({
+      action: 'advance',
+      token: current.token,
+      translationShown: translationShown(),
+    });
+  function listenExercise(audio: string) {
+    void play(audio, true, () => {
+      if (!current.audioPlayed && !current.result)
+        void act({ action: 'listened', token: current.token });
+    });
+  }
   const review = onReview ? () => void close(() => onReview(mission.id)) : undefined;
   const lastStep = current.step === mission.steps.length - 1;
   const canSubmit = step.type === 'exercise' && hasAnswer(answer, step.exercise);
@@ -391,7 +420,14 @@ export function TravelFlow({
       journal
       busy={busy}
       style={inline && s.storyAction}
-      onPress={() => void act({ action: 'word', token: current.token, position: wordIndex + 1 })}
+      onPress={() =>
+        void act({
+          action: 'word',
+          token: current.token,
+          position: wordIndex + 1,
+          translationShown: translationShown(),
+        })
+      }
     >
       {wordIndex + 1 < mission.vocabulary.length ? 'Siguiente palabra' : 'Ver la explicación'}
     </Action>
@@ -518,7 +554,7 @@ export function TravelFlow({
                 <StoryPhrase
                   line={step.line}
                   showTranslation={embedded.translationsVisible}
-                  onToggleTranslation={embedded.onToggleTranslation}
+                  onToggleTranslation={toggleTeachingTranslation}
                   onListen={() => void play(step.line!.en, true)}
                   disabled={busy}
                   testID="travel-reference-phrase"
@@ -541,7 +577,7 @@ export function TravelFlow({
             <StoryPhrase
               line={word.example}
               showTranslation={embedded.translationsVisible}
-              onToggleTranslation={embedded.onToggleTranslation}
+              onToggleTranslation={toggleTeachingTranslation}
               onListen={() => void play(word.example.en, true)}
               disabled={busy}
               testID="travel-reference-phrase"
@@ -570,6 +606,7 @@ export function TravelFlow({
             playSequence={playSequence}
             stop={stop}
             embedded={embedded}
+            onTranslationShown={markTranslationShown}
           />
         ) : step.type === 'exercise' ? (
           <>
@@ -605,7 +642,7 @@ export function TravelFlow({
                     <Button
                       variant="secondary"
                       icon={Volume2}
-                      onPress={() => void play(step.audio!, true)}
+                      onPress={() => listenExercise(step.audio!)}
                     >
                       {step.listeningButton ?? 'Escuchar a Sam'}
                     </Button>
@@ -661,6 +698,11 @@ export function TravelFlow({
               inline={inline}
               text={speakingText}
               chapterId="home"
+              evidenceScope={{
+                source: inline ? 'story' : 'study',
+                materialId: mission.id,
+                itemId: step.id,
+              }}
               displayText={speakingTemplate ? `${speakingText} [tu nombre].` : undefined}
               onDone={(practice) => {
                 if (practice) void act({ action: 'speak', token: current.token, practice });
@@ -718,7 +760,8 @@ export function TravelFlow({
       onClose={() => void close()}
       journal={{
         onListen: referenceAudio
-          ? () => void play(referenceAudio, step.type === 'exercise')
+          ? () =>
+              step.type === 'exercise' ? listenExercise(referenceAudio) : void play(referenceAudio)
           : undefined,
       }}
       onVoiceSettings={

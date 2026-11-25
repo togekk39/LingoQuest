@@ -5,6 +5,7 @@ import type { ChapterPack } from '@lingoquest/course-pack';
 import { ErrorCard, FlowFrame, useFeatureStyles } from '../features/FeatureUI';
 import { getSpeechPreferences } from '../features/offlineSpeech';
 import { JournalLeaf, JournalPostcardFrame } from '../Journal';
+import { api, newId } from '../lib/api';
 import { getInstalledChapter } from '../lib/chapterPacks';
 import { chapterMediaUri } from '../lib/chapterStorage';
 import { useTheme } from '../theme';
@@ -14,6 +15,10 @@ import { chapterReaderSections } from './chapterReaderSections';
 
 type SpokenPhrase = { en: string; es: string; speaker?: string };
 type PlayPhrase = (phrase: string) => void;
+type CardActivity =
+  | { stage: 'grammar' | 'practice' }
+  | { stage: 'vocabulary'; word: string }
+  | { stage: 'question'; selected: number; transcript: boolean; heard: boolean; retry: boolean };
 const sectionLayout = { gap: 14 };
 
 export function ChapterPackView({
@@ -30,7 +35,7 @@ export function ChapterPackView({
   const { colors } = useTheme();
   const player = useClipPlayer();
   const playback = useRef<AbortController | null>(null);
-  const [content, setContent] = useState<{ pack: ChapterPack; cover: string }>();
+  const [content, setContent] = useState<{ pack: ChapterPack; cover?: string }>();
   const [failure, setFailure] = useState('');
   const [audioError, setAudioError] = useState('');
   const [playing, setPlaying] = useState<string>();
@@ -49,7 +54,9 @@ export function ChapterPackView({
         const pack = await getInstalledChapter(chapterId);
         if (!pack) throw new Error('Descarga el capítulo para abrirlo sin conexión.');
         const image = pack.images.cover;
-        const cover = await chapterMediaUri(chapterId, image.mimeType, image.dataBase64);
+        const cover = await chapterMediaUri(chapterId, image.mimeType, image.dataBase64).catch(
+          () => undefined,
+        );
         if (current) setContent({ pack, cover });
       } catch (error) {
         if (current) {
@@ -71,13 +78,13 @@ export function ChapterPackView({
     setAudioError('');
     if (playing === phrase) {
       setPlaying(undefined);
-      return;
+      return false;
     }
     const clip = content?.pack.audio[phrase];
     if (!clip) {
       setPlaying(undefined);
       setAudioError('No encontramos el audio de esta frase en el capítulo.');
-      return;
+      return false;
     }
     const controller = new AbortController();
     const { signal } = controller;
@@ -88,9 +95,10 @@ export function ChapterPackView({
         chapterMediaUri(chapterId, clip.mimeType, clip.dataBase64),
         getSpeechPreferences(),
       ]);
-      if (!signal.aborted) await player.play(uri, preferences.rate ?? 1, signal);
+      return !signal.aborted && (await player.play(uri, preferences.rate ?? 1, signal));
     } catch {
       if (!signal.aborted) setAudioError('No pudimos reproducir la frase. Inténtalo de nuevo.');
+      return false;
     } finally {
       if (playback.current === controller) {
         playback.current = null;
@@ -102,6 +110,28 @@ export function ChapterPackView({
   const pack = content?.pack;
   const lessons = pack ? [pack.lesson, ...pack.additionalLessons] : [];
   const lesson = lessons[lessonIndex] ?? pack?.lesson;
+  useEffect(() => {
+    if (!pack) return;
+    void api('/v1/learning/chapter-card', {
+      id: `${chapterId}-${pack.revision}-card-${lessonIndex + 1}-grammar`,
+      chapterId,
+      revision: pack.revision,
+      cardNumber: lessonIndex + 1,
+      stage: 'grammar',
+    }).catch(() => {});
+  }, [chapterId, lessonIndex, pack]);
+
+  async function recordActivity(activity: CardActivity, id: string = newId()) {
+    if (!pack) return;
+    await api('/v1/learning/chapter-card', {
+      ...activity,
+      id,
+      chapterId,
+      revision: pack.revision,
+      cardNumber: lessonIndex + 1,
+    });
+  }
+
   const renderLine = (line: SpokenPhrase, index: number) => (
     <ChapterPhrase
       key={`${index}-${line.en}`}
@@ -121,19 +151,33 @@ export function ChapterPackView({
   function renderSections(card: ChapterPack['lesson']) {
     const sections = {
       dialogue: card.dialogue.map(renderLine),
-      vocabulary: card.vocabulary.map(renderLine),
+      vocabulary: card.vocabulary.map((line) => (
+        <ChapterPhrase
+          key={line.en}
+          phrase={line}
+          playing={playing === line.en}
+          onPlay={(word) => {
+            void play(word);
+            void recordActivity({ stage: 'vocabulary', word }).catch(() => {});
+          }}
+        />
+      )),
       grammar: <Label>{card.grammarEs}</Label>,
       question: (
         <ChapterQuestion
           question={card.question}
           listeningPlaying={playing === card.question.listening?.en}
-          onPlay={(phrase) => void play(phrase)}
+          onPlay={play}
+          onSubmit={(answer, id) => recordActivity({ stage: 'question', ...answer }, id)}
         />
       ),
       practice: (
         <>
           <Label>{card.practiceEs}</Label>
-          <ChapterPracticeModel model={renderLine(card.model, 0)} />
+          <ChapterPracticeModel
+            model={renderLine(card.model, 0)}
+            onReveal={() => void recordActivity({ stage: 'practice' }).catch(() => {})}
+          />
         </>
       ),
     };
@@ -166,17 +210,19 @@ export function ChapterPackView({
         <ActivityIndicator color={colors.teal} accessibilityLabel="Abriendo capítulo" />
       ) : (
         <View testID={`chapter-lesson-${chapterId}`} style={sectionLayout}>
-          <JournalPostcardFrame taped>
-            <Image
-              testID={`chapter-cover-${chapterId}`}
-              accessible
-              accessibilityLabel={`Ilustración de ${lesson.title}`}
-              accessibilityRole="image"
-              resizeMode="cover"
-              source={{ uri: content.cover }}
-              style={{ width: '100%', aspectRatio: 2.35, borderRadius: 10 }}
-            />
-          </JournalPostcardFrame>
+          {content.cover && (
+            <JournalPostcardFrame taped>
+              <Image
+                testID={`chapter-cover-${chapterId}`}
+                accessible
+                accessibilityLabel={`Ilustración de ${lesson.title}`}
+                accessibilityRole="image"
+                resizeMode="cover"
+                source={{ uri: content.cover }}
+                style={{ width: '100%', aspectRatio: 2.35, borderRadius: 10 }}
+              />
+            </JournalPostcardFrame>
+          )}
           {lessons.length > 1 && (
             <JournalLeaf kind="notebook" style={sectionLayout}>
               <Heading style={{ fontSize: 23 }}>Lecciones del capítulo</Heading>
@@ -257,11 +303,23 @@ function ChapterPhrase({
   );
 }
 
-function ChapterPracticeModel({ model }: { model: React.ReactNode }) {
+function ChapterPracticeModel({
+  model,
+  onReveal,
+}: {
+  model: React.ReactNode;
+  onReveal: () => void;
+}) {
   const [showModel, setShowModel] = useState(false);
   return (
     <>
-      <Button variant="ghost" onPress={() => setShowModel((visible) => !visible)}>
+      <Button
+        variant="ghost"
+        onPress={() => {
+          if (!showModel) onReveal();
+          setShowModel(!showModel);
+        }}
+      >
         {showModel ? 'Ocultar el modelo' : 'Ver un modelo'}
       </Button>
       {showModel && model}
@@ -273,18 +331,49 @@ function ChapterQuestion({
   question,
   listeningPlaying,
   onPlay,
+  onSubmit,
 }: {
   question: ChapterPack['lesson']['question'];
   listeningPlaying: boolean;
-  onPlay: PlayPhrase;
+  onPlay: (phrase: string) => Promise<boolean>;
+  onSubmit: (
+    answer: { selected: number; transcript: boolean; heard: boolean; retry: boolean },
+    id: string,
+  ) => Promise<void>;
 }) {
   const { colors } = useTheme();
   const f = useFeatureStyles();
   const [selected, setSelected] = useState<number>();
   const [submitted, setSubmitted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const attempt = useRef(newId());
+  const pending = useRef(false);
+  const transcript = useRef(false);
+  const heard = useRef(false);
+  const tried = useRef(false);
   const correct = selected === question.answerIndex;
   const listening = question.listening;
+  async function submit() {
+    if (selected === undefined || pending.current || submitted) return;
+    pending.current = true;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSubmit(
+        { selected, transcript: transcript.current, heard: heard.current, retry: tried.current },
+        attempt.current,
+      );
+      tried.current = true;
+      setSubmitted(true);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'No pudimos guardar tu respuesta.');
+    } finally {
+      pending.current = false;
+      setSaving(false);
+    }
+  }
   return (
     <>
       <Label>{question.promptEs}</Label>
@@ -293,11 +382,21 @@ function ChapterQuestion({
           <Button
             icon={listeningPlaying ? Square : Volume2}
             variant="secondary"
-            onPress={() => onPlay(listening.en)}
+            onPress={() =>
+              void onPlay(listening.en).then((played) => {
+                if (played) heard.current = true;
+              })
+            }
           >
             {listeningPlaying ? 'Detener el mensaje' : 'Escuchar el mensaje'}
           </Button>
-          <Button variant="ghost" onPress={() => setShowTranscript((visible) => !visible)}>
+          <Button
+            variant="ghost"
+            onPress={() => {
+              if (!showTranscript) transcript.current = true;
+              setShowTranscript(!showTranscript);
+            }}
+          >
             {showTranscript ? 'Ocultar la transcripción' : 'Ver la transcripción'}
           </Button>
           {showTranscript && (
@@ -316,7 +415,9 @@ function ChapterQuestion({
             key={option}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected === index }}
+            disabled={saving}
             onPress={() => {
+              if (index !== selected) attempt.current = newId();
               setSelected(index);
               setSubmitted(false);
             }}
@@ -337,11 +438,16 @@ function ChapterQuestion({
       </View>
       <Button
         variant="secondary"
-        disabled={selected === undefined}
-        onPress={() => setSubmitted(true)}
+        disabled={selected === undefined || saving || submitted}
+        onPress={() => void submit()}
       >
         Comprobar respuesta
       </Button>
+      {saveError && (
+        <Text accessibilityRole="alert" style={{ color: colors.red }}>
+          {saveError}
+        </Text>
+      )}
       {submitted && (
         <Text
           accessibilityLiveRegion="polite"

@@ -24,7 +24,7 @@ export function matchesSpeechTarget(
 }
 
 export function matchesPersonalIntroduction(transcript: string, playerName?: string) {
-  const response = readIntroduction(transcript, true);
+  const response = readIntroduction(transcript, true, playerName);
   return (
     meetsIntroduction(response, true) &&
     (!playerName || (!!response.name && matchesIntroductionName(response.name, playerName, true)))
@@ -38,7 +38,7 @@ export function introductionFeedback(transcript: string, playerName?: string) {
     startsTarget,
     error,
     name,
-  } = readIntroduction(transcript, true);
+  } = readIntroduction(transcript, true, playerName);
   const hasName = !!form;
 
   return {

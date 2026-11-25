@@ -5,6 +5,7 @@ import { OfflineEngine, OFFLINE_STATE_KEY, LocalError } from '@lingoquest/offlin
 import type { Progress, User } from '@lingoquest/contracts';
 import { getRaw, putRaw } from './storage';
 import { getActiveCourseData } from './coursePacks';
+import { getInstalledChapter } from './chapterPacks';
 export type { Progress, User };
 export type LessonSummary = {
   id: string;
@@ -30,6 +31,7 @@ export const newId = () =>
 const engine = new OfflineEngine({
   store: { getItem: getRaw, setItem: putRaw },
   getContent: getActiveCourseData,
+  getChapterCards: getInstalledChapter,
   randomId: newId,
   lock:
     Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.locks

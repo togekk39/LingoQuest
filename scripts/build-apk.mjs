@@ -135,8 +135,25 @@ if (
 )
   throw new Error('APK embeds chapter art or audio. These files belong in chapter packs.');
 const bundle = await run('unzip', ['-p', apk, 'assets/index.android.bundle'], repo, true);
-for (const marker of ['travel_quick_hello', 'home_challenge_readbag', 'u08_l04']) {
-  if (bundle.includes(Buffer.from(marker)))
+const chapterPacks = join(mobile, 'public/chapter-packs');
+const catalog = JSON.parse(await readFile(join(chapterPacks, 'catalog-v2.json'), 'utf8'));
+const home = JSON.parse(
+  await readFile(join(chapterPacks, String(catalog.chapters.home.revision), 'home.json'), 'utf8'),
+).story.runtime;
+const textbook = JSON.parse(
+  await readFile(join(mobile, 'src/content/bundled-course.json'), 'utf8'),
+);
+// Canonical IDs are available in the shell. Probe authored question bodies for embedded material.
+// Los identificadores canónicos están en la app base. Busca textos de preguntas para detectar material incluido.
+const payloadMarkers = [
+  home.lesson.exercises.find(({ id }) => id === 'travel_quick_hello')?.promptEs,
+  home.challenges.reading_quest.find(({ id }) => id === 'home_challenge_readbag')?.passage,
+  textbook.payload.lessons.u08_l04.exercises.find(({ id }) => id === 'u08_l04_practice_5')?.passage,
+];
+for (const marker of payloadMarkers) {
+  if (typeof marker !== 'string' || marker.length < 20)
+    throw new Error('The authored payload marker changed. Select a replacement from the pack.');
+  if (bundle.includes(Buffer.from(marker)) || bundle.includes(Buffer.from(marker, 'utf16le')))
     throw new Error(
       'APK embeds course data. Course content must load from installed chapter packs.',
     );

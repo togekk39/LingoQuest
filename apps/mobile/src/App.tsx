@@ -150,7 +150,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     const [p, journey, review] = await Promise.all([
       api<Progress>('/v1/me/progress'),
       api<TravelState>('/v1/travel'),
-      api<{ total: number }>('/v1/reviews/today?source=travel'),
+      api<{ total: number }>('/v1/reviews/today?source=unified'),
     ]);
     setProgress({ ...p, reviewCount: review.total });
     setTravel(journey);
@@ -283,7 +283,12 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   async function preparePlayerName(journey: TravelState, afterSave: () => Promise<void>) {
     const user = progress?.user;
     const skipped = user && (await localSettings.get('skipPlayerNameFor', '')) === user.id;
-    if (playerIntroductionName(user?.name) || journey.introductionName || skipped)
+    if (
+      journey.practiceName ||
+      playerIntroductionName(user?.name) ||
+      journey.introductionName ||
+      skipped
+    )
       await afterSave();
     else setNamePicker({ afterSave });
   }
@@ -474,7 +479,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       )}
     </Sheet>
   );
-  const playerName = playerIntroductionName(progress?.user.name) ?? travel.introductionName;
+  const playerName =
+    travel.practiceName ?? playerIntroductionName(progress?.user.name) ?? travel.introductionName;
   const editPlayerName = () => setNamePicker({});
   const nameSheet = namePicker && (
     <PlayerNameSheet
@@ -484,8 +490,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       onClose={() => setNamePicker(null)}
       onSave={async (name) => {
         if (name) {
-          const { user } = await api<{ user: Progress['user'] }>('/v1/me/settings', { name });
-          setProgress((previous) => previous && { ...previous, user });
+          await updateTravel({ action: 'practiceName', name });
         } else if (namePicker.afterSave && progress?.user.id) {
           await localSettings.set('skipPlayerNameFor', progress.user.id);
         }
@@ -1014,7 +1019,7 @@ function PlayerNameSheet({
       >
         ¿Cómo te llamas?
       </Text>
-      <Label>Usaremos este nombre para que puedas presentarte en el viaje.</Label>
+      <Label>Puedes usar tu nombre o elegir uno de práctica para el viaje.</Label>
       <PaperInput
         accessibilityLabel="Tu nombre"
         placeholder="Escribe tu nombre"

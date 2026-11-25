@@ -40,6 +40,27 @@ test('travel trials expose chapter questions and keep unreleased ranks unavailab
     const date = new Date().toISOString();
     s.travel.completed = { hello: date, bus: date, bag: date };
     s.travel.stamps.home = date;
+    for (const [exerciseId, targetId, contextId] of [
+      ['travel_hello_write', 'home.introduce', 'welcome-desk'],
+      ['travel_bus_ask', 'home.ask-location', 'plaza'],
+      ['travel_bag_write', 'home.statement-be', 'lost-and-found'],
+    ])
+      s.unifiedLearning.evidence.push({
+        id: `verified-${exerciseId}`,
+        source: 'story',
+        materialId: 'travel_home',
+        materialVersion: 'home:7',
+        exerciseId,
+        timestamp: Date.parse(date),
+        contextId,
+        format: 'short_text',
+        activity: 'answer',
+        outcome: 'target',
+        aids: [],
+        retry: false,
+        independent: true,
+        targets: [{ targetId, dimension: 'writing' }],
+      });
     localStorage.setItem(key, JSON.stringify(s));
   });
   const before = learningProgress(await state(page));

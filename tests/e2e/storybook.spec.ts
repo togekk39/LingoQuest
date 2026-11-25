@@ -850,6 +850,9 @@ test('a Study reorder draft survives opening the new Sam dialogue and naming the
   await page.getByRole('textbox', exact('Tu nombre')).fill('Mai-Linh Nguyễn');
   await click(page, 'Guardar nombre');
   await expect(page.getByRole('button', exact('Quitar palabra: Mai-Linh Nguyễn'))).toBeVisible();
+  const named = await state(page);
+  expect(named.user.name).toBe('Explorador');
+  expect(named.travel.practiceName).toBe('Mai-Linh Nguyễn');
   await capture(page, 'storybook-name-tile');
   expect((await state(page)).travel.active).toEqual(before);
   await click(page, 'Comprobar respuesta');

@@ -20,7 +20,10 @@ const emptyCourse: CourseData = {
   speechDrills: [],
 };
 
-const installedUnits = new Map<string, NonNullable<ChapterPack['unit']>>();
+const installedUnits = new Map<
+  string,
+  { unit: NonNullable<ChapterPack['unit']>; revision: number }
+>();
 let originalCourse: CourseData = emptyCourse;
 let keepImportedActivities = false;
 let homeActivities: Omit<CourseData, 'units' | 'lessons'> = emptyCourse;
@@ -36,9 +39,11 @@ export function getActiveCourseData() {
 function refreshCourse() {
   const units = new Map(originalCourse.units.map((unit) => [unit.id, unit]));
   const lessons = { ...originalCourse.lessons };
+  const lessonVersions = { ...originalCourse.lessonVersions };
   for (const destination of route) {
-    const unit = installedUnits.get(destination.id);
-    if (!unit) continue;
+    const installed = installedUnits.get(destination.id);
+    if (!installed) continue;
+    const { unit, revision } = installed;
     const original = units.get(unit.id);
     units.set(unit.id, {
       id: unit.id,
@@ -54,10 +59,18 @@ function refreshCourse() {
         seq: index + 1,
       })),
     });
-    for (const lesson of unit.lessons) lessons[lesson.id] = lesson;
+    for (const lesson of unit.lessons) {
+      lessons[lesson.id] = lesson;
+      lessonVersions[lesson.id] = `${destination.id}:${revision}`;
+    }
   }
   const activities = homeReady && !keepImportedActivities ? homeActivities : originalCourse;
-  activeCourse = { ...activities, units: [...units.values()], lessons };
+  activeCourse = {
+    ...activities,
+    units: [...units.values()],
+    lessons,
+    lessonVersions,
+  };
 }
 
 async function activate(pack: ChapterPack) {
@@ -73,12 +86,12 @@ async function activate(pack: ChapterPack) {
       placement,
       challenges,
     } as unknown as HomeContent;
-    await applyHomeImages(pack.chapterId, pack.images);
+    await applyHomeImages(pack.chapterId, pack.images).catch(() => {});
     installHomeContent(home);
-    homeActivities = course;
+    homeActivities = { ...course, courseVersion: `${pack.chapterId}:${pack.revision}` };
     homeReady = true;
   }
-  if (unit) installedUnits.set(pack.chapterId, unit);
+  if (unit) installedUnits.set(pack.chapterId, { unit, revision: pack.revision });
   refreshCourse();
   activated.set(pack.chapterId, pack.revision);
   return homeReady;
@@ -94,7 +107,9 @@ export async function restoreDownloadedContent() {
   try {
     const saved = await getRaw('lq_installed_course_pack_v1');
     const imported = saved ? parseCoursePack(saved) : null;
-    originalCourse = imported?.payload ?? emptyCourse;
+    originalCourse = imported
+      ? { ...imported.payload, courseVersion: imported.manifest.version }
+      : emptyCourse;
     keepImportedActivities = !!imported && !isPreviousBuiltInCourse(imported.manifest.sha256);
   } catch {
     originalCourse = emptyCourse;

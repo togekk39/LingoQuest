@@ -231,12 +231,14 @@ export function TravelPronunciation({
 }) {
   const { colors: C } = useTheme();
   const drills = chapter.missions.flatMap((mission) =>
-    Array.from(new Set(mission.vocabulary.map((word) => word.example.en))).map((text) => ({
-      mission,
-      text,
-    })),
+    mission.vocabulary
+      .filter(
+        (word, index, words) =>
+          words.findIndex((item) => item.example.en === word.example.en) === index,
+      )
+      .map((word) => ({ mission, itemId: word.term, text: word.example.en })),
   );
-  const [selected, select] = useState<string>();
+  const [selected, select] = useState<(typeof drills)[number]>();
   const { play, stop, speechMessage } = useChapterAudio();
   const configureVoice = () => {
     stop();
@@ -248,15 +250,25 @@ export function TravelPronunciation({
   };
   if (selected)
     return (
-      <FlowFrame journal={{}} title={selected} eyebrow="Práctica de pronunciación" onClose={leave}>
+      <FlowFrame
+        journal={{}}
+        title={selected.text}
+        eyebrow="Práctica de pronunciación"
+        onClose={leave}
+      >
         <SpeakingPanel
-          key={selected}
-          text={selected}
+          key={`${selected.mission.id}:${selected.itemId}`}
+          text={selected.text}
           chapterId="home"
           onDone={leave}
           onStopReference={stop}
-          onPlay={() => void play(selected)}
-          feedback={(transcript) => drillFeedback(transcript, selected)}
+          onPlay={() => void play(selected.text)}
+          feedback={(transcript) => drillFeedback(transcript, selected.text)}
+          evidenceScope={{
+            source: 'travel-guide',
+            materialId: selected.mission.id,
+            itemId: selected.itemId,
+          }}
           allowSystemRecognition
         />
         {!!speechMessage && <Label>{speechMessage}</Label>}
@@ -275,30 +287,30 @@ export function TravelPronunciation({
         title="Escucha y repite"
         detail="Elige una frase y practica con tu voz."
       />
-      {drills.map(({ mission, text }) => (
-        <JournalLeaf style={{ gap: 8 }} key={text}>
+      {drills.map((drill) => (
+        <JournalLeaf style={{ gap: 8 }} key={`${drill.mission.id}:${drill.itemId}`}>
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
             <MapPin size={15} color={C.accent} />
-            <Label>{mission.place}</Label>
+            <Label>{drill.mission.place}</Label>
           </View>
           <Text accessibilityLanguage="en-US" style={[styles.drill, { color: C.ink }]}>
-            {text}
+            {drill.text}
           </Text>
           <View style={{ gap: 8, flexDirection: 'row', flexWrap: 'wrap' }}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Escuchar: ${text}`}
-              onPress={() => void play(text)}
+              accessibilityLabel={`Escuchar: ${drill.text}`}
+              onPress={() => void play(drill.text)}
               style={[styles.tab, { backgroundColor: C.mint, borderColor: C.line }]}
             >
               <Volume2 color={C.teal} size={20} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Practicar: ${text}`}
+              accessibilityLabel={`Practicar: ${drill.text}`}
               onPress={() => {
                 stop();
-                select(text);
+                select(drill);
               }}
               style={[styles.tab, { backgroundColor: C.primary, borderColor: C.primary }]}
             >

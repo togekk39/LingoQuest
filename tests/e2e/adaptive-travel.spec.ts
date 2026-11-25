@@ -138,6 +138,8 @@ test('an offline delayed review asks for independent use of a practiced concept 
   await click(page, 'Continuar');
   await click(page, 'Continuar');
   await finishVocabulary(page);
+  await click(page, 'Escuchar el saludo de Sam');
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
   await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
   await click(page, 'Cerrar y volver');
 

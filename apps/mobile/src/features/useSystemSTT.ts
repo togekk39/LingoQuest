@@ -4,14 +4,25 @@ import { File, Paths } from 'expo-file-system';
 import { systemRecognitionOptions } from './recognitionService';
 import { speechRecognition as recognition } from './speechRecognitionModule';
 import { stopOfflineSpeech } from './offlineSpeech';
+import { newId } from '../lib/api';
 
 type Attempt = {
+  id: string;
+  retry: boolean;
   started: boolean;
   finals: string[];
   failed: boolean;
   audioFile?: File;
   audioEnded?: boolean;
   timeout?: ReturnType<typeof setTimeout>;
+};
+
+type CompletedRecognition = {
+  id: string;
+  retry: boolean;
+  transcript: string;
+  recording: boolean;
+  timestamp: number;
 };
 
 let recordingNumber = 0;
@@ -81,9 +92,11 @@ export function useSystemSTT() {
   const [liveTranscript, setLiveTranscript] = useState('');
   const [finalTranscript, setFinalTranscript] = useState('');
   const [recordingUri, setRecordingUri] = useState<string>();
+  const [completed, setCompleted] = useState<CompletedRecognition>();
   const [message, setMessage] = useState('');
   const attempt = useRef<Attempt | null>(null);
   const savedRecording = useRef<File | undefined>(undefined);
+  const hasAttempted = useRef(false);
 
   useEffect(() => {
     if (!recognition) return;
@@ -127,12 +140,21 @@ export function useSystemSTT() {
         setLiveTranscript('');
         setFinalTranscript(final);
         if (!final && !current.failed) setMessage(recognitionError('no-speech'));
-        if (current.audioEnded && current.audioFile && current.audioFile.size > 44) {
-          savedRecording.current = current.audioFile;
-          setRecordingUri(current.audioFile.uri);
-        } else {
-          discardRecording(current.audioFile);
-        }
+        const recording =
+          current.audioEnded && current.audioFile && current.audioFile.size > 44
+            ? current.audioFile
+            : undefined;
+        if (recording) {
+          savedRecording.current = recording;
+          setRecordingUri(recording.uri);
+        } else discardRecording(current.audioFile);
+        setCompleted({
+          id: current.id,
+          retry: current.retry,
+          transcript: final,
+          recording: !!recording,
+          timestamp: Date.now(),
+        });
       }),
     ];
     return () => {
@@ -150,13 +172,20 @@ export function useSystemSTT() {
       setMessage(recognitionError('unavailable'));
       return;
     }
-    const current: Attempt = { started: false, finals: [], failed: false };
+    const current: Attempt = {
+      id: newId(),
+      retry: hasAttempted.current,
+      started: false,
+      finals: [],
+      failed: false,
+    };
     attempt.current = current;
     discardRecording(savedRecording.current);
     savedRecording.current = undefined;
     setRecordingUri(undefined);
     setLiveTranscript('');
     setFinalTranscript('');
+    setCompleted(undefined);
     setMessage('');
     setPhase('starting');
     try {
@@ -178,6 +207,7 @@ export function useSystemSTT() {
         current.audioFile = new File(Paths.cache, name);
       }
       current.started = true;
+      hasAttempted.current = true;
       current.timeout = setTimeout(() => fail(current, 'unavailable'), 25000);
       recognition.start({
         ...systemRecognitionOptions(Platform.OS),
@@ -203,6 +233,15 @@ export function useSystemSTT() {
     abortAttempt(current);
     setPhase('idle');
     setLiveTranscript('');
+    if (current.started) {
+      setCompleted({
+        id: current.id,
+        retry: current.retry,
+        transcript: '',
+        recording: false,
+        timestamp: Date.now(),
+      });
+    }
     if (!current.failed) setMessage(recognitionError(code));
   }
 
@@ -229,6 +268,7 @@ export function useSystemSTT() {
     setPhase('idle');
     setLiveTranscript('');
     setFinalTranscript('');
+    setCompleted(undefined);
     setMessage('');
   }
 
@@ -237,6 +277,7 @@ export function useSystemSTT() {
     liveTranscript,
     finalTranscript,
     recordingUri,
+    completed,
     message,
     hasRecognitionModule: recognition !== null,
     start,

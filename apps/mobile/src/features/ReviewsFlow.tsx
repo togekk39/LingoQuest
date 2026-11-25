@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ArrowRight, BookOpen, CalendarCheck } from 'lucide-react-native';
-import type { TravelReviewRow } from '@lingoquest/offline-engine';
+import type { UnifiedReviewRow } from '@lingoquest/offline-engine';
 import { JournalLeaf, JournalSpread } from '../Journal';
 import { useTheme } from '../theme';
 import { api } from '../lib/api';
@@ -9,21 +9,23 @@ import { QuickReview } from '../travel/QuickReview';
 import { illustrations } from '../travel/illustrations';
 import { Action, ErrorCard, FlowFrame, useFeatureStyles } from './FeatureUI';
 
-const skillLabels: Record<TravelReviewRow['skill'], string> = {
-  vocabulary: 'Vocabulario',
-  grammar: 'Gramática',
-  listening: 'Comprensión auditiva',
-  reading: 'Lectura',
-  writing: 'Escritura',
-  speaking: 'Práctica oral',
+const skillLabels = [
+  'Vocabulario',
+  'Gramática',
+  'Comprensión auditiva',
+  'Lectura',
+  'Escritura',
+  'Práctica oral',
+];
+const learningStatusLabels: Record<UnifiedReviewRow['state'], string> = {
+  not_introduced: 'Aún sin verificar',
+  introduced: 'Ya viste esta idea',
+  guided_practice: 'En práctica guiada',
+  independent_performance: 'Primer acierto sin ayuda',
+  demonstrated: 'Ya la demostraste',
+  retained: 'La recordaste después de un tiempo',
+  transfer: 'La aplicaste en otra situación',
 };
-const evidenceStages = [
-  ['recognition', 'Reconocer'],
-  ['understanding', 'Comprender'],
-  ['recall', 'Recordar sin opciones'],
-  ['production', 'Crear una respuesta'],
-  ['transfer', 'Aplicar en otra situación'],
-] as const;
 
 export default function ReviewsFlow({
   onClose,
@@ -37,7 +39,7 @@ export default function ReviewsFlow({
   const { colors: palette } = useTheme();
   const s = useStyles();
   const f = useFeatureStyles();
-  const [reviews, setReviews] = useState<TravelReviewRow[]>([]);
+  const [reviews, setReviews] = useState<UnifiedReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [all, setAll] = useState(showAll);
@@ -47,8 +49,8 @@ export default function ReviewsFlow({
     setLoading(true);
     setError('');
     try {
-      const response = await api<{ reviews: TravelReviewRow[] }>(
-        '/v1/reviews/today?source=travel' + (all ? '&all=true' : ''),
+      const response = await api<{ reviews: UnifiedReviewRow[] }>(
+        '/v1/reviews/today?source=unified' + (all ? '&all=true' : ''),
       );
       setReviews(response.reviews);
     } catch (e) {
@@ -113,11 +115,11 @@ export default function ReviewsFlow({
       )}
       {!loading &&
         !error &&
-        Object.entries(skillLabels).map(([skill, label]) => {
-          const items = reviews.filter((review) => review.skill === skill);
+        skillLabels.map((label) => {
+          const items = reviews.filter((review) => review.skillLabelEs === label);
           if (!all && !items.length) return null;
           return (
-            <View key={skill} style={{ gap: 8 }}>
+            <View key={label} style={{ gap: 8 }}>
               <Text accessibilityRole="header" style={f.cardTitle}>
                 {label}
               </Text>
@@ -126,7 +128,7 @@ export default function ReviewsFlow({
                   <ReviewCard key={review.key} review={review} onPractice={setTarget} />
                 ))
               ) : (
-                <Text style={f.quiet}>Todavía no hay práctica registrada.</Text>
+                <Text style={f.quiet}>Aún sin verificar.</Text>
               )}
             </View>
           );
@@ -145,41 +147,32 @@ function ReviewCard({
   review,
   onPractice,
 }: {
-  review: TravelReviewRow;
+  review: UnifiedReviewRow;
   onPractice: (target: string) => void;
 }) {
   const { colors: palette } = useTheme();
   const f = useFeatureStyles();
   const s = useStyles();
-  const [showDetails, setShowDetails] = useState(false);
-  const counts = [
-    ['Aciertos del objetivo sin ayuda', review.independentSuccesses],
-    ['Aciertos del objetivo con ayuda', review.assistedSuccesses],
-    ['Recuerdo después de un intervalo', review.delayedSuccesses],
-    ['Uso en otra situación', review.transferSuccesses],
-  ] as const;
-  const speechPracticeCount = Object.values(review.speakingPractice).reduce(
-    (total, count = 0) => total + count,
-    0,
-  );
+  const due = review.reason !== 'practice';
 
   return (
-    <JournalLeaf compact kind="postcard" style={f.card}>
+    <JournalLeaf compact kind="postcard" testID={`learning-review-${review.key}`} style={f.card}>
       <View style={s.cardTop}>
         <JournalLeaf compact kind="stamp" style={s.skillIcon}>
           <BookOpen color={palette.teal} size={22} />
         </JournalLeaf>
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={f.cardTitle}>{review.targetLabelEs}</Text>
+          <Text style={f.quiet}>{learningStatusLabels[review.state]}</Text>
           {review.canPractice && (
             <Text style={f.quiet}>
               {review.reason === 'remediation'
                 ? 'Conviene reforzar esta idea'
-                : review.due
+                : due
                   ? 'Lista para repasar'
-                  : review.dueAt
+                  : review.nextReviewAt
                     ? 'Siguiente repaso: ' +
-                      new Date(review.dueAt).toLocaleDateString('es-419', {
+                      new Date(review.nextReviewAt).toLocaleDateString('es-419', {
                         day: 'numeric',
                         month: 'short',
                       })
@@ -187,47 +180,15 @@ function ReviewCard({
             </Text>
           )}
         </View>
-        {review.due && <View style={s.dueDot} />}
+        {due && <View style={s.dueDot} />}
       </View>
-      {review.skill === 'speaking' ? (
+      {review.dimension === 'speaking' && (
         <Text style={f.quiet}>
-          Prácticas de voz: {speechPracticeCount}. La habilidad oral y la pronunciación aún no se
-          evalúan.
+          La pronunciación y la comunicación oral aún están sin verificar.
         </Text>
-      ) : (
-        <View style={{ gap: 3 }}>
-          {review.communicationSuccesses > 0 && (
-            <Text style={f.quiet}>
-              Respuestas que lograron comunicar: {review.communicationSuccesses}
-            </Text>
-          )}
-          {counts.map(([label, count]) => (
-            <Text key={label} style={f.quiet}>
-              {label}: {count}
-            </Text>
-          ))}
-          {Object.keys(review.successes).length > 0 && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showDetails }}
-              style={s.practice}
-              onPress={() => setShowDetails(!showDetails)}
-            >
-              <Text style={s.practiceText}>
-                {showDetails ? 'Ocultar tipos de práctica' : 'Ver tipos de práctica'}
-              </Text>
-            </Pressable>
-          )}
-          {showDetails &&
-            evidenceStages.map(([stage, label]) => {
-              const evidence = review.successes[stage];
-              return evidence ? (
-                <Text key={stage} style={f.quiet}>
-                  {label}: {evidence.independent} sin ayuda · {evidence.assisted} con ayuda
-                </Text>
-              ) : null;
-            })}
-        </View>
+      )}
+      {review.assistedSuccesses > 0 && (
+        <Text style={f.quiet}>Aciertos del objetivo con ayuda: {review.assistedSuccesses}</Text>
       )}
       {review.canPractice && (
         <Pressable

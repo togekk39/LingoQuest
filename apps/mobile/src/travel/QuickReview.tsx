@@ -25,7 +25,7 @@ export function QuickReview({
   missionId?: string;
 }) {
   const path =
-    '/v1/reviews/quick?source=travel' +
+    '/v1/reviews/quick?source=unified' +
     (target ? `&target=${encodeURIComponent(target)}` : '') +
     (missionId ? `&mission=${encodeURIComponent(missionId)}` : '');
   const { colors } = useTheme();
@@ -59,7 +59,7 @@ export function QuickReview({
     const write = api(path, { action: 'draft', token, answer: next });
     writes.current = write.then(() => setError('')).catch((e) => setError(e.message));
   }
-  async function act(action: 'answer' | 'hint' | 'transcript' | 'close') {
+  async function act(action: 'answer' | 'hint' | 'transcript' | 'listened' | 'continue' | 'close') {
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
@@ -71,19 +71,25 @@ export function QuickReview({
         onClose();
         return;
       }
-      if (review.result || action === 'close') {
-        if (review.result) await api(path, { action: 'dismiss', token: review.token });
-        else await api(path, { action: 'draft', token: review.token, answer });
+      if (action === 'close') {
+        if (!review.result) await api(path, { action: 'draft', token: review.token, answer });
+        else if (review.remediation?.phase !== 'support')
+          await api(path, { action: 'dismiss', token: review.token });
         stop();
         onClose();
         return;
       }
       if (action === 'answer') Keyboard.dismiss();
-      const next = await api<QuickReviewState>(path, {
+      const next = await api<QuickReviewState | null>(path, {
         action,
         token: review.token,
         ...(action === 'answer' ? { answer } : {}),
       });
+      if (!next || (missionId && action === 'continue')) {
+        stop();
+        onClose();
+        return;
+      }
       setReview(next);
       setAnswer(next.answer);
     } catch (e) {
@@ -95,6 +101,7 @@ export function QuickReview({
   }
   const exercise = review?.exercise;
   const audio = review?.audio;
+  const guided = review?.remediation?.phase === 'support';
   return (
     <FlowFrame
       journal={{}}
@@ -107,6 +114,7 @@ export function QuickReview({
             : 'Una situación · 1 min'
       }
       onClose={() => void act('close')}
+      stepKey={review?.token}
       onVoiceSettings={
         audio && onVoiceSettings
           ? () => {
@@ -125,10 +133,17 @@ export function QuickReview({
           <Action
             journal
             busy={busy}
-            disabled={!review?.result && !hasAnswer(answer, exercise)}
-            onPress={() => void act(review?.result ? 'close' : 'answer')}
+            disabled={
+              !review?.result &&
+              (!hasAnswer(answer, exercise) || (!!audio && !review.listened && !review.transcript))
+            }
+            onPress={() => void act(review?.result ? (guided ? 'continue' : 'close') : 'answer')}
           >
-            {review?.result ? 'Volver al viaje' : 'Comprobar respuesta'}
+            {review?.result
+              ? guided && !missionId
+                ? 'Probar otra escena'
+                : 'Volver al viaje'
+              : 'Comprobar respuesta'}
           </Action>
         ) : undefined
       }
@@ -138,6 +153,11 @@ export function QuickReview({
       {exercise && review && (
         <View style={{ gap: 15 }}>
           <JournalArt source={illustrations.review} aspectRatio={2.9} taped />
+          {review.explanation && (
+            <Notebook title="Revisa esta idea">
+              <Text style={f.body}>{review.explanation}</Text>
+            </Notebook>
+          )}
           <Notebook title="Ponlo en práctica">
             {review.situation ? (
               <Text style={f.body}>{review.situation}</Text>
@@ -145,7 +165,11 @@ export function QuickReview({
               <Text style={f.body}>{starterGreetingInstruction}</Text>
             ) : null}
             {audio && (
-              <Button variant="secondary" icon={Volume2} onPress={() => void play(audio, true)}>
+              <Button
+                variant="secondary"
+                icon={Volume2}
+                onPress={() => void play(audio, true, () => void act('listened'))}
+              >
                 Escuchar el mensaje
               </Button>
             )}

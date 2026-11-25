@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import type { ChapterCatalog, ChapterPack } from '@lingoquest/course-pack';
-import type { TravelLearningState, TravelState } from '@lingoquest/offline-engine';
+import type { OfflineState, TravelLearningState, TravelState } from '@lingoquest/offline-engine';
 import {
   expect,
   test as base,
@@ -26,6 +26,8 @@ export interface LocalState {
   challengeProgress: unknown[];
   travel: TravelState;
   travelLearning?: TravelLearningState;
+  unifiedLearning: OfflineState['unifiedLearning'];
+  lessonCheckpoints?: OfflineState['lessonCheckpoints'];
 }
 interface NetworkGuard {
   attempted: string[];
@@ -169,7 +171,9 @@ export async function labelFirstChapterAudio(
   request: APIRequestContext,
   phrases: Record<string, string>,
 ) {
-  const catalog: ChapterCatalog = await (await request.get('/chapter-packs/catalog-v2.json')).json();
+  const catalog: ChapterCatalog = await (
+    await request.get('/chapter-packs/catalog-v2.json')
+  ).json();
   const path = `/chapter-packs/${catalog.chapters.home.revision}/home.json`;
   const { audio }: ChapterPack = await (await request.get(path)).json();
   const sources = Object.fromEntries(
