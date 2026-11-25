@@ -114,11 +114,22 @@ async function supplyTestMicrophone(page: Page) {
       await audio.resume();
       return output.stream;
     };
+    const recordingTypes = new Set<string>();
+    const start = MediaRecorder.prototype.start;
+    MediaRecorder.prototype.start = function () {
+      let encodedSamples = 0;
+      this.addEventListener('dataavailable', ({ data }) => {
+        if (!data.size) return;
+        recordingTypes.add(this.mimeType.toLowerCase());
+        if (++encodedSamples === 2) document.body.dataset.encodedRecording = 'true';
+      });
+      start.call(this, 200);
+    };
     const recordings = new Set<string>();
     const createObjectURL = URL.createObjectURL.bind(URL);
     URL.createObjectURL = (media) => {
       const uri = createObjectURL(media);
-      if (media instanceof Blob && media.type.startsWith('audio/webm')) recordings.add(uri);
+      if (media instanceof Blob && recordingTypes.has(media.type)) recordings.add(uri);
       return uri;
     };
     const play = HTMLMediaElement.prototype.play;
@@ -253,6 +264,7 @@ test('Story and Study share the personal spelling draft and distinguish support 
   await click(page, 'Seguir la historia');
   await expect(page.getByTestId('speaking-studio')).toContainText('Modelo para comparar');
   await click(page, 'Grabar sin conexión');
+  await expect(page.locator('body')).toHaveAttribute('data-encoded-recording', 'true');
   await click(page, 'Terminar grabación');
   await click(page, 'Escuchar ejemplo y mi grabación');
   await expect(page.locator('body')).toHaveAttribute('data-played-recording', 'true');
