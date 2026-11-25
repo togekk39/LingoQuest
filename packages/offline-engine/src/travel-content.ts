@@ -35,6 +35,7 @@ export interface TravelExerciseStep {
   storyPrompt?: TravelStoryPrompt;
   storyReply?: { speaker: string; line: Translation };
   activityTitle?: string;
+  reviewMissionId?: string;
   exercise: CourseExercise;
   lessonId?: string;
   requires?: readonly PrerequisiteReference[];
@@ -110,6 +111,7 @@ export interface TravelChapter {
   message: string;
   collectible: string;
   missions: TravelMission[];
+  reviewedHomeCore?: true;
 }
 
 export { travelStepVocabulary } from './travel-vocabulary';

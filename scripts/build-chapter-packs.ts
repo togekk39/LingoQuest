@@ -30,7 +30,7 @@ import { loadChapterAudio, loadChapterImages } from './chapter-media';
 
 const root = new URL('../apps/mobile/public/chapter-packs/', import.meta.url);
 const catalogPath = new URL(CHAPTER_CATALOG_FILE, root);
-const previousCatalogPath = new URL('catalog-v4.json', root);
+const previousCatalogPath = new URL('catalog-v5.json', root);
 const course = bundled.payload as CoursePayload;
 const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
@@ -136,7 +136,7 @@ async function main() {
   if (verifyOnly) {
     await verifyCatalog(catalog);
     await verifyCatalog(previousCatalog, false);
-    for (const name of ['catalog-v3.json', 'catalog-v2.json'])
+    for (const name of ['catalog-v4.json', 'catalog-v3.json', 'catalog-v2.json'])
       await verifyCatalog(
         chapterCatalogSchema.parse(JSON.parse(await readFile(new URL(name, root), 'utf8'))),
         false,

@@ -35,6 +35,7 @@ export function TravelGuide({
   onGrammar,
   onLegacy,
   onReview,
+  onFoundationReview,
 }: {
   travel: TravelState;
   onLessons: () => void;
@@ -45,6 +46,7 @@ export function TravelGuide({
   onGrammar: () => void;
   onLegacy: () => void;
   onReview?: () => void;
+  onFoundationReview?: (id: string) => void;
 }) {
   const { colors: C } = useTheme();
   const { width } = useWindowDimensions();
@@ -54,6 +56,19 @@ export function TravelGuide({
   const { play, stop, speechMessage } = useChapterAudio();
   const missions = chapter.missions.filter(({ optional }) => !optional);
   const foundation = chapter.missions.filter(({ optional }) => optional);
+  const path = travel.foundationPath ?? [];
+  const next =
+    path.find(({ resume }) => resume) ??
+    path.find(({ status }) => status === 'guided' || status === 'review') ??
+    path.find(({ status }) => status === 'new' || status === 'taught');
+  const suggested = foundation.find(({ id }) => id === next?.id);
+  const labels = {
+    new: 'Por empezar',
+    taught: 'Enseñada · faltan comprobaciones',
+    guided: 'En práctica · faltan comprobaciones independientes',
+    ready: 'Con evidencia independiente',
+    review: 'Por repasar',
+  };
   const mission = missions[index];
   const unlocked = canStartTravelMission(travel, mission.id);
   const desktop = width >= 920;
@@ -102,16 +117,36 @@ export function TravelGuide({
             <Heading style={{ flex: 1, fontSize: 22 }}>Inglés desde cero</Heading>
             {foundationOpen ? <ChevronDown color={C.teal} /> : <ChevronRight color={C.teal} />}
           </Pressable>
+          {suggested && next && (
+            <View style={styles.actions} testID="home-foundation-next">
+              <Text style={{ color: C.ink }}>
+                {suggested.title} · {next.resume ? 'En pausa' : labels[next.status]}
+              </Text>
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  if (travel.completed[suggested.id] && !next.resume && onFoundationReview)
+                    onFoundationReview(suggested.id);
+                  else onMission(suggested.id);
+                }}
+              >
+                {next.resume ? 'Continuar práctica' : 'Abrir práctica recomendada'}
+              </Button>
+            </View>
+          )}
           {foundationOpen &&
             foundation.map((activity) => {
               const inProgress =
                 (travel.active?.missionId === activity.id && !travel.active.finished) ||
                 !!travel.paused?.[activity.id];
+              const evidence = path.find(({ id }) => id === activity.id);
               const status = inProgress
                 ? ' · En pausa'
-                : travel.completed[activity.id]
-                  ? ' · Practicada'
-                  : '';
+                : evidence
+                  ? ` · ${labels[evidence.status]}`
+                  : travel.completed[activity.id]
+                    ? ' · Practicada'
+                    : '';
               return (
                 <Pressable
                   key={activity.id}

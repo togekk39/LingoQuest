@@ -28,6 +28,7 @@ import {
 import {
   formalDefinitions,
   reviewedHomeInstruction,
+  reviewedHomeRequirements,
   reviewPrerequisites,
   teachingReferenceKey,
   textbookFormalReferences,
@@ -493,6 +494,40 @@ async function verifyPublishedContent(inventory: boolean, homeObjectives: readon
           [...homeObjectives].sort(),
           'Home foundation objective coverage / Cobertura de objetivos de bases',
         );
+        const home = adventure.story;
+        assert.ok(
+          home.chapter.reviewedHomeCore,
+          'Home core prerequisites / Requisitos centrales de Casa',
+        );
+        for (const mission of home.chapter.missions.filter(({ optional }) => !optional))
+          for (const step of mission.steps)
+            if (step.type === 'exercise') assert.ok(reviewedHomeRequirements(step), step.id);
+        for (const letter of 'abcdefghijklmnopqrstuvwxyz') {
+          const targetId = 'lex.letter.' + letter;
+          const items = foundation.practice.filter(({ targets }) =>
+            targets?.some((target) => target.targetId === targetId),
+          );
+          assert.ok(
+            items.some(
+              ({ audio, targets, exercise }) =>
+                audio &&
+                !exercise.learning?.guided &&
+                targets?.some((target) => target.dimension === 'listening'),
+            ),
+            targetId + ' listening',
+          );
+          assert.ok(
+            items.some(({ targets }) => targets?.some((target) => target.dimension === 'reading')),
+            targetId + ' case recognition',
+          );
+          assert.ok(
+            items.some(
+              ({ audio, targets }) =>
+                audio && targets?.some((target) => target.dimension === 'writing'),
+            ),
+            targetId + ' dictation',
+          );
+        }
         const definition: StoryDefinition = foundation.adventure;
         const encounterEntrances = new Set(
           [

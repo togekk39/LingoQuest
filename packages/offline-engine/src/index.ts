@@ -1,3 +1,4 @@
+import { foundationPath } from './foundation-path';
 import { z, ZodError } from 'zod';
 import type { ChapterPack, RpgAdventureAudit } from '@lingoquest/course-pack';
 import {
@@ -72,6 +73,7 @@ import {
   recordReviewInstruction,
   reviewPrerequisites,
   reviewedHomeInstruction,
+  reviewedHomeRequirements,
   rpgAssessmentDigest,
   rpgIntroductionTargets,
   rpgTeachingDigest,
@@ -328,6 +330,26 @@ function reviewedAdventure(
     for (const step of steps) if (step.type === 'exercise') add(step, authoredAudio);
   const authoredReviewAudio = chapter.missions.some(({ authoredAudio }) => authoredAudio);
   const practice = practiceSteps.flatMap((step) => {
+    const requires =
+      chapter.reviewedHomeCore && !step.lessonId ? reviewedHomeRequirements(step, true) : undefined;
+    if (requires) {
+      const legacyStep = {
+        ...step,
+        lessonId: travelLesson.id,
+        requires,
+        targets: exerciseEvidenceTargets(step.exercise, travelLesson.id),
+      };
+      if (!exactRpgAssessment(legacyStep, definitions)) return [];
+      const entry: ChapterPractice = {
+        step: legacyStep,
+        lesson: travelLesson,
+        version,
+        chapterId: chapter.id,
+        reviewedDigest: rpgAssessmentDigest(legacyStep),
+      };
+      exercises.set(step.exercise.id, entry);
+      return [entry];
+    }
     const entry = add(step, authoredReviewAudio || undefined);
     return entry?.reviewedDigest ? [entry] : [];
   });
@@ -977,6 +999,7 @@ function storyContext(
   definition: StoryDefinition = chapterStory,
   travelChapter: TravelChapter = chapter,
   origin = travel.country,
+  now = Date.now(),
 ): StoryContext {
   const encounter = definition.encounters.find((entry) => entry.id === story.encounterId);
   let readyEncounterId: string | undefined;
@@ -1010,12 +1033,39 @@ function storyContext(
     masteryAtLeast(getUnifiedMastery(unified, 'home.introduce', 'writing').state, 'demonstrated')
   )
     demonstratedConcepts.push('introduction');
+  const recommendations = definition.dialogues
+    .find(({ id }) => id === story.dialogueId)
+    ?.choices.filter(({ recommendation }) => recommendation);
+  const path =
+    recommendations?.length && unified ? foundationPath(travelChapter, travel, unified, now) : [];
+  const eligible = recommendations?.filter(({ recommendation }) => {
+    if (!recommendation || !unified) return false;
+    const { missionId, diagnosticItem } = recommendation;
+    const entry = path.find(({ id }) => id === missionId);
+    if (!entry || entry.status === 'ready' || travel.completed[missionId]) return false;
+    if (entry.resume) return true;
+    return (
+      !diagnosticItem ||
+      !unified.evidence.some(
+        ({ source, exerciseId, outcome, aids }) =>
+          source === 'placement' &&
+          exerciseId === diagnosticItem &&
+          outcome === 'target' &&
+          !aids.includes('transcript'),
+      )
+    );
+  });
+  const next =
+    eligible?.find(({ recommendation }) =>
+      path.some(({ id, resume }) => resume && id === recommendation?.missionId),
+    ) ?? eligible?.[0];
   return {
     country: origin,
     completedMissions: Object.keys(travel.completed),
     clearedMissions: travel.cleared ?? [],
     demonstratedConcepts,
     readyEncounterId,
+    recommendedChoiceId: next?.id,
   };
 }
 
@@ -1518,10 +1568,24 @@ export class OfflineEngine {
       return entry;
     };
     const homeVersion = `home:${chapter.revision}`;
-    const auditedExercise = (step: TravelExerciseStep) => !isHomeChapter || !!step.lessonId;
+    const auditedExercise = (step: TravelExerciseStep) =>
+      !isHomeChapter || !!step.lessonId || !!activeChapter.reviewedHomeCore;
     const adventurePrerequisites = (step: TravelExerciseStep) => {
-      const reviewed = adventure?.exercises.get(step.exercise.id);
-      if (!adventure || !reviewed?.reviewedDigest) return;
+      if (!adventure) return;
+      if (activeChapter.reviewedHomeCore && !step.lessonId) {
+        const requires = reviewedHomeRequirements(step);
+        if (!requires) return;
+        return reviewPrerequisites(
+          reviewContent,
+          travelLesson,
+          step.exercise,
+          formalTeachingKeys(state.unifiedLearning),
+          adventure.definitions,
+          requires,
+        );
+      }
+      const reviewed = adventure.exercises.get(step.exercise.id);
+      if (!reviewed?.reviewedDigest) return;
       return reviewPrerequisites(
         reviewContent,
         reviewed.lesson,
@@ -1701,11 +1765,11 @@ export class OfflineEngine {
             recordUnifiedEvidence(state.unifiedLearning, {
               id: `rpg-instruction:${activeChapter.id}:${token}:prepare`,
               source,
-              materialId: step.lessonId!,
+              materialId: step.lessonId ?? travelLesson.id,
               exerciseId: step.exercise.id,
               materialVersion: adventure.version,
               timestamp: now,
-              contextId: exerciseEvidenceContext(step.exercise, step.lessonId!),
+              contextId: exerciseEvidenceContext(step.exercise, step.lessonId ?? travelLesson.id),
               format: 'instruction',
               activity: 'introduced',
               aids: ['guided'],
@@ -1788,7 +1852,21 @@ export class OfflineEngine {
       upgradeTravelCheckpoints(travel, activeChapter);
       if (method === 'POST')
         changeTravel(travel, body, params.get('source') === 'story' ? 'story' : 'study');
-      return done(travelView(travel));
+      const view = travelView(travel);
+      return done(
+        method === 'GET' && isHomeChapter
+          ? {
+              ...view,
+              foundationPath: foundationPath(
+                activeChapter,
+                travel,
+                state.unifiedLearning,
+                now,
+                adventure?.practice.map(({ step }) => step),
+              ),
+            }
+          : view,
+      );
     }
     if (route === '/v1/story' || (route === '/v1/story/encounter' && method === 'POST')) {
       const progress = journey();
@@ -1813,6 +1891,7 @@ export class OfflineEngine {
           definition,
           activeChapter,
           travel.country ?? state.travel?.country,
+          now,
         );
       const before = story.encounterId;
       let launch = false;
@@ -2067,17 +2146,21 @@ export class OfflineEngine {
           )
         : adventure
           ? new Set(
-              activeChapter.missions
-                .filter(({ id }) => !mission || id === mission)
-                .flatMap(({ steps }) =>
-                  steps.flatMap((step) =>
-                    step.type === 'exercise' && step.lessonId
-                      ? (step.targets ?? exerciseEvidenceTargets(step.exercise, step.lessonId)).map(
-                          ({ targetId }) => canonicalLearningId(targetId),
-                        )
-                      : [],
-                  ),
-                ),
+              [
+                ...activeChapter.missions
+                  .filter(({ id }) => !mission || id === mission)
+                  .flatMap(({ steps }) => steps),
+                ...chapterPractice
+                  .filter(({ step }) => !mission || step.reviewMissionId === mission)
+                  .map(({ step }) => step),
+              ].flatMap((step) =>
+                step.type === 'exercise' && (step.lessonId || activeChapter.reviewedHomeCore)
+                  ? (
+                      step.targets ??
+                      exerciseEvidenceTargets(step.exercise, step.lessonId ?? travelLesson.id)
+                    ).map(({ targetId }) => canonicalLearningId(targetId))
+                  : [],
+              ),
             )
           : mission
             ? reviewTargetsForMission(mission)
@@ -2435,7 +2518,11 @@ export class OfflineEngine {
                   ...(previous.remediation?.phase === 'support' && {
                     remediates: [previous.remediation.error],
                   }),
-                  ...(step?.audio && !previous.listened && { evidenceOutcome: 'ungradable' }),
+                  ...(step?.audio &&
+                    !previous.listened &&
+                    !(savedAuthored?.authoredAudio && previous.transcript) && {
+                      evidenceOutcome: 'ungradable',
+                    }),
                 },
               );
               previous.answer = update.answer;
@@ -2480,7 +2567,22 @@ export class OfflineEngine {
       if (unified) {
         if (!chapterScoped && mission && !chapter.missions.some((item) => item.id === mission))
           throw new LocalError('Esta misión no está disponible.', 404);
-        for (const plan of plans()) {
+        const availablePlans = plans();
+        if (
+          mission &&
+          activeChapter.missions.some(({ id, optional }) => id === mission && optional)
+        ) {
+          const priority = ({ row, mastery }: (typeof availablePlans)[number]) =>
+            row.reason === 'remediation'
+              ? 0
+              : row.reason === 'due'
+                ? 1
+                : mastery.independentSuccesses === 0
+                  ? 2
+                  : 3;
+          availablePlans.sort((a, b) => priority(a) - priority(b));
+        }
+        for (const plan of availablePlans) {
           if (target && plan.row.key !== target) continue;
           if (plan.mastery.pendingErrors.length) {
             const next = planRemediation(plan, recentExercises());

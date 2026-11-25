@@ -4,6 +4,8 @@
 
 Las 24 unidades y 83 lecciones bastan como **estructura central inicial**. Todavía faltan materiales implementados y práctica medida para un programa completo hasta B2. Conserva las 20 paradas y los IDs de lección. Agrega primero insumos más extensos, producción con retroalimentación, otros ámbitos y tareas paralelas diferidas dentro de las unidades. Añade lecciones centrales si los pilotos encuentran un requisito o salto persistente. El [plan maestro](curriculum-master-plan.es-419.md) especifica cada lección. El [plan de vocabulario](vocabulary-coverage-plan.es-419.md) da rangos de extensión, habla y carga.
 
+La revisión 11 de Casa ofrece reconocimiento escrito, escucha y dictado con audio de cada letra. El diagnóstico orienta el acceso donde corresponde, y el repaso distingue enseñanza, desempeño autónomo y práctica programada. El deletreo oral, la pronunciación y una salida representativa de nivel requieren evaluación observada. [Validación de Casa](../PHASE_5D_HOME_FOUNDATION_VALIDATION.es-419.md)
+
 ## Material disponible y estado
 
 | Nivel  | Material disponible y cómo aprovecharlo                                                                                                                                                                         | Brecha antes de ofrecer un recorrido verificable                                                                                                                  |

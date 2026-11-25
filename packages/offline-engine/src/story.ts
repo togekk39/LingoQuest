@@ -89,6 +89,7 @@ interface Interaction {
   id: string;
   label: string;
   supplemental?: true;
+  recommendation?: { missionId: string; cue: string; diagnosticItem?: string };
   requires?: readonly StoryCondition[];
   effects: readonly StoryEffect[];
 }
@@ -178,6 +179,7 @@ export interface StoryContext {
   clearedMissions: readonly string[];
   demonstratedConcepts?: readonly string[];
   readyEncounterId?: string;
+  recommendedChoiceId?: string;
 }
 
 export interface StoryView {
@@ -189,6 +191,7 @@ export interface StoryView {
     npc?: StoryNpc;
     choices: Pick<Interaction, 'id' | 'label' | 'supplemental'>[];
     repairPhrases?: readonly StoryRepair[];
+    recommendation?: { id: string; cue: string; label: string };
   };
   quests: (Pick<StoryQuest, 'id' | 'title' | 'description' | 'kind' | 'reviewMissionId'> & {
     status: 'locked' | 'available' | 'active' | 'completed';
@@ -391,6 +394,7 @@ function canInteract(
   encounter?: StoryEncounter,
 ) {
   return (
+    (!interaction.recommendation || interaction.id === context.recommendedChoiceId) &&
     allowed(interaction.requires, state, context) &&
     (!encounter ||
       encounter.returnToDialogue ||
@@ -526,6 +530,9 @@ export function readStory(
   const personalize = (text: string) => text.replaceAll('{origin}', origin ?? 'tu lugar de origen');
   const node = savedScene ? byId(definition.dialogues, current.dialogueId) : undefined;
   const encounter = byId(definition.encounters, current.encounterId);
+  const recommendation = node?.choices.find(
+    (choice) => choice.recommendation && canInteract(choice, current, context, encounter),
+  );
   return {
     turn: current.turn,
     origin: origin ?? 'Tu lugar de origen',
@@ -553,8 +560,17 @@ export function readStory(
       tip: node.tip && personalize(node.tip),
       exampleLabel: node.exampleLabel,
       npc: byId(definition.npcs, node.npcId),
+      ...(recommendation?.recommendation && {
+        recommendation: {
+          id: recommendation.id,
+          cue: personalize(recommendation.recommendation.cue),
+          label: personalize(recommendation.label),
+        },
+      }),
       choices: node.choices
-        .filter((choice) => canInteract(choice, current, context, encounter))
+        .filter(
+          (choice) => !choice.recommendation && canInteract(choice, current, context, encounter),
+        )
         .map(({ id, label, supplemental }) => ({
           id,
           label: personalize(label),

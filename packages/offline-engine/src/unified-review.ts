@@ -172,7 +172,13 @@ export function unifiedReviewPlans(
     (target) => knownTargets.has(target.targetId) && !byKey.has(unifiedMasteryKey(target)),
   );
   for (const target of missing) {
-    byKey.set(unifiedMasteryKey(target), emptyUnifiedMastery(target));
+    const key = unifiedMasteryKey(target);
+    const taught = available.some(
+      (candidate) =>
+        reviewReady(candidate) &&
+        candidate.targets.some((entry) => unifiedMasteryKey(entry) === key),
+    );
+    byKey.set(key, { ...emptyUnifiedMastery(target), ...(taught && { state: 'introduced' }) });
   }
 
   return [...byKey].flatMap(([key, mastery]) => {

@@ -1,3 +1,4 @@
+import type { FoundationPathEntry } from './foundation-path';
 import { z } from 'zod';
 import {
   answerOutcomeSchema,
@@ -82,7 +83,10 @@ export const travelStateSchema = z
   })
   .strict();
 
-export type TravelState = z.infer<typeof travelStateSchema> & { active?: TravelCheckpoint };
+export type TravelState = z.infer<typeof travelStateSchema> & {
+  active?: TravelCheckpoint;
+  foundationPath?: FoundationPathEntry[];
+};
 export type TravelCheckpoint = z.infer<typeof checkpointSchema> & {
   prerequisiteInstruction?: Pick<ReviewInstruction, 'sections'>;
   prerequisiteUnavailable?: true;

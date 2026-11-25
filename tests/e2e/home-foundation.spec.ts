@@ -148,6 +148,39 @@ async function supplyTestMicrophone(page: Page) {
   });
 }
 
+test('Sam offers one beginner activity and Study resumes that same checkpoint', async ({
+  page,
+  request,
+}) => {
+  await openFirstNameConversation(page, 'Ana');
+  const suggestion = page.getByTestId('story-learning-recommendation');
+  await expect(suggestion).toHaveCount(1);
+  await expect(suggestion).toContainText('hola y adiós');
+  await suggestion.getByRole('button', exact('Practicar ahora')).click();
+  await readTravelInstruction(page, await homeMission(request, 'foundation-greetings'));
+  const checkpoint = (await state(page)).travel.active;
+  expect(checkpoint?.missionId).toBe('foundation-greetings');
+  await expect(page.getByTestId('exercise-foundation-greetings-listen')).toBeVisible();
+  await click(page, 'Cerrar y volver');
+  await openHomeFoundationStudy(page, 'foundation-greetings');
+  await expect(page.getByTestId('exercise-foundation-greetings-listen')).toBeVisible();
+  expect((await state(page)).travel.active?.token).toBe(checkpoint?.token);
+  await listen(page);
+  await answerTravelChoice(page, 'foundation-greetings-listen', 'Saluda');
+  await answerTravelChoice(page, 'foundation-greetings-read', 'Saluda');
+  await studyOrStoryAnswer(page, 'foundation-greetings-write')
+    .getByRole('textbox', exact('Tu respuesta en inglés'))
+    .fill('Goodbye.');
+  await click(page, 'Comprobar respuesta');
+  await expect(page.getByTestId('answer-feedback')).toContainText('¡Muy bien!');
+  await click(page, 'Seguir la historia');
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Inicio')).click();
+  await click(page, 'Comenzar mi aventura');
+  await expect(suggestion).toContainText('Voy a anotar tu nombre');
+  expect((await state(page)).travel.completed['foundation-greetings']).toBeUndefined();
+});
+
 test('the first Home conversation teaches sound and print before offline letter assessment', async ({
   page,
   context,
@@ -155,7 +188,11 @@ test('the first Home conversation teaches sound and print before offline letter 
 }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  await observeAudio(page, request, { letterE: 'E', nameQuestion: "What's your name?" });
+  await observeAudio(page, request, {
+    letterA: 'A',
+    letterE: 'E',
+    nameQuestion: "What's your name?",
+  });
   await openFirstNameConversation(page, 'Ana María López-García');
   expect((await state(page)).travel.practiceName).toBe('Ana María López-García');
   const dialogue = page.getByTestId('story-dialogue-sam-asks-name');
@@ -200,6 +237,10 @@ test('the first Home conversation teaches sound and print before offline letter 
   await check.click();
   await expect(page.getByTestId('answer-feedback')).toContainText('¡Muy bien!');
   const learned = (await state(page)).unifiedLearning.evidence;
+  const letterTargets = learned
+    .filter(({ independent, outcome }) => independent && outcome === 'target')
+    .flatMap(({ targets }) => targets.filter(({ targetId }) => targetId.startsWith('lex.letter.')));
+  expect(letterTargets).toEqual([{ targetId: 'lex.letter.e', dimension: 'listening' }]);
   expect(learned).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
@@ -216,6 +257,21 @@ test('the first Home conversation teaches sound and print before offline letter 
       ({ activity, teaches }) => activity === 'introduced' && (teaches?.length ?? 0) > 0,
     ),
   ).toBe(true);
+
+  await click(page, 'Seguir la historia');
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Mis habilidades');
+  const row = page.getByTestId('learning-review-writing:lex.letter.a');
+  await row.getByRole('button', { name: /^Abrir repaso rápido/ }).click();
+  const dictation = studyOrStoryAnswer(page, 'foundation-bank-letter-a-dictate');
+  await dictation.getByRole('textbox', exact('Tu respuesta en inglés')).fill('a');
+  await expect(check).toBeDisabled();
+  await click(page, 'Escuchar el mensaje');
+  await expect(page.locator('body')).toHaveAttribute('data-completed-audio', 'letterA');
+  await expect(check).toBeEnabled();
+  await check.click();
+  await expect(page.getByTestId('answer-feedback')).toContainText('¡Muy bien!');
 });
 
 test('Story and Study share the personal spelling draft and distinguish support from assessment', async ({

@@ -177,6 +177,7 @@ const archivedPracticeSchema = stepSchema
       .optional(),
     storyReply: z.object({ speaker: identifier, line: translationSchema }).strict().optional(),
     activityTitle: z.string().max(4000).optional(),
+    reviewMissionId: identifier.optional(),
     exercise: archiveExerciseSchema,
     requires: z.array(referenceSchema).min(1).max(150),
     targets: rpgAssessmentTargetsSchema.optional(),
@@ -236,11 +237,15 @@ export function rememberChapterReview(
       id,
       [
         ...new Set(
-          steps.flatMap((step) =>
-            step.type === 'exercise' && step.lessonId
-              ? (step.targets ?? exerciseEvidenceTargets(step.exercise, step.lessonId)).map(
-                  ({ targetId }) => canonicalLearningId(targetId),
-                )
+          [
+            ...steps,
+            ...practice.filter(({ step }) => step.reviewMissionId === id).map(({ step }) => step),
+          ].flatMap((step) =>
+            step.type === 'exercise' && (step.lessonId || chapter.reviewedHomeCore)
+              ? (
+                  step.targets ??
+                  exerciseEvidenceTargets(step.exercise, step.lessonId ?? 'travel_home')
+                ).map(({ targetId }) => canonicalLearningId(targetId))
               : [],
           ),
         ),

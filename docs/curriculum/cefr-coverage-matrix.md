@@ -4,6 +4,8 @@
 
 The 24 units and 83 lessons are sufficient as an **initial core outline**. An end-to-end B2 program still requires implemented materials and measured practice. Keep the 20 stops and lesson IDs. First add longer input, output with feedback, additional contexts and delayed parallel tasks inside the existing units. Add core lessons only if trial evidence reveals a persistent prerequisite or progression gap. The [master plan](curriculum-master-plan.md) specifies each lesson. The [vocabulary plan](vocabulary-coverage-plan.md) gives text, speech and workload ranges.
 
+Home revision 11 provides print, listening and audio dictation for each letter individually. Diagnostics guide entry where relevant, and the small review tasks track exposure, independent performance and scheduled review separately. Oral spelling, pronunciation and a representative band exit require observed learner assessment. [Home validation](../PHASE_5D_HOME_FOUNDATION_VALIDATION.md)
+
 ## Existing materials and status
 
 | Band   | Available now and useful for                                                                                                                                   | Coverage gap before the band can be offered as a verified pathway                                                                               |

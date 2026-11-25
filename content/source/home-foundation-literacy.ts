@@ -760,7 +760,230 @@ export const homeFoundationLiteracyMissions = [
   instructions,
 ];
 
+const letterContrasts = ['AEI', 'BV', 'GJ', 'MN', 'CDEGPTVZ', 'QU', 'HYW'];
+const compareLetters = (form: string, group: string) =>
+  [...new Set([...letterContrasts.filter((set) => set.includes(form)).join(''), ...group])]
+    .filter((candidate) => candidate !== form && group.includes(candidate))
+    .slice(0, 2);
+
+const letterBank = alphabetSets.flatMap(({ id, group }) =>
+  [...group].flatMap((form, index) => {
+    const target = letters.get(form)!;
+    const distractors = compareLetters(form, group);
+    const forms = [form, ...distractors];
+    const offset = index % forms.length;
+    const ordered = [...forms.slice(offset), ...forms.slice(0, offset)];
+    const reviewMissionId = `foundation-letters-${id}`;
+    const key = form.toLowerCase();
+    const details = {
+      target,
+      requires: alphabet(distractors.join('')),
+      feedbackEs: `Escuchaste el nombre de ${form}. Compáralo con los nombres de ${distractors.join(' y ')}.`,
+    };
+    return [
+      hear(
+        {
+          ...details,
+          id: `foundation-bank-letter-${key}-listen`,
+          contextId: 'home-check-in-initial',
+          situation: 'En el registro te dictan una inicial.',
+          promptEs: 'Escucha la letra y elige su forma minúscula.',
+          errors: ['vocabulary_sense'],
+        },
+        form,
+        ordered.map((letter) => [letter, letter.toLowerCase()]),
+        form,
+      ),
+      hear(
+        {
+          ...details,
+          id: `foundation-bank-letter-${key}-support`,
+          contextId: 'home-letter-coaching',
+          situation: 'Luz te ayuda a comparar letras.',
+          promptEs: `Escucha la letra ${form} y elige esa letra.`,
+          guided: true,
+          remediates: ['vocabulary_sense'],
+        },
+        form,
+        ordered.map((letter) => [letter, letter]),
+        form,
+      ),
+      hear(
+        {
+          ...details,
+          id: `foundation-bank-letter-${key}-confirm`,
+          contextId: 'home-baggage-initial',
+          situation: 'Escucha la inicial que va en una etiqueta de equipaje.',
+          promptEs: 'Elige la mayúscula que corresponde al audio.',
+          transfer: true,
+          errors: ['vocabulary_sense'],
+        },
+        form,
+        [...ordered].reverse().map((letter) => [letter, letter]),
+        form,
+      ),
+      read(
+        {
+          ...details,
+          id: `foundation-bank-letter-${key}-case`,
+          contextId: 'home-letter-case',
+          situation: 'Compara la ficha de arriba con las letras pequeñas.',
+          promptEs: 'Elige la forma minúscula de esta letra.',
+          feedbackEs: `${form} y ${key} son la misma letra.`,
+        },
+        form,
+        ordered.map((letter) => [letter, letter.toLowerCase()]),
+        form,
+        'en',
+      ),
+      {
+        ...write(
+          {
+            ...details,
+            id: `foundation-bank-letter-${key}-dictate`,
+            contextId: 'home-locker-initial',
+            situation: 'Te dictan una letra para marcar un casillero.',
+            promptEs: 'Escucha y escribe la letra que oigas.',
+          },
+          [form],
+        ),
+        audio: form,
+        transcript: form,
+      },
+    ].map((step) => ({ ...step, reviewMissionId }));
+  }),
+);
+
+const soundAlikeBank = [
+  ['C', 'G', 'V'],
+  ['D', 'E', 'T'],
+  ['E', 'C', 'Z'],
+  ['G', 'E', 'P'],
+  ['P', 'C', 'D'],
+  ['T', 'E', 'D'],
+  ['V', 'C', 'E'],
+  ['Z', 'C', 'E'],
+].map(([form, first, second], index) => {
+  const choices = index % 2 ? [first, form, second] : [second, first, form];
+  const group = alphabetSets.find(({ group }) => group.includes(form))!;
+  return {
+    ...hear(
+      {
+        id: `foundation-bank-letter-${form.toLowerCase()}-contrast`,
+        target: letters.get(form)!,
+        requires: alphabet(first + second),
+        contextId: 'home-letter-sound-alikes',
+        situation: 'En otra mesa deletrean una inicial.',
+        promptEs: 'Escucha el nombre de la letra. Las opciones terminan con un sonido parecido.',
+        feedbackEs: `La letra era ${form}. El comienzo distingue su nombre de ${first} y ${second}.`,
+        transfer: true,
+        errors: ['vocabulary_sense'],
+      },
+      form,
+      choices.map((letter) => [letter, letter]),
+      form,
+    ),
+    reviewMissionId: `foundation-letters-${group.id}`,
+  };
+});
+
+const codeBank = [
+  ['AEI', 'home-visitor-initials', 'Una visitante dicta las iniciales de su registro.', 'a'],
+  ['BVG', 'home-seat-code', 'Te dictan las tres letras de tu asiento.', 'b'],
+  ['QUC', 'home-baggage-code', 'Te dictan el código de una etiqueta de equipaje.', 'c'],
+  ['MNS', 'home-booking-code', 'Te dictan las tres letras de tu reserva.', 'd'],
+].map(([code, contextId, situation, group]) => {
+  const forms = [...code];
+  const audio = forms.join(' – ') + '.';
+  const accepted = [forms.join(' '), forms.join('-'), forms.join(', ')];
+  return {
+    ...write(
+      {
+        id: `foundation-bank-code-${code.toLowerCase()}`,
+        target: alphabetOrder,
+        requires: alphabet(code),
+        contextId,
+        situation,
+        transfer: true,
+        promptEs:
+          'Escucha y escribe las tres letras en el orden que oigas. Puedes usar espacios o guiones.',
+        feedbackEs: `El código empieza por ${forms[0]}, sigue con ${forms[1]} y termina en ${forms[2]}.`,
+        errors: ['letter_order'],
+        errorAnswers: { letter_order: [[...forms].reverse().join(' ')] },
+      },
+      accepted,
+    ),
+    audio,
+    transcript: audio,
+    reviewMissionId: `foundation-letters-${group}`,
+  };
+});
+
+const numberBank = travelNumberWords.flatMap(([value, en], index) => {
+  // Keep the two existing remediation paths and their stable item IDs.
+  // Conserva los dos recorridos de refuerzo existentes y sus ID estables.
+  if (value === 8 || value === 30) return [];
+  const group = value <= 10 ? 'digits' : value < 20 ? 'teens' : 'tens';
+  const [alternate] =
+    travelNumberWords[value === 0 || value === 11 || value === 20 ? index + 1 : index - 1];
+  const options = (index % 2 ? [alternate, value] : [value, alternate]).map(
+    (item) => [String(item), String(item)] as const,
+  );
+  const details = {
+    target: number(value),
+    requires: [number(alternate)],
+    feedbackEs: `${en} corresponde a ${value}. Compáralo con ${number(alternate).en} (${alternate}).`,
+  };
+  return [
+    hear(
+      {
+        ...details,
+        id: `foundation-bank-number-${value}-listen`,
+        contextId: 'home-number-at-registration',
+        situation: 'Escucha el número en la mesa de registro.',
+        promptEs: 'Escucha y elige el número.',
+        errors: ['vocabulary_sense'],
+      },
+      en,
+      options,
+      String(value),
+    ),
+    hear(
+      {
+        ...details,
+        id: `foundation-bank-number-${value}-support`,
+        contextId: 'home-number-coaching',
+        situation: 'Sam te ayuda a distinguir dos números.',
+        promptEs: `Escucha ${en} y elige ${value}.`,
+        guided: true,
+        remediates: ['vocabulary_sense'],
+      },
+      en,
+      options,
+      String(value),
+    ),
+    hear(
+      {
+        ...details,
+        id: `foundation-bank-number-${value}-confirm`,
+        contextId: 'home-number-library',
+        situation: 'En la biblioteca te dictan el número de una tarjeta.',
+        promptEs: 'Escucha el número de la tarjeta y elige la cifra.',
+        transfer: true,
+        errors: ['vocabulary_sense'],
+      },
+      en,
+      [...options].reverse(),
+      String(value),
+    ),
+  ].map((step) => ({ ...step, reviewMissionId: `foundation-${group}` }));
+});
+
 export const homeFoundationLiteracyPractice = [
+  ...letterBank,
+  ...soundAlikeBank,
+  ...codeBank,
+  ...numberBank,
   write(
     {
       id: 'foundation-review-letter-order-guided',

@@ -450,6 +450,21 @@ export function StoryAdventure({
           {speechMessage}
         </Text>
       )}
+      {dialogue.recommendation && (
+        <View style={s.actions} testID="story-learning-recommendation">
+          <Text style={s.body}>{dialogue.recommendation.cue}</Text>
+          <StoryButton
+            id={`story-choice-${dialogue.recommendation.id}`}
+            label={dialogue.recommendation.label}
+            icon={BookOpen}
+            disabled={locked}
+            onPress={() => {
+              const choice = dialogue.recommendation;
+              if (choice) act({ action: 'choose', choiceId: choice.id, turn });
+            }}
+          />
+        </View>
+      )}
       {!!mainChoices.length ? (
         <View style={s.actions}>
           {mainChoices.map((choice, index) => (

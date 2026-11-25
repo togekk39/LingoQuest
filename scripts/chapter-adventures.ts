@@ -129,9 +129,10 @@ const homeAudit: RpgAdventureAudit = {
   ...homeReview,
   definitions: homeFoundationLearningDefinitions,
 };
-const homeChapter = {
+const homeChapter: TravelChapter = {
   ...chapter,
-  revision: 10,
+  revision: 11,
+  reviewedHomeCore: true,
   missions: [...chapter.missions, ...homeFoundationMissions],
 };
 const homePractice = [...travelPracticeSteps, ...homeFoundationPractice];

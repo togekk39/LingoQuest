@@ -4,6 +4,8 @@
 
 Use this standard for each new or revised Phase 5D adventure. Keep the destination, course unit and Can-do IDs from the master plan. Use the existing offline engine and its learning ledger for Story, Study, review and challenges. A chapter review records instructional coverage, actual results and open acceptance work. [Master plan](curriculum/curriculum-master-plan.md) · [Lesson authoring](curriculum/lesson-authoring-standard.md) · [Learning architecture](PHASE_5C_LEARNING_ARCHITECTURE.md)
 
+A chapter that starts from zero should offer one evidence-based activity in context. Diagnostic answers can guide order. Require visible instruction for the exact knowledge a graded task needs. For generated assessment banks record the target, exact requirements, distractors and support for every generated item. Keep record by ability and individual letter or number.
+
 ## Chapter data and instruction
 
 | Record                         | Required material                                                                                                                                                                                                                                                                                                          |

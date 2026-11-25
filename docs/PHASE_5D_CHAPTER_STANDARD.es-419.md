@@ -4,6 +4,8 @@
 
 Usa este estándar para cada aventura nueva o revisada de la fase 5D. Conserva los ID de destino, unidad y objetivos de capacidad del plan maestro. Usa el motor sin conexión y su registro de aprendizaje para la aventura, el curso, los repasos y los desafíos. La revisión del capítulo registra la cobertura de la enseñanza, los resultados observados y las comprobaciones pendientes. [Plan maestro](curriculum/curriculum-master-plan.es-419.md) · [Redacción de lecciones](curriculum/lesson-authoring-standard.es-419.md) · [Arquitectura de aprendizaje](PHASE_5C_LEARNING_ARCHITECTURE.es-419.md)
 
+Un capítulo desde cero debe ofrecer una actividad contextual basada en evidencia. Las respuestas diagnósticas pueden orientar el orden. Requiere enseñanza visible del conocimiento exacto que se evalúa. Registra el objetivo, los requisitos, los distractores y el apoyo de cada actividad generada. Conserva el registro por habilidad y por letra o número.
+
 ## Datos del capítulo y enseñanza
 
 | Registro                          | Material requerido                                                                                                                                                                                                                                                                                                                                                     |

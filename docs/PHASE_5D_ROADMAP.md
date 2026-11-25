@@ -4,6 +4,8 @@
 
 Phase 5D starts from `cf1b763`, the merge of Phase 5C into `main`. The catalog at that commit has 20 downloadable chapter cards. The first eight packs also include the 32 published Study lessons. Home is the only fully implemented RPG at that baseline. Phase 5D covers the 24 planned units and 83 objectives across the existing route. Phase 5D-2A starts from the merged Phase 5D-1 correction. [Phase 5C merge](https://github.com/togekk39/LingoQuest/pull/30) · [Master plan](curriculum/curriculum-master-plan.md) · [Baseline chapter catalog](https://github.com/togekk39/LingoQuest/blob/cf1b76369557736ca0b573f2f2618a5641101c43/apps/mobile/public/chapter-packs/catalog-v2.json)
 
+Home revision 11 adds one contextual recommendation at a time, individual letter and number review, and reviewed prerequisite enforcement in the three original missions. Human acceptance follows the current PR checks. [Home validation](PHASE_5D_HOME_FOUNDATION_VALIDATION.md)
+
 ## Baseline inventory
 
 In the objectives column, combine each unit ID with its listed suffixes. **Needs extension** identifies usable integrated or Study materials with gaps in instruction, assessment or transfer. **Card only** identifies a published travel card for the destination. **Pending** identifies work beyond the baseline. **Accepted** requires the chapter's quality review, including its named limits. At this baseline the Phase 5D acceptance column is pending for all stops. Previous releases and Home's existing evidence remain valid within their original scope.

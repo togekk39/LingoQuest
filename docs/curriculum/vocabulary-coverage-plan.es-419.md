@@ -4,6 +4,8 @@
 
 Las 83 lecciones del [plan maestro](curriculum-master-plan.es-419.md) definen la progresión inicial y los elementos clave. También hacen falta exposición repetida, práctica y retroalimentación dentro de esas lecciones y unidades. Empieza con sesiones breves o conjuntos complementarios reutilizables. Comprueba si cierran las brechas antes de añadir lecciones centrales. La [matriz del MCER](cefr-coverage-matrix.es-419.md) identifica evidencia y materiales pendientes.
 
+El banco de repaso de Casa asigna un objetivo a cada letra y conserva para los números los mismos ID `lex.number.<n>` que Ciudad de México. Los distractores requieren las letras o palabras numéricas que la persona ha visto en la enseñanza. Reconocer mayúsculas y minúsculas, identificar por audio y escribir un dictado son comprobaciones distintas.
+
 ## Progresión léxica
 
 Cada entrada registra un **lema con sentido definido** o una **expresión de varias palabras con función definida**. Registra flexiones y contracciones bajo esa entrada e indica cuáles se enseñaron. Distingue reconocimiento y producción por modalidad. La columna de elementos clave cuenta las entradas separadas por comas en el campo Nuevo del plan maestro e incluye formas agrupadas y expresiones. Las 425 entradas clave reflejan el alcance de la autoría previo a editar por sentidos. Reproduce los conteos con `npm run curriculum:verify -- --inventory`. Los rangos acumulados son estimaciones provisionales de capacidad para entradas enseñadas y recicladas en materiales principales y complementarios. Sirven para calcular trabajo editorial y carga de repaso. La cantidad de entradas no determina un nivel del MCER.

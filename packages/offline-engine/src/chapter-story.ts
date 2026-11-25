@@ -869,10 +869,10 @@ const nameLessons = [
   ['sounds', 'Escuchar los sonidos de estas palabras'],
 ] as const;
 const letterLessons = [
-  ['letters-a', 'Letras A–G'],
-  ['letters-b', 'Letras H–N'],
-  ['letters-c', 'Letras O–T'],
-  ['letters-d', 'Letras U–Z'],
+  ['letters-a', 'Letras A, E, I, H, Y y W'],
+  ['letters-b', 'Letras B, V, G, J, P, T y Z'],
+  ['letters-c', 'Letras C, D, F, K, Q, U y X'],
+  ['letters-d', 'Letras L, M, N, O, R y S'],
 ] as const;
 const travelLessons = [
   ['digits', 'Escuchar los números del 0 al 10'],
@@ -948,6 +948,87 @@ const foundationChoices: Record<string, readonly StoryChoice[]> = {
   'sam-finale-bench': [openTransferFoundation],
   'sam-finale-luz': [openTransferFoundation],
 };
+function recommend(id: string, cue: string, diagnosticItem?: string): StoryChoice {
+  const missionId = `foundation-${id}`;
+  return {
+    id: `recommend-${missionId}`,
+    label: 'Practicar ahora',
+    recommendation: { missionId, cue, diagnosticItem },
+    effects: [{ type: 'encounter', id: missionId }],
+  };
+}
+
+const greetings = recommend(
+  'greetings',
+  'Cuando llega alguien a la plaza, lo saludamos. Practiquemos cómo decir hola y adiós en inglés.',
+);
+const names = recommend(
+  'names',
+  'Voy a anotar tu nombre para el viaje. Practiquemos cómo reconocerlo y decirlo en inglés.',
+);
+const numbers = recommend(
+  'digits',
+  'Para subir al bus correcto, primero escucha conmigo cómo se dice su número.',
+);
+const spelling = recommend(
+  'letters-a',
+  'Si una letra de tu nombre no se entiende, podemos decirla por separado. Escuchemos unas pocas letras para empezar.',
+);
+const origins = recommend(
+  'origins',
+  'La tarjeta del viaje pide de dónde eres. Practiquemos cómo decirlo en una frase corta.',
+);
+const place = recommend(
+  'place',
+  'Busquemos la parada juntos. Primero practiquemos cómo preguntar dónde queda.',
+  'route_bus_listen',
+);
+const direction = recommend(
+  'direction',
+  'Para llegar a la parada, practicaremos cómo indicar el camino en dos pasos.',
+);
+const repair = recommend(
+  'repair',
+  'Si el mensaje no se entiende a la primera, pidamos que lo repitan.',
+);
+const describe = recommend(
+  'people-things',
+  'En el mostrador hay varios objetos parecidos. Veamos cómo decir si hay uno o varios.',
+);
+const location = recommend(
+  'objects-map',
+  'Luz dejó una pista sobre dónde buscar. Practiquemos cómo distinguir debajo y al lado.',
+);
+const ownership = recommend(
+  'bag',
+  'Las mochilas se parecen. Escuchemos cómo nombrar sus colores y preguntar de quién son.',
+);
+const transfer = recommend(
+  'transfer',
+  'Antes de salir, podemos ayudar a otra persona con su viaje usando lo que practicamos.',
+);
+
+const beginnerChoices: Record<string, readonly StoryChoice[]> = {
+  'luz-meets-traveler': [greetings],
+  'luz-welcome': [greetings, names],
+  'sam-asks-name': [greetings, names],
+  'luz-desk-greeting-reply': [names, spelling],
+  'luz-name-foundation': [names, spelling],
+  'sam-after-introduction': [numbers, spelling, origins],
+  'luz-after-introduction': [numbers, origins, spelling],
+  'luz-travel-foundation': [numbers, spelling, origins],
+  'sam-waiting-for-directions': [numbers, place, direction],
+  'sam-directions': [numbers, place, direction, repair],
+  'stop-found': [numbers, repair, direction],
+  'sam-stop-foundation': [numbers, place, direction, repair],
+  'luz-lost-property': [describe, location, ownership],
+  'luz-two-bags': [ownership, describe, location],
+  'luz-bag-foundation': [ownership, describe, location],
+  'sam-departure-foundation': [transfer],
+  'sam-finale-bench': [transfer],
+  'sam-finale-luz': [transfer],
+};
+
 const repairDialogues = new Set([
   'luz-meets-traveler',
   'luz-welcome',
@@ -1066,8 +1147,15 @@ export const homeFoundationStory = {
     ...chapterStory.dialogues.map((dialogue): StoryDialogue => ({
       ...dialogue,
       ...(repairDialogues.has(dialogue.id) && { canRepair: true }),
-      choices: [...dialogue.choices, ...(foundationChoices[dialogue.id] ?? [])],
+      choices: [
+        ...dialogue.choices,
+        ...(foundationChoices[dialogue.id] ?? []),
+        ...(beginnerChoices[dialogue.id] ?? []),
+      ],
     })),
-    ...foundationDialogues,
+    ...foundationDialogues.map((dialogue) => ({
+      ...dialogue,
+      choices: [...dialogue.choices, ...(beginnerChoices[dialogue.id] ?? [])],
+    })),
   ],
 } satisfies StoryDefinition;

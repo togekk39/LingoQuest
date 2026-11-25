@@ -4,6 +4,8 @@
 
 The 83 lessons in the [master plan](curriculum-master-plan.md) define the initial progression and the focal items. The curriculum also needs repeated input, practice and feedback within those lessons and units. Build these as short sessions or reusable companion sets first. Test whether they close the gaps before adding core lessons. The [CEFR coverage matrix](cefr-coverage-matrix.md) identifies which evidence and materials are still missing.
 
+The Home review bank gives each letter its own target and keeps number prompts on the same `lex.number.<n>` IDs as Mexico City. Distractors require the letters or number words actually shown in teaching. Case recognition, identification from audio and written dictation are separate checks.
+
 ## Lexical progression
 
 A tracked entry is a **lemma with a specified sense** or a **multiword expression with a specified function**. Record inflected and contracted forms under that entry, with the forms actually taught. Mark recognition and productive use separately by modality. The focal column counts comma-separated New entries in the master plan (including grouped inflections or expressions), before sense-level editing. Reproduce these counts with `npm run curriculum:verify -- --inventory`. The 425 focal entries describe authoring scope. The wider cumulative ranges are provisional capacity estimates for taught and recycled entries in core and companion materials. Use them to estimate editorial work and review load. The number of entries has no role in awarding a CEFR level.

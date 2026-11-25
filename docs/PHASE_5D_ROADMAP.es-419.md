@@ -4,6 +4,8 @@
 
 La fase 5D parte de `cf1b763`, la integración de la fase 5C en `main`. El catálogo de esa revisión tiene 20 fichas de viaje descargables. Los primeros ocho paquetes también incluyen las 32 lecciones publicadas del curso. En ese punto de partida, Mi lugar de origen es la única aventura RPG completa. La fase 5D abarca las 24 unidades planificadas y los 83 objetivos de la ruta existente. La fase 5D-2A comienza después de la integración de la corrección de la fase 5D-1. [Integración de la fase 5C](https://github.com/togekk39/LingoQuest/pull/30) · [Plan maestro](curriculum/curriculum-master-plan.es-419.md) · [Catálogo inicial de capítulos](https://github.com/togekk39/LingoQuest/blob/cf1b76369557736ca0b573f2f2618a5641101c43/apps/mobile/public/chapter-packs/catalog-v2.json)
 
+La revisión 11 de Casa agrega una recomendación contextual a la vez, repasos individuales de letras y números y requisitos revisados en las tres misiones originales. La aceptación humana sigue a las comprobaciones del PR. [Validación de Casa](PHASE_5D_HOME_FOUNDATION_VALIDATION.es-419.md)
+
 ## Inventario inicial
 
 En la columna de objetivos, combina el ID de cada unidad con los sufijos indicados. **Requiere ampliación** indica que hay materiales aprovechables de la aventura o del curso con brechas de enseñanza, evaluación o transferencia. **Solo ficha** indica que hay una ficha de viaje publicada para el destino. **Pendiente** indica trabajo posterior al punto de partida. **Aceptado** requiere la revisión de calidad del capítulo, con sus límites documentados. En este inventario inicial la aceptación de la fase 5D está pendiente para todas las paradas. Las publicaciones anteriores y la evidencia de Mi lugar de origen conservan su validez dentro de su alcance original.

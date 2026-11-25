@@ -20,7 +20,7 @@ import {
   test,
 } from './helpers';
 
-const catalogUrl = '/chapter-packs/catalog-v5.json';
+const catalogUrl = '/chapter-packs/catalog-v6.json';
 
 function expectProgressWithChapterExposure(
   before: Awaited<ReturnType<typeof state>>,

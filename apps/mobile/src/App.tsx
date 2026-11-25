@@ -970,6 +970,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onSpeech={() => setFlow('speech')}
                 onGrammar={() => setFlow('grammar')}
                 onReview={() => setFlow('skills')}
+                onFoundationReview={(id) => openQuickReview(id, chapter.id)}
                 onLegacy={() => setFlow('textbook')}
               />
             ) : tab === 'Desafíos' ? (

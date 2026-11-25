@@ -145,7 +145,19 @@ test('Android starts with a local shell and opens the installed adventure and co
     snapshot = JSON.stringify(oldState);
     installHomeContent({ ...story, ...story.runtime } as HomeContent);
     const restored = await engine.request<StoryResponse>('/v1/story');
-    assert.deepEqual(restored.travel.active, { ...draft, contentRevision: story.chapter.revision });
+    const { prerequisiteInstruction, ...restoredDraft } = restored.travel.active!;
+    assert.deepEqual(restoredDraft, { ...draft, contentRevision: story.chapter.revision });
+    assert.ok(prerequisiteInstruction?.sections.length);
+    const gated = await engine.request<TravelState>('/v1/travel?source=story', {
+      action: 'answer',
+      token: restoredDraft.token,
+      answer: { text: 'Hello! My name is Mei Lin.' },
+    });
+    assert.equal(gated.active?.result, undefined);
+    await engine.request('/v1/travel?source=story', {
+      action: 'prepare',
+      token: restoredDraft.token,
+    });
 
     const reply = await engine.request<TravelState>('/v1/travel?source=story', {
       action: 'answer',
@@ -170,14 +182,15 @@ test('Android starts with a local shell and opens the installed adventure and co
     const writing = await engine.request<QuickReviewState>(path);
     assert.equal(writing.lessonId, 'travel_home');
     assert.equal(writing.audio, undefined);
-    assert.ok(writing.prerequisiteInstruction?.sections.length);
-    const premature = await engine.request<QuickReviewState>(path, {
-      action: 'answer',
-      token: writing.token,
-      answer: { text: 'Hello! My name is Mei Lin.' },
-    });
-    assert.equal(premature.result, undefined);
-    await engine.request(path, { action: 'prepare', token: writing.token });
+    if (writing.prerequisiteInstruction) {
+      const premature = await engine.request<QuickReviewState>(path, {
+        action: 'answer',
+        token: writing.token,
+        answer: { text: 'Hello! My name is Mei Lin.' },
+      });
+      assert.equal(premature.result, undefined);
+      await engine.request(path, { action: 'prepare', token: writing.token });
+    }
     const prepared = await engine.request<QuickReviewState>(path);
     assert.equal(prepared.token, writing.token);
     assert.equal(prepared.prerequisiteInstruction, undefined);
@@ -192,7 +205,7 @@ test('Android starts with a local shell and opens the installed adventure and co
     );
     assert.equal(reviewEvent?.source, 'review');
     assert.equal(reviewEvent?.materialVersion, `home:${story.chapter.revision}`);
-    assert.equal(reviewEvent?.independent, false);
+    assert.equal(reviewEvent?.independent, !writing.prerequisiteInstruction);
   } finally {
     resolution.deregister();
   }
