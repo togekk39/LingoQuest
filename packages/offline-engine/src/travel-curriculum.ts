@@ -6,7 +6,7 @@ export const learningSkills = {
   listening: 'Comprensión oral',
   reading: 'Comprensión lectora',
   writing: 'Escritura',
-  speaking: 'Conversación y pronunciación',
+  speaking: 'Expresión oral',
 } as const;
 
 export type CurriculumSkill = keyof typeof learningSkills;
@@ -196,7 +196,7 @@ const stages: Record<string, CurriculumStageContent> = {
     objectives: {
       vocabulary: 'Recuperar saludos, colores y palabras para lugares y objetos cercanos.',
       grammar: 'Formar presentaciones, preguntas Where is y descripciones breves con sujeto + be.',
-      listening: 'Identificar qué lugar pide una viajera y anotar una indicación corta.',
+      listening: 'Identificar qué lugar busca Sam y anotar una indicación corta.',
       reading: 'Encontrar el nombre o el color relevante en un mensaje de objetos perdidos.',
       writing: 'Responder a una tarjeta de bienvenida y confirmar qué objeto encontraste.',
       speaking: 'Imitar una presentación y ensayar con tu nombre antes de escuchar tu grabación.',
@@ -217,7 +217,7 @@ const stages: Record<string, CurriculumStageContent> = {
     objectives: {
       vocabulary: 'Recuperar verbos de rutina y expresiones de hora y frecuencia.',
       grammar:
-        'Usar presente simple con I y he/she; conservar el sujeto y agregar -s cuando corresponde.',
+        'Describir rutinas con I o he/she y formar preguntas con do o does más el verbo base.',
       listening: 'Distinguir dos horarios y quién realiza cada actividad.',
       reading: 'Localizar una hora y una actividad en una agenda del barrio.',
       writing: 'Enviar un itinerario breve sobre tu rutina y la de una anfitriona.',
@@ -243,7 +243,8 @@ const stages: Record<string, CurriculumStageContent> = {
   peru: {
     objectives: {
       vocabulary: 'Recuperar verbos de salida y expresiones como yesterday y last night.',
-      grammar: 'Construir afirmativas, negativas y preguntas de pasado simple con did.',
+      grammar:
+        'Contar hechos terminados con formas irregulares y usar el verbo base después de did.',
       listening: 'Ordenar dos hechos narrados e identificar cuál sucedió primero.',
       reading: 'Extraer quién, cuándo y dónde de un mensaje sobre la salida.',
       writing: 'Redactar una nota de tres hechos y preguntar por un dato ausente.',
@@ -257,14 +258,14 @@ const stages: Record<string, CurriculumStageContent> = {
     objectives: {
       vocabulary: 'Nombrar tareas de cocina, objetos y conectores de secuencia.',
       grammar: 'Contrastar una rutina con una acción actual y distinguir las formas de be.',
-      listening: 'Identificar qué tarea está en curso y cuál viene después.',
+      listening: 'Identificar qué tarea está haciendo cada persona en un mensaje nuevo.',
       reading: 'Seguir un listado breve de tareas con horarios y responsables.',
       writing: 'Actualizar al grupo sobre lo que cada persona está haciendo.',
       speaking: 'Coordinar el siguiente paso; practicar los grupos de palabras de be + -ing.',
     },
     introduces: ['present-actions', 'task-order'],
     revisits: ['routine-verbs', 'food-quantity', 'item-ownership'],
-    transferEs: 'Coordinar la preparación de un juego de mesa con personas distintas.',
+    transferEs: 'Describir quién hace cada tarea en otra cocina e indicar el siguiente paso.',
   },
   chile: {
     objectives: {
@@ -311,10 +312,10 @@ const stages: Record<string, CurriculumStageContent> = {
       vocabulary:
         'Identificar campos, requisitos y datos de contacto. Distinguir attend (asistir) de assist (ayudar).',
       grammar: 'Usar have to, can y don’t have to para distinguir permisos y obligaciones.',
-      listening: 'Identificar qué debes llevar y deletrear o confirmar un dato.',
+      listening: 'Identificar qué debes llevar y reconocer los nombres de las letras del alfabeto.',
       reading: 'Detectar requisitos y excepciones de una inscripción.',
       writing: 'Completar un formulario y pedir que confirmen una condición.',
-      speaking: 'Solicitar cupo y confirmar datos de contacto por grupos de palabras.',
+      speaking: 'Solicitar cupo, deletrear tu apellido y confirmar un requisito.',
     },
     introduces: ['requirements', 'form-confirmation'],
     revisits: ['introduction', 'requests-preferences', 'routine-time'],

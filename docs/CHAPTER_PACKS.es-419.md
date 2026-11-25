@@ -9,13 +9,13 @@ Elige un destino en **Mapa** y selecciona **Abrir capítulo** para usar el paque
 ## Redactar y publicar una actualización de contenido
 
 1. Edita el destino en `content/source/chapter-lessons-west.ts` o `content/source/chapter-lessons-east.ts`. Un destino puede definir una lección o un arreglo de lecciones. La app usa el orden del arreglo para la navegación y reproduce el audio del paquete para cada intervención del diálogo, palabra y respuesta modelo en inglés. Las portadas de los destinos están en `content/media/chapters/`. El primer capítulo usa los archivos originales de ilustración como fuente del paquete.
-2. Instala FFmpeg con Flite y libmp3lame habilitados. Genera el paquete modificado con un número de revisión entero más alto. Por ejemplo, este comando genera la revisión 2 de Toronto y actualiza su entrada en el catálogo.
+2. Instala FFmpeg con Flite y libmp3lame habilitados. Genera el paquete modificado con un número de revisión entero más alto. Por ejemplo, este comando genera la revisión 7 de Toronto y actualiza su entrada en el catálogo.
 
    ```sh
-   CHAPTER_PACK_REVISION=2 npm run packs:chapters -- --chapter=toronto
+   CHAPTER_PACK_REVISION=7 npm run packs:chapters -- --chapter=toronto
    npm run packs:chapters -- --verify
    ```
 
-3. Publica el archivo de la revisión nueva y luego el catálogo desde `apps/mobile/public/chapter-packs/`. Conserva sin cambios las rutas como `2/toronto.json`. Sirve `catalog.json` con revalidación de caché. La app web solicita `/chapter-packs/` desde su propio origen. Android lee la misma carpeta de la rama `main` del repositorio de LingoQuest mediante GitHub Raw. Al publicar esta carpeta, las descargas nuevas reciben la última revisión. Los paquetes instalados se vuelven a usar sin conexión. Al iniciar, la app busca una versión más reciente del primer capítulo si el paquete instalado es anterior a la revisión 5. La descarga verificada queda disponible en el siguiente inicio.
+3. Publica juntos el archivo de la revisión nueva y `catalog-v2.json` desde `apps/mobile/public/chapter-packs/`. Conserva sin cambios las rutas de revisión como `7/toronto.json`. Sirve los catálogos con revalidación de caché. La versión web lee esa carpeta desde su propio origen. Android usa GitHub Raw y consulta `main` para las compilaciones de lanzamiento iniciadas en `main`. Los APK de desarrollo en CI consultan el repositorio y el commit exactos que usa el flujo, incluidas las compilaciones de una bifurcación o de una rama elegida manualmente. Mantén disponibles `catalog.json` y sus revisiones para Android 2.1.0. Al iniciar, la app compara el catálogo con todos los paquetes instalados y descarga en segundo plano las revisiones más recientes. Las actualizaciones verificadas se usan en un inicio posterior. El contenido instalado y el progreso siguen disponibles sin conexión o si falla la descarga.
 
 El catálogo guarda la revisión, el tamaño en bytes y el SHA-256 de cada destino. Cada archivo también tiene su propia versión de esquema y suma de comprobación del contenido. Conserva `schemaVersion` en `1` para cambios compatibles, como nuevas lecciones, ilustraciones de reemplazo y audio adicional. Se necesitan cambios en la app para usar un nuevo esquema de paquete o agregar destinos al mapa.

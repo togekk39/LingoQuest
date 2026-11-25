@@ -11,6 +11,7 @@ import { Button } from '../ui';
 import { illustrations } from './illustrations';
 import { AnswerFeedback } from '../features/LessonStages';
 import { useChapterAudio } from './useChapterAudio';
+import { starterGreetingInstruction } from './starterGreeting';
 
 export function QuickReview({
   onClose,
@@ -141,10 +142,7 @@ export function QuickReview({
             {review.situation ? (
               <Text style={f.body}>{review.situation}</Text>
             ) : review.starter ? (
-              <Text style={f.body}>
-                En la plaza, Luz te enseña una palabra para saludar:{' '}
-                <Text style={f.cardTitle}>hi</Text> significa «hola».
-              </Text>
+              <Text style={f.body}>{starterGreetingInstruction}</Text>
             ) : null}
             {audio && (
               <Button variant="secondary" icon={Volume2} onPress={() => void play(audio, true)}>

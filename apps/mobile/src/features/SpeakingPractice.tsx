@@ -275,13 +275,20 @@ export function SpeakingPanel({
               </>
             )}
             {!!stt.finalTranscript && (
-              <Text style={f.quiet}>
-                {passed
-                  ? 'La frase reconocida cumple el objetivo.'
-                  : matchesTranscript
-                    ? 'Revisa el saludo, la forma de presentación y el nombre en la transcripción.'
-                    : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
-              </Text>
+              <>
+                <Text style={f.quiet}>
+                  {passed
+                    ? 'La frase reconocida cumple el objetivo.'
+                    : matchesTranscript
+                      ? 'Revisa el saludo, la forma de presentación y el nombre en la transcripción.'
+                      : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
+                </Text>
+                <Text style={f.quiet}>
+                  Esta pista se basa en las palabras transcritas. Escucha tu grabación para comparar
+                  los sonidos. En una conversación, fíjate si la otra persona entiende lo que
+                  quieres decir.
+                </Text>
+              </>
             )}
           </JournalLeaf>
         </View>

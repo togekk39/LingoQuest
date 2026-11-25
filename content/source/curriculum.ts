@@ -7,13 +7,14 @@ import type {
 } from '../../packages/course-pack/src/index.ts';
 import { authoredUnits, type LessonAuthoring } from './integrated-lessons.ts';
 import { advancedUnits } from './advanced-lessons.ts';
+import { textbookRefreshers } from './prerequisites/textbook-refreshers.ts';
 export type PrivateExercise = CourseExercise;
 export type PrivateLesson = CourseLesson;
 export type Unit = CourseUnit;
 export type ExerciseType = CourseExercise['type'];
 export type ChallengeType = 'grammar_rush' | 'cloze_battle' | 'reading_quest';
 export const contentStatus = {
-  version: 'integrated-original-draft-2',
+  version: 'phase-5b-edited-2',
   status: 'draft_needs_human_review',
   rankedPublished: false,
   source: 'original_authored_integrated_curriculum',
@@ -118,7 +119,31 @@ function authorLesson(
     difficulty,
   });
   const practice: PrivateExercise[] = definition.tasks.map((task, position) => {
-    const answers = task.type === 'reorder' ? [task.answer] : task.answers;
+    const exerciseId = `${id}_practice_${position + 1}`;
+    if (task.type === 'single_choice') {
+      const options = task.options.map((text, index) => ({ id: `option${index + 1}`, text }));
+      const correct = options[task.correctIndex];
+      if (!correct) throw new Error(`No hay una opción correcta: ${exerciseId}`);
+      return {
+        id: exerciseId,
+        type: task.type,
+        promptEs: task.prompt,
+        passage: task.passage,
+        options,
+        optionsLanguage: 'es',
+        correctOptionId: correct.id,
+        acceptedAnswers: [correct.text],
+        skillId: definition.skill,
+        vocabularyIds: vocabulary
+          .filter((item) => containsPhrase(task.passage, item.en))
+          .map((item) => item.id),
+        dimension: 'grammar_understanding',
+        feedbackEs: task.reason,
+        difficulty,
+      };
+    }
+    const answers =
+      task.type === 'reorder' ? [task.answer, ...(task.alternatives ?? [])] : task.answers;
     const text = answers.join(' ').toLowerCase();
     const linked = [...vocabularyByText.values()].filter((item) => containsPhrase(text, item.en));
     // A recall item credits only the word that is actually retrieved, never every word in its example.
@@ -131,7 +156,7 @@ function authorLesson(
     if (task.type === 'short_text' && task.recall && recalled.length === 0)
       throw new Error(`La evocación necesita un vocabulario explícito: ${id}/${answers[0]}`);
     const exercise: PrivateExercise = {
-      id: `${id}_practice_${position + 1}`,
+      id: exerciseId,
       type: task.type,
       promptEs: task.prompt,
       acceptedAnswers: answers,
@@ -145,9 +170,16 @@ function authorLesson(
           : 'grammar_understanding',
       feedbackEs: task.reason,
       difficulty,
+      ...(task.communicationOnly ? { communicationOnly: task.communicationOnly } : {}),
+      ...(task.type === 'short_text' && task.introduction
+        ? { introduction: task.introduction }
+        : {}),
     };
     if (task.type === 'reorder') {
-      const tokens = task.answer.split(' ');
+      const tokenText = task.alternatives?.length
+        ? task.answer.replace(/,/g, '').replace(/[.!?]$/, '')
+        : task.answer;
+      const tokens = tokenText.split(' ');
       // Stable rotation keeps repeat words available and does not change authored answers.
       const split = Math.ceil(tokens.length / 2);
       exercise.tokens = [...tokens.slice(split), ...tokens.slice(0, split)];
@@ -190,7 +222,7 @@ function authorLesson(
       prerequisiteSkillIds,
       explanationEs: definition.rule,
       examples: definition.examples.map(([en, es]) => ({ en, es })),
-      taughtForms: definition.forms.map(([en, es]) => ({ en, es })),
+      taughtForms: [...definition.forms, ...textbookRefreshers(id)].map(([en, es]) => ({ en, es })),
     },
     examples: definition.examples.map(([en, es]) => ({ en, es })),
     dialogue: definition.dialogue.map(([speaker, en, es]) => ({
@@ -242,33 +274,121 @@ export function publicExercise(exercise: PrivateExercise) {
     acceptedAnswers: _answers,
     correctOptionId: _option,
     feedbackEs: _feedback,
+    communicationOnly: _communicationOnly,
+    introduction: _introduction,
+    ungradable: _ungradable,
     ...publicData
   } = exercise;
   return publicData;
 }
 export { challengePools, challengePools as challengeQuestions } from './challenges.ts';
-// Placement remains optional and samples progressively harder, already authored material.
-export const placementQuestions: PrivateExercise[] = [
-  'u01_l01',
-  'u01_l02',
-  'u02_l01',
-  'u02_l02',
-  'u03_l01',
-  'u03_l02',
-  'u04_l02',
-  'u04_l03',
-  'u05_l01',
-  'u06_l01',
-  'u07_l01',
-  'u07_l04',
-].map((lessonId, index) => {
-  const source = lessons[lessonId]!.exercises.find((exercise) => exercise.type === 'cloze')!;
-  return {
-    ...source,
-    id: `placement_${String(index + 1).padStart(2, '0')}`,
-    promptEs: `${source.promptEs} Este diagnóstico es opcional; puedes empezar desde cero.`,
-  };
-});
+type PlacementItem = [
+  lessonId: string,
+  question: Omit<PrivateExercise, 'id' | 'skillId' | 'difficulty' | 'vocabularyIds' | 'dimension'>,
+];
+const placementItems: PlacementItem[] = [
+  ['u01_l01', {
+    type: 'single_choice',
+    promptEs: 'Lee el mensaje. ¿Qué está haciendo Nora?',
+    passage: 'Hello! I am Nora.',
+    options: [{ id: 'a', text: 'Se está presentando.' }, { id: 'b', text: 'Se está despidiendo.' }],
+    optionsLanguage: 'es',
+    correctOptionId: 'a',
+    acceptedAnswers: ['Se está presentando.'],
+    feedbackEs: 'Hello es un saludo. I am Nora significa «Soy Nora».',
+  }],
+  ['u01_l02', {
+    type: 'reorder',
+    promptEs: 'Ordena las palabras para decir «Él es mi hermano».',
+    tokens: ['brother', 'He', 'my', 'is'],
+    acceptedAnswers: ['He is my brother.'],
+    feedbackEs: 'He va primero, luego is y después la relación: my brother.',
+  }],
+  ['u02_l01', {
+    type: 'short_text',
+    promptEs: 'Escribe en inglés «Estudio inglés todos los días».',
+    acceptedAnswers: ['I study English every day.', 'Every day I study English.', 'I study English daily.', 'I study English each day.', 'Each day I study English.'],
+    feedbackEs: 'Expresa el hábito con I study English y una frase de frecuencia como every day.',
+  }],
+  ['u02_l02', {
+    type: 'single_choice',
+    promptEs: 'Lee la nota. ¿Quién trabaja en casa?',
+    passage: 'I am Eva. I study English at home. My father works at home.',
+    options: [{ id: 'a', text: 'Eva.' }, { id: 'b', text: 'El papá de Eva.' }],
+    optionsLanguage: 'es',
+    correctOptionId: 'b',
+    acceptedAnswers: ['El papá de Eva.'],
+    feedbackEs: 'Eva estudia en casa. My father works at home dice que el papá de Eva trabaja en casa.',
+  }],
+  ['u03_l01', {
+    type: 'reorder',
+    promptEs: 'Ordena la pregunta «¿Te gusta el arroz?».',
+    tokens: ['like', 'rice', 'Do', 'you'],
+    acceptedAnswers: ['Do you like rice?'],
+    feedbackEs: 'Do abre la pregunta. Después van you y el verbo like.',
+  }],
+  ['u03_l02', {
+    type: 'short_text',
+    promptEs: 'Di en inglés «Ella no toma leche».',
+    acceptedAnswers: ['She does not drink milk.', "She doesn't drink milk."],
+    feedbackEs: 'Con she usamos does not o doesn’t antes de drink.',
+  }],
+  ['u04_l02', {
+    type: 'cloze',
+    promptEs: 'Completa «Ayer llamé a mi papá». Usa el pasado de call.',
+    sentence: 'I ___ my father yesterday.',
+    acceptedAnswers: ['called'],
+    feedbackEs: 'Call es regular. En pasado agrega -ed: called.',
+  }],
+  ['u04_l03', {
+    type: 'single_choice',
+    promptEs: 'Lee el mensaje. ¿Qué hizo la persona después de comprar el pan?',
+    passage: 'Yesterday I went to the market. I bought bread. I took the bus home.',
+    options: [{ id: 'a', text: 'Fue al mercado.' }, { id: 'b', text: 'Volvió a casa en autobús.' }],
+    optionsLanguage: 'es',
+    correctOptionId: 'b',
+    acceptedAnswers: ['Volvió a casa en autobús.'],
+    feedbackEs: 'Took es el pasado de take. I took the bus home significa «Volví a casa en autobús».',
+  }],
+  ['u05_l01', {
+    type: 'short_text',
+    promptEs: 'Escribe «Estoy leyendo ahora mismo» en inglés.',
+    acceptedAnswers: ['I am reading right now.', "I'm reading right now.", 'I am reading now.', "I'm reading now.", 'Right now I am reading.', "Right now I'm reading.", 'I am currently reading.', "I'm currently reading.", 'I am reading at the moment.', "I'm reading at the moment.", 'At the moment I am reading.', "At the moment I'm reading.", 'I am reading at this moment.', "I'm reading at this moment."],
+    feedbackEs: 'Para una acción en curso, usa I am o I’m seguido de reading.',
+  }],
+  ['u06_l01', {
+    type: 'reorder',
+    promptEs: 'Ordena «Voy a viajar en tren el sábado».',
+    tokens: ['train', 'going', 'Saturday', 'am', 'by', 'I', 'to', 'travel', 'on'],
+    acceptedAnswers: ['I am going to travel by train on Saturday.', 'On Saturday I am going to travel by train.'],
+    feedbackEs: 'Con I am going to expresas un plan. By train indica el medio de transporte.',
+  }],
+  ['u07_l01', {
+    type: 'single_choice',
+    promptEs: '¿Quién ha probado la comida de ese restaurante?',
+    passage: 'Luz has tried the food at the new restaurant. Sam has not been to that restaurant yet.',
+    options: [{ id: 'a', text: 'Luz.' }, { id: 'b', text: 'Sam.' }, { id: 'c', text: 'Luz y Sam.' }],
+    optionsLanguage: 'es',
+    correctOptionId: 'a',
+    acceptedAnswers: ['Luz.'],
+    feedbackEs: 'Has tried significa «ha probado». Sam todavía no ha ido al restaurante.',
+  }],
+  ['u08_l04', {
+    type: 'short_text',
+    promptEs: 'Completa «Quiero este trabajo porque me gusta ayudar». Escribe solo el conector en inglés.',
+    sentence: 'I want this job ___ I like to help.',
+    acceptedAnswers: ['because', 'since', 'as'],
+    feedbackEs: 'Because une la decisión y el motivo. Since y as también pueden introducir una causa.',
+  }],
+];
+export const placementQuestions: PrivateExercise[] = placementItems.map(([lessonId, question], index) => ({
+  ...question,
+  id: `placement_${String(index + 1).padStart(2, '0')}`,
+  skillId: lessons[lessonId]!.grammar.skillId,
+  difficulty: Number(lessonId.slice(1, 3)),
+  vocabularyIds: [],
+  dimension: question.options ? 'grammar_understanding' : 'grammar_production',
+}));
 
 export interface SpeechDrill {
   id: string;
@@ -281,13 +401,13 @@ const speechGroups = [
   {
     category: 'short_long_vowels',
     titleEs: 'Vocales: /ɪ/ y /iː/',
-    tipEs: 'Escucha el contraste entre una vocal breve y una más larga. Tu acento no es un error.',
+    tipEs: 'Compara ship y sheep. En /iː/ la lengua suele estar más alta y adelante que en /ɪ/. El primer sonido también suele durar más.',
     texts: [
       'The ship is near the sheep.',
       'Please sit in this seat.',
       'I live here, but I leave tomorrow.',
-      'A little bit of a steady beat.',
-      'Fill the glass and feel the water.',
+      'Keep it steady.',
+      'Fill the cup and feel how warm it is.',
     ],
   },
   {
@@ -297,10 +417,10 @@ const speechGroups = [
       'Para /v/, acerca los dientes superiores al labio inferior. Compara con el cierre de ambos labios en /b/.',
     texts: [
       'This berry is very sweet.',
-      'The best vest is blue.',
+      'The blue vest is my best one.',
       'The van is next to the bank.',
-      'We vote near the boat.',
-      'The blue bow is very bright.',
+      'We voted before we got on the boat.',
+      'Please save the blue box.',
     ],
   },
   {
@@ -320,7 +440,7 @@ const speechGroups = [
     category: 'th_voiced',
     titleEs: 'El sonido /ð/',
     tipEs:
-      'En this, deja vibrar la voz suavemente. No se evalúa tu acento; aquí solo puedes escuchar y comparar.',
+      'En this, deja pasar aire entre la lengua y los dientes. Toca tu garganta para notar cómo vibra la voz.',
     texts: [
       'This is my notebook.',
       'That is a good idea.',

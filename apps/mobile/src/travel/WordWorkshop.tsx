@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Keyboard, View } from 'react-native';
-import { grade, travelChallengePools, type TravelVocabulary } from '@lingoquest/offline-engine';
+import { judgeAnswer, type AnswerOutcome } from '@lingoquest/contracts';
+import { travelChallengePools, type TravelVocabulary } from '@lingoquest/offline-engine';
 import {
   ExerciseInput,
   hasAnswer,
@@ -20,7 +21,7 @@ export function WordWorkshop({
   onClose: () => void;
 }) {
   const [answer, setAnswer] = useState<ExerciseAnswer>({});
-  const [result, setResult] = useState<boolean>();
+  const [result, setResult] = useState<AnswerOutcome>();
   const cloze = travelChallengePools.grammar_rush.find(({ id }) => id === 'home_challenge_name');
   if (kind === 'cloze' && !cloze) return <Button onPress={onClose}>Volver a las palabras</Button>;
   const pairs = words.map((word) => ({ id: word.term, left: word.term, right: word.meaning }));
@@ -51,9 +52,15 @@ export function WordWorkshop({
             onPress={() => {
               Keyboard.dismiss();
               setResult(
-                kind === 'matching'
-                  ? pairs.every(({ id }) => answer.matches?.[id] === id)
-                  : !!cloze && grade(cloze, answer),
+                judgeAnswer(
+                  cloze && kind === 'cloze'
+                    ? cloze
+                    : {
+                        ...exercise,
+                        acceptedAnswers: [],
+                      },
+                  answer,
+                ),
               );
             }}
           >
@@ -63,11 +70,15 @@ export function WordWorkshop({
           <JournalLeaf tint="mint">
             <View accessibilityLiveRegion="polite">
               <Label>
-                {result
+                {result === 'target'
                   ? '¡Bien! Ya puedes usar lo que acabas de practicar.'
-                  : kind === 'matching'
-                    ? 'Revisa qué significa cada palabra e inténtalo otra vez.'
-                    : cloze?.feedbackEs}
+                  : result === 'ungradable'
+                    ? 'Faltan datos para evaluar esta respuesta.'
+                    : result === 'communication_only'
+                      ? cloze?.communicationOnly?.feedbackEs
+                      : kind === 'matching'
+                        ? 'Revisa qué significa cada palabra e inténtalo otra vez.'
+                        : cloze?.feedbackEs}
               </Label>
             </View>
             <Button

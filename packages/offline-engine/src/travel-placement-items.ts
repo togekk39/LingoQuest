@@ -14,7 +14,7 @@ export const travelPlacementItems: {
       passage: 'Hi! My name is Sam.',
       options: [
         { id: 'name', text: 'Se está presentando.' },
-        { id: 'bag', text: 'Está buscando su mochila.' },
+        { id: 'bag', text: 'Se está despidiendo.' },
       ],
       optionsLanguage: 'es',
       correctOptionId: 'name',
@@ -29,12 +29,18 @@ export const travelPlacementItems: {
     exercise: {
       id: 'route_intro_write',
       type: 'short_text',
-      promptEs: 'Traduce el ejemplo de Luz: «Soy Luz».',
-      acceptedAnswers: ['I am Luz', "I'm Luz", 'My name is Luz', "My name's Luz"],
+      promptEs:
+        'Escribe una frase breve para presentarte en inglés. Usa tu nombre o elige un nombre de práctica.',
+      acceptedAnswers: [],
+      introduction: { greetingRequired: false, model: 'My name is [tu nombre].' },
+      communicationOnly: {
+        answers: [],
+        feedbackEs: 'Tu manera de presentarte permite entender el nombre que elegiste.',
+      },
       difficulty: 1,
       skillId: 'grammar.be_i_you',
       feedbackEs:
-        'Puedes decir tu nombre con I am Luz o My name is Luz. Sus formas cortas son I’m Luz y My name’s Luz.',
+        'Puedes presentarte con I am o My name is y el nombre que elegiste. Sus formas cortas son I’m y My name’s.',
     },
   },
   {
@@ -46,14 +52,14 @@ export const travelPlacementItems: {
       promptEs: 'Escucha a Sam. ¿Qué está buscando?',
       options: [
         { id: 'park', text: 'El parque.' },
-        { id: 'stop', text: 'La parada de bus.' },
+        { id: 'stop', text: 'La parada de autobús.' },
       ],
       optionsLanguage: 'es',
       correctOptionId: 'stop',
-      acceptedAnswers: ['La parada de bus.'],
+      acceptedAnswers: ['La parada de autobús.'],
       difficulty: 2,
       skillId: 'grammar.be_questions',
-      feedbackEs: 'Bus stop es la parada de bus.',
+      feedbackEs: 'Bus stop significa «parada de autobús».',
     },
   },
   {
@@ -66,7 +72,8 @@ export const travelPlacementItems: {
       acceptedAnswers: ['It’s next to the park'],
       difficulty: 2,
       skillId: 'grammar.be_it_they',
-      feedbackEs: 'Next to significa «junto a».',
+      feedbackEs:
+        'Para decir dónde está la parada, usa It’s next to the park («Está junto al parque»).',
     },
   },
   {

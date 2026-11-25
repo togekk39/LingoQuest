@@ -7,6 +7,7 @@ import {
 import { parseCoursePack, type ChapterPack } from '@lingoquest/course-pack';
 import { applyHomeImages } from '../travel/illustrations.native';
 import { getInstalledChapter } from './chapterPacks';
+import { isPreviousBuiltInCourse } from './previousCourse';
 import { getRaw } from './storage';
 
 const emptyCourse: CourseData = {
@@ -21,7 +22,8 @@ const emptyCourse: CourseData = {
 
 const installedUnits = new Map<string, NonNullable<ChapterPack['unit']>>();
 let originalCourse: CourseData = emptyCourse;
-let courseActivities: Omit<CourseData, 'units' | 'lessons'> = emptyCourse;
+let keepImportedActivities = false;
+let homeActivities: Omit<CourseData, 'units' | 'lessons'> = emptyCourse;
 let activeCourse: CourseData = emptyCourse;
 let homeReady = false;
 const activated = new Map<string, number>();
@@ -54,7 +56,8 @@ function refreshCourse() {
     });
     for (const lesson of unit.lessons) lessons[lesson.id] = lesson;
   }
-  activeCourse = { ...courseActivities, units: [...units.values()], lessons };
+  const activities = homeReady && !keepImportedActivities ? homeActivities : originalCourse;
+  activeCourse = { ...activities, units: [...units.values()], lessons };
 }
 
 async function activate(pack: ChapterPack) {
@@ -72,7 +75,7 @@ async function activate(pack: ChapterPack) {
     } as unknown as HomeContent;
     await applyHomeImages(pack.chapterId, pack.images);
     installHomeContent(home);
-    courseActivities = originalCourse === emptyCourse ? course : originalCourse;
+    homeActivities = course;
     homeReady = true;
   }
   if (unit) installedUnits.set(pack.chapterId, unit);
@@ -90,9 +93,12 @@ export function applyDownloadedContent(pack: ChapterPack) {
 export async function restoreDownloadedContent() {
   try {
     const saved = await getRaw('lq_installed_course_pack_v1');
-    if (saved) originalCourse = courseActivities = parseCoursePack(saved).payload;
+    const imported = saved ? parseCoursePack(saved) : null;
+    originalCourse = imported?.payload ?? emptyCourse;
+    keepImportedActivities = !!imported && !isPreviousBuiltInCourse(imported.manifest.sha256);
   } catch {
-    originalCourse = courseActivities = emptyCourse;
+    originalCourse = emptyCourse;
+    keepImportedActivities = false;
   }
   for (const { id, unitId } of route) {
     if (!unitId) continue;

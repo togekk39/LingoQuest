@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   units,
@@ -17,14 +17,15 @@ import {
   sha256Hex,
   utf8Bytes,
   courseCatalogSchema,
+  parseCourseCatalog,
 } from '../packages/course-pack/src/index.ts';
 async function main() {
   const root = resolve(process.cwd());
-  const version = process.env.COURSE_PACK_VERSION ?? '2.1.0';
+  const version = process.env.COURSE_PACK_VERSION ?? '2.2.1';
   const repository = process.env.COURSE_PACK_REPOSITORY ?? 'togekk39/LingoQuest';
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository))
     throw new Error('COURSE_PACK_REPOSITORY must be owner/repository.');
-  const createdAt = process.env.COURSE_PACK_CREATED_AT ?? '2026-11-18T00:00:00.000Z';
+  const createdAt = process.env.COURSE_PACK_CREATED_AT ?? '2026-11-25T00:00:00.000Z';
   const pack = createCoursePack(
     {
       units,
@@ -39,7 +40,7 @@ async function main() {
     {
       packageId: 'es419-enus-a1a2',
       version,
-      minAppVersion: compareVersions(version, '2.1.0') < 0 ? '1.3.0' : '2.0.0',
+      minAppVersion: '2.2.0',
       titleEs: 'Inglés para tu vida real · A1–A2',
       locale: 'es-419',
       targetLanguage: 'en-US',
@@ -51,7 +52,21 @@ async function main() {
   const releaseDir = resolve(root, 'content/releases');
   await mkdir(releaseDir, { recursive: true });
   await mkdir(resolve(root, 'apps/mobile/src/content'), { recursive: true });
-  await writeFile(resolve(releaseDir, fileName), serialized);
+  const releaseFile = resolve(releaseDir, fileName);
+  const catalogFile = resolve(releaseDir, 'catalog.json');
+  const previousRelease = await readFile(releaseFile, 'utf8').catch((error) => {
+    if (error.code !== 'ENOENT') throw error;
+    return undefined;
+  });
+  const previousCatalog = await readFile(catalogFile, 'utf8').then(parseCourseCatalog, (error) => {
+    if (error.code !== 'ENOENT') throw error;
+    return undefined;
+  });
+  if (previousRelease && previousRelease !== serialized)
+    throw new Error(`Course version ${version} already exists with different content.`);
+  if (previousCatalog?.packages.some((record) => compareVersions(record.version, version) > 0))
+    throw new Error(`Course version ${version} is older than the bundled release.`);
+  await writeFile(releaseFile, serialized);
   await writeFile(resolve(root, 'apps/mobile/src/content/bundled-course.json'), serialized);
   const fileDigest = sha256Hex(serialized);
   // A built artifact is not a published release. Keep the optional download
@@ -78,6 +93,7 @@ async function main() {
     schemaVersion: 1,
     updatedAt: createdAt,
     packages: [
+      ...(previousCatalog?.packages.filter((entry) => entry.version !== version) ?? []),
       {
         packageId: pack.manifest.packageId,
         version,
@@ -91,9 +107,9 @@ async function main() {
       },
     ],
   });
-  await writeFile(resolve(releaseDir, 'catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`);
+  await writeFile(catalogFile, `${JSON.stringify(catalog, null, 2)}\n`);
   console.log(
-    `Built ${fileName}: ${utf8Bytes(serialized).length} bytes, ${units.length} units, ${Object.keys(lessons).length} lessons; original draft awaiting human review.`,
+    `Built ${fileName}: ${utf8Bytes(serialized).length} bytes, ${units.length} units, ${Object.keys(lessons).length} lessons.`,
   );
   console.log(
     'GitHub URLs are release targets; this command does not publish, push or call any online API.',

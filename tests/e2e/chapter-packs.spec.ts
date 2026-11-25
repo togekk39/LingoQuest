@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
-import type { ChapterCatalog, ChapterPack } from '@lingoquest/course-pack';
+import {
+  serializeChapterPack,
+  type ChapterCatalog,
+  type ChapterPack,
+} from '@lingoquest/course-pack';
 import type { Page } from '@playwright/test';
 import { chapterReaderSections } from '../curriculum/chapter-reader-sections';
 import {
@@ -16,7 +20,7 @@ import {
   test,
 } from './helpers';
 
-const catalogUrl = '/chapter-packs/catalog.json';
+const catalogUrl = '/chapter-packs/catalog-v2.json';
 
 async function savedChapters(page: Page) {
   return page.evaluate(
@@ -35,20 +39,21 @@ async function savedChapters(page: Page) {
   );
 }
 
-async function savedHomeRevision(page: Page) {
+async function savedChapterRevision(page: Page, chapterId = 'home') {
   return page.evaluate(
-    () =>
+    (id) =>
       new Promise<number | undefined>((resolve, reject) => {
         const database = indexedDB.open('lingoquest-chapter-packs');
         database.onerror = () => reject(database.error);
         database.onsuccess = () => {
           const db = database.result;
-          const request = db.transaction('packs').objectStore('packs').get('home');
+          const request = db.transaction('packs').objectStore('packs').get(id);
           request.onsuccess = () => resolve(request.result && JSON.parse(request.result).revision);
           request.onerror = () => reject(request.error);
           db.close();
         };
       }),
+    chapterId,
   );
 }
 
@@ -144,6 +149,7 @@ test('launch downloads the first chapter with byte progress and reuses it offlin
 test('chapter two verifies its pack and keeps the first adventure, study and due review offline', async ({
   page,
   context,
+  request,
   networkGuard,
 }) => {
   const start = Date.UTC(2026, 10, 19, 17);
@@ -168,7 +174,8 @@ test('chapter two verifies its pack and keeps the first adventure, study and due
   await click(page, 'Abrir pasaporte');
   const before = await state(page);
 
-  const packUrl = '**/chapter-packs/1/mexico.json';
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const packUrl = `**/chapter-packs/${catalog.chapters.mexico.revision}/mexico.json`;
   await context.route(packUrl, (request) =>
     request.fulfill({ body: '{"incomplete":true}', contentType: 'application/json' }),
   );
@@ -270,11 +277,11 @@ test('an installed older first chapter plays its introduction model offline and 
     };
   });
   await enterApp(page);
-  expect(await savedHomeRevision(page)).toBe(previousRevision);
+  expect(await savedChapterRevision(page)).toBe(previousRevision);
 
   await readyOfflineShell(page, context);
   await page.reload();
-  expect(await savedHomeRevision(page)).toBe(previousRevision);
+  expect(await savedChapterRevision(page)).toBe(previousRevision);
   await click(page, 'Comenzar mi aventura');
   const skipName = page.getByRole('button', exact('Continuar sin nombre'));
   const plaza = page.getByTestId('story-scene-plaza');
@@ -302,7 +309,7 @@ test('an installed older first chapter plays its introduction model offline and 
   await context.unroute(route);
   await page.reload();
   await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
-  await expect.poll(() => savedHomeRevision(page)).toBe(catalog.chapters.home.revision);
+  await expect.poll(() => savedChapterRevision(page)).toBe(catalog.chapters.home.revision);
 });
 
 test('opening a destination downloads its lessons and media when needed', async ({
@@ -396,36 +403,156 @@ test('opening a destination downloads its lessons and media when needed', async 
   );
 });
 
-test('early chapter cards render dialogue, teaching, question and open model in the audited order', async ({
+test('early chapter cards render dialogue, teaching, question and optional model in the audited order', async ({
   page,
+  request,
 }) => {
   await enterApp(page);
   await page.getByRole('tab', exact('Mapa')).click();
   const headings = chapterReaderSections.map(({ heading }) => heading);
-  for (const [id, label, model] of [
-    [
-      'mexico',
-      '2. Ciudad de México',
-      'I buy fruit at nine. My brother buys bread at ten. You can come with me at nine.',
-    ],
-    [
-      'colombia',
-      '3. Cartagena',
-      'I’d like two egg arepas and some water to go, please. Do you have orange juice?',
-    ],
-    [
-      'peru',
-      '4. Cusco',
-      'Yesterday I went to a fair. I saw Ana, and then I bought fruit. What time did Tomás arrive?',
-    ],
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  for (const [id, label] of [
+    ['mexico', '2. Ciudad de México'],
+    ['colombia', '3. Cartagena'],
+    ['peru', '4. Cusco'],
   ]) {
+    const packPath = `/chapter-packs/${catalog.chapters[id].revision}/${id}.json`;
+    const { lesson }: ChapterPack = await (await request.get(packPath)).json();
     await click(page, label);
     await click(page, 'Abrir capítulo');
     const card = page.getByTestId('chapter-lesson-' + id);
     await expect(card).toBeVisible();
     const sectionLabels = headings.map((heading) => card.getByText(heading, { exact: true }));
     await expect(sectionLabels.reduce((all, label) => all.or(label))).toHaveText(headings);
-    await expect(card.getByText(model, { exact: true })).toBeVisible();
+    const model = card.getByText(lesson.model.en, { exact: true });
+    await expect(model).toHaveCount(0);
+    await card.getByRole('button', exact('Ver un modelo')).click();
+    await expect(model).toBeVisible();
     await click(page, 'Cerrar y volver');
   }
+});
+
+test('an installed chapter updates when the catalog advances beyond the bundled revision', async ({
+  page,
+  context,
+  request,
+}) => {
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const installedRevision = catalog.chapters.toronto.revision;
+  const packPath = `/chapter-packs/${installedRevision}/toronto.json`;
+  const { sha256: _oldDigest, ...pack }: ChapterPack = await (await request.get(packPath)).json();
+  const revision = installedRevision + 1;
+  const newTitle = 'Deletreo mi apellido y confirmo el aula';
+  const newPack = serializeChapterPack({
+    ...pack,
+    revision,
+    lesson: { ...pack.lesson, title: newTitle },
+  });
+  const newEntry = {
+    revision,
+    sizeBytes: Buffer.byteLength(newPack),
+    sha256: createHash('sha256').update(newPack).digest('hex'),
+  };
+
+  async function openToronto() {
+    await page.getByRole('tab', exact('Mapa')).click();
+    await click(page, '9. Toronto');
+    await click(page, 'Abrir capítulo');
+  }
+  await enterApp(page);
+  await openToronto();
+  await expect(page.getByRole('heading', exact(pack.lesson.title))).toBeVisible();
+  expect(await savedChapterRevision(page, 'toronto')).toBe(installedRevision);
+  const before = await state(page);
+
+  await context.route(`**${catalogUrl}`, (entry) =>
+    entry.fulfill({ json: { ...catalog, chapters: { ...catalog.chapters, toronto: newEntry } } }),
+  );
+  await context.route(`**/chapter-packs/${revision}/toronto.json`, (entry) =>
+    entry.fulfill({ body: newPack, contentType: 'application/json' }),
+  );
+  await page.reload();
+  await expect.poll(() => savedChapterRevision(page, 'toronto')).toBe(revision);
+  await readyOfflineShell(page, context);
+  await page.reload();
+  await openToronto();
+  await expect(page.getByRole('heading', exact(newTitle))).toBeVisible();
+  expect(await state(page)).toEqual(before);
+});
+
+test('Salvador offers a fresh offline listening question with an optional translation', async ({
+  page,
+  context,
+  request,
+}) => {
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const path = `/chapter-packs/${catalog.chapters.brazil.revision}/brazil.json`;
+  const { lesson }: ChapterPack = await (await request.get(path)).json();
+  const { listening, options, answerIndex } = lesson.question;
+  expect(listening).toBeDefined();
+  if (!listening) throw new Error('Listening item missing from the chapter');
+
+  await page.addInitScript(() => {
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      this.addEventListener(
+        'playing',
+        () => {
+          document.body.dataset.salvadorAudio = this.currentSrc;
+        },
+        { once: true },
+      );
+      return play.call(this);
+    };
+  });
+  await enterApp(page);
+  async function openSalvador() {
+    await page.getByRole('tab', exact('Mapa')).click();
+    await click(page, '5. Salvador');
+    await click(page, 'Abrir capítulo');
+  }
+  await openSalvador();
+  const card = page.getByTestId('chapter-lesson-brazil');
+  await expect(card).toBeVisible();
+  await readyOfflineShell(page, context);
+  await page.reload();
+  await openSalvador();
+  await expect(card).toBeVisible();
+
+  const headings = chapterReaderSections.map(({ heading }) => heading);
+  const sectionLabels = headings.map((heading) => card.getByText(heading, { exact: true }));
+  await expect(sectionLabels.reduce((all, label) => all.or(label))).toHaveText(headings);
+  await expect(card.getByText(listening.en, { exact: true })).toHaveCount(0);
+  await click(page, 'Escuchar el mensaje');
+  await expect(page.locator('body')).toHaveAttribute(
+    'data-salvador-audio',
+    /^(?:blob:|data:audio)/,
+  );
+  await card.getByRole('radio', exact(options[answerIndex])).click();
+  await click(page, 'Comprobar respuesta');
+  await expect(card.getByText(/^¡Muy bien!/)).toBeVisible();
+  await click(page, 'Ver la transcripción');
+  await expect(card.getByText(listening.en, { exact: true })).toBeVisible();
+  await expect(card.getByText(listening.es, { exact: true })).toBeVisible();
+});
+
+test('Cape Town distinguishes what the ferry video shows from the unconfirmed departure time', async ({
+  page,
+}) => {
+  await enterApp(page);
+  await page.getByRole('tab', exact('Mapa')).click();
+  await click(page, '19. Ciudad del Cabo');
+  await click(page, 'Abrir capítulo');
+
+  const card = page.getByTestId('chapter-lesson-south-africa');
+  await expect(card.getByText(/solo se ve el ferry junto al muelle/)).toBeVisible();
+  await expect(
+    card.getByText(/Su teléfono indica que el video se grabó a las tres y cuarenta/),
+  ).toBeVisible();
+  const model = card.getByText(/Amara’s video shows the ferry next to the dock/);
+  await expect(model).toHaveCount(0);
+  await card.getByRole('button', exact('Ver un modelo')).click();
+  await expect(model).toContainText('The video doesn’t show the ferry pulling away');
+  await expect(model).toContainText('the actual departure time hasn’t been confirmed');
+  await expect(model).toContainText('compare the recording with the terminal log');
 });

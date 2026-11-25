@@ -540,7 +540,7 @@ export const chapterStory = {
     {
       id: 'luz-introduction-practice',
       npcId: 'luz',
-      text: 'En mi ejemplo, ¿qué verbo va con «I»? Completa «I ___ Luz».',
+      text: 'Cuando digo «I’m Luz», uso la forma corta de «I am Luz». Con «I» va «am». Ahora, elige el verbo de la forma completa: «I ___ Luz».',
       choices: [
         {
           id: 'luz-practice-am',
@@ -635,7 +635,7 @@ export const chapterStory = {
     {
       id: 'sam-directions',
       npcId: 'sam',
-      text: 'Ya llegué al parque. ¿Me dices por dónde queda la parada para avisarle a otro pasajero?',
+      text: 'Ya llegué al parque. ¿Me dices dónde queda la parada para avisarle a otro pasajero?',
       line: { en: 'Where is the bus stop?', es: '¿Dónde está la parada de bus?' },
       choices: [
         {
@@ -655,7 +655,7 @@ export const chapterStory = {
     {
       id: 'sam-found-stop',
       npcId: 'sam',
-      text: '¡Gracias! Ya puedo explicar dónde queda la parada. Un momento… ¿dónde dejé mi otra mochila?',
+      text: '¡Gracias! Ya puedo explicar dónde queda la parada. Un momento… ¿dónde dejé mi mochila?',
       line: { en: 'My bag!', es: '¡Mi mochila!' },
       choices: [
         {
@@ -668,7 +668,7 @@ export const chapterStory = {
     {
       id: 'sam-search',
       npcId: 'sam',
-      text: 'Dejé mi otra mochila en el banco mientras revisaba el boleto. Luz estaba cerca. ¿Por dónde buscamos?',
+      text: 'Dejé mi mochila en el banco mientras revisaba el boleto. Luz estaba cerca. ¿Dónde buscamos?',
       choices: [
         {
           id: 'search-bench',

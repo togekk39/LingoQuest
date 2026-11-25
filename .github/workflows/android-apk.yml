@@ -26,11 +26,15 @@ jobs:
     timeout-minutes: 50
     env:
       LINGOQUEST_RELEASE_VERSION: ${{ inputs.release_version }}
+      LINGOQUEST_BUILD_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       EXPO_NO_TELEMETRY: '1'
       EXPO_OFFLINE: '1'
       ANDROID_ARCHITECTURES: arm64-v8a,armeabi-v7a
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ env.LINGOQUEST_BUILD_COMMIT }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -49,10 +53,15 @@ jobs:
         with:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
       - run: npm ci
+      - run: npm run curriculum:verify
       - run: npm run packs:verify
+      - run: npm run packs:chapters -- --verify
       - run: npm run check
       - run: npm test
       - name: Build standalone preview APK
+        env:
+          EXPO_PUBLIC_CHAPTER_PACK_REF: ${{ (github.ref != 'refs/heads/main' || !inputs.release_version) && env.LINGOQUEST_BUILD_COMMIT || '' }}
+          EXPO_PUBLIC_CHAPTER_PACK_REPOSITORY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}
         run: node scripts/build-apk.mjs 2>&1 | tee apk-build.log
       - name: Test native English voice configuration
         working-directory: apps/mobile/android
@@ -65,7 +74,7 @@ jobs:
       - name: Upload installable APK and checksums
         uses: actions/upload-artifact@v4
         with:
-          name: lingoquest-apk-${{ github.run_number }}-${{ github.sha }}
+          name: lingoquest-apk-${{ github.run_number }}-${{ env.LINGOQUEST_BUILD_COMMIT }}
           path: work/apk/
           if-no-files-found: error
           retention-days: 30
@@ -74,7 +83,7 @@ jobs:
           {
             echo '## LingoQuest standalone APK'
             echo 'Download the artifact on this run, extract the ZIP, and install the .apk on an ARM Android 7+ device.'
-            echo 'The release variant embeds the offline course, Hermes bundle and fonts; no Metro server or Expo account is needed.'
+            echo 'The release variant embeds the offline shell, Hermes bundle and fonts. Chapter content downloads on first use and stays available offline.'
             echo '**Signing:** public template preview certificate. This is an installable testing build, not a private-key Play Store release.'
             echo 'SHA-256 and version/commit metadata are included beside the APK. Artifacts are kept for 30 days.'
           } >> "$GITHUB_STEP_SUMMARY"

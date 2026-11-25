@@ -140,15 +140,16 @@ export default function LearningFlow({
     : undefined;
   function afterFeedback(): LessonCheckpoint {
     const current = latest.current;
+    const needsPractice = !!result && !result.correct && result.outcome !== 'ungradable';
     const weak =
-      result && !result.correct && exercise && !current.weak.includes(exercise.id)
+      needsPractice && exercise && !current.weak.includes(exercise.id)
         ? [...current.weak, exercise.id]
         : current.weak;
     return {
       ...current,
       eventId: newEventId(),
       answer: {},
-      hint: !!result && !result.correct,
+      hint: needsPractice,
       help: false,
       xp: current.xp + (result?.xpAwarded ?? 0),
       weak,
@@ -269,7 +270,7 @@ export default function LearningFlow({
     if (exercise)
       footer = result ? (
         <View style={{ gap: 12 }}>
-          {!result.correct && (
+          {!result.correct && result.outcome !== 'ungradable' && (
             <Action secondary onPress={() => move()}>
               Intentar otra vez
             </Action>

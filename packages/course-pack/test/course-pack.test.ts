@@ -63,8 +63,38 @@ test('bundled course is a validated self-contained package with 32 lessons and o
   assert.equal(pack.payload.challengeLevels.length, 13);
   assert.equal(pack.payload.placementQuestions.length, 12);
   assert.equal(pack.payload.contentStatus.rankedPublished, false);
-  assert.ok(pack.payload.lessons.u01_l01.exercises.every((e) => e.acceptedAnswers.length > 0));
+  assert.ok(
+    pack.payload.lessons.u01_l01.exercises.every(
+      (e) => e.acceptedAnswers.length > 0 || e.introduction,
+    ),
+  );
   assert.equal(serializeCoursePack(pack), text);
+});
+test('Phase 5B reads the previous course and requires the newer answer-field capability', () => {
+  const previous = readFileSync(
+    new URL('../../../content/releases/lingoquest-es419-enus-a1a2-2.1.0.lqp.json', import.meta.url),
+    'utf8',
+  );
+  const old = parseCoursePack(previous, '2.1.0');
+  const current = parseCoursePack(text);
+  assert.equal(current.manifest.minAppVersion, '2.2.0');
+  assert.throws(() => parseCoursePack(text, '2.1.0'), errorCode('APP_UPDATE_REQUIRED'));
+  assert.deepEqual(Object.keys(current.payload.lessons), Object.keys(old.payload.lessons));
+});
+test('updated teaching keeps the earlier Phase 5B course readable and preserves exercise IDs', () => {
+  const previous = readFileSync(
+    new URL('../../../content/releases/lingoquest-es419-enus-a1a2-2.2.0.lqp.json', import.meta.url),
+    'utf8',
+  );
+  const old = parseCoursePack(previous, '2.2.0');
+  const current = parseCoursePack(text, '2.2.0');
+  const lessonExercises = (pack: CoursePack) =>
+    Object.values(pack.payload.lessons).map(({ id, exercises }) => [
+      id,
+      exercises.map((exercise) => exercise.id),
+    ]);
+  assert.equal(current.manifest.version, '2.2.1');
+  assert.deepEqual(lessonExercises(current), lessonExercises(old));
 });
 test('canonical metadata and payload digest are stable across property insertion order', () => {
   const reordered = { payload: baseline.payload, manifest: { ...baseline.manifest } };
@@ -150,7 +180,8 @@ test('GitHub catalog file checksum agrees with actual release asset and rejects 
     'utf8',
   );
   const catalog = parseCourseCatalog(catalogText);
-  const entry = catalog.packages[0];
+  const entry = catalog.packages.find(({ version }) => version === baseline.manifest.version);
+  assert.ok(entry);
   assert.equal(entry.sha256, sha256Hex(text));
   assert.equal(entry.sizeBytes, utf8Bytes(text).length);
   assert.match(entry.url, /^https:\/\/github.com\/togekk39\/LingoQuest\/releases\/download\//);
@@ -245,6 +276,29 @@ test('missing translations, missing answers, ambiguous choices, and absent media
   assert.throws(
     () => createCoursePack(media.payload, media.manifest),
     errorCode('INVALID_REFERENCES'),
+  );
+});
+
+test('answer key validation distinguishes incorrect choices and communicative alternatives from the target', () => {
+  const choices = clone();
+  const choice = choices.payload.lessons.u01_l01.exercises.find((item) => item.options)!;
+  const distractor = choice.options!.find((item) => item.id !== choice.correctOptionId)!;
+  choice.acceptedAnswers.push(distractor.id);
+  assert.throws(
+    () => createCoursePack(choices.payload, choices.manifest),
+    /Una opción incorrecta coincide con una respuesta aceptada/,
+  );
+  const variants = clone();
+  const exercise = variants.payload.lessons.u01_l01.exercises.find(
+    (item) => item.type === 'cloze' && !item.options,
+  )!;
+  exercise.communicationOnly = {
+    answers: [` ${exercise.acceptedAnswers[0].toUpperCase()}! `],
+    feedbackEs: 'La frase comunica la idea.',
+  };
+  assert.throws(
+    () => createCoursePack(variants.payload, variants.manifest),
+    /La respuesta comunicativa coincide con el objetivo/,
   );
 });
 

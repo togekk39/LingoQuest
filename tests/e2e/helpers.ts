@@ -169,7 +169,7 @@ export async function labelFirstChapterAudio(
   request: APIRequestContext,
   phrases: Record<string, string>,
 ) {
-  const catalog: ChapterCatalog = await (await request.get('/chapter-packs/catalog.json')).json();
+  const catalog: ChapterCatalog = await (await request.get('/chapter-packs/catalog-v2.json')).json();
   const path = `/chapter-packs/${catalog.chapters.home.revision}/home.json`;
   const { audio }: ChapterPack = await (await request.get(path)).json();
   const sources = Object.fromEntries(

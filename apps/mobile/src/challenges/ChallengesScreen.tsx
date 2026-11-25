@@ -466,7 +466,7 @@ export function ChallengesScreen({
                       ? 'Practica a tu ritmo, sin conexión.'
                       : item.id === 'present_simple'
                         ? 'Completa las primeras dos unidades del curso A1–A2 para practicar.'
-                        : 'Completa La primera postal para abrir estas pruebas.'}
+                        : 'Completa las tres misiones de La primera postal para abrir estas pruebas.'}
                 </Text>
                 <Action
                   label={
@@ -475,7 +475,7 @@ export function ChallengesScreen({
                       : item.available
                         ? item.unlocked
                           ? 'Explorar práctica'
-                          : 'Completa el capítulo primero'
+                          : 'Completa las misiones primero'
                         : 'En preparación'
                   }
                   disabled={

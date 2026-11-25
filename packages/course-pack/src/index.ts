@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { equivalentAnswerText } from '@lingoquest/contracts';
 import { sha256Hex, utf8Bytes } from './hash.ts';
 export { sha256Hex, utf8Bytes } from './hash.ts';
 export const COURSE_PACK_FORMAT = 'lingoquest-course-pack' as const;
 export const COURSE_PACK_SCHEMA_VERSION = 2 as const;
-export const APP_VERSION = '2.1.0';
+export const APP_VERSION = '2.2.0';
 export const MAX_PACK_BYTES = 4 * 1024 * 1024;
 const forbiddenKeys = new Set(['__proto__', 'prototype', 'constructor']);
 const id = z
@@ -90,6 +91,19 @@ const assetSchema = z
     license: text,
   })
   .strict();
+const answerText = z
+  .string()
+  .min(1)
+  .max(2000)
+  .refine((value) => value.trim().length > 0);
+const alternateAnswerMetadata = {
+  introduction: z.object({ greetingRequired: z.boolean(), model: text }).strict().optional(),
+  communicationOnly: z
+    .object({ answers: z.array(answerText).max(100), feedbackEs: text })
+    .strict()
+    .optional(),
+  ungradable: z.object({ feedbackEs: text }).strict().optional(),
+};
 export const courseExerciseSchema = z
   .object({
     id,
@@ -108,16 +122,7 @@ export const courseExerciseSchema = z
     tokens: z.array(z.string().min(1).max(200)).min(1).max(60).optional(),
     skillId: id,
     feedbackEs: text,
-    acceptedAnswers: z
-      .array(
-        z
-          .string()
-          .min(1)
-          .max(2000)
-          .refine((value) => value.trim().length > 0),
-      )
-      .min(1)
-      .max(30),
+    acceptedAnswers: z.array(answerText).min(1).max(30),
     correctOptionId: id.optional(),
     passage: z.string().min(1).max(20000).optional(),
     difficulty: z.number().int().min(1).max(13),
@@ -131,6 +136,7 @@ export const courseExerciseSchema = z
       .max(10)
       .optional(),
     requiredLessonIds: z.array(id).min(1).max(32).optional(),
+    ...alternateAnswerMetadata,
   })
   .strict();
 export type CourseExercise = z.infer<typeof courseExerciseSchema>;
@@ -237,6 +243,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
+export const CHAPTER_CATALOG_FILE = 'catalog-v2.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -259,6 +266,7 @@ const chapterLessonSchema = z
         options: z.array(text).min(2).max(6),
         answerIndex: z.number().int().nonnegative(),
         feedbackEs: text,
+        listening: translation.optional(),
       })
       .strict()
       .refine(({ answerIndex, options }) => answerIndex < options.length),
@@ -290,6 +298,7 @@ const travelExercise = z
     acceptedAnswers: z.array(z.string()),
     feedbackEs: text,
     skillId: id,
+    ...alternateAnswerMetadata,
   })
   .passthrough();
 const homeRuntime = z
@@ -454,6 +463,7 @@ export function chapterLessonPhrases(
         ...lesson.dialogue.map(({ en }) => en),
         ...lesson.vocabulary.map(({ en }) => en),
         lesson.model.en,
+        ...(lesson.question.listening ? [lesson.question.listening.en] : []),
       ]),
       ...unitLessons.flatMap((item) => [
         item.speakingText,
@@ -603,6 +613,29 @@ export function validateReferences(payload: CoursePayload) {
   const checkExercise = (exercise: CourseExercise) => {
     if (exerciseIds.has(exercise.id)) errors.push(`Ejercicio repetido: ${exercise.id}`);
     exerciseIds.add(exercise.id);
+    const hasOpenResponse = !exercise.options && exercise.type !== 'matching';
+    if (
+      exercise.introduction &&
+      (!hasOpenResponse ||
+        exercise.type !== 'short_text' ||
+        !exercise.introduction.model.includes('[tu nombre]'))
+    )
+      errors.push(`Modelo de presentación inválido: ${exercise.id}`);
+    if (exercise.communicationOnly) {
+      if (
+        !hasOpenResponse ||
+        (!exercise.introduction && !exercise.communicationOnly.answers.length)
+      )
+        errors.push(`Falta una respuesta comunicativa válida: ${exercise.id}`);
+      if (
+        exercise.communicationOnly.answers.some((answer) =>
+          exercise.acceptedAnswers.some((model) => equivalentAnswerText(answer, model)),
+        )
+      )
+        errors.push(`La respuesta comunicativa coincide con el objetivo: ${exercise.id}`);
+    }
+    if (exercise.ungradable && (exercise.introduction || exercise.communicationOnly))
+      errors.push(`Criterios de evaluación incompatibles: ${exercise.id}`);
     if (new Set(exercise.vocabularyIds).size !== exercise.vocabularyIds.length)
       errors.push(`Vocabulario repetido en ejercicio: ${exercise.id}`);
     if (exercise.options) {
@@ -618,18 +651,27 @@ export function validateReferences(payload: CoursePayload) {
       if (
         correct &&
         !exercise.acceptedAnswers.some(
-          (answer) =>
-            answer === correct.id || normalizedChoice(answer) === normalizedChoice(correct.text),
+          (answer) => answer === correct.id || equivalentAnswerText(answer, correct.text),
         )
       )
         errors.push(`La respuesta no coincide con la opción correcta: ${exercise.id}`);
+      if (
+        exercise.options.some(
+          (option) =>
+            option.id !== exercise.correctOptionId &&
+            exercise.acceptedAnswers.some(
+              (answer) => answer === option.id || equivalentAnswerText(answer, option.text),
+            ),
+        )
+      )
+        errors.push(`Una opción incorrecta coincide con una respuesta aceptada: ${exercise.id}`);
     } else if (exercise.correctOptionId) errors.push(`Opción sin lista: ${exercise.id}`);
     if (['single_choice', 'meaning'].includes(exercise.type) && !exercise.options)
       errors.push(`Faltan opciones: ${exercise.id}`);
     if (exercise.type === 'reorder') {
       if (!exercise.tokens?.length) errors.push(`Faltan palabras: ${exercise.id}`);
       else if (
-        !exercise.acceptedAnswers.some(
+        !exercise.acceptedAnswers.every(
           (answer) =>
             englishWords(answer).sort().join('|') ===
             englishWords(exercise.tokens!.join(' ')).sort().join('|'),

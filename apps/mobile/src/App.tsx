@@ -49,7 +49,7 @@ import {
   firstChapter,
   getCurrentChapter,
   getInstalledChapter,
-  refreshInstalledHomeChapter,
+  refreshInstalledChapters,
   secondChapter,
   setCurrentChapter,
   type ChapterDownloadProgress,
@@ -222,7 +222,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
           await prepareChapter(current.id, false);
           // Save an update for the next launch so an active lesson keeps its content.
           // Guarda la actualización para el próximo inicio y conserva el contenido de la lección activa.
-          void refreshInstalledHomeChapter().catch(() => {});
+          void refreshInstalledChapters().catch(() => {});
         }
       } catch (e) {
         if (active) setError((e as Error).message);

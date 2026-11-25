@@ -16,7 +16,7 @@ class FakeClock {
     return this.value;
   }
 }
-async function fixture(t: TestContext) {
+async function fixture(t: TestContext, completedThrough = 0) {
   const clock = new FakeClock();
   const repo = new SQLiteRepository(':memory:');
   const app = await buildServer({ clock, repository: repo, rateLimitMax: 10000 });
@@ -26,8 +26,14 @@ async function fixture(t: TestContext) {
     url: '/v1/auth/guest',
     payload: { name: 'Ana' },
   });
-  const token = response.json().token as string;
+  const { token, user } = response.json<{ token: string; user: { id: string } }>();
   const headers = { authorization: `Bearer ${token}` };
+  if (completedThrough)
+    repo.mutate(user.id, (state) => {
+      state.completedLessons = units
+        .slice(0, completedThrough)
+        .flatMap((unit) => unit.lessons.map(({ id }) => id));
+    });
   return { app, clock, repo, token, headers };
 }
 const answer = (exercise: PrivateExercise): Answer =>
@@ -168,11 +174,19 @@ test('challenge practice is optional, drafts cannot create ranked runs, later to
   const { app, headers } = await fixture(t);
   const tracks = (await app.inject({ url: '/v1/challenges/tracks', headers })).json();
   assert.equal(tracks.tracks[0].unlocked, false);
-  assert.equal(tracks.tracks[0].requiredLessons, 4);
+  assert.equal(tracks.tracks[0].requiredLessons, 8);
   const payload = { clientRequestId: id(), trackId: 'present_simple', level: 1, mode: 'ranked' };
   const ranked = await app.inject({ method: 'POST', url: '/v1/challenges/runs', headers, payload });
   assert.equal(ranked.statusCode, 403);
   assert.equal(ranked.json().code, 'CONTENT_NOT_REVIEWED');
+  const locked = await app.inject({
+    method: 'POST',
+    url: '/v1/challenges/runs',
+    headers,
+    payload: { ...payload, clientRequestId: id(), mode: 'practice' },
+  });
+  assert.equal(locked.statusCode, 403);
+  assert.equal(locked.json().code, 'CHALLENGE_LOCKED');
   assert.equal(
     (
       await app.inject({
@@ -187,7 +201,7 @@ test('challenge practice is optional, drafts cannot create ranked runs, later to
   assert.equal((await app.inject({ url: '/v1/lessons/u03_l01', headers })).statusCode, 200);
 });
 test('three required lessons keep track locked; the fourth unlocks its introduction without a challenge', async (t) => {
-  const { app, headers } = await fixture(t);
+  const { app, headers } = await fixture(t, 1);
   const required = units.find((u) => u.id === 'u02')!.lessons;
   for (let i = 0; i < required.length; i++) {
     const l = lessons[required[i]!.id]!;
@@ -204,7 +218,7 @@ test('three required lessons keep track locked; the fourth unlocks its introduct
   }
 });
 test('server clock and hearts terminate challenges while learning state remains unchanged', async (t) => {
-  const { app, headers, clock } = await fixture(t);
+  const { app, headers, clock } = await fixture(t, 8);
   const before = (await app.inject({ url: '/v1/me/progress', headers })).json();
   const create = () =>
     app.inject({
@@ -238,7 +252,7 @@ test('server clock and hearts terminate challenges while learning state remains 
   assert.deepEqual(after, before);
 });
 test('run requests and answer submissions are idempotent; answers cannot be sent out of order or across users', async (t) => {
-  const { app, headers } = await fixture(t);
+  const { app, headers } = await fixture(t, 2);
   const payload = { clientRequestId: id(), trackId: 'present_simple', level: 1, mode: 'practice' };
   const r1 = await app.inject({ method: 'POST', url: '/v1/challenges/runs', headers, payload });
   const r2 = await app.inject({ method: 'POST', url: '/v1/challenges/runs', headers, payload });
@@ -300,7 +314,7 @@ test('run requests and answer submissions are idempotent; answers cannot be sent
   );
 });
 test('all thirteen practice levels can finish; practice never grants ranked badges, XP or mastery', async (t) => {
-  const { app, headers } = await fixture(t);
+  const { app, headers } = await fixture(t, 8);
   const before = (await app.inject({ url: '/v1/me/progress', headers })).json() as Progress;
   for (let level = 1; level <= 13; level++) {
     let run = (
@@ -351,7 +365,7 @@ test('all thirteen practice levels can finish; practice never grants ranked badg
   assert.deepEqual(after.completedLessons, before.completedLessons);
 });
 test('reading and cloze have separate clocks; preflight budgets equal real run budgets', async (t) => {
-  const { app, headers, clock } = await fixture(t);
+  const { app, headers, clock } = await fixture(t, 8);
   for (const type of ['cloze_battle', 'reading_quest'] as const) {
     const levels = (
       await app.inject({ url: `/v1/challenges/tracks/present_simple/levels?type=${type}`, headers })
@@ -382,7 +396,7 @@ test('reading and cloze have separate clocks; preflight budgets equal real run b
   assert.ok(timeBudget('reading_quest', 13, [long, long, long, long]) >= 285);
 });
 test('runs retain private immutable answer snapshots after content changes', async (t) => {
-  const { app, headers } = await fixture(t);
+  const { app, headers } = await fixture(t, 2);
   const run = (
     await app.inject({
       method: 'POST',
@@ -490,7 +504,7 @@ test('delayed unprompted evidence survives earlier recognition items on a full l
   assert.deepEqual(repeated.mastery, after.mastery);
 });
 test('data export excludes credentials and active run keys; logout revokes its bearer session', async (t) => {
-  const { app, headers } = await fixture(t);
+  const { app, headers } = await fixture(t, 2);
   await app.inject({
     method: 'POST',
     url: '/v1/challenges/runs',

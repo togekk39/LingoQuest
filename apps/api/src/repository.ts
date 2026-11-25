@@ -8,6 +8,7 @@ import type {
   Mastery,
   User,
   RunView,
+  RunAnswerFeedback,
 } from '@lingoquest/contracts';
 import type { PrivateExercise } from './content.ts';
 
@@ -29,7 +30,7 @@ export interface StoredRun {
   status: RunView['status'];
   score: number;
   reason?: string;
-  answers: { questionId: string; correct: boolean; feedbackEs: string; acceptedAnswer: string }[];
+  answers: RunAnswerFeedback[];
   submissions: Record<string, { fingerprint: string; result: RunView }>;
 }
 export interface StoredState {

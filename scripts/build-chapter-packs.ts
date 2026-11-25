@@ -16,18 +16,21 @@ import bundled from '../apps/mobile/src/content/bundled-course.json';
 import {
   CHAPTER_PACK_FORMAT,
   CHAPTER_PACK_SCHEMA_VERSION,
+  CHAPTER_CATALOG_FILE,
   chapterCatalogSchema,
   chapterLessonPhrases,
   parseChapterPack,
   serializeChapterPack,
   type ChapterCatalog,
   type ChapterLessonSource,
+  type ChapterMedia,
   type CoursePayload,
 } from '@lingoquest/course-pack';
 import { loadChapterAudio, loadChapterImages } from './chapter-media';
 
 const root = new URL('../apps/mobile/public/chapter-packs/', import.meta.url);
-const catalogPath = new URL('catalog.json', root);
+const catalogPath = new URL(CHAPTER_CATALOG_FILE, root);
+const legacyCatalogPath = new URL('catalog.json', root);
 const course = bundled.payload as CoursePayload;
 const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
@@ -69,22 +72,40 @@ const digest = (bytes: string) => createHash('sha256').update(bytes).digest('hex
 const chapterPath = (revision: number, chapterId: string) =>
   new URL(`${revision}/${chapterId}.json`, root);
 
+function verifyMedia(media: ChapterMedia, name: string) {
+  const bytes = Buffer.from(media.dataBase64, 'base64');
+  const isValid = {
+    'image/jpeg': () => bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff,
+    'image/png': () => bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')),
+    'image/webp': () =>
+      bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP',
+    'audio/mpeg': () =>
+      bytes.toString('ascii', 0, 3) === 'ID3' || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0),
+  }[media.mimeType];
+  if (bytes.length < 16 || !isValid())
+    throw new Error(`Invalid ${media.mimeType} resource: ${name}`);
+}
+
 async function readCatalog(): Promise<ChapterCatalog> {
   try {
     return chapterCatalogSchema.parse(JSON.parse(await readFile(catalogPath, 'utf8')));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    return {
-      format: 'lingoquest-chapter-catalog',
-      schemaVersion: CHAPTER_PACK_SCHEMA_VERSION,
-      chapters: {},
-    };
+    return chapterCatalogSchema.parse(JSON.parse(await readFile(legacyCatalogPath, 'utf8')));
   }
 }
 
 async function verifyCatalog(catalog: ChapterCatalog) {
   if (Object.keys(catalog.chapters).length !== route.length)
     throw new Error('The catalog must cover all route destinations.');
+  const practice = [
+    ...chapter.missions.flatMap(({ steps }) => steps.filter((step) => step.type === 'exercise')),
+    ...travelPracticeSteps,
+  ];
+  for (const { id, audio, transcript } of practice) {
+    if (transcript && transcript !== audio)
+      throw new Error(`The transcript differs from the English audio source: ${id}.`);
+  }
   for (const { id, unitId } of route) {
     const entry = catalog.chapters[id];
     if (!entry) throw new Error(`Missing catalog entry for ${id}.`);
@@ -96,6 +117,8 @@ async function verifyCatalog(catalog: ChapterCatalog) {
       throw new Error(`Incorrect revision or course unit for ${id}.`);
     if (id === 'home' && storyPhrases.some((phrase) => !Object.hasOwn(pack.audio, phrase)))
       throw new Error('Missing audio for the first chapter adventure.');
+    for (const [key, media] of Object.entries(pack.images)) verifyMedia(media, `${id}/${key}`);
+    for (const [text, media] of Object.entries(pack.audio)) verifyMedia(media, `${id}/${text}`);
   }
   console.log(`Verified ${route.length} chapter packs.`);
 }
@@ -110,6 +133,7 @@ async function main() {
     throw new Error('Provide a route chapter ID and an integer revision between 1 and 999999.');
 
   await mkdir(new URL(`${revision}/`, root), { recursive: true });
+  const legacy = chapterCatalogSchema.parse(JSON.parse(await readFile(legacyCatalogPath, 'utf8')));
   for (const { id, unitId } of targets) {
     const current = catalog.chapters[id];
     if (current && revision < current.revision)
@@ -128,6 +152,17 @@ async function main() {
     };
     const phrases = chapterLessonPhrases([lesson, ...additionalLessons], unit?.lessons);
     if (id === 'home') phrases.push(...storyPhrases);
+    const previous = parseChapterPack(
+      await readFile(chapterPath(current?.revision ?? legacy.chapters[id].revision, id), 'utf8'),
+      id,
+    );
+    const newPhrases = phrases.filter((phrase) => !Object.hasOwn(previous.audio, phrase));
+    const generated = await loadChapterAudio(newPhrases);
+    const audio = Object.fromEntries(
+      phrases.map((phrase) => [phrase, previous.audio[phrase] ?? generated[phrase]]),
+    );
+    if (id === 'home')
+      for (const [phrase, clip] of Object.entries(previous.audio)) audio[phrase] ??= clip;
     const text = serializeChapterPack({
       format: CHAPTER_PACK_FORMAT,
       schemaVersion: CHAPTER_PACK_SCHEMA_VERSION,
@@ -138,7 +173,7 @@ async function main() {
       ...(unit && { unit }),
       ...(id === 'home' && { story }),
       images: await loadChapterImages(id),
-      audio: await loadChapterAudio(phrases),
+      audio,
     });
     parseChapterPack(text, id);
     const sha256 = digest(text);

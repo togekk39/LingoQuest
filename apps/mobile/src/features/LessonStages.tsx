@@ -276,11 +276,13 @@ export function AnswerFeedback({
   const f = useFeatureStyles();
   const feedbackTitle = result.identityMismatch
     ? 'Usa tu nombre'
-    : result.communicationOnly
-      ? 'Lograste comunicarte'
-      : result.correct
-        ? '¡Muy bien!'
-        : 'Buen intento. Veamos por qué…';
+    : result.outcome === 'ungradable'
+      ? 'Esta pregunta necesita más contexto'
+      : result.communicationOnly
+        ? 'Lograste comunicarte'
+        : result.correct
+          ? '¡Muy bien!'
+          : 'Buen intento. Veamos por qué…';
   const submittedAnswer = exercise.matchingPairs?.length
     ? exercise.matchingPairs
         .map((pair) => {
@@ -306,7 +308,8 @@ export function AnswerFeedback({
         style={[
           s.feedback,
           !result.correct &&
-            !result.communicationOnly && {
+            !result.communicationOnly &&
+            result.outcome !== 'ungradable' && {
               backgroundColor: tone('#FFF1DD', 'background'),
             },
         ]}

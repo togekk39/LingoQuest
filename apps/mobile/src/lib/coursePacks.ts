@@ -12,6 +12,7 @@ import {
 } from '@lingoquest/course-pack';
 import bundled from '../content/bundled-course.json';
 import courseSource from '../content/course-source.json';
+import { isPreviousBuiltInCourse } from './previousCourse';
 import { getRaw, putRaw, removeRaw } from './storage';
 // The immutable bundled asset is checked by packs:verify before release.
 // El recurso incluido es inmutable y se verifica con packs:verify antes de publicarlo.
@@ -28,13 +29,7 @@ async function initialize() {
     try {
       const saved = await getRaw(PACK_KEY);
       const installed = saved ? parseCoursePack(saved, APP_VERSION) : included;
-      // The public integrated 2.0.0 pack matches the bundled lessons. Preserve
-      // its stored bytes and use the newer built-in challenge content.
-      // El paquete original 2.0.0 conserva sus bytes y usa los desafíos incluidos más recientes.
-      const isPreviousBundled =
-        installed.manifest.sha256 ===
-        '85889d066af2e80b18bc07f42347a08cf2c663b0f061200ab56db4c96f283ea6';
-      active = isPreviousBundled ? included : installed;
+      active = isPreviousBuiltInCourse(installed.manifest.sha256) ? included : installed;
     } catch {
       active = included;
       recoveryMessage =

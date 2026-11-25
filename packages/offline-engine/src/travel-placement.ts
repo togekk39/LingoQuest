@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { answerSchema, type PublicExercise } from '@lingoquest/contracts';
+import { answerSchema, judgeAnswer, type PublicExercise } from '@lingoquest/contracts';
 import type { CourseExercise } from './index';
 
 import { travelPlacementItems as items } from './home-content';
@@ -29,14 +29,13 @@ export function placementQuestions(publish: (e: CourseExercise) => PublicExercis
   }));
 }
 
-export function assessTravelPlacement(
-  body: unknown,
-  grade: (e: CourseExercise, answer: NonNullable<TravelPlacementResponse['answer']>) => boolean,
-) {
+export function assessTravelPlacement(body: unknown) {
   const { answers } = responsesSchema.parse(body);
   const passed = items.map(({ audio, exercise }, i) => {
     const { answer, transcript } = answers[i];
-    return !!answer && !(audio && transcript) && grade(exercise, answer);
+    if (!answer || (audio && transcript)) return false;
+    const outcome = judgeAnswer(exercise, answer);
+    return outcome === 'target' || (outcome === 'communication_only' && !!exercise.introduction);
   });
   const firstToPractice = ['hello', 'bus', 'bag'].find((missionId) =>
     items.some((item, i) => item.missionId === missionId && !passed[i]),

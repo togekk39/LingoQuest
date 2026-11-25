@@ -1,15 +1,21 @@
 import type { CourseExercise } from './index';
 
-const afterTrip = 'grammar.be_it_they';
-function fill(id: string, sentence: string, answer: string, gloss: string): CourseExercise {
+function fill(
+  id: string,
+  sentence: string,
+  promptEs: string,
+  acceptedAnswers: string[],
+  feedbackEs: string,
+  skillId: string,
+): CourseExercise {
   return {
     id: `home_challenge_${id}`,
     type: 'short_text',
     sentence,
-    promptEs: 'Escribe la palabra que falta.',
-    acceptedAnswers: [answer],
-    feedbackEs: gloss,
-    skillId: afterTrip,
+    promptEs,
+    acceptedAnswers,
+    feedbackEs,
+    skillId,
     difficulty: 1,
   };
 }
@@ -20,6 +26,7 @@ function read(
   answer: string,
   other: string,
   feedbackEs: string,
+  skillId: string,
 ): CourseExercise {
   return {
     id: `home_challenge_${id}`,
@@ -34,40 +41,95 @@ function read(
     correctOptionId: 'right',
     acceptedAnswers: [answer],
     feedbackEs,
-    skillId: afterTrip,
+    skillId,
     difficulty: 1,
   };
 }
 
 export const travelChallengePools = {
   grammar_rush: [
-    fill('name', 'My name ___ Sam.', 'is', 'Después de My name usamos is.'),
-    fill('introduce', 'I ___ Luz.', 'am', 'Con I usamos am, como en I am Luz.'),
+    fill(
+      'name',
+      'My name ___ Sam.',
+      'Completa la presentación de Sam. Usa be en presente.',
+      ['is'],
+      'Sam dice My name is Sam. Con My name usamos is.',
+      'grammar.be_i_you',
+    ),
+    fill(
+      'introduce',
+      'I ___ Luz.',
+      'Completa la presentación de Luz. Usa be en presente.',
+      ['am'],
+      'Con I usamos am, como en I am Luz.',
+      'grammar.be_i_you',
+    ),
     fill(
       'directions',
       'It’s next ___ the park.',
-      'to',
+      'Completa «Está junto al parque» con la preposición que falta.',
+      ['to'],
       'Next to es una expresión completa para decir «junto a».',
+      'grammar.be_it_they',
     ),
-    fill('color', 'My bag ___ blue.', 'is', 'Is conecta la mochila con su color.'),
-    fill('where', 'Where ___ the bus stop?', 'is', 'Where is…? sirve para preguntar por un lugar.'),
+    fill(
+      'color',
+      'My bag ___ blue.',
+      'Sam describe su mochila azul. Completa su frase con be en presente.',
+      ['is'],
+      'Is conecta la mochila con su color.',
+      'grammar.be_it_they',
+    ),
+    fill(
+      'where',
+      'Where ___ the bus stop?',
+      'Pregunta «¿Dónde está la parada de autobús?» con be en presente.',
+      ['is'],
+      'Where is…? sirve para preguntar por un lugar.',
+      'grammar.be_questions',
+    ),
   ],
   cloze_battle: [
     fill(
       'plaza',
       'Hi! My name is Sam. Where is the bus ___?',
-      'stop',
-      'La parada del bus es the bus stop.',
+      'Completa la expresión para «parada de autobús».',
+      ['stop'],
+      'Bus stop es «parada de autobús».',
+      'grammar.be_questions',
     ),
     fill(
       'park',
-      'Where is the bus stop? It’s next to the ___. (parque)',
-      'park',
+      'Where is the bus stop? It’s next to the ___.',
+      'Indica que la parada está junto al parque. Completa el nombre del lugar.',
+      ['park'],
       'Park significa «parque».',
+      'grammar.be_it_they',
     ),
-    fill('message', 'My ___ is blue. (mochila)', 'bag', 'Bag puede referirse a una mochila.'),
-    fill('blue', 'My bag is ___. (azul)', 'blue', 'Blue significa «azul».'),
-    fill('red', 'Where is my bag? It’s ___. (roja)', 'red', 'Red significa «rojo» o «roja».'),
+    fill(
+      'message',
+      'My ___ is blue.',
+      'Describe la mochila azul. Escribe cómo se dice «mochila».',
+      ['bag', 'backpack'],
+      'En este contexto puedes decir bag o backpack para «mochila».',
+      'grammar.be_it_they',
+    ),
+    fill(
+      'blue',
+      'My bag is ___.',
+      'Completa «Mi mochila es azul» con el color en inglés.',
+      ['blue'],
+      'Blue significa «azul».',
+      'grammar.be_it_they',
+    ),
+    fill(
+      'red',
+      'Where is my bag? It’s ___.',
+      'Completa la segunda frase. Quien habla dice que su mochila es roja.',
+      ['red'],
+      'Red significa «rojo» o «roja».',
+      'grammar.be_it_they',
+    ),
   ],
   reading_quest: [
     read(
@@ -77,14 +139,16 @@ export const travelChallengePools = {
       'Luz.',
       'Sam.',
       'My name is Luz significa «Me llamo Luz».',
+      'grammar.be_i_you',
     ),
     read(
       'readwhere',
       'Where is the bus stop?',
       '¿Qué busca la persona?',
-      'La parada del bus.',
+      'La parada de autobús.',
       'Su mochila.',
       'Where is…? introduce una pregunta de ubicación.',
+      'grammar.be_questions',
     ),
     read(
       'readpark',
@@ -93,6 +157,7 @@ export const travelChallengePools = {
       'El parque.',
       'La mesa de bienvenida.',
       'Next to the park significa «junto al parque».',
+      'grammar.be_it_they',
     ),
     read(
       'readbag',
@@ -101,6 +166,7 @@ export const travelChallengePools = {
       'La azul.',
       'La roja.',
       'Sam dice My bag is blue, «Mi mochila es azul».',
+      'grammar.be_it_they',
     ),
     read(
       'readred',
@@ -108,7 +174,8 @@ export const travelChallengePools = {
       '¿Cuál de las dos mochilas es de quien escribe?',
       'La azul.',
       'La roja.',
-      'La mochila azul es de quien habla. La roja solo marca la ubicación.',
+      'My bag se refiere a la mochila azul. La roja sirve como punto de referencia.',
+      'grammar.be_it_they',
     ),
   ],
 };

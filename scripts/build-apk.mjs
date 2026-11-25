@@ -142,7 +142,7 @@ for (const marker of ['travel_quick_hello', 'home_challenge_readbag', 'u08_l04']
     );
 }
 const config = JSON.parse(await readFile(join(mobile, 'app.json'), 'utf8')).expo;
-const commit = process.env.GITHUB_SHA || 'local';
+const commit = process.env.LINGOQUEST_BUILD_COMMIT || process.env.GITHUB_SHA || 'local';
 const shortCommit = commit.slice(0, 8);
 const output = join(repo, 'work/apk');
 await mkdir(output, { recursive: true });

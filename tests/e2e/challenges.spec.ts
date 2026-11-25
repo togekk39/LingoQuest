@@ -9,11 +9,23 @@ import {
   learningProgress,
 } from './helpers';
 
-test('travel trials stay locked before finishing the chapter', async ({ page }) => {
+test('travel trials stay locked until each mission has been taught, even with a stamp', async ({
+  page,
+}) => {
   await enterApp(page);
+  await page.evaluate(() => {
+    const key = 'lq_offline_state_v1';
+    const s = JSON.parse(localStorage.getItem(key)!);
+    const date = new Date().toISOString();
+    s.travel.completed = { bag: date };
+    s.travel.cleared = ['hello', 'bus'];
+    s.travel.stamps.home = date;
+    localStorage.setItem(key, JSON.stringify(s));
+  });
   await page.getByRole('tab', exact('Desafíos')).click();
-  const locked = page.getByRole('button', exact('Completa el capítulo primero'));
+  const locked = page.getByRole('button', exact('Completa las misiones primero'));
   await expect(locked).toBeDisabled();
+  await expect(page.getByText('1 de 3 misiones necesarias')).toBeVisible();
 });
 
 test('travel trials expose chapter questions and keep unreleased ranks unavailable', async ({

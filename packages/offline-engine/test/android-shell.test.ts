@@ -2,6 +2,7 @@ import { registerHooks } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { CHAPTER_CATALOG_FILE } from '@lingoquest/course-pack';
 import type { CourseData, HomeContent, OfflineState, StoryResponse } from '../src/index';
 
 test('Android starts with a local shell and opens the installed adventure and course', async () => {
@@ -17,7 +18,7 @@ test('Android starts with a local shell and opens the installed adventure and co
   try {
     const { OfflineEngine, chapter, installHomeContent } = await import('../src/index');
     const directory = new URL('../../../apps/mobile/public/chapter-packs/', import.meta.url);
-    const catalog = JSON.parse(await readFile(new URL('catalog.json', directory), 'utf8'));
+    const catalog = JSON.parse(await readFile(new URL(CHAPTER_CATALOG_FILE, directory), 'utf8'));
     const { story, unit } = JSON.parse(
       await readFile(new URL(`${catalog.chapters.home.revision}/home.json`, directory), 'utf8'),
     );
@@ -81,6 +82,18 @@ test('Android starts with a local shell and opens the installed adventure and co
       (await engine.request<{ story: { scene: { id: string } } }>('/v1/story')).story.scene.id,
       'plaza',
     );
+
+    const placement = await engine.request<{ placement: { correct: number } }>(
+      '/v1/travel/placement',
+      {
+        answers: story.runtime.placement.map(({ exercise }: { exercise: { id: string } }) => ({
+          answer:
+            exercise.id === 'route_intro_write' ? { text: 'My name’s María-José O’Connor.' } : null,
+          transcript: false,
+        })),
+      },
+    );
+    assert.equal(placement.placement.correct, 1);
 
     const priorHome = JSON.parse(await readFile(new URL('4/home.json', directory), 'utf8')).story;
     assert.equal(
