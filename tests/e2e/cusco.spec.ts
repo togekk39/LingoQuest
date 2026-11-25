@@ -267,6 +267,7 @@ test('Cusco shares an offline travel journal and language evidence between Study
     await start(page, `${mission.id}-continue`);
   }
   await start(page, 'cusco-take-postcard');
+  await click(page, 'Mochila');
   await expect(page.getByTestId('story-inventory-cusco-salvador-postcard')).toBeVisible();
   const progress = await saved(page);
   expect(progress.chapterProgress?.peru?.travel.stamps.peru).toBeTruthy();
@@ -275,7 +276,11 @@ test('Cusco shares an offline travel journal and language evidence between Study
   expect((await evidence(page, 'cusco-museum-own-account')).at(-1)).toMatchObject({
     outcome: 'ungradable',
     independent: false,
-    targets: [],
+  });
+  expect(getUnifiedMastery(progress.unifiedLearning, 'grammar.did', 'writing')).toMatchObject({
+    independentSuccesses: 0,
+    assistedSuccesses: 0,
+    transferSuccesses: 0,
   });
 
   await click(page, 'Cerrar y volver');
