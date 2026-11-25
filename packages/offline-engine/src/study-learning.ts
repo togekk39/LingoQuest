@@ -1,6 +1,8 @@
 import { exerciseEvidenceTargets, lessonEvidenceTargets } from './learning-registry';
 import { sha256Hex } from '@lingoquest/course-pack';
+import { travelLesson } from './home-content';
 import {
+  masteryAtLeast,
   unifiedMastery,
   unifiedMasteryKey,
   type UnifiedEvidenceTarget,
@@ -12,15 +14,21 @@ import type { CourseData, CourseExercise, CourseLesson } from './index';
 
 const abilityDimensions = ['listening', 'speaking', 'reading', 'writing'] as const;
 type AbilityDimension = (typeof abilityDimensions)[number];
-type AbilityStatus = 'unverified' | 'practicing' | 'verified' | 'needs_review';
+type AbilityStatus =
+  'unverified' | 'in_progress' | 'partially_mastered' | 'mastered' | 'needs_review';
+
+interface StudyAbilityStatus {
+  dimension: AbilityDimension;
+  status: AbilityStatus;
+  assessedTargets: number;
+  masteredTargets: number;
+}
 
 export interface StudyLearningStatus {
-  abilities: { dimension: AbilityDimension; status: AbilityStatus }[];
+  abilities: StudyAbilityStatus[];
   skippableExerciseIds: string[];
   nextReviewAt: string | null;
 }
-
-const verifiedStates = new Set(['demonstrated', 'retained', 'transfer']);
 
 function masteryByTarget(learning: UnifiedLearningState) {
   return new Map(unifiedMastery(learning).map((mastery) => [unifiedMasteryKey(mastery), mastery]));
@@ -53,7 +61,7 @@ function provenExercise(
       const mastery = evidence.get(unifiedMasteryKey(target));
       return (
         mastery &&
-        verifiedStates.has(mastery.state) &&
+        masteryAtLeast(mastery.state, 'demonstrated') &&
         !mastery.needsReview &&
         (!mastery.nextReviewAt || Date.parse(mastery.nextReviewAt) > now)
       );
@@ -83,6 +91,52 @@ function belongsTo(dimension: AbilityDimension, target: UnifiedLearningDimension
   return dimension === target || (dimension === 'writing' && target === 'grammar_production');
 }
 
+function lessonAssessments(lesson: CourseLesson) {
+  return lesson.exercises.flatMap((exercise) => {
+    if (exercise.ungradable) return [];
+    return exerciseEvidenceTargets(exercise, lesson.id).filter(
+      ({ dimension }) =>
+        dimension !== 'grammar_production' ||
+        (exercise.type === 'short_text' && !exercise.options?.length),
+    );
+  });
+}
+
+function hasAssessment(mastery: UnifiedMastery) {
+  return (
+    mastery.independentSuccesses > 0 ||
+    mastery.assistedSuccesses > 0 ||
+    mastery.communicationSuccesses > 0 ||
+    mastery.incorrectAttempts > 0
+  );
+}
+
+function summarizeAbility(
+  dimension: AbilityDimension,
+  targets: UnifiedEvidenceTarget[],
+  evidence: ReadonlyMap<string, UnifiedMastery>,
+  now: number,
+): StudyAbilityStatus {
+  const assessedTargets = targets.length;
+  const assessed = targets.flatMap((target) => {
+    const mastery = evidence.get(unifiedMasteryKey(target));
+    return mastery && hasAssessment(mastery) ? [mastery] : [];
+  });
+  const demonstrated = (mastery: UnifiedMastery) => masteryAtLeast(mastery.state, 'demonstrated');
+  const masteredTargets = assessed.filter(demonstrated).length;
+  const due = assessed.some(
+    (mastery) =>
+      (mastery.nextReviewAt !== undefined && Date.parse(mastery.nextReviewAt) <= now) ||
+      (demonstrated(mastery) && mastery.needsReview),
+  );
+  let status: AbilityStatus = 'unverified';
+  if (due) status = 'needs_review';
+  else if (masteredTargets > 0)
+    status = masteredTargets === assessedTargets ? 'mastered' : 'partially_mastered';
+  else if (assessed.length) status = 'in_progress';
+  return { dimension, status, assessedTargets, masteredTargets };
+}
+
 export function studyLearningStatus(
   learning: UnifiedLearningState,
   completedLessons: readonly string[],
@@ -91,43 +145,36 @@ export function studyLearningStatus(
   now: number,
 ): StudyLearningStatus {
   const evidence = masteryByTarget(learning);
-  const targets = lesson.exercises.flatMap((exercise) =>
-    exerciseEvidenceTargets(exercise, lesson.id),
-  );
-  const oralTargets = new Set([
+  const targets = lessonAssessments(lesson);
+  const linkedGoals = new Set([
     ...lessonEvidenceTargets(lesson, 'grammar').map(({ targetId }) => targetId),
     ...targets.map(({ targetId }) => targetId),
   ]);
-  const oral = [...oralTargets].flatMap((targetId): UnifiedEvidenceTarget[] => [
-    { dimension: 'listening', targetId },
-    { dimension: 'speaking', targetId },
-  ]);
-  const records = [...new Set([...targets, ...oral].map(unifiedMasteryKey))].flatMap((key) => {
-    const mastery = evidence.get(key);
-    return mastery ? [mastery] : [];
-  });
-  const nextReviewAt = records.flatMap(({ nextReviewAt }) => nextReviewAt ?? []).sort()[0] ?? null;
-  const abilities = abilityDimensions.map((dimension): StudyLearningStatus['abilities'][number] => {
-    const relevant = records.filter((record) => belongsTo(dimension, record.dimension));
-    const measured = relevant.some(({ state }) => verifiedStates.has(state));
-    const due = relevant.some(
-      ({ needsReview, nextReviewAt }) =>
-        needsReview || (nextReviewAt && Date.parse(nextReviewAt) <= now),
-    );
-    const practiced = relevant.some(
-      ({ state }) => state === 'guided_practice' || state === 'independent_performance',
-    );
-    return {
+  const shared = [
+    ...lessonAssessments(travelLesson),
+    ...[...evidence.values()].filter(hasAssessment),
+  ].filter(
+    (target) =>
+      linkedGoals.has(target.targetId) &&
+      abilityDimensions.some((dimension) => dimension === target.dimension),
+  );
+  const scoped = [
+    ...new Map(
+      [...targets, ...shared].map((target) => [unifiedMasteryKey(target), target]),
+    ).values(),
+  ];
+  const nextReviewAt =
+    scoped
+      .flatMap((target) => evidence.get(unifiedMasteryKey(target))?.nextReviewAt ?? [])
+      .sort()[0] ?? null;
+  const abilities = abilityDimensions.map((dimension) =>
+    summarizeAbility(
       dimension,
-      status: due
-        ? 'needs_review'
-        : measured
-          ? 'verified'
-          : practiced
-            ? 'practicing'
-            : 'unverified',
-    };
-  });
+      scoped.filter((target) => belongsTo(dimension, target.dimension)),
+      evidence,
+      now,
+    ),
+  );
   return {
     abilities,
     skippableExerciseIds: lesson.exercises

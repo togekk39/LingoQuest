@@ -519,10 +519,23 @@ const abilityLabel = {
 };
 const abilityStatus = {
   unverified: 'Por comprobar',
-  practicing: 'En práctica',
-  verified: 'Con objetivos demostrados',
+  in_progress: 'En práctica',
   needs_review: 'Por repasar',
 };
+
+function abilityProgress({
+  status,
+  assessedTargets,
+  masteredTargets,
+}: StudyLearningStatus['abilities'][number]) {
+  if (status === 'partially_mastered')
+    return `Dominio parcial (${masteredTargets} de ${assessedTargets} objetivos)`;
+  if (status === 'mastered')
+    return assessedTargets === 1
+      ? '1 objetivo demostrado'
+      : `${masteredTargets} de ${assessedTargets} objetivos demostrados`;
+  return abilityStatus[status];
+}
 
 function StudyAbilitySummary({
   learning,
@@ -540,10 +553,10 @@ function StudyAbilitySummary({
     );
   return (
     <JournalLeaf compact kind="notebook" testID="study-learning-status" style={f.card}>
-      <Text style={f.cardTitle}>Lo que has practicado en esta lección</Text>
-      {learning.abilities.map(({ dimension, status }) => (
-        <Text key={dimension} testID={`study-status-${dimension}`} style={f.body}>
-          {abilityLabel[dimension]} · {abilityStatus[status]}
+      <Text style={f.cardTitle}>Objetivos evaluables de esta lección</Text>
+      {learning.abilities.map((ability) => (
+        <Text key={ability.dimension} testID={`study-status-${ability.dimension}`} style={f.body}>
+          {abilityLabel[ability.dimension]} · {abilityProgress(ability)}
         </Text>
       ))}
       {recommendReview ? (

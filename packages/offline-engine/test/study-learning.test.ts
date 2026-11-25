@@ -63,6 +63,11 @@ test('Study reference, translation and retry are distinct from independent writi
     getUnifiedMastery(state().unifiedLearning, 'home.introduce', 'writing').state,
     'introduced',
   );
+  const introduced = await engine.request<StudyLearningStatus>(`${path}/learning`);
+  assert.equal(
+    introduced.abilities.find(({ dimension }) => dimension === 'writing')?.status,
+    'unverified',
+  );
 
   const checkpoint = draft('study-first-answer', { hint: true, help: true, answer: writing });
   await engine.request(`${path}/checkpoint`, checkpoint);
@@ -94,6 +99,11 @@ test('Study reference, translation and retry are distinct from independent writi
   assert.ok(events[1].retry && events[1].aids.includes('answer_shown'));
   assert.ok(events.every((event) => !event.independent));
   assert.equal(getUnifiedMastery(saved, 'home.introduce', 'writing').state, 'guided_practice');
+  const practicing = await restored.request<StudyLearningStatus>(`${path}/learning`);
+  assert.equal(
+    practicing.abilities.find(({ dimension }) => dimension === 'writing')?.status,
+    'in_progress',
+  );
 });
 
 test('Study skips only current, demonstrated writing and persists the choice without additional evidence', async () => {
@@ -115,12 +125,26 @@ test('Study skips only current, demonstrated writing and persists the choice wit
       answer: writing,
     });
   }
+  await engine.request('/v1/speech/practice', {
+    id: 'study-intro-speech-practice-1',
+    source: 'study',
+    materialId: lessonId,
+    itemId: `${lessonId}:speaking`,
+    recognition: 'matched',
+    recording: true,
+    retry: false,
+  });
   const before = state().unifiedLearning.evidence.length;
   const summary = await engine.request<StudyLearningStatus>(`${path}/learning`);
   assert.ok(summary.skippableExerciseIds.includes(writingId));
-  assert.equal(
-    summary.abilities.find(({ dimension }) => dimension === 'writing')?.status,
-    'verified',
+  assert.deepEqual(
+    summary.abilities.find(({ dimension }) => dimension === 'writing'),
+    {
+      dimension: 'writing',
+      status: 'mastered',
+      assessedTargets: 1,
+      masteredTargets: 1,
+    },
   );
   assert.ok(
     summary.abilities
@@ -142,4 +166,35 @@ test('Study skips only current, demonstrated writing and persists the choice wit
     'needs_review',
   );
   assert.ok(!due.skippableExerciseIds.includes(writingId));
+});
+
+test('a demonstrated Story writing pattern only covers part of a lesson with another assessed writing goal', async () => {
+  const { engine } = fixture();
+  for (const [exerciseId, text] of [
+    ['travel_bag_write', 'It is blue.'],
+    ['travel_bag_transfer', 'It is red.'],
+  ]) {
+    await engine.request('/v1/attempts', {
+      clientAttemptId: `story-${exerciseId}`,
+      lessonId: 'travel_home',
+      exerciseId,
+      answer: { text },
+    });
+  }
+  const summary = await engine.request<StudyLearningStatus>('/v1/lessons/u01_l03/learning');
+  assert.deepEqual(
+    summary.abilities.find(({ dimension }) => dimension === 'writing'),
+    {
+      dimension: 'writing',
+      status: 'partially_mastered',
+      assessedTargets: 2,
+      masteredTargets: 1,
+    },
+  );
+  assert.ok(!summary.skippableExerciseIds.includes('u01_l03_practice_3'));
+  assert.ok(
+    summary.abilities
+      .filter(({ dimension }) => dimension !== 'writing')
+      .every(({ status }) => status === 'unverified'),
+  );
 });

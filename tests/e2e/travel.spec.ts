@@ -12,6 +12,7 @@ import {
   answerTravelReorder,
   answerTravelText,
   capture,
+  learningProgress,
 } from './helpers';
 
 const exact = (name: string) => ({ name, exact: true });
@@ -51,11 +52,12 @@ test.describe('origin picker on a small touch screen', () => {
   });
 });
 
-test('an offline traveler can choose an origin, resume a draft and its feedback, and earn one stamp', async ({
+test('an offline traveler resumes a draft, earns one stamp and qualifies for taught challenges', async ({
   page,
   context,
   request,
 }) => {
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await labelFirstChapterAudio(page, request, {
     'line-4': 'Where is the bus stop?',
@@ -209,4 +211,17 @@ test('an offline traveler can choose an origin, resume a draft and its feedback,
   );
 
   await capture(page, '07-passport');
+
+  await page.getByRole('tab', exact('Desafíos')).click();
+  await click('Explorar práctica');
+  await expect(page.getByRole('button', { name: /^Nivel \d+:/ })).toHaveCount(13);
+  await expect(page.getByRole('button', { name: /^Nivel 4:/ })).toBeDisabled();
+  const rankThree = page.getByRole('button', { name: /^Nivel 3:/ });
+  await expect(rankThree).toBeEnabled();
+  await rankThree.click();
+  await page.getByRole('switch', exact('Practicar sin reloj')).check();
+  await click('Empezar práctica');
+  await expect(page.getByLabel('Sin límite de tiempo')).toBeVisible();
+  await expect(page.getByText('My name ___ Sam.', { exact: true })).toBeVisible();
+  expect(learningProgress(await state(page))).toEqual(learningProgress(record));
 });

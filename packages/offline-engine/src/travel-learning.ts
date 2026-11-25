@@ -153,6 +153,32 @@ function thirdPersonForm(word: string) {
   return word + (/(ch|sh|s|x|z|o)$/.test(word) ? 'es' : 's');
 }
 
+export function writtenLearningErrors(answers: readonly string[]): LearningError[] {
+  const expected = answers.map(tokens);
+  const usesBe = expected.some((words) => words.some((word) => formsOfBe.has(word)));
+  const coverage: [LearningError, boolean][] = [
+    ['subject_omission', expected.some((words) => words.some((word) => subjects.has(word)))],
+    ['be_omission', usesBe],
+    ['be_agreement', usesBe],
+    [
+      'third_person',
+      expected.some(
+        ([subject, verb]) =>
+          !!subject &&
+          !!verb &&
+          ['he', 'she', 'it'].includes(subject) &&
+          verb.endsWith('s') &&
+          !formsOfBe.has(verb),
+      ),
+    ],
+    ['tense', usesBe],
+    ['preposition', expected.some((words) => words.some((word) => prepositions.has(word)))],
+    ['article', expected.some((words) => words.some((word) => articles.has(word)))],
+    ['word_order', expected.some((words) => new Set(words).size > 1)],
+  ];
+  return coverage.flatMap(([error, applies]) => (applies ? [error] : []));
+}
+
 export function findLearningError(
   target: LearningTarget,
   answer: Answer,

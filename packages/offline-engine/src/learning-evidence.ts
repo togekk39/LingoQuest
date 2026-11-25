@@ -58,6 +58,7 @@ const formatSchema = z.enum([
   'speaking',
 ]);
 const targetSchema = z.object({ targetId: identifier, dimension: dimensionSchema }).strict();
+const teachingReferenceSchema = z.object({ id: identifier, form: identifier.optional() }).strict();
 const timestamp = z.number().int().min(0).max(8_639_997_408_000_000);
 export const learningEvidenceSchema = z
   .object({
@@ -77,6 +78,7 @@ export const learningEvidenceSchema = z
     retry: z.boolean(),
     independent: z.boolean(),
     targets: z.array(targetSchema).max(100),
+    teaches: z.array(teachingReferenceSchema).max(100).optional(),
     error: learningErrorSchema.optional(),
     errors: z.array(learningErrorSchema).max(learningErrorSchema.options.length).optional(),
     remediates: z.array(learningErrorSchema).max(learningErrorSchema.options.length).optional(),
@@ -112,17 +114,27 @@ export const unifiedMasteryStates = [
   'guided_practice',
   'independent_performance',
   'demonstrated',
-  'retained',
-  'transfer',
 ] as const;
 export type UnifiedMasteryState = (typeof unifiedMasteryStates)[number];
+type VerificationState = 'unverified' | 'verified';
+
+export interface RemediationSupport {
+  exerciseId: string;
+  contextId: string;
+  timestamp: number;
+  failedExerciseId?: string;
+}
 
 export interface UnifiedMastery extends UnifiedEvidenceTarget {
   state: UnifiedMasteryState;
+  retention: VerificationState;
+  transfer: VerificationState;
   needsReview: boolean;
   nextReviewAt?: string;
   lastPracticedAt?: string;
   lastIndependentAt?: string;
+  lastDelayedSuccessAt?: string;
+  lastTransferSuccessAt?: string;
   independentSuccesses: number;
   assistedSuccesses: number;
   communicationSuccesses: number;
@@ -130,6 +142,7 @@ export interface UnifiedMastery extends UnifiedEvidenceTarget {
   delayedSuccesses: number;
   transferSuccesses: number;
   pendingErrors: LearningError[];
+  remediationSupport: Partial<Record<LearningError, RemediationSupport>>;
   errorCounts: Partial<Record<LearningError, number>>;
   legacy: boolean;
 }
@@ -159,7 +172,7 @@ function compareEvents(a: LearningEvidence, b: LearningEvidence) {
   return a.timestamp - b.timestamp;
 }
 
-function languageOutcome(event: LearningEvidence) {
+export function learningEvidenceOutcome(event: LearningEvidence) {
   return event.languageOutcome ?? event.outcome;
 }
 
@@ -173,7 +186,23 @@ function canCountIndependently(event: LearningEvidence) {
     event.format !== 'reorder' &&
     !event.retry &&
     event.aids.length === 0 &&
-    languageOutcome(event) !== 'ungradable'
+    learningEvidenceOutcome(event) !== 'ungradable'
+  );
+}
+
+export function hasRecentGradableAnswer(
+  state: UnifiedLearningState,
+  exerciseId: string,
+  now: number,
+) {
+  return state.evidence.some(
+    (event) =>
+      event.exerciseId === exerciseId &&
+      event.source !== 'placement' &&
+      event.activity === 'answer' &&
+      learningEvidenceOutcome(event) !== 'ungradable' &&
+      event.timestamp <= now &&
+      now - event.timestamp < dayMs,
   );
 }
 
@@ -186,18 +215,12 @@ export function recordUnifiedEvidence(state: UnifiedLearningState, input: Learni
   const aids = new Set(event.aids);
   if (event.format === 'reorder' || event.activity === 'speech_transcript') aids.add('guided');
   if (event.retry) aids.add('retry');
-  if (event.activity === 'answer' && event.source !== 'placement') {
-    const recentAnswer = state.evidence.some(
-      (previous) =>
-        previous.exerciseId === event.exerciseId &&
-        previous.source !== 'placement' &&
-        previous.activity === 'answer' &&
-        languageOutcome(previous) !== 'ungradable' &&
-        previous.timestamp <= event.timestamp &&
-        event.timestamp - previous.timestamp < dayMs,
-    );
-    if (recentAnswer) aids.add('answer_shown');
-  }
+  if (
+    event.activity === 'answer' &&
+    event.source !== 'placement' &&
+    hasRecentGradableAnswer(state, event.exerciseId, event.timestamp)
+  )
+    aids.add('answer_shown');
   state.evidence.push({
     ...event,
     targets,
@@ -207,11 +230,16 @@ export function recordUnifiedEvidence(state: UnifiedLearningState, input: Learni
   return true;
 }
 
-function freshMastery({ targetId, dimension }: UnifiedEvidenceTarget): UnifiedMastery {
+export function emptyUnifiedMastery({
+  targetId,
+  dimension,
+}: UnifiedEvidenceTarget): UnifiedMastery {
   return {
     targetId: canonicalLearningId(targetId),
     dimension,
     state: 'not_introduced',
+    retention: 'unverified',
+    transfer: 'unverified',
     needsReview: false,
     independentSuccesses: 0,
     assistedSuccesses: 0,
@@ -220,9 +248,24 @@ function freshMastery({ targetId, dimension }: UnifiedEvidenceTarget): UnifiedMa
     delayedSuccesses: 0,
     transferSuccesses: 0,
     pendingErrors: [],
+    remediationSupport: {},
     errorCounts: {},
     legacy: false,
   };
+}
+
+export function isRemediationFollowUp(
+  candidate: Omit<UnifiedReviewCandidate, 'targets'>,
+  error: LearningError,
+  support: RemediationSupport,
+) {
+  return (
+    !candidate.guided &&
+    candidate.exerciseId !== support.exerciseId &&
+    candidate.exerciseId !== support.failedExerciseId &&
+    candidate.contextId !== support.contextId &&
+    (candidate.errors?.includes(error) || candidate.remediates?.includes(error)) === true
+  );
 }
 
 function raise(mastery: UnifiedMastery, state: UnifiedMasteryState) {
@@ -233,13 +276,12 @@ function reduceMastery(mastery: UnifiedMastery, evidence: LearningEvidence[]) {
   const qualifyingPrompts = new Set<string>();
   const independentContexts = new Set<string>();
   const challengePrompts = new Map<string, boolean>();
-  const supportedErrors = new Map<LearningError, string>();
-  const pendingErrors = new Set<LearningError>();
+  const pendingErrors = new Map<LearningError, string>();
   let interval = 0;
   let lastIndependent = -Infinity;
   let lastIndependentExercise = '';
   for (const event of evidence) {
-    const outcome = languageOutcome(event);
+    const outcome = learningEvidenceOutcome(event);
     const independent = canCountIndependently(event);
     if (event.source === 'placement') continue;
     if (event.activity === 'introduced') {
@@ -266,16 +308,25 @@ function reduceMastery(mastery: UnifiedMastery, evidence: LearningEvidence[]) {
       mastery.incorrectAttempts++;
       if (event.error) {
         mastery.errorCounts[event.error] = (mastery.errorCounts[event.error] ?? 0) + 1;
-        pendingErrors.add(event.error);
-        supportedErrors.delete(event.error);
+        if (!pendingErrors.has(event.error) || !event.aids.includes('guided'))
+          pendingErrors.set(event.error, event.exerciseId);
+        delete mastery.remediationSupport[event.error];
       }
     }
     if (outcome !== 'target' || !independent) {
       if (outcome === 'target') {
         mastery.assistedSuccesses++;
-        for (const error of event.remediates ?? []) {
-          if (pendingErrors.has(error)) supportedErrors.set(error, event.contextId);
-        }
+        if (event.aids.includes('guided'))
+          for (const error of event.remediates ?? []) {
+            const failedExerciseId = pendingErrors.get(error);
+            if (failedExerciseId)
+              mastery.remediationSupport[error] = {
+                exerciseId: event.exerciseId,
+                contextId: event.contextId,
+                timestamp: event.timestamp,
+                failedExerciseId,
+              };
+          }
       }
       mastery.needsReview = true;
       // Keep earned progress while bringing a weak target forward in the queue.
@@ -294,26 +345,27 @@ function reduceMastery(mastery: UnifiedMastery, evidence: LearningEvidence[]) {
     const newPrompt = !qualifyingPrompts.has(event.exerciseId);
     const newContext = !independentContexts.has(event.contextId);
     const delayed = demonstrated && differentPrompt && event.timestamp - lastIndependent >= dayMs;
+    const transferred = event.transfer && qualifyingPrompts.size > 0 && newPrompt && newContext;
     qualifyingPrompts.add(event.exerciseId);
     independentContexts.add(event.contextId);
     raise(mastery, qualifyingPrompts.size >= 2 ? 'demonstrated' : 'independent_performance');
     if (delayed) {
       mastery.delayedSuccesses++;
-      raise(mastery, 'retained');
+      mastery.retention = 'verified';
+      mastery.lastDelayedSuccessAt = date;
       if (!mastery.nextReviewAt || Date.parse(mastery.nextReviewAt) <= event.timestamp)
         interval = Math.min(reviewIntervals.length - 1, interval + 1);
     }
-    if (event.transfer && demonstrated && newPrompt && newContext) {
+    if (transferred) {
       mastery.transferSuccesses++;
-      raise(mastery, 'transfer');
+      mastery.transfer = 'verified';
+      mastery.lastTransferSuccessAt = date;
     }
-    for (const [error, context] of supportedErrors) {
-      if (
-        context !== event.contextId &&
-        (event.errors?.includes(error) || event.remediates?.includes(error))
-      ) {
+    for (const error of pendingErrors.keys()) {
+      const support = mastery.remediationSupport[error];
+      if (support && isRemediationFollowUp(event, error, support)) {
         pendingErrors.delete(error);
-        supportedErrors.delete(error);
+        delete mastery.remediationSupport[error];
       }
     }
     mastery.needsReview = pendingErrors.size > 0;
@@ -329,7 +381,7 @@ function reduceMastery(mastery: UnifiedMastery, evidence: LearningEvidence[]) {
         event.timestamp + reviewIntervals[interval] * dayMs,
       ).toISOString();
   }
-  mastery.pendingErrors = [...pendingErrors];
+  mastery.pendingErrors = [...pendingErrors.keys()];
   return mastery;
 }
 
@@ -339,7 +391,7 @@ export function unifiedMastery(state: UnifiedLearningState): UnifiedMastery[] {
     const key = unifiedMasteryKey(target);
     const found = byTarget.get(key);
     if (found) return found;
-    const entry = { mastery: freshMastery(target), evidence: [] };
+    const entry = { mastery: emptyUnifiedMastery(target), evidence: [] };
     byTarget.set(key, entry);
     return entry;
   };
@@ -359,7 +411,7 @@ export function unifiedMastery(state: UnifiedLearningState): UnifiedMastery[] {
     if (
       seen.has(event.id) ||
       event.source === 'placement' ||
-      languageOutcome(event) === 'ungradable'
+      learningEvidenceOutcome(event) === 'ungradable'
     )
       continue;
     seen.add(event.id);
@@ -381,7 +433,7 @@ export function getUnifiedMastery(
   const key = unifiedMasteryKey({ targetId, dimension });
   return (
     unifiedMastery(state).find((target) => unifiedMasteryKey(target) === key) ??
-    freshMastery({ targetId, dimension })
+    emptyUnifiedMastery({ targetId, dimension })
   );
 }
 
@@ -414,7 +466,7 @@ export function rankUnifiedReviewCandidates<T extends UnifiedReviewCandidate>(
     (event) =>
       event.source !== 'placement' &&
       event.activity === 'answer' &&
-      languageOutcome(event) !== 'ungradable' &&
+      learningEvidenceOutcome(event) !== 'ungradable' &&
       event.targets.some((target) => unifiedMasteryKey(target) === key),
   );
   const contexts = new Set(prior.map(({ contextId }) => contextId));
@@ -422,20 +474,11 @@ export function rankUnifiedReviewCandidates<T extends UnifiedReviewCandidate>(
     prior.filter((event) => now - event.timestamp < dayMs).map(({ exerciseId }) => exerciseId),
   );
   const seenIds = new Set(prior.map(({ exerciseId }) => exerciseId));
-  const supported = new Map<LearningError, string>();
-  for (const event of prior.sort(compareEvents)) {
-    if (languageOutcome(event) === 'incorrect' && event.error) supported.delete(event.error);
-    if (languageOutcome(event) === 'target' && !canCountIndependently(event)) {
-      for (const error of event.remediates ?? []) supported.set(error, event.contextId);
-    }
-  }
   const score = (item: T) => {
     const addressesError = mastery.pendingErrors.some((error) => {
-      const guidance = supported.get(error);
+      const guidance = mastery.remediationSupport[error];
       return guidance
-        ? !item.guided &&
-            item.contextId !== guidance &&
-            (item.errors?.includes(error) || item.remediates?.includes(error))
+        ? isRemediationFollowUp(item, error, guidance)
         : item.guided && item.remediates?.includes(error);
     });
     return (

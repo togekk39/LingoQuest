@@ -226,11 +226,11 @@ const homeAuditoryExercises: Readonly<Record<string, string>> = {
 };
 
 const homeOptionalTargets: Readonly<Record<string, UnifiedEvidenceTarget>> = {
-  home_challenge_name: target('home.introduce', 'grammar_understanding'),
-  home_challenge_introduce: target('home.introduce', 'grammar_understanding'),
+  home_challenge_name: target('home.introduce', 'grammar_production'),
+  home_challenge_introduce: target('home.introduce', 'grammar_production'),
   home_challenge_directions: target('home.adjacency', 'vocabulary_recall'),
-  home_challenge_color: target('home.statement-be', 'grammar_understanding'),
-  home_challenge_where: target('home.ask-location', 'grammar_understanding'),
+  home_challenge_color: target('home.statement-be', 'grammar_production'),
+  home_challenge_where: target('home.ask-location', 'grammar_production'),
   home_challenge_plaza: target('home.stop', 'vocabulary_recall'),
   home_challenge_park: target('home.park', 'vocabulary_recall'),
   home_challenge_blue: target('home.blue', 'vocabulary_recall'),
@@ -272,6 +272,8 @@ export function exerciseEvidenceTargets(
       if (word === 'hi' || word === 'hello')
         return vocabularyEvidenceTargets(greetingLexemes[word], 'vocabulary_recall');
     }
+    if (learning.skill === 'grammar' && exercise.dimension === 'grammar_production')
+      return [target(learning.conceptId, 'grammar_production')];
     return homeLearningEvidenceTargets(learning);
   }
   if (id === 'u01_l01_practice_4') return [target('home.introduce', 'writing')];

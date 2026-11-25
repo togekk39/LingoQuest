@@ -170,6 +170,17 @@ test('Android starts with a local shell and opens the installed adventure and co
     const writing = await engine.request<QuickReviewState>(path);
     assert.equal(writing.lessonId, 'travel_home');
     assert.equal(writing.audio, undefined);
+    assert.ok(writing.prerequisiteInstruction?.sections.length);
+    const premature = await engine.request<QuickReviewState>(path, {
+      action: 'answer',
+      token: writing.token,
+      answer: { text: 'Hello! My name is Mei Lin.' },
+    });
+    assert.equal(premature.result, undefined);
+    await engine.request(path, { action: 'prepare', token: writing.token });
+    const prepared = await engine.request<QuickReviewState>(path);
+    assert.equal(prepared.token, writing.token);
+    assert.equal(prepared.prerequisiteInstruction, undefined);
     const reviewed = await engine.request<QuickReviewState>(path, {
       action: 'answer',
       token: writing.token,
@@ -181,6 +192,7 @@ test('Android starts with a local shell and opens the installed adventure and co
     );
     assert.equal(reviewEvent?.source, 'review');
     assert.equal(reviewEvent?.materialVersion, `home:${story.chapter.revision}`);
+    assert.equal(reviewEvent?.independent, false);
   } finally {
     resolution.deregister();
   }

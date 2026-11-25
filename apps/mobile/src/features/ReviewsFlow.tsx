@@ -23,8 +23,6 @@ const learningStatusLabels: Record<UnifiedReviewRow['state'], string> = {
   guided_practice: 'En práctica guiada',
   independent_performance: 'Primer acierto sin ayuda',
   demonstrated: 'Ya la demostraste',
-  retained: 'La recordaste después de un tiempo',
-  transfer: 'La aplicaste en otra situación',
 };
 
 export default function ReviewsFlow({
@@ -164,6 +162,20 @@ function ReviewCard({
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={f.cardTitle}>{review.targetLabelEs}</Text>
           <Text style={f.quiet}>{learningStatusLabels[review.state]}</Text>
+          {review.state === 'demonstrated' && (
+            <>
+              <Text style={f.quiet}>
+                {review.retention === 'verified'
+                  ? 'La recordaste después de un tiempo'
+                  : 'Retención aún sin verificar'}
+              </Text>
+              <Text style={f.quiet}>
+                {review.transfer === 'verified'
+                  ? 'La aplicaste en otra situación'
+                  : 'Aplicación en otra situación aún sin verificar'}
+              </Text>
+            </>
+          )}
           {review.canPractice && (
             <Text style={f.quiet}>
               {review.reason === 'remediation'

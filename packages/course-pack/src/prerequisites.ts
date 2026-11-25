@@ -72,7 +72,8 @@ export const prerequisiteFileSchema = z
   .strict();
 
 export type PrerequisiteFile = z.infer<typeof prerequisiteFileSchema>;
-type Reference = z.infer<typeof reference>;
+export type PrerequisiteReference = z.infer<typeof reference>;
+type Reference = PrerequisiteReference;
 type Lesson = PrerequisiteFile['lessons'][number];
 
 export type CurriculumLesson = { chapterId: string; order: number };
@@ -81,7 +82,7 @@ function formKey(value: string) {
   return value.normalize('NFC').replace(/[’‘]/g, "'");
 }
 
-function referenceKey({ id, form }: Reference) {
+export function referenceKey({ id, form }: Reference) {
   return form === undefined ? id : id + '[' + formKey(form) + ']';
 }
 

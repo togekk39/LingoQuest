@@ -1,6 +1,10 @@
+import type { LearningError } from '@lingoquest/contracts';
 import { chapter, travelLesson } from './home-content';
 import type { CourseData, CourseExercise, CourseLesson, OfflineState } from './index';
+import type { reviewPrerequisites } from './learning-prerequisites';
 import {
+  emptyUnifiedMastery,
+  isRemediationFollowUp,
   rankUnifiedReviewCandidates,
   unifiedMasteryKey,
   unifiedReviewQueue,
@@ -10,11 +14,9 @@ import {
   buildLearningRegistry,
   exerciseEvidenceContext,
   exerciseEvidenceTargets,
-  homeLearningEvidenceTargets,
   homeSpeakingEvidenceTargets,
 } from './learning-registry';
-import { travelConcepts, type TravelConceptId } from './travel-curriculum';
-import type { LearningReviewReason } from './travel-learning';
+import { writtenLearningErrors, type LearningReviewReason } from './travel-learning';
 
 const dimensionLabels: Record<UnifiedMastery['dimension'], string> = {
   vocabulary_recognition: 'Vocabulario',
@@ -34,6 +36,8 @@ export interface UnifiedReviewRow {
   targetLabelEs: string;
   skillLabelEs: string;
   state: UnifiedMastery['state'];
+  retention: UnifiedMastery['retention'];
+  transfer: UnifiedMastery['transfer'];
   nextReviewAt?: string;
   reason: LearningReviewReason;
   canPractice: boolean;
@@ -41,7 +45,29 @@ export interface UnifiedReviewRow {
   assistedSuccesses: number;
 }
 
-export function reviewCandidate(lesson: CourseLesson, exercise: CourseExercise) {
+export function exerciseCheckedErrors(exercise: CourseExercise): LearningError[] {
+  if (exercise.learning)
+    return [
+      ...new Set([
+        ...(exercise.learning.errors ?? []),
+        ...(Object.keys(exercise.learning.errorAnswers ?? {}) as LearningError[]),
+      ]),
+    ];
+  if (exercise.type === 'meaning' && exercise.vocabularyIds?.length === 1)
+    return ['vocabulary_sense'];
+  if (exercise.options) return [];
+  return writtenLearningErrors(
+    exercise.introduction
+      ? [...exercise.acceptedAnswers, exercise.introduction.model]
+      : exercise.acceptedAnswers,
+  );
+}
+
+export function reviewCandidate(
+  lesson: CourseLesson,
+  exercise: CourseExercise,
+  prerequisites: ReturnType<typeof reviewPrerequisites>,
+) {
   return {
     lesson,
     exercise,
@@ -49,17 +75,69 @@ export function reviewCandidate(lesson: CourseLesson, exercise: CourseExercise) 
     contextId: exerciseEvidenceContext(exercise, lesson.id),
     targets: exerciseEvidenceTargets(exercise, lesson.id),
     guided: !!exercise.learning?.guided || exercise.type === 'reorder',
-    errors: [...(exercise.learning?.errors ?? []), ...(exercise.learning?.remediates ?? [])],
+    errors: exerciseCheckedErrors(exercise),
     remediates: exercise.learning?.remediates,
+    prerequisites,
   };
 }
 
 export type ReviewCandidate = ReturnType<typeof reviewCandidate>;
 
-interface ReviewPlan {
+export function reviewReady(candidate: ReviewCandidate) {
+  return candidate.prerequisites?.missing.length === 0;
+}
+
+export interface ReviewPlan {
   row: UnifiedReviewRow;
   mastery: UnifiedMastery;
   candidates: ReviewCandidate[];
+}
+
+export type RemediationStep =
+  | { phase: 'support' | 'confirmation'; error: LearningError; candidate: ReviewCandidate }
+  | { phase: 'waiting'; error: LearningError };
+
+export function reviewTargetsForMission(missionId?: string | null) {
+  return new Set(
+    chapter.missions
+      .find(({ id }) => id === missionId)
+      ?.steps.flatMap((step) =>
+        step.type === 'exercise'
+          ? exerciseEvidenceTargets(step.exercise, travelLesson.id).map(({ targetId }) => targetId)
+          : [],
+      ),
+  );
+}
+
+export function planRemediation(
+  plan: ReviewPlan,
+  recentExercises: ReadonlySet<string>,
+  error?: LearningError,
+): RemediationStep | undefined {
+  const errors = error
+    ? plan.mastery.pendingErrors.filter((item) => item === error)
+    : plan.mastery.pendingErrors;
+  let waiting: RemediationStep | undefined;
+  for (const item of errors) {
+    const support = plan.mastery.remediationSupport[item];
+    if (!support) continue;
+    const candidate = plan.candidates.find(
+      (entry) =>
+        reviewReady(entry) &&
+        isRemediationFollowUp(entry, item, support) &&
+        !recentExercises.has(entry.exerciseId),
+    );
+    if (candidate) return { phase: 'confirmation', error: item, candidate };
+    waiting ??= { phase: 'waiting', error: item };
+  }
+  for (const item of errors) {
+    if (plan.mastery.remediationSupport[item]) continue;
+    const candidate =
+      plan.candidates.find((entry) => entry.remediates?.includes(item)) ??
+      plan.candidates.find((entry) => entry.errors.includes(item));
+    if (candidate) return { phase: 'support', error: item, candidate };
+  }
+  return waiting;
 }
 
 export function unifiedReviewPlans(
@@ -71,33 +149,11 @@ export function unifiedReviewPlans(
 ): ReviewPlan[] {
   const records = unifiedReviewQueue(state.unifiedLearning, now);
   const knownTargets = new Set(records.map(({ targetId }) => targetId));
-  const taughtHomeConcepts = new Set(
-    state.travelLearning?.targets.map(({ conceptId }) => conceptId),
-  );
-  const missionTargets = new Set(
-    chapter.missions
-      .find(({ id }) => id === missionId)
-      ?.steps.flatMap((step) =>
-        step.type === 'exercise'
-          ? exerciseEvidenceTargets(step.exercise, travelLesson.id).map(({ targetId }) => targetId)
-          : [],
-      ),
-  );
+  const missionTargets = reviewTargetsForMission(missionId);
   const registry = buildLearningRegistry(content);
-  const available = candidates.filter((candidate) => {
-    if (candidate.lesson.id !== travelLesson.id) return true;
-    const concept = candidate.exercise.learning?.conceptId as TravelConceptId | undefined;
-    return (
-      !concept ||
-      (travelConcepts[concept]?.prerequisiteIds ?? []).every(
-        (id) =>
-          taughtHomeConcepts.has(id) ||
-          homeLearningEvidenceTargets({ conceptId: id, skill: 'grammar' }).some(({ targetId }) =>
-            knownTargets.has(targetId),
-          ),
-      )
-    );
-  });
+  const available = candidates.filter(
+    (candidate) => reviewReady(candidate) || candidate.prerequisites?.instruction,
+  );
   const byKey = new Map(records.map((record) => [unifiedMasteryKey(record), record]));
   const speakingTargets = chapter.missions.flatMap(({ steps }) =>
     steps.flatMap((step) =>
@@ -108,31 +164,17 @@ export function unifiedReviewPlans(
     (target) => knownTargets.has(target.targetId) && !byKey.has(unifiedMasteryKey(target)),
   );
   for (const target of missing) {
-    byKey.set(unifiedMasteryKey(target), {
-      ...target,
-      state: 'not_introduced',
-      needsReview: false,
-      independentSuccesses: 0,
-      assistedSuccesses: 0,
-      communicationSuccesses: 0,
-      incorrectAttempts: 0,
-      delayedSuccesses: 0,
-      transferSuccesses: 0,
-      pendingErrors: [],
-      errorCounts: {},
-      legacy: false,
-    });
+    byKey.set(unifiedMasteryKey(target), emptyUnifiedMastery(target));
   }
 
   return [...byKey].flatMap(([key, mastery]) => {
     if (missionId && !missionTargets.has(mastery.targetId)) return [];
     const definition = registry.get(mastery.targetId);
-    const alternatives = rankUnifiedReviewCandidates(
-      state.unifiedLearning,
-      mastery,
-      available,
-      now,
-    );
+    const ranked = rankUnifiedReviewCandidates(state.unifiedLearning, mastery, available, now);
+    const alternatives = [
+      ...ranked.filter(reviewReady),
+      ...ranked.filter((candidate) => candidate.prerequisites?.instruction),
+    ];
     const due =
       mastery.needsReview || (!!mastery.nextReviewAt && Date.parse(mastery.nextReviewAt) <= now);
     const reason = mastery.pendingErrors.length ? 'remediation' : due ? 'due' : 'practice';
@@ -145,6 +187,8 @@ export function unifiedReviewPlans(
           targetLabelEs: definition?.labelEs ?? alternatives[0]?.lesson.title ?? mastery.targetId,
           skillLabelEs: dimensionLabels[mastery.dimension],
           state: mastery.state,
+          retention: mastery.retention,
+          transfer: mastery.transfer,
           nextReviewAt: mastery.nextReviewAt,
           reason,
           canPractice: alternatives.length > 0,

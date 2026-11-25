@@ -4,6 +4,7 @@ import { lessons, speechDrills } from '../../../apps/api/src/content.ts';
 import {
   emptyUnifiedLearning,
   getUnifiedMastery,
+  isRemediationFollowUp,
   rankUnifiedReviewCandidates,
   recordUnifiedEvidence,
   unifiedLearningSchema,
@@ -117,7 +118,7 @@ test('the canonical registry covers the published course and travel prerequisite
   );
 });
 
-test('stages distinguish exposure, support, distinct independent answers, retention, and transfer', () => {
+test('independent same-day transfer verifies application while retention stays unverified', () => {
   const state = emptyUnifiedLearning();
   assert.equal(mastery(state).state, 'not_introduced');
   recordUnifiedEvidence(state, answer('intro', { activity: 'introduced', outcome: undefined }));
@@ -126,8 +127,16 @@ test('stages distinguish exposure, support, distinct independent answers, retent
   assert.equal(mastery(state).state, 'guided_practice');
   recordUnifiedEvidence(state, answer('first'));
   assert.equal(mastery(state).state, 'independent_performance');
-  recordUnifiedEvidence(state, answer('second', { source: 'study', contextId: 'study-form' }));
+  recordUnifiedEvidence(
+    state,
+    answer('second', { source: 'study', contextId: 'study-form', transfer: true }),
+  );
   assert.equal(mastery(state).state, 'demonstrated');
+  assert.equal(mastery(state).retention, 'unverified');
+  assert.equal(mastery(state).delayedSuccesses, 0);
+  assert.equal(mastery(state).transfer, 'verified');
+  assert.equal(mastery(state).transferSuccesses, 1);
+  assert.equal(mastery(state).lastTransferSuccessAt, new Date(start).toISOString());
   assert.equal(getUnifiedMastery(state, writing.targetId, 'speaking').state, 'not_introduced');
   assert.equal(getUnifiedMastery(state, writing.targetId, 'listening').state, 'not_introduced');
   assert.equal(unifiedReviewQueue(state, start + day)[0].needsReview, true);
@@ -135,13 +144,17 @@ test('stages distinguish exposure, support, distinct independent answers, retent
     state,
     answer('delay', { source: 'review', timestamp: start + day, exerciseId: 'first' }),
   );
-  assert.equal(mastery(state).state, 'retained');
+  assert.equal(mastery(state).state, 'demonstrated');
+  assert.equal(mastery(state).retention, 'verified');
+  assert.equal(mastery(state).lastDelayedSuccessAt, new Date(start + day).toISOString());
+  assert.equal(mastery(state).transfer, 'verified');
+  assert.equal(mastery(state).transferSuccesses, 1);
   assert.equal(mastery(state).nextReviewAt, new Date(start + day * 4).toISOString());
   recordUnifiedEvidence(
     state,
     answer('relabeled-transfer', { source: 'study', timestamp: start + day * 2, transfer: true }),
   );
-  assert.equal(mastery(state).state, 'retained');
+  assert.equal(mastery(state).transferSuccesses, 1);
   recordUnifiedEvidence(
     state,
     answer('transfer', {
@@ -151,7 +164,27 @@ test('stages distinguish exposure, support, distinct independent answers, retent
       transfer: true,
     }),
   );
-  assert.equal(mastery(state).state, 'transfer');
+  assert.equal(mastery(state).state, 'demonstrated');
+  assert.equal(mastery(state).transferSuccesses, 2);
+  const restored = unifiedLearningSchema.parse(JSON.parse(JSON.stringify(state)));
+  assert.deepEqual(mastery(restored), mastery(state));
+});
+
+test('a delayed result can verify retention without any authored transfer evidence', () => {
+  const state = emptyUnifiedLearning();
+  recordUnifiedEvidence(state, answer('first'));
+  recordUnifiedEvidence(state, answer('second'));
+  recordUnifiedEvidence(state, answer('delayed', { timestamp: start + day, exerciseId: 'first' }));
+  assert.equal(mastery(state).state, 'demonstrated');
+  assert.equal(mastery(state).retention, 'verified');
+  assert.equal(mastery(state).transfer, 'unverified');
+  recordUnifiedEvidence(
+    state,
+    answer('forgotten', { timestamp: start + day * 2, outcome: 'incorrect' }),
+  );
+  assert.equal(mastery(state).state, 'demonstrated');
+  assert.equal(mastery(state).retention, 'verified');
+  assert.equal(mastery(state).needsReview, true);
 });
 
 test('submission IDs survive restore and retries do not create independent evidence', () => {
@@ -233,6 +266,24 @@ test('forgetting prioritizes the authored guided remedy and an independent follo
   );
   recordUnifiedEvidence(
     state,
+    answer('wrong-guide', {
+      source: 'remediation',
+      timestamp: start + day,
+      exerciseId: guidance.exerciseId,
+      contextId: guidance.contextId,
+      outcome: 'incorrect',
+      error: 'be_omission',
+      aids: ['guided'],
+      remediates: guidance.remediates,
+    }),
+  );
+  assert.equal(mastery(state).remediationSupport.be_omission, undefined);
+  assert.equal(
+    rankUnifiedReviewCandidates(state, mastery(state), [followUp, guidance], start + day)[0],
+    guidance,
+  );
+  recordUnifiedEvidence(
+    state,
     answer('remedy', {
       source: 'remediation',
       timestamp: start + day,
@@ -245,6 +296,19 @@ test('forgetting prioritizes the authored guided remedy and an independent follo
     rankUnifiedReviewCandidates(state, mastery(state), [guidance, followUp], start + day)[0],
     followUp,
   );
+  const restored = unifiedLearningSchema.parse(JSON.parse(JSON.stringify(state)));
+  const support = mastery(restored).remediationSupport.be_omission!;
+  assert.deepEqual(support, {
+    exerciseId: guidance.exerciseId,
+    contextId: guidance.contextId,
+    timestamp: start + day,
+    failedExerciseId: 'error',
+  });
+  assert.equal(isRemediationFollowUp(followUp, 'be_omission', support), true);
+  assert.equal(
+    isRemediationFollowUp({ ...followUp, exerciseId: 'error' }, 'be_omission', support),
+    false,
+  );
   recordUnifiedEvidence(
     state,
     answer('unrelated', {
@@ -255,7 +319,7 @@ test('forgetting prioritizes the authored guided remedy and an independent follo
   );
   assert.deepEqual(mastery(state).pendingErrors, ['be_omission']);
   recordUnifiedEvidence(
-    state,
+    restored,
     answer('follow-up', {
       source: 'remediation',
       timestamp: start + day,
@@ -263,8 +327,9 @@ test('forgetting prioritizes the authored guided remedy and an independent follo
       errors: followUp.errors,
     }),
   );
-  assert.deepEqual(mastery(state).pendingErrors, []);
-  assert.equal(mastery(state).needsReview, false);
+  assert.deepEqual(mastery(restored).pendingErrors, []);
+  assert.equal(mastery(restored).remediationSupport.be_omission, undefined);
+  assert.equal(mastery(restored).needsReview, false);
 });
 
 test('legacy scheduling survives without mastery credit, and challenge replays cannot accumulate', () => {

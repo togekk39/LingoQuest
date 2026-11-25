@@ -112,6 +112,8 @@ const archiveExerciseSchema = courseExerciseSchema.extend({
 });
 const archiveLessonSchema = lessonSchema.pick({ id: true, unitId: true, title: true }).extend({
   contextEs: lessonSchema.shape.contextEs.optional(),
+  vocabulary: lessonSchema.shape.vocabulary.optional(),
+  grammar: lessonSchema.shape.grammar.optional(),
   exercises: z.array(archiveExerciseSchema).max(150),
 });
 const stepSchema = z
@@ -151,7 +153,7 @@ export function rememberReviewLessons(state: OfflineState, content: CourseData) 
     if (!lesson?.exercises.length) continue;
     const version = home ? `home:${chapter.revision}` : studyMaterialVersion(content, id);
     const prior = state.reviewArchive?.[id];
-    if (prior?.version === version) continue;
+    if (prior?.version === version && (home || !lesson.grammar || prior.lesson.grammar)) continue;
 
     const steps: NonNullable<ArchivedLesson['steps']> = {};
     const exercises = lesson.exercises.flatMap((exercise) => {
@@ -169,6 +171,8 @@ export function rememberReviewLessons(state: OfflineState, content: CourseData) 
         unitId: lesson.unitId,
         title: lesson.title,
         contextEs: lesson.contextEs,
+        vocabulary: lesson.vocabulary,
+        grammar: lesson.grammar,
         exercises,
       },
       ...(home ? { steps } : {}),

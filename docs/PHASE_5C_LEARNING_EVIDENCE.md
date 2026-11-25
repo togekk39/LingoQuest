@@ -4,7 +4,9 @@
 
 An evidence event records a stable submission ID, canonical target and dimension, source, material and item IDs, material version, context, format, activity, outcome when applicable, support used, retry status, independence, and time. One event can describe multiple authored targets. A resubmission with the same ID leaves the original event and its effect intact. An exercise seen again within 24 hours carries an answer exposure marker. [Schema and projection](../packages/offline-engine/src/learning-evidence.ts)
 
-## Progression
+## Performance, retention and transfer
+
+Each target and dimension has three evidence measures. The performance stage summarizes practice and successful responses. Retention and transfer each keep a separate verification status, success count and latest verification time. The review schedule reflects when to ask again. A mistake can make review due while preserving the earlier performance stage and verified results.
 
 | State                   | Minimum basis                                                                                                                                          |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -13,10 +15,15 @@ An evidence event records a stable submission ID, canonical target and dimension
 | Guided practice         | The learner responded with support, tried an activity that yielded usable evidence, or practiced with a visible speech reference.                      |
 | Independent performance | A target-form success with no recorded support on a task that can measure that dimension.                                                              |
 | Demonstrated            | Target-form successes on at least two distinct prompts in that dimension.                                                                              |
-| Retained                | After demonstration, an independent success at least 24 hours after the last independent success, using a different prompt.                            |
-| Transfer                | After demonstration, an independently successful task authored for transfer, in a new context and on a new prompt.                                     |
 
-Listening, reading, writing, speaking, vocabulary recognition and recall, and grammar understanding and production use separate records. Transfer describes performance in a changed context within the dimension being measured. For example, writing `My name is Ana.` can support `home.introduce` writing evidence. The oral record stays unverified until it gets its own evidence. A graded multiple-choice question can contribute to the dimension it tests, at most one step on a first correct response. Viewing a model, reading a scene, choosing prewritten dialogue, completing a mission and earning a reward are exposure or progression activities. [Canonical mapping](PHASE_5C_LEARNING_ARCHITECTURE.md)
+| Measure   | Verification rule                                                                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Retention | An independent target-form success on a different prompt, at least 24 hours after the previous independent success and after performance was demonstrated. |
+| Transfer  | An independent target-form success on an authored transfer task with a new prompt and context, with at least one earlier qualifying independent success.   |
+
+A learner can write an introduction independently, then successfully introduce themself on an authored photo-signup task later the same day. That later answer can demonstrate performance and verify transfer. Retention stays unverified until a separate delayed success meets its rule.
+
+Listening, reading, writing, speaking, vocabulary recognition and recall, and grammar understanding and production use separate records. For example, writing `My name is Ana.` can support `home.introduce` writing evidence. The oral record stays unverified until it gets its own evidence. A graded multiple-choice question can contribute to the dimension it tests, at most one step on a first correct response. Viewing a model, reading a scene, choosing prewritten dialogue, completing a mission and earning a reward are exposure or progression activities. [Canonical mapping](PHASE_5C_LEARNING_ARCHITECTURE.md)
 
 ## Grading and support
 
@@ -27,7 +34,7 @@ Listening, reading, writing, speaking, vocabulary recognition and recall, and gr
 | `incorrect`          | The attempt can bring review forward and record a specific error. Prior verified history is retained.          |
 | `ungradable`         | The evidence records the attempted activity. A fair competency decision remains unavailable.                   |
 
-Hints, translation, transcript, answer models, scaffolds, reorder tokens, and retries influence independence. The reducer also tracks whether the answer to the same prompt was recently revealed through previous practice. Placement records sample the learner's starting point and inform a recommendation. Their contribution to target mastery stays at the pre-diagnostic state. Optional challenge replays retain their history. Each challenge item contributes to mastery at most once per target and dimension. [Shared grading](../packages/contracts/src/answer-grading.ts) · [Review rules](PHASE_5C_ADAPTIVE_REVIEW.md)
+Hints, translation, transcript, answer models, scaffolds, reorder tokens, and retries influence independence. The reducer also tracks whether the answer to the same prompt was recently revealed through previous practice. An introduction can record the language outcome separately from a mismatch with the learner's confirmed name. Placement records sample the learner's starting point and inform a recommendation. The mastery projection leaves diagnostic records outside all three measures. Optional challenge replays retain their history. Each challenge item earns independent credit at most once per target and dimension. [Shared grading](../packages/contracts/src/answer-grading.ts) · [Review rules](PHASE_5C_ADAPTIVE_REVIEW.md)
 
 ## Spoken practice
 

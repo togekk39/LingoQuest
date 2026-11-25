@@ -803,6 +803,20 @@ test('an offline storybook restores dialogue, grades exercises and awards one po
     ]),
   );
   expect(finished.travelLearning?.targets.filter(({ skill }) => skill === 'speaking')).toEqual([]);
+
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Cursos A1–A2');
+  await click(page, '¡Hola! Mucho gusto');
+  await page
+    .getByTestId('textbook-lesson-u01_l03')
+    .getByRole('button', exact('Empezar lección'))
+    .click();
+  const status = page.getByTestId('study-learning-status');
+  await expect(status.getByTestId('study-status-writing')).toHaveText(
+    'Escritura · Dominio parcial (1 de 2 objetivos)',
+  );
+  await expect(status.getByTestId('study-status-speaking')).toHaveText('Habla · Por comprobar');
+  expect((await state(page)).completedLessons).not.toContain('u01_l03');
 });
 
 test('the player can introduce their own name without setting a profile name', async ({ page }) => {

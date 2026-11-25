@@ -73,7 +73,7 @@ async function reachTextbookWriting(page: Page, storyWritingVerified = false) {
   if (storyWritingVerified) {
     const status = page.getByTestId('study-learning-status');
     await expect(status.getByTestId('study-status-writing')).toHaveText(
-      'Escritura · Con objetivos demostrados',
+      'Escritura · 1 objetivo demostrado',
     );
     await expect(status.getByTestId('study-status-listening')).toHaveText(
       'Escucha · Por comprobar',
@@ -134,7 +134,7 @@ async function restoreBackup(page: Page, backup: object) {
   await expect(page.getByText('Respaldo restaurado en este dispositivo.')).toBeVisible();
 }
 
-test('Story writing in two contexts carries into Study without verifying speaking or listening', async ({
+test('Story shows same-day writing transfer and Study and Review keep evidence separate by ability', async ({
   page,
   context,
 }) => {
@@ -168,7 +168,13 @@ test('Story writing in two contexts carries into Study without verifying speakin
   ]);
   expect(new Set(writing.map(({ contextId }) => contextId)).size).toBe(2);
   const learning = (await state(page)).unifiedLearning;
-  expect(getUnifiedMastery(learning, introWriting.targetId, 'writing').state).toBe('demonstrated');
+  expect(getUnifiedMastery(learning, introWriting.targetId, 'writing')).toMatchObject({
+    state: 'demonstrated',
+    retention: 'unverified',
+    transfer: 'verified',
+    delayedSuccesses: 0,
+    transferSuccesses: 1,
+  });
   for (const dimension of ['listening', 'speaking'] as const) {
     expect(getUnifiedMastery(learning, introWriting.targetId, dimension).independentSuccesses).toBe(
       0,
@@ -180,11 +186,20 @@ test('Story writing in two contexts carries into Study without verifying speakin
   await reachTextbookWriting(page, true);
   await click(page, 'Omitir ejercicio que ya dominas');
   await expect(page.getByTestId('lesson-stage-speaking')).toBeVisible();
+  expect((await state(page)).completedLessons).not.toContain('u01_l01');
   expect(
     (await evidence(page)).some(
       ({ exerciseId, independent }) => exerciseId === studyWriting && independent,
     ),
   ).toBe(false);
+
+  await page.reload();
+  await openSharedSkills(page);
+  const writingCard = page.getByTestId('learning-review-writing:home.introduce');
+  await expect(
+    writingCard.getByText('La aplicaste en otra situación', { exact: true }),
+  ).toBeVisible();
+  await expect(writingCard.getByText('Retención aún sin verificar', { exact: true })).toBeVisible();
 
   await page.clock.setFixedTime(start + 2 * 86_400_000);
   await page.reload();
@@ -196,7 +211,27 @@ test('Story writing in two contexts carries into Study without verifying speakin
   await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
   expect(
     getUnifiedMastery((await state(page)).unifiedLearning, introWriting.targetId, 'writing'),
-  ).toMatchObject({ state: 'transfer', delayedSuccesses: 1, transferSuccesses: 1 });
+  ).toMatchObject({
+    state: 'demonstrated',
+    retention: 'verified',
+    transfer: 'verified',
+    delayedSuccesses: 1,
+    transferSuccesses: 2,
+  });
+  expect(
+    (await evidence(page)).find(({ exerciseId }) => exerciseId === 'travel_review_introduction'),
+  ).toMatchObject({
+    source: 'review',
+    independent: true,
+    targets: expect.arrayContaining([introWriting]),
+  });
+  await click(page, 'Volver al viaje');
+  await expect(
+    writingCard.getByText('La recordaste después de un tiempo', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    writingCard.getByText('La aplicaste en otra situación', { exact: true }),
+  ).toBeVisible();
 });
 
 test('Study saves an assisted answer and a restart draft, and Story keeps its own story path', async ({
@@ -261,6 +296,24 @@ test('Study saves an assisted answer and a restart draft, and Story keeps its ow
   expect((await state(page)).travel.stamps).toEqual({});
 
   await click(page, 'Cerrar y volver');
+  await openSharedSkills(page);
+  await writingReview(page).click();
+  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('I am Ana.');
+  await click(page, checkAnswer);
+  await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
+  const writingSources = (await evidence(page))
+    .filter(
+      ({ activity, targets }) =>
+        activity === 'answer' &&
+        targets.some(
+          ({ targetId, dimension }) =>
+            targetId === introWriting.targetId && dimension === introWriting.dimension,
+        ),
+    )
+    .map(({ source }) => source);
+  expect(new Set(writingSources)).toEqual(new Set(['study', 'story', 'review']));
+  await click(page, 'Volver al viaje');
+  await click(page, 'Cerrar y volver');
   await page.getByRole('tab', exact('Perfil')).click();
   const current = await exportBackup(page);
   const beforeRestore = (await state(page)).unifiedLearning;
@@ -270,7 +323,7 @@ test('Study saves an assisted answer and a restart draft, and Story keeps its ow
   expect(new Set(restored.evidence.map(({ id }) => id)).size).toBe(restored.evidence.length);
 });
 
-test('a missed delayed retrieval schedules guided grammar repair and preserves earlier learning', async ({
+test('guided repair requires success and restores the same stage and draft after restart', async ({
   page,
   context,
 }) => {
@@ -304,19 +357,44 @@ test('a missed delayed retrieval schedules guided grammar repair and preserves e
   await click(page, 'Volver al viaje');
   await writingReview(page).click();
   await expect(page.getByText('Revisa esta idea', { exact: true })).toBeVisible();
-  await answerInput(page, 'travel_remedy_introduction_be').fill('am');
+  const guided = answerInput(page, 'travel_remedy_introduction_be');
+  await guided.fill('is');
+  await click(page, checkAnswer);
+  const feedback = page.getByTestId('answer-feedback');
+  await expect(feedback).toBeVisible();
+  await expect(page.getByRole('button', exact('Probar otra escena'))).toHaveCount(0);
+  await expect(page.getByRole('button', exact('Intentar otra vez'))).toBeVisible();
+
+  await page.reload();
+  await openSharedSkills(page);
+  await writingReview(page).click();
+  await expect(page.getByText('Revisa esta idea', { exact: true })).toBeVisible();
+  await expect(feedback).toBeVisible();
+  await expect(page.getByRole('button', exact('Probar otra escena'))).toHaveCount(0);
+  await click(page, 'Intentar otra vez');
+  await guided.fill('am');
   await click(page, checkAnswer);
   await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
   await click(page, 'Probar otra escena');
   await expect(page.getByTestId('exercise-travel_remedy_introduction_be')).toHaveCount(0);
-  await page.getByRole('textbox', exact('Tu respuesta en inglés')).fill('Hi! I am Ana.');
+  const independent = page.getByRole('textbox', exact('Tu respuesta en inglés'));
+  await independent.fill('Hi! I am Ana.');
+  await click(page, 'Cerrar y volver');
+  await page.reload();
+  await click(page, 'Repaso rápido');
+  await expect(independent).toHaveValue('Hi! I am Ana.');
+  await expect(page.getByTestId('exercise-travel_remedy_introduction_be')).toHaveCount(0);
   await click(page, checkAnswer);
   await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
   expect(
     getUnifiedMastery((await state(page)).unifiedLearning, introWriting.targetId, 'writing'),
   ).toMatchObject({ independentSuccesses: 3, pendingErrors: [] });
   const remediation = (await evidence(page)).filter(({ source }) => source === 'remediation');
-  expect(remediation.map(({ independent }) => independent)).toEqual([false, true]);
+  expect(remediation.map(({ independent, outcome }) => [independent, outcome])).toEqual([
+    [false, 'incorrect'],
+    [false, 'target'],
+    [true, 'target'],
+  ]);
   expect(new Set(remediation.map(({ contextId }) => contextId)).size).toBe(2);
 });
 
@@ -391,10 +469,18 @@ test('an earlier format 2 backup restores completion, stamp, challenge progress 
     lessonCheckpoints: backup.state.lessonCheckpoints,
   });
   expect((await evidence(page)).some(({ independent }) => independent)).toBe(false);
-  expect((await state(page)).unifiedLearning.legacySchedules).toContainEqual({
+  const learning = (await state(page)).unifiedLearning;
+  expect(learning.legacySchedules).toContainEqual({
     targetId: 'grammar.be_i_you',
     dimension: 'grammar_production',
     nextReviewAt: scheduled,
     lastPracticedAt: date,
+  });
+  expect(getUnifiedMastery(learning, 'grammar.be_i_you', 'grammar_production')).toMatchObject({
+    state: 'not_introduced',
+    retention: 'unverified',
+    transfer: 'unverified',
+    independentSuccesses: 0,
+    legacy: true,
   });
 });
