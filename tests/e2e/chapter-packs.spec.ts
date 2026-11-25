@@ -281,7 +281,7 @@ test('an installed older first chapter plays its introduction model offline and 
 
   await readyOfflineShell(page, context);
   await page.reload();
-  expect(await savedHomeRevision(page)).toBe(previousRevision);
+  expect(await savedChapterRevision(page)).toBe(previousRevision);
   await click(page, 'Comenzar mi aventura');
   const skipName = page.getByRole('button', exact('Continuar sin nombre'));
   const plaza = page.getByTestId('story-scene-plaza');
