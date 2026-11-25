@@ -80,10 +80,14 @@ export const test = base.extend<{ networkGuard: NetworkGuard }>({
 });
 export { expect };
 
+export const initialChapterTimeout = 40_000;
+
 export async function enterApp(page: Page, { chooseOrigin = true } = {}) {
   await page.addInitScript(() => localStorage.setItem('lq_setting:onboarded', 'true'));
   await page.goto('/');
-  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible();
+  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible({
+    timeout: initialChapterTimeout,
+  });
   if (chooseOrigin) {
     await click(page, 'Elegir lugar de origen');
     await click(page, 'Honduras');

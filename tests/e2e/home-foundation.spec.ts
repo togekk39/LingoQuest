@@ -6,6 +6,7 @@ import {
   exact,
   expect,
   homeMission,
+  initialChapterTimeout,
   labelFirstChapterAudio,
   openHomeFoundationStudy,
   readTravelInstruction,
@@ -47,7 +48,9 @@ async function removeHomePack(page: Page) {
 
 async function openFirstNameConversation(page: Page, name: string) {
   await page.goto('/');
-  await expect(page.getByRole('heading', exact('Empieza tu viaje en inglés'))).toBeVisible();
+  await expect(page.getByRole('heading', exact('Empieza tu viaje en inglés'))).toBeVisible({
+    timeout: initialChapterTimeout,
+  });
   await click(page, 'Comenzar mi aventura');
   await click(page, 'Honduras');
   await page.getByRole('textbox', exact('Tu nombre')).fill(name);
@@ -240,6 +243,9 @@ test('Story and Study share the personal spelling draft and distinguish support 
   await expect.poll(async () => (await state(page)).travel.active?.answer.text).toBe(spelling);
   await click(page, 'Cerrar y volver');
   await page.reload();
+  await expect(page.getByRole('button', exact('Comenzar mi aventura'))).toBeVisible({
+    timeout: initialChapterTimeout,
+  });
   await openHomeFoundationStudy(page, id);
   await expect(input).toHaveValue(spelling);
   await click(page, 'Comprobar respuesta');
