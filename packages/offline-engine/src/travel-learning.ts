@@ -99,6 +99,8 @@ export const learningErrorFeedback: Record<LearningError, string> = {
   letter_order: 'Compara las letras una por una, de izquierda a derecha, y conserva el orden.',
   false_friend: 'Esta palabra se parece a una del español, pero su significado en inglés cambia.',
   vocabulary_sense: 'Compara el significado de esta palabra con el ejemplo de la situación.',
+  countability: 'Fíjate en qué estás contando. Si hace falta, cuenta vasos, tazas o porciones.',
+  quantity_question: 'Usa how many para unidades y how much para una cantidad sin unidades.',
 };
 
 function tokens(value: string) {

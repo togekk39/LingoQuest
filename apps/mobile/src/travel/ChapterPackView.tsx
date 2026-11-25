@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { BookOpen, Compass, Square, Volume2 } from 'lucide-react-native';
 import type { ChapterPack } from '@lingoquest/course-pack';
+import {
+  canStartTravelMission,
+  type TravelChapter,
+  type TravelState,
+} from '@lingoquest/offline-engine';
 import { ErrorCard, FlowFrame, useFeatureStyles } from '../features/FeatureUI';
 import { getSpeechPreferences } from '../features/offlineSpeech';
 import { JournalLeaf, JournalPostcardFrame } from '../Journal';
@@ -28,6 +33,8 @@ export function ChapterPackView({
   adventureError,
   adventureBusy,
   onOpenTextbookUnit,
+  onStudyMission,
+  onRemoveDownload,
 }: {
   chapterId: string;
   onClose: () => void;
@@ -35,6 +42,8 @@ export function ChapterPackView({
   adventureError?: string;
   adventureBusy?: boolean;
   onOpenTextbookUnit?: (unitId: string) => void;
+  onStudyMission?: (chapter: TravelChapter, missionId: string) => Promise<void>;
+  onRemoveDownload?: (chapterId: string) => Promise<void>;
 }) {
   const { colors } = useTheme();
   const player = useClipPlayer();
@@ -45,6 +54,12 @@ export function ChapterPackView({
   const [playing, setPlaying] = useState<string>();
   const [reload, setReload] = useState(0);
   const [lessonIndex, setLessonIndex] = useState(0);
+  const [study, setStudy] = useState<TravelState>();
+  const [studyBusy, setStudyBusy] = useState(false);
+  const [studyError, setStudyError] = useState('');
+  const [confirmRemoval, setConfirmRemoval] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
 
   useEffect(() => {
     let current = true;
@@ -112,6 +127,7 @@ export function ChapterPackView({
   }
 
   const pack = content?.pack;
+  const travelChapter = pack?.story?.chapter as unknown as TravelChapter | undefined;
   const lessons = pack ? [pack.lesson, ...pack.additionalLessons] : [];
   const lesson = lessons[lessonIndex] ?? pack?.lesson;
   useEffect(() => {
@@ -134,6 +150,18 @@ export function ChapterPackView({
       revision: pack.revision,
       cardNumber: lessonIndex + 1,
     });
+  }
+
+  async function openStudy() {
+    setStudyBusy(true);
+    setStudyError('');
+    try {
+      setStudy(await api<TravelState>(`/v1/travel?chapter=${encodeURIComponent(chapterId)}`));
+    } catch (error) {
+      setStudyError((error as Error).message);
+    } finally {
+      setStudyBusy(false);
+    }
   }
 
   const renderLine = (line: SpokenPhrase, index: number) => (
@@ -256,6 +284,30 @@ export function ChapterPackView({
               {!!adventureError && <ErrorCard message={adventureError} />}
             </>
           )}
+          {travelChapter && chapterId !== 'home' && onStudyMission && (
+            <JournalLeaf kind="notebook" style={sectionLayout}>
+              <Button icon={BookOpen} variant="secondary" loading={studyBusy} onPress={openStudy}>
+                Practicar las misiones
+              </Button>
+              {study &&
+                travelChapter.missions.map((mission) => (
+                  <Button
+                    key={mission.id}
+                    variant="ghost"
+                    disabled={!canStartTravelMission(study, mission.id, travelChapter)}
+                    onPress={() => {
+                      setStudyError('');
+                      void onStudyMission(travelChapter, mission.id).catch((error) =>
+                        setStudyError(error.message),
+                      );
+                    }}
+                  >
+                    {mission.title}
+                  </Button>
+                ))}
+              {!!studyError && <ErrorCard message={studyError} />}
+            </JournalLeaf>
+          )}
           {renderSections(lesson)}
           {pack.unit && (
             <ChapterUnit
@@ -264,6 +316,35 @@ export function ChapterPackView({
               renderLine={renderLine}
               onOpen={onOpenTextbookUnit}
             />
+          )}
+          {onRemoveDownload && (
+            <JournalLeaf kind="notebook" style={sectionLayout}>
+              <Button variant="ghost" onPress={() => setConfirmRemoval(!confirmRemoval)}>
+                {confirmRemoval ? 'Cancelar' : 'Quitar descarga'}
+              </Button>
+              {confirmRemoval && (
+                <>
+                  <Label>
+                    Libera espacio en este dispositivo. Tu progreso y el repaso de texto seguirán
+                    disponibles.
+                  </Label>
+                  <Button
+                    variant="danger"
+                    loading={removing}
+                    onPress={() => {
+                      setRemoving(true);
+                      setRemoveError('');
+                      void onRemoveDownload(chapterId)
+                        .catch((error) => setRemoveError(error.message))
+                        .finally(() => setRemoving(false));
+                    }}
+                  >
+                    Quitar recursos del dispositivo
+                  </Button>
+                  {!!removeError && <ErrorCard message={removeError} />}
+                </>
+              )}
+            </JournalLeaf>
           )}
         </View>
       )}

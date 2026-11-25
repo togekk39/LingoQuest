@@ -8,6 +8,7 @@ import {
   OfflineEngine,
   OFFLINE_STATE_KEY,
   route,
+  travelStoryReply,
   type CourseData,
   type OfflineState,
   type QuickReviewState,
@@ -18,7 +19,7 @@ import {
   type TravelReviewRow,
   type TravelLearningState,
 } from '../src/index.ts';
-import { travelLesson } from '../src/travel-content.ts';
+import { travelLesson, type TravelExerciseStep } from '../src/travel-content.ts';
 
 const content = JSON.parse(
   readFileSync(
@@ -61,6 +62,48 @@ function device() {
 }
 const update = (engine: OfflineEngine, action: TravelOperation) =>
   engine.request<TravelState>('/v1/travel', action);
+
+test('an NPC confirms the submitted order variant after a valid graded reply', () => {
+  const fish = { en: 'Fish with rice and water.', es: 'Pescado con arroz y agua.' };
+  const chicken = { en: 'Chicken with rice and coffee.', es: 'Pollo con arroz y café.' };
+  const step: TravelExerciseStep = {
+    id: 'server-selects-reply',
+    type: 'exercise',
+    situation: 'Pide comida.',
+    exercise: {
+      id: 'server-selects-reply',
+      type: 'short_text',
+      promptEs: 'Haz tu pedido en inglés.',
+      acceptedAnswers: ["I'd like fish with rice and water, please."],
+      feedbackEs: 'Confirma el plato y la bebida.',
+      difficulty: 1,
+      skillId: 'grammar.order',
+    },
+    storyReplies: [
+      { answers: ["I'd like fish with rice and water, please."], speaker: 'Alba', line: fish },
+      { answers: ['Can I have chicken with rice and coffee?'], speaker: 'Alba', line: chicken },
+    ],
+  };
+  const result = { correct: true, feedbackEs: '', xpAwarded: 0, pending: false } as const;
+  const saved = JSON.parse(
+    JSON.stringify({
+      result,
+      answer: { text: 'I would like fish with rice and water please.' },
+    }),
+  );
+  assert.deepEqual(travelStoryReply(step, saved)?.line, fish);
+  const alternative = {
+    result: { ...result, correct: false, communicationOnly: true as const },
+    answer: { text: 'Can I have chicken with rice and coffee?' },
+  };
+  assert.deepEqual(travelStoryReply(step, alternative)?.line, chicken);
+  assert.equal(
+    travelStoryReply(step, { ...alternative, result: { ...result, correct: false } }),
+    undefined,
+  );
+  assert.equal(travelStoryReply(step, { ...alternative, answer: { text: 'Coffee.' } }), undefined);
+  assert.equal(travelStoryReply(step, { ...alternative, result: undefined }), undefined);
+});
 
 test('the twenty-stage route covers every continent and references real curriculum units', () => {
   assert.equal(route.length, 20);

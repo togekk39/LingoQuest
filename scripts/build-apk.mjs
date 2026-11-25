@@ -159,7 +159,7 @@ if (
   throw new Error('APK embeds chapter art or audio. These files belong in chapter packs.');
 const bundle = await run('unzip', ['-p', apk, 'assets/index.android.bundle'], repo, true);
 const chapterPacks = join(mobile, 'public/chapter-packs');
-const chapterCatalog = 'catalog-v6.json';
+const chapterCatalog = 'catalog-v7.json';
 const bundleContains = (value) =>
   bundle.includes(Buffer.from(value)) || bundle.includes(Buffer.from(value, 'utf16le'));
 if (!bundleContains(chapterCatalog))
@@ -173,6 +173,12 @@ const home = JSON.parse(
 const mexico = JSON.parse(
   await readFile(
     join(chapterPacks, String(catalog.chapters.mexico.revision), 'mexico.json'),
+    'utf8',
+  ),
+).story;
+const cartagena = JSON.parse(
+  await readFile(
+    join(chapterPacks, String(catalog.chapters.colombia.revision), 'colombia.json'),
     'utf8',
   ),
 ).story;
@@ -191,6 +197,10 @@ const payloadMarkers = [
   mexico.chapter.missions
     .find(({ id }) => id === 'mexico-transfer')
     ?.steps.find(({ id }) => id === 'mexico-transfer-write')?.exercise.promptEs,
+  cartagena.chapter.missions
+    .find(({ id }) => id === 'cartagena-transfer')
+    ?.steps.find(({ type, exercise }) => type === 'exercise' && exercise.promptEs.length >= 20)
+    ?.exercise.promptEs,
 ];
 for (const marker of payloadMarkers) {
   if (typeof marker !== 'string' || marker.length < 20)

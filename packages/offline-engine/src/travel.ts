@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   answerOutcomeSchema,
   answerSchema,
+  equivalentAnswerText,
   playerIntroductionName,
   type AttemptInput,
   type AttemptResult,
@@ -94,6 +95,22 @@ export type TravelCheckpoint = z.infer<typeof checkpointSchema> & {
   canSkipKnown?: true;
 };
 export const emptyTravel = (): TravelState => ({ completed: {}, stamps: {} });
+
+export function travelStoryReply(
+  step: TravelExerciseStep,
+  { result, answer }: Pick<TravelCheckpoint, 'result' | 'answer'>,
+) {
+  if (!result || result.identityMismatch) return;
+  if (result.correct || result.communicationOnly) {
+    const text = answer.text;
+    if (step.storyReplies && text)
+      return step.storyReplies.find(({ answers }) =>
+        answers.some((model) => equivalentAnswerText(text, model)),
+      );
+    return step.storyReply;
+  }
+  if (step.exercise.ungradable && result.outcome === 'ungradable') return step.storyReply;
+}
 
 export function canStartTravelMission(
   travel: TravelState,
@@ -317,8 +334,8 @@ export function updateTravel(
   if (!mission || !step) return;
   const skipKnown =
     input.action === 'skipKnown' &&
-    !!mission.optional &&
     step.type === 'exercise' &&
+    (!!mission.optional || (step.skipWhenMastered && !!step.exercise.learning?.guided)) &&
     !current.result &&
     prerequisites?.canSkipKnown?.(step);
   if (input.action === 'skipKnown' && !skipKnown) return;

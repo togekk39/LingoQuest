@@ -30,7 +30,7 @@ import { loadChapterAudio, loadChapterImages } from './chapter-media';
 
 const root = new URL('../apps/mobile/public/chapter-packs/', import.meta.url);
 const catalogPath = new URL(CHAPTER_CATALOG_FILE, root);
-const previousCatalogPath = new URL('catalog-v5.json', root);
+const previousCatalogPath = new URL('catalog-v6.json', root);
 const course = bundled.payload as CoursePayload;
 const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
@@ -136,7 +136,13 @@ async function main() {
   if (verifyOnly) {
     await verifyCatalog(catalog);
     await verifyCatalog(previousCatalog, false);
-    for (const name of ['catalog-v4.json', 'catalog-v3.json', 'catalog-v2.json'])
+    for (const name of [
+      'catalog-v5.json',
+      'catalog-v4.json',
+      'catalog-v3.json',
+      'catalog-v2.json',
+      'catalog.json',
+    ])
       await verifyCatalog(
         chapterCatalogSchema.parse(JSON.parse(await readFile(new URL(name, root), 'utf8'))),
         false,
@@ -181,10 +187,20 @@ async function main() {
       ),
       id,
     );
-    const newPhrases = phrases.filter((phrase) => !Object.hasOwn(previous.audio, phrase));
+    const reusable = { ...previous.audio };
+    for (const otherId of authored?.reuseAudioFrom ?? []) {
+      const entry = catalog.chapters[otherId];
+      const other = parseChapterPack(
+        await readFile(chapterPath(entry.revision, otherId), 'utf8'),
+        otherId,
+      );
+      for (const phrase of phrases)
+        if (Object.hasOwn(other.audio, phrase)) reusable[phrase] ??= other.audio[phrase];
+    }
+    const newPhrases = phrases.filter((phrase) => !Object.hasOwn(reusable, phrase));
     const generated = await loadChapterAudio(newPhrases);
     const audio = Object.fromEntries(
-      phrases.map((phrase) => [phrase, previous.audio[phrase] ?? generated[phrase]]),
+      phrases.map((phrase) => [phrase, reusable[phrase] ?? generated[phrase]]),
     );
     if (id === 'home')
       for (const [phrase, clip] of Object.entries(previous.audio)) audio[phrase] ??= clip;

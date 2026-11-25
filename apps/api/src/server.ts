@@ -404,7 +404,10 @@ export async function buildServer(options: ServerOptions = {}) {
     const result: AttemptResult = {
       correct,
       outcome,
-      feedbackEs: feedback.explain(e, correct),
+      feedbackEs:
+        outcome === 'context_mismatch'
+          ? (e.contextMismatch?.feedbackEs ?? feedback.explain(e, correct))
+          : feedback.explain(e, correct),
       acceptedAnswer: exerciseAnswer(e),
       xpAwarded,
       pending: false,
@@ -809,7 +812,9 @@ export async function buildServer(options: ServerOptions = {}) {
               'Se entiende tu respuesta. Practica la forma indicada.')
             : outcome === 'ungradable'
               ? (e.ungradable?.feedbackEs ?? 'Faltan datos para evaluar esta respuesta.')
-              : e.feedbackEs,
+              : outcome === 'context_mismatch'
+                ? (e.contextMismatch?.feedbackEs ?? e.feedbackEs)
+                : e.feedbackEs,
         acceptedAnswer: outcome === 'ungradable' ? '' : exerciseAnswer(e),
       });
       run.position++;

@@ -189,7 +189,7 @@ export type {
 export { homeCountries, route, type Destination, type HomeCountry } from './travel-route';
 export type { TravelChapter, TravelMission, TravelStep, TravelVocabulary } from './travel-content';
 export { travelStepVocabulary } from './travel-vocabulary';
-export { canStartTravelMission, nextTravelMission } from './travel';
+export { canStartTravelMission, nextTravelMission, travelStoryReply } from './travel';
 export type {
   TravelPlacement,
   TravelPlacementQuestion,
@@ -1288,7 +1288,7 @@ export class OfflineEngine {
     const checksErrors =
       context.errors ?? (exercise.spelling ? ['letter_order'] : exerciseCheckedErrors(exercise));
     const errorType =
-      !formCorrect && outcome !== 'ungradable'
+      !formCorrect && outcome !== 'ungradable' && outcome !== 'context_mismatch'
         ? (introduction?.error ??
           (exercise.spelling ? 'letter_order' : undefined) ??
           (assessesLexicalSense &&
@@ -1499,7 +1499,9 @@ export class OfflineEngine {
       identityMismatch: identityMismatch ? true : undefined,
       feedbackEs: identityMismatch
         ? `La estructura en inglés es correcta. ${identityFeedback}`
-        : `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${exercise.feedbackEs}`,
+        : outcome === 'context_mismatch'
+          ? exercise.contextMismatch!.feedbackEs
+          : `${correct ? '¡Muy bien!' : 'Buen intento. Puedes volver a intentarlo.'}${errorType ? ` ${learningErrorFeedback[errorType]}` : ''} ${exercise.feedbackEs}`,
       acceptedAnswer: model,
       errorType,
       xpAwarded,
@@ -1615,7 +1617,8 @@ export class OfflineEngine {
       if (step?.type !== 'exercise' || !auditedExercise(step)) return travel;
       const prerequisites = adventurePrerequisites(step);
       if (prerequisites?.missing.length === 0)
-        return mission?.optional && canSkipKnown(step)
+        return (mission?.optional || (step.skipWhenMastered && step.exercise.learning?.guided)) &&
+          canSkipKnown(step)
           ? { ...travel, active: { ...current, canSkipKnown: true } }
           : travel;
       const instruction = prerequisites?.instruction;
@@ -3267,7 +3270,9 @@ export class OfflineEngine {
               ? exercise.communicationOnly!.feedbackEs
               : outcome === 'ungradable'
                 ? (exercise.ungradable?.feedbackEs ?? 'Faltan datos para evaluar esta respuesta.')
-                : exercise.feedbackEs,
+                : outcome === 'context_mismatch'
+                  ? exercise.contextMismatch!.feedbackEs
+                  : exercise.feedbackEs,
           acceptedAnswer: outcome === 'ungradable' ? '' : displayedAnswer(exercise),
         });
         run.position++;

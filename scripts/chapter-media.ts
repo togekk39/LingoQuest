@@ -45,6 +45,18 @@ const storyImages = new Map<string, Record<string, URL>>([
       'portrait-sam': new URL('journal/story-sam-portrait.png', mobileAssets),
     },
   ],
+  [
+    'colombia',
+    {
+      'cartagena-market': new URL('cartagena-market.jpg', chapterArt),
+      'cartagena-cafe': new URL('cartagena-cafe.jpg', chapterArt),
+      'cartagena-seaside': new URL('cartagena-seaside.jpg', chapterArt),
+      'portrait-mar': new URL('cartagena-mar.jpg', chapterArt),
+      'portrait-alba': new URL('cartagena-alba.jpg', chapterArt),
+      'portrait-sam': new URL('journal/story-sam-portrait.png', mobileAssets),
+      'portrait-luz': new URL('journal/story-luz-portrait.png', mobileAssets),
+    },
+  ],
 ]);
 
 const recordedPhrases = new Map([
@@ -141,10 +153,15 @@ function speechText(phrase: string) {
       .join(', ');
   // Disambiguate the taught commands for Flite without changing the learner-facing text.
   // Desambigua los comandos enseñados para Flite y conserva el texto visible.
+  // Keep the local syllables and read currency codes letter by letter.
+  // Conserva las sílabas locales y lee los códigos de moneda letra por letra.
   return text
     .replace(/^Read(?=[.!?]?$)/, 'Reed')
     .replace(/^Close(?=[.!?]?$)/, 'Cloze')
     .replace(/\bExcuse(?= me\b)/g, 'Excuze')
+    .replace(/\bCartagena\b/gi, 'car-tah-hay-nah')
+    .replace(/\bpatacones\b/gi, 'pah-tah-cone-ess')
+    .replace(/\b(?:COP|USD)\b/g, (code) => [...code].join(' '))
     .replace(/[–—]/g, ', ')
     .replace(/\s*→\s*/g, ', ');
 }

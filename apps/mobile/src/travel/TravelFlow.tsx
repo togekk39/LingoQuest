@@ -12,6 +12,7 @@ import { Check, Compass, RotateCcw, Stamp, Volume2 } from 'lucide-react-native';
 import {
   chapter as homeChapter,
   travelStepVocabulary,
+  travelStoryReply,
   type TravelChapter,
   type TravelCheckpoint,
   type TravelMission,
@@ -287,12 +288,8 @@ export function TravelFlow({
     !step.acceptedPhrases?.length &&
     !step.learning.guided;
   const storyReply =
-    embedded &&
-    step.type === 'exercise' &&
-    (current.result?.correct ||
-      current.result?.communicationOnly ||
-      (selfCheck && current.result?.outcome === 'ungradable'))
-      ? step.storyReply
+    step.type === 'exercise' && (embedded || step.storyReplies)
+      ? travelStoryReply(step, current)
       : undefined;
   const line = !current.finished && step.type === 'dialogue' ? step.line : storyReply?.line;
   const referenceAudio =
@@ -547,16 +544,20 @@ export function TravelFlow({
             : current.answer
         }
       />
-      {storyReply && embedded && (
+      {storyReply && (
         <View testID="travel-story-reply" style={s.dialogue}>
           <StorySpeaker name={storyReply.speaker} portrait={portraits?.[storyReply.speaker]} />
-          <StoryPhrase
-            line={storyReply.line}
-            showTranslation={embedded.translationsVisible}
-            onToggleTranslation={embedded.onToggleTranslation}
-            onListen={() => void play(storyReply.line.en, true)}
-            disabled={busy}
-          />
+          {embedded ? (
+            <StoryPhrase
+              line={storyReply.line}
+              showTranslation={embedded.translationsVisible}
+              onToggleTranslation={embedded.onToggleTranslation}
+              onListen={() => void play(storyReply.line.en, true)}
+              disabled={busy}
+            />
+          ) : (
+            <Phrase {...storyReply.line} play={(text) => void play(text)} />
+          )}
         </View>
       )}
       {review &&

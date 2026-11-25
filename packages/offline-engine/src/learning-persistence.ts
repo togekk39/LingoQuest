@@ -4,6 +4,7 @@ import {
   courseExerciseSchema,
   lessonSchema,
   rpgAssessmentTargetsSchema,
+  travelStoryRepliesSchema,
   type RpgFormalDefinition,
 } from '@lingoquest/course-pack';
 import { chapter, travelLesson } from './home-content';
@@ -176,6 +177,7 @@ const archivedPracticeSchema = stepSchema
       .strict()
       .optional(),
     storyReply: z.object({ speaker: identifier, line: translationSchema }).strict().optional(),
+    storyReplies: travelStoryRepliesSchema.optional(),
     activityTitle: z.string().max(4000).optional(),
     reviewMissionId: identifier.optional(),
     exercise: archiveExerciseSchema,

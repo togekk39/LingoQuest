@@ -32,8 +32,10 @@ export interface TravelExerciseStep {
   situation: string;
   response?: 'personal-introduction' | 'personal-spelling';
   requiredReply?: true;
+  skipWhenMastered?: true;
   storyPrompt?: TravelStoryPrompt;
   storyReply?: { speaker: string; line: Translation };
+  storyReplies?: readonly { answers: readonly string[]; speaker: string; line: Translation }[];
   activityTitle?: string;
   reviewMissionId?: string;
   exercise: CourseExercise;
@@ -93,6 +95,7 @@ export interface TravelMission {
   optional?: true;
   authoredAudio?: true;
   foundationObjectiveId?: string;
+  objectiveId?: string;
   title: string;
   place: string;
   objective: string;

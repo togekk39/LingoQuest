@@ -1,9 +1,11 @@
 import { sha256Hex } from '@lingoquest/course-pack';
 import { Directory, File, Paths } from 'expo-file-system';
-import { compareAndPutRaw, getRaw, putRaw } from './storage';
+import { compareAndPutRaw, getRaw, putRaw, removeRaw } from './storage';
 
 const keyPrefix = 'lq_chapter_pack:';
 const currentChapterKey = 'lq_current_chapter';
+const chapterMediaRoot = 'chapter-media-v2';
+const unavailableMedia = new Set<string>();
 
 export function readChapterPack(chapterId: string) {
   return getRaw(keyPrefix + chapterId);
@@ -26,7 +28,22 @@ export async function writeChapterPack(
   for (;;) {
     const previous = await getRaw(key);
     if (!shouldReplace(previous)) return false;
-    if (await compareAndPutRaw(key, previous, text)) return true;
+    if (await compareAndPutRaw(key, previous, text)) {
+      unavailableMedia.delete(chapterId);
+      return true;
+    }
+  }
+}
+
+export async function removeChapterPack(chapterId: string) {
+  unavailableMedia.add(chapterId);
+  try {
+    const directory = new Directory(Paths.cache, chapterMediaRoot, chapterId);
+    if (directory.exists) directory.delete();
+    await removeRaw([keyPrefix + chapterId]);
+  } catch (error) {
+    unavailableMedia.delete(chapterId);
+    throw error;
   }
 }
 
@@ -38,10 +55,12 @@ const extensions = new Map([
 ]);
 
 export async function chapterMediaUri(chapterId: string, mimeType: string, dataBase64: string) {
+  if (unavailableMedia.has(chapterId))
+    throw new Error('Descarga el capítulo para usar sus recursos.');
   const extension = extensions.get(mimeType);
   if (!extension) throw new Error('Este formato de archivo no es compatible.');
 
-  const directory = new Directory(Paths.cache, 'chapter-media-v2', chapterId);
+  const directory = new Directory(Paths.cache, chapterMediaRoot, chapterId);
   directory.create({ idempotent: true, intermediates: true });
   const name = `${sha256Hex(dataBase64)}.${extension}`;
   const file = new File(directory, name);

@@ -9,12 +9,61 @@ import {
   type AttemptResult,
   type ExerciseType,
 } from '@lingoquest/contracts';
+import {
+  cartagenaAssessmentSteps,
+  cartagenaPractice,
+} from '../../../content/source/cartagena-assessments';
 import { lessons } from '../../../content/source/curriculum';
 import { OfflineEngine, type CourseData, type CourseExercise } from '../src/index';
 
 function key(type: ExerciseType, ...acceptedAnswers: string[]): AnswerKey & { type: ExerciseType } {
   return { type, acceptedAnswers };
 }
+
+test('Cartagena orders recognize the prompt, the menu conditions and natural alternatives', () => {
+  const step = cartagenaAssessmentSteps.order.find(({ id }) => id === 'cartagena-order-write');
+  assert.ok(step);
+  const samples: Array<[string, AnswerOutcome]> = [
+    ["I'd like fish with rice and some water, please.", 'target'],
+    ['I would like a cup of coffee and chicken with rice please.', 'target'],
+    ['Can I have fish with rice and a bottle of water, please?', 'communication_only'],
+    ["I'd like eggs with cheese and water, please.", 'context_mismatch'],
+    ["I'd like chicken with rice.", 'context_mismatch'],
+    ["I'd likes fish with rice and some water, please.", 'incorrect'],
+  ];
+  for (const [text, outcome] of samples)
+    assert.equal(judgeAnswer(step.exercise, { text }), outcome);
+  const order = 'I would like a bottle of water and fish with rice, please.';
+  const reply = step.storyReplies?.find(({ answers }) =>
+    answers.some((answer) => equivalentAnswerText(order, answer)),
+  );
+  assert.equal(reply?.line.en, 'Fish with rice and a bottle of water.');
+});
+
+test('Cartagena distinguishes counted servings, contextual quantities and open self-checks', () => {
+  const coffee = cartagenaPractice.find(({ id }) => id === 'cartagena-review-order-coffee-confirm');
+  const quantity = cartagenaAssessmentSteps.quantity.find(
+    ({ id }) => id === 'cartagena-quantity-write',
+  );
+  const open = cartagenaAssessmentSteps.transfer.find(({ id }) => id === 'cartagena-transfer-open');
+  assert.ok(coffee && quantity && open);
+  assert.equal(judgeAnswer(coffee.exercise, { text: 'I’d like two coffees, please.' }), 'target');
+  assert.equal(
+    judgeAnswer(coffee.exercise, { text: 'I would like two cups of coffee.' }),
+    'target',
+  );
+  assert.equal(judgeAnswer(coffee.exercise, { text: "I'd like two coffee." }), 'incorrect');
+  assert.equal(
+    judgeAnswer(coffee.exercise, { text: "I'd like three coffees." }),
+    'context_mismatch',
+  );
+  assert.equal(judgeAnswer(quantity.exercise, { text: 'How much water?' }), 'context_mismatch');
+  assert.equal(judgeAnswer(quantity.exercise, { text: 'How many water?' }), 'incorrect');
+  assert.equal(
+    judgeAnswer(open.exercise, { text: "I'd like chicken. Does it have milk?" }),
+    'ungradable',
+  );
+});
 
 test('equivalent written answers preserve grammar and meaning', () => {
   const equivalent = [

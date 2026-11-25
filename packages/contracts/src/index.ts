@@ -101,6 +101,8 @@ export const learningErrorSchema = z.enum([
   'letter_order',
   'false_friend',
   'vocabulary_sense',
+  'countability',
+  'quantity_question',
 ]);
 export type LearningError = z.infer<typeof learningErrorSchema>;
 export interface Translation {
@@ -238,6 +240,7 @@ export interface AttemptResult {
 export const answerOutcomeSchema = z.enum([
   'target',
   'communication_only',
+  'context_mismatch',
   'incorrect',
   'ungradable',
 ]);

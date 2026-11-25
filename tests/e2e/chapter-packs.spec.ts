@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  CHAPTER_CATALOG_FILE,
   serializeChapterPack,
   type ChapterCatalog,
   type ChapterPack,
@@ -20,7 +21,7 @@ import {
   test,
 } from './helpers';
 
-const catalogUrl = '/chapter-packs/catalog-v6.json';
+const catalogUrl = `/chapter-packs/${CHAPTER_CATALOG_FILE}`;
 
 function expectProgressWithChapterExposure(
   before: Awaited<ReturnType<typeof state>>,
@@ -547,6 +548,96 @@ test('an installed chapter updates when the catalog advances beyond the bundled 
     .poll(async () => (await state(page)).unifiedLearning.evidence.length)
     .toBeGreaterThan(before.unifiedLearning.evidence.length);
   expectProgressWithChapterExposure(before, await state(page), 'toronto');
+});
+
+test('removing a chapter in one tab prevents a pending background update from restoring it', async ({
+  page,
+  context,
+  request,
+}) => {
+  const catalog: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const oldRevision = 1;
+  const oldPack = await (await request.get(`/chapter-packs/${oldRevision}/toronto.json`)).body();
+  const oldCatalog = {
+    ...catalog,
+    chapters: {
+      ...catalog.chapters,
+      toronto: {
+        revision: oldRevision,
+        sizeBytes: oldPack.byteLength,
+        sha256: createHash('sha256').update(oldPack).digest('hex'),
+      },
+    },
+  };
+  const catalogPattern = `**${catalogUrl}`;
+  const originalCatalog = { json: oldCatalog };
+  await page.route(catalogPattern, (entry) => entry.fulfill(originalCatalog));
+  await enterApp(page);
+
+  async function openToronto(activeTab: Page) {
+    await activeTab.getByRole('tab', exact('Mapa')).click();
+    await click(activeTab, '9. Toronto');
+    await click(activeTab, 'Abrir capítulo');
+    await expect(activeTab.getByTestId('chapter-lesson-toronto')).toBeVisible();
+  }
+
+  await openToronto(page);
+  expect(await savedChapterRevision(page, 'toronto')).toBe(oldRevision);
+  const homeRevision = await savedChapterRevision(page);
+  await page.unroute(catalogPattern);
+
+  await page.addInitScript(() => {
+    const read = IDBObjectStore.prototype.get;
+    IDBObjectStore.prototype.get = function (key) {
+      const result = read.call(this, key);
+      if (key === 'toronto' && this.name === 'packs' && this.transaction.mode === 'readwrite') {
+        this.transaction.addEventListener('complete', () => {
+          document.body.dataset.torontoRefresh = 'completed';
+        });
+        this.transaction.addEventListener('abort', () => {
+          document.body.dataset.torontoRefresh = 'aborted';
+        });
+      }
+      return result;
+    };
+  });
+  const currentPath = `**/chapter-packs/${catalog.chapters.toronto.revision}/toronto.json`;
+  let releaseUpdate!: () => void;
+  const pauseUpdate = new Promise<void>((resolve) => {
+    releaseUpdate = resolve;
+  });
+  await page.route(currentPath, async (entry) => {
+    await pauseUpdate;
+    await entry.continue();
+  });
+
+  const waitingForUpdate = page.waitForRequest(currentPath);
+  await page.reload();
+  await waitingForUpdate;
+  const removalTab = await context.newPage();
+  try {
+    await removalTab.route(catalogPattern, (entry) => entry.fulfill(originalCatalog));
+    await removalTab.goto('/');
+    await openToronto(removalTab);
+    await click(removalTab, 'Quitar descarga');
+    await click(removalTab, 'Quitar recursos del dispositivo');
+    await expect(removalTab.getByTestId('chapter-lesson-toronto')).toHaveCount(0);
+    expect(await savedChapterRevision(removalTab, 'toronto')).toBeUndefined();
+
+    releaseUpdate();
+    await expect(page.locator('body')).toHaveAttribute(
+      'data-toronto-refresh',
+      /^(?:aborted|completed)$/,
+    );
+    expect(await savedChapterRevision(page, 'toronto')).toBeUndefined();
+    expect(await savedChapterRevision(page)).toBe(homeRevision);
+  } finally {
+    releaseUpdate();
+    await removalTab.close();
+  }
+
+  await openToronto(page);
+  expect(await savedChapterRevision(page, 'toronto')).toBe(catalog.chapters.toronto.revision);
 });
 
 test('Salvador offers a fresh offline listening question with an optional translation', async ({

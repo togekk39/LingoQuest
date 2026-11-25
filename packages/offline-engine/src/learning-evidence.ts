@@ -304,7 +304,7 @@ function reduceMastery(mastery: UnifiedMastery, evidence: LearningEvidence[]) {
     mastery.lastPracticedAt = date;
     raise(mastery, 'guided_practice');
     if (outcome === 'communication_only') mastery.communicationSuccesses++;
-    if (outcome === 'incorrect') {
+    if (outcome === 'incorrect' || outcome === 'context_mismatch') {
       mastery.incorrectAttempts++;
       if (event.error) {
         mastery.errorCounts[event.error] = (mastery.errorCounts[event.error] ?? 0) + 1;
@@ -332,7 +332,10 @@ function reduceMastery(mastery: UnifiedMastery, evidence: LearningEvidence[]) {
       // Keep earned progress while bringing a weak target forward in the queue.
       // Conserva el progreso ganado y adelanta el objetivo por reforzar en la cola.
       interval = Math.max(0, interval - 1);
-      const due = outcome === 'incorrect' ? event.timestamp : event.timestamp + dayMs;
+      const due =
+        outcome === 'incorrect' || outcome === 'context_mismatch'
+          ? event.timestamp
+          : event.timestamp + dayMs;
       mastery.nextReviewAt = new Date(
         Math.min(due, mastery.nextReviewAt ? Date.parse(mastery.nextReviewAt) : due),
       ).toISOString();

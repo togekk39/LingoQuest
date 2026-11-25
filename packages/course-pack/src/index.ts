@@ -103,6 +103,10 @@ const alternateAnswerMetadata = {
     .object({ answers: z.array(answerText).max(100), feedbackEs: text })
     .strict()
     .optional(),
+  contextMismatch: z
+    .object({ answers: z.array(answerText).min(1).max(240), feedbackEs: text })
+    .strict()
+    .optional(),
   ungradable: z.object({ feedbackEs: text }).strict().optional(),
 };
 export const courseExerciseSchema = z
@@ -244,7 +248,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
-export const CHAPTER_CATALOG_FILE = 'catalog-v6.json';
+export const CHAPTER_CATALOG_FILE = 'catalog-v7.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -393,6 +397,18 @@ const storyInstructionSchema = z
     references: storyRequirementsSchema.optional(),
   })
   .strict();
+export const travelStoryRepliesSchema = z
+  .array(
+    z
+      .object({
+        answers: z.array(z.string().min(1).max(2000)).min(1).max(500),
+        speaker: z.string().min(1).max(100),
+        line: translation,
+      })
+      .strict(),
+  )
+  .min(1)
+  .max(30);
 const storyStepSchema = z
   .object({
     id,
@@ -401,6 +417,8 @@ const storyStepSchema = z
     instruction: storyInstructionSchema.optional(),
     vocabularyTerms: z.array(text).max(100).optional(),
     requiredReply: z.literal(true).optional(),
+    skipWhenMastered: z.literal(true).optional(),
+    storyReplies: travelStoryRepliesSchema.optional(),
     exercise: travelExercise.optional(),
     requires: storyRequirementsSchema.optional(),
     targets: rpgAssessmentTargetsSchema.optional(),
@@ -412,7 +430,11 @@ const storyStepSchema = z
       .strict()
       .optional(),
   })
-  .passthrough();
+  .passthrough()
+  .refine(
+    ({ storyReplies, type, exercise }) =>
+      !storyReplies || (type === 'exercise' && exercise?.type === 'short_text'),
+  );
 
 export const chapterPackSchema = z
   .object({
@@ -446,19 +468,18 @@ export const chapterPackSchema = z
                     title: text,
                     place: text,
                     objective: text,
+                    objectiveId: id.optional(),
                     optional: z.literal(true).optional(),
                     minutes: z.tuple([z.number().positive(), z.number().positive()]),
-                    vocabulary: z
-                      .array(
-                        z
-                          .object({
-                            term: text,
-                            example: translation,
-                            teaches: storyRequirementsSchema.optional(),
-                          })
-                          .passthrough(),
-                      )
-                      .min(1),
+                    vocabulary: z.array(
+                      z
+                        .object({
+                          term: text,
+                          example: translation,
+                          teaches: storyRequirementsSchema.optional(),
+                        })
+                        .passthrough(),
+                    ),
                     steps: z.array(storyStepSchema).min(1),
                   })
                   .passthrough(),
@@ -796,7 +817,22 @@ export function validateReferences(payload: CoursePayload) {
       )
         errors.push(`La respuesta comunicativa coincide con el objetivo: ${exercise.id}`);
     }
-    if (exercise.ungradable && (exercise.introduction || exercise.communicationOnly))
+    if (
+      exercise.contextMismatch &&
+      (!hasOpenResponse ||
+        exercise.introduction ||
+        exercise.spelling ||
+        exercise.contextMismatch.answers.some((answer) =>
+          [...exercise.acceptedAnswers, ...(exercise.communicationOnly?.answers ?? [])].some(
+            (model) => equivalentAnswerText(answer, model),
+          ),
+        ))
+    )
+      errors.push(`La respuesta de otro contexto coincide con un criterio válido: ${exercise.id}`);
+    if (
+      exercise.ungradable &&
+      (exercise.introduction || exercise.communicationOnly || exercise.contextMismatch)
+    )
       errors.push(`Criterios de evaluación incompatibles: ${exercise.id}`);
     if (new Set(exercise.vocabularyIds).size !== exercise.vocabularyIds.length)
       errors.push(`Vocabulario repetido en ejercicio: ${exercise.id}`);

@@ -7,6 +7,7 @@ export interface AnswerKey {
   introduction?: { greetingRequired: boolean; model: string };
   spelling?: { model: string };
   communicationOnly?: { answers: string[]; feedbackEs: string };
+  contextMismatch?: { answers: string[]; feedbackEs: string };
   ungradable?: { feedbackEs: string };
 }
 
@@ -266,7 +267,9 @@ export function judgeAnswer(
   if (!response) return 'incorrect';
   if (exercise.acceptedAnswers.some((model) => equivalentAnswerText(response, model)))
     return 'target';
-  return exercise.communicationOnly?.answers.some((model) => equivalentAnswerText(response, model))
-    ? 'communication_only'
-    : 'incorrect';
+  if (exercise.communicationOnly?.answers.some((model) => equivalentAnswerText(response, model)))
+    return 'communication_only';
+  if (exercise.contextMismatch?.answers.some((model) => equivalentAnswerText(response, model)))
+    return 'context_mismatch';
+  return 'incorrect';
 }
