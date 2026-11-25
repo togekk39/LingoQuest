@@ -77,6 +77,35 @@ async function observeLocalMedia(page: Page) {
   });
 }
 
+async function provideLocalRecordingInput(page: Page) {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => {
+      const audio = new AudioContext();
+      const output = audio.createMediaStreamDestination();
+      const tone = audio.createOscillator();
+      tone.connect(output);
+      tone.start();
+      const track = output.stream.getAudioTracks()[0];
+      const stop = track.stop.bind(track);
+      track.stop = () => {
+        stop();
+        tone.stop();
+        void audio.close();
+      };
+      await audio.resume();
+      return output.stream;
+    };
+    const start = MediaRecorder.prototype.start;
+    MediaRecorder.prototype.start = function () {
+      let chunks = 0;
+      this.addEventListener('dataavailable', ({ data }) => {
+        if (data.size && ++chunks === 2) document.body.dataset.cartagenaRecording = 'encoded';
+      });
+      return start.call(this, 200);
+    };
+  });
+}
+
 async function publishedPack(request: APIRequestContext, chapterId: string) {
   const catalogResponse = await request.get(`/chapter-packs/${CHAPTER_CATALOG_FILE}`);
   expect(catalogResponse.ok()).toBe(true);
@@ -165,11 +194,14 @@ async function playCartagenaMission(
     } else if (step.type === 'speak') {
       await expect(page.getByTestId('speaking-studio')).toBeVisible();
       if (step.id === 'cartagena-likes-speak' && finishStory) {
+        await click(page, 'Grabar sin conexión');
+        await expect(page.locator('body')).toHaveAttribute('data-cartagena-recording', 'encoded');
+        await click(page, 'Terminar grabación');
         const previous = await page.evaluate(() => window.cartagenaMedia.length);
-        await click(page, 'Escuchar ejemplo');
+        await click(page, 'Escuchar ejemplo y mi grabación');
         await expect
           .poll(() => page.evaluate(() => window.cartagenaMedia.length))
-          .toBeGreaterThan(previous);
+          .toBeGreaterThanOrEqual(previous + 2);
         await click(page, 'Ya revisé mi respuesta');
       } else await click(page, 'Ahora no puedo hablar');
     } else {
@@ -384,6 +416,7 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
   const missions = pack.story.chapter.missions as unknown as TravelMission[];
   await page.setViewportSize({ width: 390, height: 844 });
   await observeLocalMedia(page);
+  await provideLocalRecordingInput(page);
   await enterApp(page);
   await finishHome(page);
   await finishMexico(page);
@@ -465,6 +498,7 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
     expect.objectContaining({
       exerciseId: 'cartagena-likes-speak',
       source: 'story',
+      activity: 'recording',
       independent: false,
     }),
   );
@@ -657,7 +691,8 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
   const confirmation = practice.find((step) => step.id === 'cartagena-review-likes-confirm');
   if (!guide || !confirmation) throw new Error('Cartagena preference repair steps are missing.');
   expect(guide.exercise.learning?.contextId).not.toBe(confirmation.exercise.learning?.contextId);
-  await openSkillReview(page, `grammar_production:${preferences}`);
+  await page.getByRole('tab', exact('Inicio')).click();
+  await click(page, 'Repaso rápido');
   await expect(page.getByTestId(`exercise-${guide.id}`)).toBeVisible();
   await enterAuthoredAnswer(page, guide);
   await expect(feedback(page)).toContainText('¡Muy bien!');
@@ -671,7 +706,6 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
     expect.objectContaining({ outcome: 'target', independent: true, source: 'remediation' }),
   ]);
   await click(page, 'Volver al viaje');
-  await click(page, 'Cerrar y volver');
 
   await page.getByRole('tab', exact('Mapa')).click();
   await click(page, '3. Cartagena');
@@ -701,6 +735,10 @@ test('a mobile learner reaches Cartagena through the Mexico passport and finishe
       materialVersion: `colombia:${pack.revision}`,
     }),
   );
+  expect(
+    getUnifiedMastery((await state(page)).unifiedLearning, quantity.targetId, quantity.dimension)
+      .retention,
+  ).toBe('verified');
   expect((await progress(page)).chapterProgress?.colombia?.travel.stamps.colombia).toBeTruthy();
   expect(
     networkGuard.attempted.filter((url) => /\/chapter-packs\/\d+\/colombia\.json$/.test(url)),
