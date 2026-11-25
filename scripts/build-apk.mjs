@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 
@@ -103,9 +103,13 @@ if (process.argv.includes('--prebuild-only')) {
   );
   process.exit(0);
 }
+// Gradle can miss workspace packages in the Expo bundle task's incremental inputs.
+// Gradle puede omitir paquetes del espacio de trabajo al detectar cambios para el paquete de Expo.
 await run(
   './gradlew',
   [
+    ':app:createBundleReleaseJsAndAssets',
+    '--rerun',
     ':app:assembleRelease',
     '--no-daemon',
     `--max-workers=${gradleWorkers}`,
@@ -126,20 +130,41 @@ if (!entries.includes('assets/index.android.bundle'))
   );
 if (!entries.some((entry) => entry.endsWith('.ttf')))
   throw new Error('APK is missing embedded fonts required by the offline UI.');
+// The app shows these illustrations while downloading a chapter.
+// La app muestra estas ilustraciones mientras descarga un capítulo.
+const downloadShellArt = new Set([
+  'assets_journal_atlas.jpg',
+  'assets_journal_atlasportrait.jpg',
+  'assets_journal_writing.jpg',
+  'assets_journal_writingportrait.jpg',
+]);
 if (
   entries.some(
     (entry) =>
       entry.includes('chapter-packs/') ||
-      /assets_(journal|travel)_.*\.(png|jpe?g|webp|mp3)$/i.test(entry),
+      (/assets_(journal|travel)_.*\.(png|jpe?g|webp|mp3)$/i.test(entry) &&
+        !downloadShellArt.has(basename(entry))),
   )
 )
   throw new Error('APK embeds chapter art or audio. These files belong in chapter packs.');
 const bundle = await run('unzip', ['-p', apk, 'assets/index.android.bundle'], repo, true);
 const chapterPacks = join(mobile, 'public/chapter-packs');
-const catalog = JSON.parse(await readFile(join(chapterPacks, 'catalog-v2.json'), 'utf8'));
+const chapterCatalog = 'catalog-v3.json';
+if (
+  !bundle.includes(Buffer.from(chapterCatalog)) &&
+  !bundle.includes(Buffer.from(chapterCatalog, 'utf16le'))
+)
+  throw new Error('APK bundle is missing the current chapter catalog reference.');
+const catalog = JSON.parse(await readFile(join(chapterPacks, chapterCatalog), 'utf8'));
 const home = JSON.parse(
   await readFile(join(chapterPacks, String(catalog.chapters.home.revision), 'home.json'), 'utf8'),
 ).story.runtime;
+const mexico = JSON.parse(
+  await readFile(
+    join(chapterPacks, String(catalog.chapters.mexico.revision), 'mexico.json'),
+    'utf8',
+  ),
+).story;
 const textbook = JSON.parse(
   await readFile(join(mobile, 'src/content/bundled-course.json'), 'utf8'),
 );
@@ -149,6 +174,9 @@ const payloadMarkers = [
   home.lesson.exercises.find(({ id }) => id === 'travel_quick_hello')?.promptEs,
   home.challenges.reading_quest.find(({ id }) => id === 'home_challenge_readbag')?.passage,
   textbook.payload.lessons.u08_l04.exercises.find(({ id }) => id === 'u08_l04_practice_5')?.passage,
+  mexico.chapter.missions
+    .find(({ id }) => id === 'mexico-transfer')
+    ?.steps.find(({ id }) => id === 'mexico-transfer-write')?.exercise.promptEs,
 ];
 for (const marker of payloadMarkers) {
   if (typeof marker !== 'string' || marker.length < 20)

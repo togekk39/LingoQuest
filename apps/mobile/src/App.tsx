@@ -10,9 +10,11 @@ import {
   Text,
   View,
   useWindowDimensions,
+  type ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BookOpen, House, MapPinned, Settings2, Trophy, UserRound, X } from 'lucide-react-native';
+import type { ChapterPack } from '@lingoquest/course-pack';
 import {
   OFFLINE_STATE_KEY,
   playerIntroductionName,
@@ -21,7 +23,7 @@ import {
   route,
   type StoryOperation,
   type StoryResponse,
-  type StoryView,
+  type TravelChapter,
   type TravelCheckpoint,
   type TravelOperation,
   type TravelState,
@@ -54,6 +56,7 @@ import {
   setCurrentChapter,
   type ChapterDownloadProgress,
 } from './lib/chapterPacks';
+import { chapterMediaUri } from './lib/chapterStorage';
 import { applyDownloadedContent, restoreDownloadedContent } from './lib/downloadedContent';
 import { TravelFlow } from './travel/TravelFlow';
 import { StoryAdventure } from './travel/StoryAdventure';
@@ -83,6 +86,17 @@ type ChapterTransfer = {
   progress?: ChapterDownloadProgress;
   error?: ChapterTransferFailure;
 };
+type AdventureContent = {
+  chapter: TravelChapter;
+  images: Readonly<Record<string, ImageSourcePropType>>;
+  portraits: Readonly<Record<string, ImageSourcePropType>>;
+};
+
+function storyPath(chapterId?: string, encounter = false) {
+  return `/v1/story${encounter ? '/encounter' : ''}${
+    chapterId ? `?chapter=${encodeURIComponent(chapterId)}` : ''
+  }`;
+}
 
 function restoreStoryGuideStage(saved: unknown, firstVisit?: boolean): StoryGuideStage {
   if (firstVisit) return 'sam';
@@ -121,7 +135,11 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [tab, setTab] = useState<Tab>('Inicio');
   const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
   const [mission, setMission] = useState<TravelCheckpoint | null>(null);
-  const [story, setStory] = useState<StoryView | null>(null);
+  const [adventure, setAdventure] = useState<{
+    response: StoryResponse;
+    content?: AdventureContent;
+  } | null>(null);
+  const story = adventure?.response.story;
   const [storyGuideStage, setStoryGuideStage] = useState<StoryGuideStage>('done');
   const [storyError, setStoryError] = useState('');
   const [finishingEncounter, setFinishingEncounter] = useState(false);
@@ -141,7 +159,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [flow, setFlow] = useState<Flow | null>(null);
-  const [reviewMission, setReviewMission] = useState<string>();
+  const [review, setReview] = useState<{ missionId?: string; chapterId?: string }>();
   const [settings, setSettings] = useState<'general' | 'voice' | null>(null);
   const [recoveryReset, setRecoveryReset] = useState(false);
   const [welcome, setWelcome] = useState(false);
@@ -179,7 +197,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       setHomeReady(ready);
       if (open) {
         storySession.current++;
-        setStory(null);
+        setAdventure(null);
+        setStoryError('');
         setPassport(false);
         setTab('Mapa');
         setDestination(id);
@@ -256,15 +275,15 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setTravel(value);
     return value;
   }
-  function showStory(response: StoryResponse) {
-    setTravel(response.travel);
-    setStory(response.story);
+  function showStory(response: StoryResponse, content?: AdventureContent) {
+    if (!content) setTravel(response.travel);
+    setAdventure({ response, content });
     setStoryError('');
   }
-  async function refreshStory(opening = false) {
+  async function refreshStory(opening = false, content = opening ? undefined : adventure?.content) {
     const session = storySession.current;
-    const response = await api<StoryResponse>('/v1/story');
-    if (opening) {
+    const response = await api<StoryResponse>(storyPath(content?.chapter.id));
+    if (opening && !content) {
       const saved = await localSettings.get<unknown>(storyGuideKey, null);
       const stage = restoreStoryGuideStage(saved, response.firstVisit);
       if (response.firstVisit || (saved !== null && saved !== stage))
@@ -272,7 +291,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       if (session === storySession.current) setStoryGuideStage(stage);
     }
     if (session !== storySession.current) return false;
-    showStory(response);
+    showStory(response, content);
     return true;
   }
   async function showAdventure() {
@@ -313,21 +332,71 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       .catch((e) => setNotice(e.message))
       .finally(() => setStarting(false));
   }
+  async function startChapterStory(pack: ChapterPack) {
+    if (starting) return;
+    if (pack.chapterId === firstChapter.id) {
+      setOpenedChapter(undefined);
+      startStory();
+      return;
+    }
+    if (!pack.story) return;
+    const session = ++storySession.current;
+    setStarting(true);
+    setStoryError('');
+    try {
+      const images: Record<string, ImageSourcePropType> = {};
+      for (const [key, image] of Object.entries(pack.images)) {
+        images[key] = {
+          uri: await chapterMediaUri(pack.chapterId, image.mimeType, image.dataBase64),
+        };
+      }
+      const portraits = Object.fromEntries(
+        pack.story.adventure.npcs.flatMap(({ id, name }) =>
+          typeof name === 'string' && images[`portrait-${id}`]
+            ? [[name, images[`portrait-${id}`]]]
+            : [],
+        ),
+      );
+      if (session !== storySession.current) return;
+      if (
+        !(await refreshStory(true, {
+          chapter: pack.story.chapter as unknown as TravelChapter,
+          images,
+          portraits,
+        }))
+      )
+        return;
+      setOpenedChapter(undefined);
+      setPassport(false);
+      setFlow(null);
+    } catch (error) {
+      if (session === storySession.current) setStoryError((error as Error).message);
+    } finally {
+      setStarting(false);
+    }
+  }
   async function actStory(operation: StoryOperation) {
     const session = storySession.current;
-    const response = await api<StoryResponse>('/v1/story', operation);
+    const content = adventure?.content;
+    const response = await api<StoryResponse>(storyPath(content?.chapter.id), operation);
     if (session !== storySession.current) return;
-    showStory(response);
+    showStory(response, content);
   }
   async function resumeStoryLesson() {
     if (!story) return;
     const session = storySession.current;
-    const response = await api<StoryResponse>('/v1/story/encounter', { turn: story.turn });
+    const content = adventure?.content;
+    const response = await api<StoryResponse>(storyPath(content?.chapter.id, true), {
+      turn: story.turn,
+    });
     if (session !== storySession.current) return;
-    showStory(response);
+    showStory(response, content);
   }
   function updateStoryLesson(journey: TravelState) {
-    setTravel(journey);
+    if (!adventure?.content) setTravel(journey);
+    setAdventure(
+      (current) => current && { ...current, response: { ...current.response, travel: journey } },
+    );
     if (!story?.encounter) return;
     const { encounter, turn } = story;
     if (
@@ -410,7 +479,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const finishFlow = () => {
     setFlow(null);
     setTextbookUnit(undefined);
-    setReviewMission(undefined);
+    setReview(undefined);
     void refresh().catch((e) => setNotice(e.message));
     if (story) void refreshStory().catch((e) => setStoryError(e.message));
   };
@@ -418,8 +487,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setMission(null);
     void refresh().catch((e) => setNotice(e.message));
   };
-  const openQuickReview = (missionId?: string) => {
-    setReviewMission(missionId);
+  const openQuickReview = (missionId?: string, chapterId?: string) => {
+    setReview({ missionId, chapterId });
     setFlow('quick');
   };
   const openVoiceSettings = () => setSettings('voice');
@@ -550,7 +619,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   if (flow === 'quick')
     return withSheets(
       <QuickReview
-        missionId={reviewMission}
+        missionId={review?.missionId}
+        chapterId={review?.chapterId}
         onClose={finishFlow}
         onVoiceSettings={openVoiceSettings}
       />,
@@ -576,13 +646,16 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       <ChapterPackView
         key={openedChapter}
         chapterId={openedChapter}
-        onClose={() => setOpenedChapter(undefined)}
+        onClose={() => {
+          storySession.current++;
+          setStoryError('');
+          setOpenedChapter(undefined);
+        }}
+        adventureError={storyError}
+        adventureBusy={starting}
         onAdventure={
-          homeReady && openedChapter === chapter.id
-            ? () => {
-                setOpenedChapter(undefined);
-                startStory();
-              }
+          homeReady || openedChapter !== chapter.id
+            ? (pack) => void startChapterStory(pack)
             : undefined
         }
         onOpenTextbookUnit={(unitId) => {
@@ -591,16 +664,20 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         }}
       />,
     );
-  if (story && !passport)
+  if (adventure && !passport)
     return withSheets(
       <StoryAdventure
-        story={story}
+        key={adventure.content?.chapter.id ?? firstChapter.id}
+        chapter={adventure.content?.chapter ?? chapter}
+        images={adventure.content?.images}
+        portraits={adventure.content?.portraits}
+        story={adventure.response.story}
         guideStage={storyGuideStage}
         onGuideStageChange={async (stage) => {
           await localSettings.set(storyGuideKey, stage);
           setStoryGuideStage(stage);
         }}
-        checkpoint={travel.active}
+        checkpoint={adventure.response.travel.active}
         playerName={playerName}
         onEditName={editPlayerName}
         error={storyError}
@@ -608,12 +685,12 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         onAction={actStory}
         onClose={() => {
           storySession.current++;
-          setStory(null);
+          setAdventure(null);
           void refresh().catch((e) => setNotice(e.message));
         }}
         onLessonUpdate={updateStoryLesson}
         onResumeEncounter={resumeStoryLesson}
-        onReview={openQuickReview}
+        onReview={(missionId) => openQuickReview(missionId, adventure.content?.chapter.id)}
         onPassport={() => setPassport(true)}
         onVoiceSettings={openVoiceSettings}
       />,
@@ -633,7 +710,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setOpenedChapter(undefined);
     setPassport(false);
     storySession.current++;
-    setStory(null);
+    setAdventure(null);
   }
   const shellBackground = chapterTransfer ? `${C.white}EB` : C.white;
   const shellSurface = { backgroundColor: shellBackground };
@@ -782,8 +859,13 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 </Button>
                 <Passport
                   travel={travel}
+                  stamps={{
+                    ...progress?.travelStamps,
+                    ...travel.stamps,
+                    ...adventure?.response.travel.stamps,
+                  }}
                   onContinue={startStory}
-                  onNextChapter={() => openChapter(secondChapter.id)}
+                  onNextChapter={openChapter}
                   onNote={async (text) => {
                     await updateTravel({ action: 'note', text });
                   }}

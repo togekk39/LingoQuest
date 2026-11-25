@@ -103,7 +103,11 @@ function auditItems(course: CoursePayload, chapters: Map<string, ChapterPack>) {
     for (const step of mission.steps) add('course-mission', `${mission.id}/${step.id}`, step);
 
   for (const [id, chapter] of chapters) {
-    for (const [offset, card] of [chapter.lesson, ...chapter.additionalLessons].entries()) {
+    // The additional Mexico cards are audited in Phase 5D.
+    // Las fichas adicionales de México se auditan en la fase 5D.
+    const cards =
+      id === 'mexico' ? [chapter.lesson] : [chapter.lesson, ...chapter.additionalLessons];
+    for (const [offset, card] of cards.entries()) {
       const ref = `${id}/${offset + 1}`;
       const { question, model, practiceEs, ...teaching } = card;
       add('travel-card', ref, teaching);

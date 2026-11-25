@@ -39,6 +39,7 @@ export function SpeakingPanel({
   onPlay,
   onStopReference,
   story,
+  selfCheck = false,
   allowSystemRecognition = false,
   feedback,
   acceptedPhrases,
@@ -55,6 +56,7 @@ export function SpeakingPanel({
   onPlay?: () => void;
   onStopReference?: () => void;
   story?: { continueLabel: string; saving: boolean };
+  selfCheck?: boolean;
   acceptedPhrases?: string[];
   exampleLabel?: string;
   matchesTranscript?: (transcript: string) => boolean;
@@ -86,12 +88,16 @@ export function SpeakingPanel({
   const localBusy = local.phase !== 'idle';
   const audioBusy = comparing || recognizing || localBusy;
   const recordingUri = local.capture?.uri ?? stt.recordingUri;
-  const textFeedback = stt.finalTranscript && feedback?.(stt.finalTranscript);
-  const passed = matchesTranscript
-    ? matchesTranscript(stt.finalTranscript)
-    : matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases);
+  const textFeedback = !selfCheck && stt.finalTranscript && feedback?.(stt.finalTranscript);
+  const passed =
+    !selfCheck &&
+    (matchesTranscript
+      ? matchesTranscript(stt.finalTranscript)
+      : matchesSpeechTarget(stt.finalTranscript, text, acceptedPhrases));
+  const canContinue = selfCheck || passed || !!local.capture;
   const transcript = stt.finalTranscript || stt.liveTranscript;
   const completed = stt.completed ?? local.capture;
+  const recording = stt.completed?.recording ?? !!local.capture;
   const [saveError, setSaveError] = useState(false);
   const [saveRetry, setSaveRetry] = useState(0);
   const transcriptStatus =
@@ -111,29 +117,38 @@ export function SpeakingPanel({
 
   useEffect(() => {
     if (!evidenceScope || !completed || sent.current === completed.id) return;
+    const recognition =
+      !selfCheck && stt.completed
+        ? stt.completed.transcript
+          ? passed
+            ? 'matched'
+            : 'unmatched'
+          : 'empty'
+        : undefined;
+    if (!recognition && !recording) return;
     sent.current = completed.id;
     const id = evidenceScope.submissionId
       ? `${evidenceScope.submissionId}:${completed.id}`
       : completed.id;
     setSaveError(false);
-    void api('/v1/speech/practice', {
+    const path =
+      chapterId && chapterId !== 'home' && evidenceScope.source === 'story'
+        ? `/v1/speech/practice?chapter=${encodeURIComponent(chapterId)}`
+        : '/v1/speech/practice';
+    void api(path, {
       id,
       source: evidenceScope.source,
       materialId: evidenceScope.materialId,
       itemId: evidenceScope.itemId,
       retry: completed.retry,
       timestamp: completed.timestamp,
-      ...(stt.completed
-        ? {
-            recognition: stt.completed.transcript ? (passed ? 'matched' : 'unmatched') : 'empty',
-            recording: stt.completed.recording,
-          }
-        : { recording: true }),
+      ...(recognition ? { recognition } : {}),
+      recording,
     }).catch(() => {
       if (sent.current !== completed.id) return;
       setSaveError(true);
     });
-  }, [completed, evidenceScope, passed, saveRetry, stt.completed]);
+  }, [chapterId, completed, evidenceScope, passed, recording, saveRetry, selfCheck, stt.completed]);
 
   useEffect(() => {
     if (!recognizing) return;
@@ -228,9 +243,11 @@ export function SpeakingPanel({
       {!inline && <JournalArt source={illustrations.review} aspectRatio={3.1} taped />}
       <Section title="Dale voz a lo que aprendiste.">
         <Text style={f.quiet}>
-          {displayText
-            ? 'Escucha cómo empezar. Completa el saludo con tu propio nombre.'
-            : 'Escucha el ejemplo y di la frase para comprobar tu respuesta.'}
+          {selfCheck
+            ? 'Escucha el modelo, da tu propia respuesta y revísala con las indicaciones de la misión.'
+            : displayText
+              ? 'Escucha cómo empezar. Completa el saludo con tu propio nombre.'
+              : 'Escucha el ejemplo y di la frase para comprobar tu respuesta.'}
         </Text>
         <Text style={f.eyebrow}>{exampleLabel ?? 'Tu frase para practicar'}</Text>
         <Text
@@ -312,7 +329,7 @@ export function SpeakingPanel({
         <Text style={f.quiet}>
           Esta versión de LingoQuest no incluye el módulo de voz. Instala una versión actualizada.
         </Text>
-      ) : story ? (
+      ) : story && !allowSystemRecognition ? (
         <Text style={f.quiet}>
           El reconocimiento de voz de la misión está disponible en Android.
         </Text>
@@ -343,11 +360,13 @@ export function SpeakingPanel({
             {!!stt.finalTranscript && (
               <>
                 <Text style={f.quiet}>
-                  {passed
-                    ? 'La frase reconocida cumple el objetivo.'
-                    : matchesTranscript
-                      ? 'Revisa el saludo, la forma de presentación y el nombre en la transcripción.'
-                      : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
+                  {selfCheck
+                    ? 'Lee lo que entendió el sistema y revisa tu respuesta con las indicaciones de la misión.'
+                    : passed
+                      ? 'La frase reconocida cumple el objetivo.'
+                      : matchesTranscript
+                        ? 'Revisa el saludo, la forma de presentación y el nombre en la transcripción.'
+                        : 'La frase reconocida aún no coincide. Escucha el ejemplo e inténtalo otra vez.'}
                 </Text>
                 <Text style={f.quiet}>
                   Las palabras transcritas dan una pista sobre el contenido. La pronunciación y la
@@ -406,14 +425,16 @@ export function SpeakingPanel({
       <Action
         journal={!!story}
         busy={story?.saving}
-        disabled={(!passed && !local.capture) || localBusy || stt.phase !== 'idle'}
+        disabled={!canContinue || localBusy || stt.phase !== 'idle'}
         onPress={() => {
-          if (!localBusy && (passed || local.capture) && stt.phase === 'idle') {
+          if (!localBusy && canContinue && stt.phase === 'idle') {
             finish(story ? (recordingUri ? 'recorded' : 'imitated') : undefined);
           }
         }}
       >
-        {story?.continueLabel ?? 'Continuar con mi lección'}
+        {selfCheck
+          ? 'Ya revisé mi respuesta'
+          : (story?.continueLabel ?? 'Continuar con mi lección')}
       </Action>
       <Action secondary disabled={story?.saving} onPress={() => finish()}>
         Ahora no puedo hablar

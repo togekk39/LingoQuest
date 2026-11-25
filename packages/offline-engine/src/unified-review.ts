@@ -146,10 +146,10 @@ export function unifiedReviewPlans(
   candidates: ReviewCandidate[],
   now: number,
   missionId?: string | null,
+  missionTargets = reviewTargetsForMission(missionId),
 ): ReviewPlan[] {
   const records = unifiedReviewQueue(state.unifiedLearning, now);
   const knownTargets = new Set(records.map(({ targetId }) => targetId));
-  const missionTargets = reviewTargetsForMission(missionId);
   const registry = buildLearningRegistry(content);
   const available = candidates.filter(
     (candidate) => reviewReady(candidate) || candidate.prerequisites?.instruction,
@@ -168,7 +168,8 @@ export function unifiedReviewPlans(
   }
 
   return [...byKey].flatMap(([key, mastery]) => {
-    if (missionId && !missionTargets.has(mastery.targetId)) return [];
+    if (missionTargets.size && !missionTargets.has(mastery.targetId)) return [];
+    if (missionId && !missionTargets.size) return [];
     const definition = registry.get(mastery.targetId);
     const ranked = rankUnifiedReviewCandidates(state.unifiedLearning, mastery, available, now);
     const alternatives = [

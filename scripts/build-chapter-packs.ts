@@ -12,6 +12,14 @@ import { travelPlacementItems } from '../packages/offline-engine/src/travel-plac
 import { placementQuestions } from '../packages/offline-engine/src/travel-placement';
 import { westernChapterLessons } from '../content/source/chapter-lessons-west';
 import { easternChapterLessons } from '../content/source/chapter-lessons-east';
+import { mexicoChallengePools } from '../content/source/mexico-challenges';
+import { mexicoChapter, mexicoPractice } from '../content/source/mexico-missions';
+import { mexicoAdventure } from '../content/source/mexico-story';
+import type { StoryDefinition } from '../packages/offline-engine/src/story';
+import type {
+  TravelChapter,
+  TravelExerciseStep,
+} from '../packages/offline-engine/src/travel-content';
 import bundled from '../apps/mobile/src/content/bundled-course.json';
 import {
   CHAPTER_PACK_FORMAT,
@@ -30,7 +38,7 @@ import { loadChapterAudio, loadChapterImages } from './chapter-media';
 
 const root = new URL('../apps/mobile/public/chapter-packs/', import.meta.url);
 const catalogPath = new URL(CHAPTER_CATALOG_FILE, root);
-const legacyCatalogPath = new URL('catalog.json', root);
+const previousCatalogPath = new URL('catalog-v2.json', root);
 const course = bundled.payload as CoursePayload;
 const source: Record<string, ChapterLessonSource> = {
   ...westernChapterLessons,
@@ -48,24 +56,52 @@ const story = {
     course: courseActivities,
   },
 };
+const mexicoStory = {
+  chapter: mexicoChapter,
+  adventure: mexicoAdventure,
+  practice: mexicoPractice,
+  supportingLessons: ['u03_l01', 'u03_l02'].map((id) => courseLessons[id]),
+  challenges: mexicoChallengePools,
+};
+
+function adventurePhrases({
+  chapter,
+  adventure,
+  practice,
+}: {
+  chapter: TravelChapter;
+  adventure: StoryDefinition;
+  practice: readonly Pick<TravelExerciseStep, 'audio'>[];
+}) {
+  return [
+    ...adventure.dialogues.flatMap(({ line }) => (line ? [line.en] : [])),
+    ...chapter.missions.flatMap(({ vocabulary, steps }) => [
+      ...vocabulary.flatMap(({ term, example }) => [term, example.en]),
+      ...steps.flatMap((step) => {
+        if (step.type === 'dialogue') return step.line ? [step.line.en] : [];
+        if (step.type === 'teach') return step.examples.map(({ en }) => en);
+        if (step.type === 'speak') return [step.phrase];
+        return [step.audio, step.storyReply?.line.en].filter(
+          (phrase): phrase is string => !!phrase,
+        );
+      }),
+    ]),
+    ...practice.flatMap(({ audio }) => (audio ? [audio] : [])),
+  ];
+}
+
 const storyPhrases = [
-  ...chapterStory.dialogues.flatMap((dialogue) => ('line' in dialogue ? [dialogue.line.en] : [])),
-  ...chapter.missions.flatMap(({ vocabulary, steps }) => [
-    ...vocabulary.flatMap(({ term, example }) => [term, example.en]),
-    ...steps.flatMap((step) => {
-      if (step.type === 'dialogue') return step.line ? [step.line.en] : [];
-      if (step.type === 'teach') return step.examples.map(({ en }) => en);
-      if (step.type === 'speak') return [step.phrase];
-      return [step.audio, step.storyReply?.line.en].filter((phrase): phrase is string => !!phrase);
-    }),
-  ]),
-  ...travelPracticeSteps.flatMap(({ audio }) => (audio ? [audio] : [])),
+  ...adventurePhrases(story),
   ...placementQuestions(publicExercise).flatMap(({ audio }) => (audio ? [audio] : [])),
   'Hi! My name is Sam.',
   'Hi! I am',
   // An open Home revision 3 session still uses this clip after revision 4 downloads.
   // Una sesión abierta con la revisión 3 sigue usando este audio tras descargar la revisión 4.
   'Nice to meet you! Can you help me find the bus stop?',
+];
+const mexicoPhrases = [
+  ...adventurePhrases(mexicoStory),
+  ...chapterLessonPhrases([], mexicoStory.supportingLessons),
 ];
 
 const digest = (bytes: string) => createHash('sha256').update(bytes).digest('hex');
@@ -91,7 +127,7 @@ async function readCatalog(): Promise<ChapterCatalog> {
     return chapterCatalogSchema.parse(JSON.parse(await readFile(catalogPath, 'utf8')));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    return chapterCatalogSchema.parse(JSON.parse(await readFile(legacyCatalogPath, 'utf8')));
+    return chapterCatalogSchema.parse(JSON.parse(await readFile(previousCatalogPath, 'utf8')));
   }
 }
 
@@ -117,6 +153,11 @@ async function verifyCatalog(catalog: ChapterCatalog) {
       throw new Error(`Incorrect revision or course unit for ${id}.`);
     if (id === 'home' && storyPhrases.some((phrase) => !Object.hasOwn(pack.audio, phrase)))
       throw new Error('Missing audio for the first chapter adventure.');
+    if (
+      id === 'mexico' &&
+      (!pack.story || mexicoPhrases.some((phrase) => !Object.hasOwn(pack.audio, phrase)))
+    )
+      throw new Error('Missing story data or audio for the Mexico City adventure.');
     for (const [key, media] of Object.entries(pack.images)) verifyMedia(media, `${id}/${key}`);
     for (const [text, media] of Object.entries(pack.audio)) verifyMedia(media, `${id}/${text}`);
   }
@@ -133,7 +174,9 @@ async function main() {
     throw new Error('Provide a route chapter ID and an integer revision between 1 and 999999.');
 
   await mkdir(new URL(`${revision}/`, root), { recursive: true });
-  const legacy = chapterCatalogSchema.parse(JSON.parse(await readFile(legacyCatalogPath, 'utf8')));
+  const previousCatalog = chapterCatalogSchema.parse(
+    JSON.parse(await readFile(previousCatalogPath, 'utf8')),
+  );
   for (const { id, unitId } of targets) {
     const current = catalog.chapters[id];
     if (current && revision < current.revision)
@@ -152,8 +195,12 @@ async function main() {
     };
     const phrases = chapterLessonPhrases([lesson, ...additionalLessons], unit?.lessons);
     if (id === 'home') phrases.push(...storyPhrases);
+    if (id === 'mexico') phrases.push(...mexicoPhrases);
     const previous = parseChapterPack(
-      await readFile(chapterPath(current?.revision ?? legacy.chapters[id].revision, id), 'utf8'),
+      await readFile(
+        chapterPath(current?.revision ?? previousCatalog.chapters[id].revision, id),
+        'utf8',
+      ),
       id,
     );
     const newPhrases = phrases.filter((phrase) => !Object.hasOwn(previous.audio, phrase));
@@ -172,6 +219,7 @@ async function main() {
       additionalLessons,
       ...(unit && { unit }),
       ...(id === 'home' && { story }),
+      ...(id === 'mexico' && { story: mexicoStory }),
       images: await loadChapterImages(id),
       audio,
     });

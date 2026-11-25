@@ -220,6 +220,7 @@ export interface Progress {
   mastery: Mastery[];
   reviewCount: number;
   challengeProgress: ChallengeProgress[];
+  travelStamps?: Record<string, string>;
 }
 export interface AttemptResult {
   correct: boolean;

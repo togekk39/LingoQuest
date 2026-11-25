@@ -3,6 +3,10 @@
 export const reviewedChapterCards: Readonly<Record<string, string>> = {
   'published.home.card-1': '15d3ef2bb1a6626cd75a476512b522457e145262958d39823059f6cfa2942579',
   'published.mexico.card-1': 'e7b8db838899181df895f9dfba6927c0951ea9d01045c3c5c737da8c9964f0e0',
+  'published.mexico.card-2': '6f7cfa673c8c5a590340d9f808730502e9cf8337260eb64756959fa05ea54760',
+  'published.mexico.card-3': 'dc1ffa542e50b31d3a74c7d1e400099c262a2c7682433d0d732912b06cdc6911',
+  'published.mexico.card-4': '11feb4b93c32506b527711770da69e51858e3f07985da2ace5c8096cbddef262',
+  'published.mexico.card-5': '96813297dc211bb7716a4874b7423a6c9fa9020d6f4fcce9281afd1e5fadb03f',
   'published.colombia.card-1': '2cc2a5c6e0a9b89971d9455af46b7b38281341b85d117553268aee2f25015780',
   'published.peru.card-1': 'ad065a08980d200a4db1086cfb802030b57aa83e70a5a8b0be00e5ccb3741a33',
   'published.brazil.card-1': 'd7241907906ad3bf1eb08cba8eafe7eb3fbcabf25203a64207eab356343fa2f4',

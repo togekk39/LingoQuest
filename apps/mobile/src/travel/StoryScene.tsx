@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ImageSourcePropType,
+  type ViewStyle,
+} from 'react-native';
 import { ArrowLeft, ArrowRight, Backpack, TreeDeciduous } from 'lucide-react-native';
 import type { StoryView } from '@lingoquest/offline-engine';
 import { JournalPostcardFrame } from '../Journal';
@@ -88,7 +96,9 @@ function placement(bounds: Bounds, width: number, height: number) {
 }
 
 export function StoryScene({
+  chapterId,
   scene,
+  sceneImage,
   hotspots,
   activeNpc,
   blueBagCollected,
@@ -97,7 +107,9 @@ export function StoryScene({
   disabled,
   onInteract,
 }: {
+  chapterId: string;
   scene: StoryView['scene'];
+  sceneImage?: ImageSourcePropType;
   hotspots: ReadonlyArray<Hotspot>;
   activeNpc?: string;
   blueBagCollected?: boolean;
@@ -109,11 +121,19 @@ export function StoryScene({
   const { colors, mode } = useTheme();
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [focused, setFocused] = useState<string>();
-  const artId = scene.art === 'bus' || scene.art === 'bag' ? scene.art : 'plaza';
-  const sceneFigures = figures[artId];
-  const parkSign = parkSigns[artId];
+  const homeArt =
+    chapterId === 'home'
+      ? scene.art === 'bus' || scene.art === 'bag'
+        ? scene.art
+        : 'plaza'
+      : undefined;
+  const sceneFigures = homeArt ? figures[homeArt] : undefined;
+  const parkSign = homeArt ? parkSigns[homeArt] : undefined;
   const artwork =
-    artId === 'bag' && blueBagCollected ? storyLostPropertyAfterPickup : storyArt[artId];
+    sceneImage ??
+    (homeArt === 'bag' && blueBagCollected
+      ? storyLostPropertyAfterPickup
+      : homeArt && storyArt[homeArt]);
   const visibleFigures = new Set([activeNpc, ...hotspots.map((hotspot) => hotspot.npcId)]);
   const signSize = Math.max(24, Math.min(45, size.width * 0.088));
   const signWidth = parkSign?.pointsToPark ? signSize * 1.38 : signSize;
@@ -151,7 +171,7 @@ export function StoryScene({
               style={styles.image}
             />
           )}
-          {artId === 'bag' && !artwork && (
+          {homeArt === 'bag' && !artwork && (
             <View pointerEvents="none" style={styles.lostPropertyCounter}>
               {backpacks.map(({ id, color, x }) =>
                 id === 'lost-blue-bag' && blueBagCollected ? null : (
@@ -194,7 +214,7 @@ export function StoryScene({
             </View>
           )}
           {figureIds.map((npcId) => {
-            const figure = sceneFigures[npcId];
+            const figure = sceneFigures?.[npcId];
             return figure && visibleFigures.has(npcId) ? (
               <View
                 key={npcId}
@@ -218,7 +238,7 @@ export function StoryScene({
           {size.width > 0 &&
             hotspots.map((hotspot) => {
               const npcId = hotspot.npcId;
-              const figure = npcId === 'sam' || npcId === 'luz' ? sceneFigures[npcId] : undefined;
+              const figure = npcId === 'sam' || npcId === 'luz' ? sceneFigures?.[npcId] : undefined;
               const { x = 50, y = 50 } = hotspot.position ?? {};
               const { bounds, labelAt } = figure ??
                 landmarks[hotspot.id] ?? {

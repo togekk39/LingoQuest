@@ -189,14 +189,16 @@ export function reviewPrerequisites(
   exercise: CourseExercise,
   taught: ReadonlySet<string>,
   definitions = formalDefinitions(content, [lesson]),
+  authoredRequirements?: readonly TeachingReference[],
 ): { missing: TeachingReference[]; instruction?: ReviewInstruction } | undefined {
-  let requires: TeachingReference[] | undefined;
-  if (lesson.id === 'travel_home') {
+  let requires = authoredRequirements;
+  if (!requires && lesson.id === 'travel_home') {
     if (Object.hasOwn(homeReviewExercises, exercise.id))
       requires = homeReviewExercises[exercise.id as keyof typeof homeReviewExercises];
     else if (Object.hasOwn(homeExercises, exercise.id))
       requires = homeExercises[exercise.id as keyof typeof homeExercises];
   } else if (
+    !requires &&
     textbookReview[lesson.id]?.exercises[exercise.id] === textbookExerciseDigest(exercise)
   ) {
     const dependencies = textbookExerciseDependencies(lesson.id, exercise, (id) => {

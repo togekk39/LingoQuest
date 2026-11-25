@@ -243,7 +243,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
-export const CHAPTER_CATALOG_FILE = 'catalog-v2.json';
+export const CHAPTER_CATALOG_FILE = 'catalog-v3.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -337,6 +337,27 @@ const homeRuntime = z
   })
   .strict();
 
+const storyRequirementsSchema = z.array(z.object({ id, form: text.optional() }).strict()).max(100);
+const storyInstructionSchema = z
+  .object({
+    lessonId: id,
+    stage: z.enum(['vocabulary', 'grammar', 'both']),
+    references: storyRequirementsSchema.optional(),
+  })
+  .strict();
+const storyStepSchema = z
+  .object({
+    id,
+    type: z.enum(['dialogue', 'teach', 'exercise', 'speak']),
+    lessonId: id.optional(),
+    instruction: storyInstructionSchema.optional(),
+    vocabularyTerms: z.array(text).max(100).optional(),
+    requiredReply: z.literal(true).optional(),
+    exercise: travelExercise.optional(),
+    requires: storyRequirementsSchema.optional(),
+  })
+  .passthrough();
+
 export const chapterPackSchema = z
   .object({
     format: z.literal(CHAPTER_PACK_FORMAT),
@@ -354,7 +375,7 @@ export const chapterPackSchema = z
       .object({
         chapter: z
           .object({
-            id: z.literal('home'),
+            id: chapterIdSchema,
             revision: chapterRevisionSchema,
             title: text,
             stamp: text,
@@ -373,13 +394,7 @@ export const chapterPackSchema = z
                     vocabulary: z
                       .array(z.object({ term: text, example: translation }).passthrough())
                       .min(1),
-                    steps: z
-                      .array(
-                        z
-                          .object({ id, type: z.enum(['dialogue', 'teach', 'exercise', 'speak']) })
-                          .passthrough(),
-                      )
-                      .min(1),
+                    steps: z.array(storyStepSchema).min(1),
                   })
                   .passthrough(),
               )
@@ -388,10 +403,12 @@ export const chapterPackSchema = z
           .passthrough(),
         adventure: z
           .object({
-            id: z.literal('home'),
+            id: chapterIdSchema,
             revision: chapterRevisionSchema,
             initialSceneId: id,
-            scenes: z.array(z.object({ id, hotspots: z.array(z.unknown()) }).passthrough()).min(1),
+            scenes: z
+              .array(z.object({ id, art: id, hotspots: z.array(z.unknown()) }).passthrough())
+              .min(1),
             dialogues: z
               .array(z.object({ id, choices: z.array(z.unknown()) }).passthrough())
               .min(1),
@@ -403,6 +420,8 @@ export const chapterPackSchema = z
           .passthrough(),
         practice: z.array(z.unknown()).min(1),
         runtime: homeRuntime.optional(),
+        challenges: homeRuntime.shape.challenges.optional(),
+        supportingLessons: z.array(lessonSchema).max(8).optional(),
       })
       .strict()
       .optional(),
@@ -424,6 +443,61 @@ export const chapterPackSchema = z
             'story-luz-portrait',
           ]
         : ['cover'];
+    if (chapterId === 'home' && !story) return false;
+    if (story) {
+      const { chapter, adventure } = story;
+      if (
+        chapter.id !== chapterId ||
+        adventure.id !== chapterId ||
+        !adventure.scenes.some(({ id }) => id === adventure.initialSceneId)
+      )
+        return false;
+      if (chapterId === 'home' && (story.challenges || story.supportingLessons)) return false;
+      if (chapterId !== 'home') {
+        if (
+          story.runtime ||
+          !unit ||
+          !adventure.scenes.every(({ art }) => Object.hasOwn(images, art))
+        )
+          return false;
+        const storyLessons = [...unit.lessons, ...(story.supportingLessons ?? [])];
+        const lessons = new Set(storyLessons.map(({ id }) => id));
+        if (lessons.size !== storyLessons.length) return false;
+        const missions = new Set(chapter.missions.map(({ id }) => id));
+        if (
+          missions.size !== chapter.missions.length ||
+          !adventure.encounters.every(({ missionId }) => missions.has(missionId))
+        )
+          return false;
+        if (
+          !chapter.missions.every(({ vocabulary, steps }) =>
+            steps.every(
+              ({ type, vocabularyTerms }) =>
+                !vocabularyTerms ||
+                (type === 'teach' &&
+                  new Set(vocabularyTerms).size === vocabularyTerms.length &&
+                  vocabularyTerms.every((term) => vocabulary.some((word) => word.term === term))),
+            ),
+          )
+        )
+          return false;
+        const practice = z.array(storyStepSchema).safeParse(story.practice);
+        if (!practice.success || practice.data.some(({ type }) => type !== 'exercise'))
+          return false;
+        const steps = [...chapter.missions.flatMap(({ steps }) => steps), ...practice.data];
+        if (
+          !steps.every(({ type, instruction, lessonId, exercise, requires, requiredReply }) =>
+            type === 'exercise'
+              ? !!(lessonId && lessons.has(lessonId) && exercise && requires?.length)
+              : !requiredReply &&
+                (!instruction || (type === 'teach' && lessons.has(instruction.lessonId))),
+          )
+        )
+          return false;
+        const practiceIds = steps.flatMap(({ exercise }) => (exercise ? [exercise.id] : []));
+        if (new Set(practiceIds).size !== practiceIds.length) return false;
+      }
+    }
     return (
       requiredImages.every((key) => Object.hasOwn(images, key)) &&
       Object.values(images).every((media) => media.mimeType !== 'audio/mpeg') &&
@@ -432,8 +506,6 @@ export const chapterPackSchema = z
         Object.hasOwn(audio, phrase),
       ) &&
       (unit?.lessons.every((item) => item.unitId === unit.id) ?? true) &&
-      (chapterId === 'home') === !!story &&
-      (!story || story.adventure.scenes.some(({ id }) => id === story.adventure.initialSceneId)) &&
       (chapterId !== 'home' ||
         revision === 1 ||
         (!!story?.runtime &&

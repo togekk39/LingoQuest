@@ -12,6 +12,7 @@ import {
   type CourseExercise,
   type LessonCheckpoint,
   type LocalStore,
+  type OfflineEngineOptions,
   type QuickReviewState,
   type TravelOperation,
   type TravelState,
@@ -29,12 +30,19 @@ import {
 import {
   challengeQuestionCount,
   challengeRequiredUnit,
+  judgeAnswer,
   selectChallengeQuestions,
   type Progress,
   type RunView,
   type AttemptResult,
 } from '@lingoquest/contracts';
-import { challengeLearningGate } from '../src/challenge-learning';
+import {
+  challengeLearningGate,
+  reviewedChallengeRequirements,
+  selectMexicoChallengeVariation,
+} from '../src/challenge-learning';
+import { mexicoChallengePools } from '../../../content/source/mexico-challenges';
+import { chapterCatalogSchema, parseChapterPack } from '@lingoquest/course-pack';
 import { travelChallengeItems } from '../src/travel-challenges';
 const source: CourseData = {
   units,
@@ -56,7 +64,7 @@ class MemoryStore implements LocalStore {
     this.data.set(key, value);
   }
 }
-function fixture() {
+function fixture(getChapterCards?: OfflineEngineOptions['getChapterCards']) {
   const store = new MemoryStore();
   let time = Date.parse('2026-11-08T12:00:00Z');
   let id = 0;
@@ -65,6 +73,7 @@ function fixture() {
     new OfflineEngine({
       store,
       getContent: () => content,
+      getChapterCards,
       clock: () => time,
       randomId: () => `local-id-${++id}`,
     });
@@ -679,6 +688,120 @@ test('failed device writes do not falsely award or discard progress', async () =
   await assert.rejects(f.engine.request('/v1/me/settings', { name: 'Unsaved' }), /storage full/);
   f.store.fail = false;
   assert.equal((await f.engine.initialize()).user.name, 'Explorador');
+});
+
+test('Mexico challenge variations preserve rank size and require reviewed instruction and matching practice', async () => {
+  const { engine, store } = fixture();
+  await unlock(engine, 3);
+  const learned = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  const gate = challengeLearningGate(learned, source);
+  for (const item of Object.values(mexicoChallengePools).flat()) {
+    assert.ok(reviewedChallengeRequirements(item, 'mexico', source)?.length, item.id);
+    assert.equal(judgeAnswer(item, correct(item)), 'target', item.id);
+    assert.equal(judgeAnswer(item, wrong(item)), 'incorrect', item.id);
+  }
+
+  const cloze = mexicoChallengePools.cloze_battle.find(({ id }) => id.endsWith('_does'))!;
+  assert.equal(gate('mexico', 'cloze_battle', [cloze]).ready, true);
+  assert.equal(
+    gate('mexico', 'cloze_battle', [{ ...cloze, sentence: '___ Leo open the market?' }]).taught,
+    false,
+  );
+  const instructionOnly = {
+    ...learned,
+    unifiedLearning: {
+      ...learned.unifiedLearning,
+      evidence: learned.unifiedLearning.evidence.filter(
+        ({ activity }) => activity === 'introduced',
+      ),
+    },
+  };
+  assert.deepEqual(
+    challengeLearningGate(instructionOnly, source)('mexico', 'cloze_battle', [cloze]),
+    {
+      taught: true,
+      ready: false,
+      missingTeaching: [],
+      missingPractice: [cloze.id],
+    },
+  );
+
+  const base = source.challengePools.grammar_rush.slice(0, 10);
+  const eligible = (item: CourseExercise) => gate('mexico', 'grammar_rush', [item]).ready;
+  const first = selectMexicoChallengeVariation(
+    base,
+    mexicoChallengePools.grammar_rush,
+    2,
+    0,
+    eligible,
+  );
+  const replay = selectMexicoChallengeVariation(
+    base,
+    mexicoChallengePools.grammar_rush,
+    2,
+    1,
+    eligible,
+  );
+  assert.equal(first[0].id, 'challenge_mexico_grammar_routine');
+  assert.equal(replay[0].id, 'challenge_mexico_grammar_third');
+  assert.deepEqual(first.slice(1), base.slice(1));
+  assert.equal(
+    selectMexicoChallengeVariation(base, mexicoChallengePools.grammar_rush, 9, 0, eligible),
+    base,
+  );
+  assert.equal(
+    selectMexicoChallengeVariation(base, mexicoChallengePools.grammar_rush, 2, 0, () => false),
+    base,
+  );
+});
+
+test('an installed Mexico pack supplies eligible variations to new runs and preserves existing runs', async () => {
+  const packs = new URL('../../../apps/mobile/public/chapter-packs/', import.meta.url);
+  const catalog = chapterCatalogSchema.parse(
+    JSON.parse(readFileSync(new URL('catalog-v3.json', packs), 'utf8')),
+  );
+  const { revision } = catalog.chapters.mexico;
+  const pack = parseChapterPack(
+    readFileSync(new URL(`${revision}/mexico.json`, packs), 'utf8'),
+    'mexico',
+  );
+  const { engine, reopen, store } = fixture(async (id) => (id === 'mexico' ? pack : null));
+  const path = '/v1/challenges/runs';
+  const request = {
+    clientRequestId: 'mexico-market-challenge-one',
+    trackId: 'present_simple',
+    type: 'grammar_rush',
+    level: 2,
+    mode: 'practice',
+  };
+  await engine.request('/v1/story?chapter=mexico');
+  await assert.rejects(engine.request(path, request), { code: 'CHALLENGE_LOCKED' });
+  await unlock(engine, 2);
+
+  const first = await engine.request<RunView>(path, request);
+  assert.equal(first.question?.id, 'challenge_mexico_grammar_routine');
+  const item = mexicoChallengePools.grammar_rush[0];
+  const submitted = await engine.request<RunView>(`${path}/${first.runId}/answers`, {
+    clientSubmissionId: 'mexico-market-first-answer',
+    questionPosition: 1,
+    answer: correct(item),
+  });
+  assert.equal(submitted.completedQuestions, 1);
+  const saved = JSON.parse(store.data.get(OFFLINE_STATE_KEY)!) as OfflineState;
+  assert.equal(saved.runs[first.runId].answers[0].correct, true);
+  assert.equal(
+    saved.unifiedLearning.evidence.find(({ exerciseId }) => exerciseId === item.id)
+      ?.materialVersion,
+    `mexico:${revision}`,
+  );
+  const resumed = await reopen().request<RunView>(path, request);
+  assert.equal(resumed.runId, first.runId);
+  assert.equal(resumed.question?.id, submitted.question?.id);
+  const replay = await engine.request<RunView>(path, {
+    ...request,
+    clientRequestId: 'mexico-market-challenge-two',
+  });
+  assert.equal(replay.question?.id, 'challenge_mexico_grammar_third');
 });
 
 test('all thirteen local levels finish with personal records and never grant official badges or learning XP', async () => {

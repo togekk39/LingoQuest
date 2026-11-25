@@ -1,8 +1,18 @@
 import React, { useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Image, Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Keyboard,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+  type ImageSourcePropType,
+} from 'react-native';
 import { Check, Compass, RotateCcw, Stamp, Volume2 } from 'lucide-react-native';
 import {
-  chapter,
+  chapter as homeChapter,
+  travelStepVocabulary,
+  type TravelChapter,
   type TravelCheckpoint,
   type TravelMission,
   type TravelOperation,
@@ -136,11 +146,14 @@ export type TravelFlowHandle = {
 export function travelStoryPrompt(mission: TravelMission, checkpoint: TravelCheckpoint) {
   const step = mission.steps[checkpoint.step];
   if (checkpoint.finished || !step || step.type === 'dialogue') return;
-  const word = step.type === 'teach' && mission.vocabulary[checkpoint.word ?? 0];
+  const word = step.type === 'teach' && travelStepVocabulary(mission, step)[checkpoint.word ?? 0];
   return word ? word.storyPrompt : step.storyPrompt;
 }
 
 export function TravelFlow({
+  chapter = homeChapter,
+  portraits,
+  sceneImage,
   initial,
   playerName,
   onEditName,
@@ -152,6 +165,9 @@ export function TravelFlow({
   embedded,
   ref,
 }: {
+  chapter?: TravelChapter;
+  portraits?: Readonly<Record<string, ImageSourcePropType>>;
+  sceneImage?: ImageSourcePropType;
   initial: TravelCheckpoint;
   playerName?: string;
   onEditName: () => void;
@@ -180,9 +196,15 @@ export function TravelFlow({
   const mission: TravelMission = chapter.missions.find((m) => m.id === current.missionId)!;
   const step = mission.steps[current.step];
   const inline = !!embedded;
-  const travelPath = inline ? '/v1/travel?source=story' : '/v1/travel';
+  const travelPath =
+    chapter.id === 'home'
+      ? inline
+        ? '/v1/travel?source=story'
+        : '/v1/travel'
+      : `/v1/travel?chapter=${encodeURIComponent(chapter.id)}&source=${inline ? 'story' : 'study'}`;
   const briefing = inline && step.type === 'teach' && step.presentation === 'reply-briefing';
-  const requiredReply = step.type === 'exercise' && step.response === 'personal-introduction';
+  const requiredReply =
+    step.type === 'exercise' && (step.requiredReply || step.response === 'personal-introduction');
   const storyPrompt = inline ? travelStoryPrompt(mission, current) : undefined;
   const speaker =
     storyPrompt?.speaker ??
@@ -213,10 +235,10 @@ export function TravelFlow({
     </View>
   );
   const Section = inline ? StoryActivity : Notebook;
-  const { play, playSequence, stop, speechMessage } = useChapterAudio();
+  const { play, playSequence, stop, speechMessage } = useChapterAudio(chapter.id);
   const wordIndex = current.word ?? 0;
-  const word =
-    !current.finished && step.type === 'teach' ? mission.vocabulary[wordIndex] : undefined;
+  const vocabulary = step.type === 'teach' ? travelStepVocabulary(mission, step) : [];
+  const word = current.finished ? undefined : vocabulary[wordIndex];
   const translationKey = `${current.token}:${wordIndex}`;
   const lastTranslation = useRef('');
   const markTranslationShown = () => {
@@ -371,6 +393,11 @@ export function TravelFlow({
   const review = onReview ? () => void close(() => onReview(mission.id)) : undefined;
   const lastStep = current.step === mission.steps.length - 1;
   const canSubmit = step.type === 'exercise' && hasAnswer(answer, step.exercise);
+  function submitAnswer() {
+    if (!canSubmit || current.finished || current.result || actionInFlight.current) return;
+    Keyboard.dismiss();
+    void act({ action: 'answer', token: current.token, answer: latestDraft.current });
+  }
   const footer = current.finished ? (
     <Action
       journal
@@ -407,10 +434,7 @@ export function TravelFlow({
         busy={busy}
         disabled={!canSubmit}
         style={inline && [s.storyAction, !canSubmit && s.inactiveStoryAction]}
-        onPress={() => {
-          Keyboard.dismiss();
-          void act({ action: 'answer', token: current.token, answer: latestDraft.current });
-        }}
+        onPress={submitAnswer}
       >
         Comprobar respuesta
       </Action>
@@ -429,14 +453,16 @@ export function TravelFlow({
         })
       }
     >
-      {wordIndex + 1 < mission.vocabulary.length ? 'Siguiente palabra' : 'Ver la explicación'}
+      {wordIndex + 1 < vocabulary.length ? 'Siguiente palabra' : 'Ver la explicación'}
     </Action>
   ) : step.type !== 'speak' ? (
     <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
       {lastStep
         ? 'Completar misión'
         : briefing
-          ? 'Escuchar a Sam'
+          ? chapter.id === 'home'
+            ? 'Escuchar a Sam'
+            : 'Escuchar la conversación'
           : step.type === 'teach'
             ? 'Probar en la historia'
             : 'Continuar'}
@@ -468,7 +494,7 @@ export function TravelFlow({
       />
       {storyReply && embedded && (
         <View testID="travel-story-reply" style={s.dialogue}>
-          <StorySpeaker name={storyReply.speaker} />
+          <StorySpeaker name={storyReply.speaker} portrait={portraits?.[storyReply.speaker]} />
           <StoryPhrase
             line={storyReply.line}
             showTranslation={embedded.translationsVisible}
@@ -494,7 +520,7 @@ export function TravelFlow({
       {inline && !current.finished && (
         <View ref={activity} collapsable={false}>
           {speaker && (
-            <StorySpeaker name={speaker}>
+            <StorySpeaker name={speaker} portrait={portraits?.[speaker]}>
               {storyPrompt && <Label style={s.storyText}>{storyPrompt.text}</Label>}
             </StorySpeaker>
           )}
@@ -521,7 +547,8 @@ export function TravelFlow({
         {current.finished ? (
           <JournalSpread
             source={
-              mission.id === 'bag' ? illustrations.passport : placeIllustration(mission.place)
+              sceneImage ??
+              (mission.id === 'bag' ? illustrations.passport : placeIllustration(mission.place))
             }
             title="¡Misión completada!"
             detail={mission.success}
@@ -588,7 +615,7 @@ export function TravelFlow({
             <View style={s.chapterHead}>
               <Heading style={{ flex: 1, fontSize: 26 }}>Palabras del viaje</Heading>
               <Label>
-                {wordIndex + 1} / {mission.vocabulary.length}
+                {wordIndex + 1} / {vocabulary.length}
               </Label>
             </View>
             <VocabularyCard
@@ -611,7 +638,10 @@ export function TravelFlow({
         ) : step.type === 'exercise' ? (
           <>
             {!!step.visual && (
-              <JournalArt source={placeIllustration(mission.place)} aspectRatio={2.8} />
+              <JournalArt
+                source={sceneImage ?? placeIllustration(mission.place)}
+                aspectRatio={2.8}
+              />
             )}
             {!!step.audio && !inline && (
               <JournalArt source={illustrations.review} aspectRatio={3.1} taped />
@@ -644,7 +674,8 @@ export function TravelFlow({
                       icon={Volume2}
                       onPress={() => listenExercise(step.audio!)}
                     >
-                      {step.listeningButton ?? 'Escuchar a Sam'}
+                      {step.listeningButton ??
+                        (chapter.id === 'home' ? 'Escuchar a Sam' : 'Escuchar el mensaje')}
                     </Button>
                     {current.transcript || current.result ? (
                       <Text {...english} style={f.body}>
@@ -670,6 +701,7 @@ export function TravelFlow({
                   kindLabel={step.audio ? 'Comprensión auditiva' : undefined}
                   answer={answer}
                   setAnswer={draft}
+                  onSubmit={submitAnswer}
                   disabled={busy || !!current.result}
                 />
                 {step.hint &&
@@ -697,7 +729,9 @@ export function TravelFlow({
               ref={speaking}
               inline={inline}
               text={speakingText}
-              chapterId="home"
+              chapterId={chapter.id}
+              selfCheck={chapter.id === 'mexico'}
+              allowSystemRecognition={chapter.id === 'mexico'}
               evidenceScope={{
                 source: inline ? 'story' : 'study',
                 materialId: mission.id,

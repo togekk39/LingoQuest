@@ -183,7 +183,7 @@ export default function LearningFlow({
   }
   async function check() {
     const current = latest.current;
-    if (!exercise || !hasAnswer(current.answer, exercise)) return;
+    if (busy || result || !exercise || !hasAnswer(current.answer, exercise)) return;
     Keyboard.dismiss();
     setBusy(true);
     setError('');
@@ -308,14 +308,7 @@ export default function LearningFlow({
           </Action>
         </View>
       ) : (
-        <Action
-          journal
-          busy={busy}
-          disabled={!hasAnswer(answer, exercise)}
-          onPress={() => {
-            void check();
-          }}
-        >
+        <Action journal busy={busy} disabled={!hasAnswer(answer, exercise)} onPress={check}>
           Comprobar respuesta
         </Action>
       );
@@ -411,6 +404,7 @@ export default function LearningFlow({
                   exercise={exercise}
                   answer={answer}
                   setAnswer={(value: ExerciseAnswer) => save({ ...latest.current, answer: value })}
+                  onSubmit={check}
                   disabled={!!result || busy}
                 />
               </Notebook>

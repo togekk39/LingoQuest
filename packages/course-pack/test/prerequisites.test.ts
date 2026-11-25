@@ -38,7 +38,7 @@ test('annotated Story and Study paths check with earlier gated instruction and o
 
 test('Mexico fails if a does question is inserted into the translated dialogue before its grammar instruction', () => {
   assert.ok(
-    westernChapterLessons.mexico.dialogue.some(({ en }) => en === 'Does she go every day?'),
+    westernChapterLessons.mexico[0].dialogue.some(({ en }) => en === 'Does she go every day?'),
   );
   const file = draft();
   file.lessons[0].paths[0].stages = readerOrder({

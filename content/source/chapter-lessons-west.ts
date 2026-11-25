@@ -1,4 +1,5 @@
 import type { ChapterLessonSource } from '@lingoquest/course-pack';
+import { mexicoChapterLessons } from './mexico-chapter-lessons';
 
 export const westernChapterLessons = {
   home: {
@@ -36,58 +37,65 @@ export const westernChapterLessons = {
       es: 'Disculpa. ¿Me puedes ayudar? ¿Dónde está la parada del bus? ¡Hola! Me llamo Alex. La parada del bus está al lado del parque.',
     },
   },
-  mexico: {
-    title: 'Una mañana en el mercado',
-    objectiveEs: 'Compara rutinas y usa los horarios para organizar una visita al mercado.',
-    dialogue: [
-      {
-        speaker: 'Eva',
-        en: 'I have breakfast at seven. When do you go to the market?',
-        es: 'Desayuno a las siete. ¿Cuándo vas al mercado?',
+  mexico: [
+    {
+      title: 'Una mañana en el mercado',
+      objectiveEs: 'Compara rutinas y usa los horarios para organizar una visita al mercado.',
+      dialogue: [
+        {
+          speaker: 'Eva',
+          en: 'I have breakfast at seven. When do you go to the market?',
+          es: 'Desayuno a las siete. ¿Cuándo vas al mercado?',
+        },
+        {
+          speaker: 'Inés',
+          en: 'I usually go at eight. My sister goes at ten.',
+          es: 'Normalmente voy a las ocho. Mi hermana va a las diez.',
+        },
+        {
+          speaker: 'Eva',
+          en: 'Does she go every day?',
+          es: '¿Ella va todos los días?',
+        },
+        {
+          speaker: 'Inés',
+          en: 'No, she goes on Saturdays. You can come with me at eight tomorrow.',
+          es: 'No, va los sábados. Mañana puedes venir conmigo a las ocho.',
+        },
+      ],
+      vocabulary: [
+        { en: 'have breakfast', es: 'desayunar' },
+        { en: 'usually', es: 'normalmente' },
+        { en: 'every day', es: 'todos los días' },
+        { en: 'on Saturdays', es: 'los sábados' },
+        { en: 'at eight', es: 'a las ocho' },
+        { en: 'go to the market', es: 'ir al mercado' },
+        { en: 'buy fruit', es: 'comprar fruta' },
+        { en: 'buy bread', es: 'comprar pan' },
+        { en: 'come with me', es: 'venir conmigo' },
+      ],
+      grammarEs:
+        'Para hablar de rutinas, compara «I go» con «she goes» y «I buy» con «he buys». Para preguntar, usa «do» con «I», «you», «we» o «they» y «does» con «he», «she» o «it». Luego va el sujeto y el verbo base: «What time do you go?» y «What time does she go?». Practica cambiando «you» por «she» en la primera pregunta. Usa «at» con una hora y «on» con un día: «at eight», «on Saturdays».',
+      question: {
+        promptEs: '¿Con quién puede ir Eva al mercado mañana y a qué hora?',
+        options: [
+          'Con Inés a las ocho',
+          'Con la hermana de Inés a las ocho',
+          'Con Inés a las diez',
+        ],
+        answerIndex: 0,
+        feedbackEs:
+          'La hermana de Inés va al mercado a las diez los sábados. Para mañana, Inés invita a Eva a ir con ella a las ocho.',
       },
-      {
-        speaker: 'Inés',
-        en: 'I usually go at eight. My sister goes at ten.',
-        es: 'Normalmente voy a las ocho. Mi hermana va a las diez.',
+      practiceEs:
+        'Escribe o di un mensaje para una visitante. Tú compras fruta a las nueve y tu hermano compra pan a las diez. Pregúntale a qué hora va al mercado e invítala a acompañarte.',
+      model: {
+        en: 'I buy fruit at nine. My brother buys bread at ten. What time do you go to the market? You can come with me at nine.',
+        es: 'Compro fruta a las nueve. Mi hermano compra pan a las diez. ¿A qué hora vas al mercado? Puedes venir conmigo a las nueve.',
       },
-      {
-        speaker: 'Eva',
-        en: 'Does she go every day?',
-        es: '¿Ella va todos los días?',
-      },
-      {
-        speaker: 'Inés',
-        en: 'No, she goes on Saturdays. You can come with me at eight tomorrow.',
-        es: 'No, va los sábados. Mañana puedes venir conmigo a las ocho.',
-      },
-    ],
-    vocabulary: [
-      { en: 'have breakfast', es: 'desayunar' },
-      { en: 'usually', es: 'normalmente' },
-      { en: 'every day', es: 'todos los días' },
-      { en: 'on Saturdays', es: 'los sábados' },
-      { en: 'at eight', es: 'a las ocho' },
-      { en: 'go to the market', es: 'ir al mercado' },
-      { en: 'buy fruit', es: 'comprar fruta' },
-      { en: 'buy bread', es: 'comprar pan' },
-      { en: 'come with me', es: 'venir conmigo' },
-    ],
-    grammarEs:
-      'Para hablar de rutinas, compara «I go» con «she goes» y «I buy» con «he buys». Para preguntar, usa «do» con «I», «you», «we» o «they» y «does» con «he», «she» o «it». Luego va el sujeto y el verbo base: «What time do you go?» y «What time does she go?». Practica cambiando «you» por «she» en la primera pregunta. Usa «at» con una hora y «on» con un día: «at eight», «on Saturdays».',
-    question: {
-      promptEs: '¿Con quién puede ir Eva al mercado mañana y a qué hora?',
-      options: ['Con Inés a las ocho', 'Con la hermana de Inés a las ocho', 'Con Inés a las diez'],
-      answerIndex: 0,
-      feedbackEs:
-        'La hermana de Inés va al mercado a las diez los sábados. Para mañana, Inés invita a Eva a ir con ella a las ocho.',
     },
-    practiceEs:
-      'Escribe o di un mensaje para una visitante. Tú compras fruta a las nueve y tu hermano compra pan a las diez. Pregúntale a qué hora va al mercado e invítala a acompañarte.',
-    model: {
-      en: 'I buy fruit at nine. My brother buys bread at ten. What time do you go to the market? You can come with me at nine.',
-      es: 'Compro fruta a las nueve. Mi hermano compra pan a las diez. ¿A qué hora vas al mercado? Puedes venir conmigo a las nueve.',
-    },
-  },
+    ...mexicoChapterLessons,
+  ],
   colombia: {
     title: 'Un pedido para llevar',
     objectiveEs:

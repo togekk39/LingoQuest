@@ -1,5 +1,6 @@
 import { canonicalStringify, sha256Hex } from '@lingoquest/course-pack';
 import { attemptSchema, normalizeAnswerText } from '@lingoquest/contracts';
+import { mexicoChallengeReviews } from '../../../content/source/prerequisites/mexico-challenges';
 import {
   optionalCourseItems,
   optionalHomeItems,
@@ -19,8 +20,9 @@ import {
 import { canonicalLearningId, exerciseEvidenceTargets } from './learning-registry';
 import type { LearningEvidence, UnifiedEvidenceTarget } from './learning-evidence';
 
-type ChallengeScope = 'course' | 'home';
+type ChallengeScope = 'course' | 'home' | 'mexico';
 export type ChallengeType = keyof CourseData['challengePools'];
+type ChapterPracticeItem = { lessonId: string; exercise: CourseExercise };
 type Review = { digest: string; requires: readonly (string | readonly [string, string])[] };
 type Definitions = ReturnType<typeof formalDefinitions>;
 type Proof = {
@@ -31,6 +33,7 @@ type Proof = {
 const authoredReviews: Record<ChallengeScope, Readonly<Record<string, Review>>> = {
   course: optionalCourseItems,
   home: optionalHomeItems,
+  mexico: mexicoChallengeReviews,
 };
 const homePractice: Readonly<Record<string, readonly TeachingReference[]>> = {
   ...homeExercises,
@@ -135,14 +138,21 @@ function producedHomeLexicalTargets(exerciseId: string, text: string, definition
   );
 }
 
-function normalPracticeProof(state: OfflineState, content: CourseData, definitions: Definitions) {
+function normalPracticeProof(
+  state: OfflineState,
+  content: CourseData,
+  definitions: Definitions,
+  chapterExercises: readonly ChapterPracticeItem[],
+) {
   const lessons = { ...content.lessons, [travelLesson.id]: travelLesson };
+  const practice = Object.values(lessons).flatMap(({ id: lessonId, exercises }) =>
+    exercises.map((exercise) => ({ lessonId, exercise })),
+  );
   const items = new Map(
-    Object.values(lessons).flatMap((lesson) =>
-      lesson.exercises.map(
-        (exercise) => [`${lesson.id}:${exercise.id}`, { lesson, exercise }] as const,
-      ),
-    ),
+    [...practice, ...chapterExercises].map((item) => [
+      `${item.lessonId}:${item.exercise.id}`,
+      item,
+    ]),
   );
   return state.unifiedLearning.evidence.flatMap((event): Proof[] => {
     if (
@@ -157,7 +167,7 @@ function normalPracticeProof(state: OfflineState, content: CourseData, definitio
       return [];
     const item = items.get(`${event.materialId}:${event.exerciseId}`);
     if (!item || item.exercise.ungradable || item.exercise.type !== event.format) return [];
-    const { lesson, exercise } = item;
+    const { lessonId, exercise } = item;
     const text = productionFormats.has(event.format) ? savedTextAnswer(state, event) : undefined;
     const context = proofContext(event, exercise, text);
     if (!context) return [];
@@ -171,7 +181,7 @@ function normalPracticeProof(state: OfflineState, content: CourseData, definitio
       ...event.targets
         .filter(({ dimension }) => proofDimensions.has(dimension))
         .map(({ targetId }) => canonicalLearningId(targetId)),
-      ...(lesson.id === travelLesson.id && context === 'production' && text
+      ...(lessonId === travelLesson.id && context === 'production' && text
         ? producedHomeLexicalTargets(event.exerciseId, text, definitions)
         : []),
     ]);
@@ -222,6 +232,10 @@ function covered(
   const patterns = requirements
     .filter(({ id }) => definitions.get(id)?.kind === 'pattern')
     .map(({ id }) => id);
+  if (scope === 'mexico') {
+    const targets = [exercise.skillId, ...patterns.map(canonicalLearningId)];
+    return sameAbility.some((proof) => targets.some((id) => proof.targets.has(id)));
+  }
   const related = patterns.filter(
     (id) => content.lessons[id.split('.')[1]]?.grammar?.skillId === exercise.skillId,
   );
@@ -251,10 +265,14 @@ function covered(
   );
 }
 
-export function challengeLearningGate(state: OfflineState, content: CourseData) {
+export function challengeLearningGate(
+  state: OfflineState,
+  content: CourseData,
+  chapterExercises: readonly ChapterPracticeItem[] = [],
+) {
   const definitions = formalDefinitions(content);
   const introduced = formalTeachingKeys(state.unifiedLearning);
-  const proofs = normalPracticeProof(state, content, definitions);
+  const proofs = normalPracticeProof(state, content, definitions, chapterExercises);
   const reviewed = new Map<CourseExercise, TeachingReference[] | undefined>();
   return (scope: ChallengeScope, type: ChallengeType, items: readonly CourseExercise[]) => {
     const missingTeaching: string[] = [];
@@ -275,4 +293,16 @@ export function challengeLearningGate(state: OfflineState, content: CourseData) 
     const taught = !!items.length && !missingTeaching.length;
     return { taught, ready: taught && !missingPractice.length, missingTeaching, missingPractice };
   };
+}
+
+export function selectMexicoChallengeVariation(
+  items: CourseExercise[],
+  candidates: readonly CourseExercise[],
+  level: number,
+  variation: number,
+  eligible: (item: CourseExercise) => boolean,
+) {
+  if (level > 8 || !items.length) return items;
+  const allowed = candidates.filter((item) => item.difficulty <= level && eligible(item));
+  return allowed.length ? [allowed[variation % allowed.length], ...items.slice(1)] : items;
 }

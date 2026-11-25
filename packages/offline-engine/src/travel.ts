@@ -7,7 +7,9 @@ import {
   type AttemptResult,
 } from '@lingoquest/contracts';
 import { travelPlacementSchema } from './travel-placement';
-import { chapter, travelLesson } from './home-content';
+import { chapter as homeChapter, travelLesson } from './home-content';
+import type { TravelChapter } from './travel-content';
+import { travelStepVocabulary } from './travel-vocabulary';
 import {
   learningErrorSchema,
   speechPracticeSchema,
@@ -81,7 +83,11 @@ export type TravelState = z.infer<typeof travelStateSchema>;
 export type TravelCheckpoint = z.infer<typeof checkpointSchema>;
 export const emptyTravel = (): TravelState => ({ completed: {}, stamps: {} });
 
-export function canStartTravelMission(travel: TravelState, missionId: string) {
+export function canStartTravelMission(
+  travel: TravelState,
+  missionId: string,
+  chapter: TravelChapter = homeChapter,
+) {
   const i = chapter.missions.findIndex((mission) => mission.id === missionId);
   return (
     i >= 0 &&
@@ -93,7 +99,7 @@ export function canStartTravelMission(travel: TravelState, missionId: string) {
   );
 }
 
-export function nextTravelMission(travel: TravelState) {
+export function nextTravelMission(travel: TravelState, chapter: TravelChapter = homeChapter) {
   if (travel.active) {
     const active = chapter.missions.find((mission) => mission.id === travel.active?.missionId);
     if (active) return active;
@@ -158,17 +164,22 @@ const revisionOneSteps: Record<string, string[]> = {
   bag: ['bag_luz', 'bag_teach', 'travel_bag_read', 'travel_bag_write', 'bag_postcard'],
 };
 
-export function upgradeTravelCheckpoints(travel: TravelState) {
+export function upgradeTravelCheckpoints(
+  travel: TravelState,
+  chapter: TravelChapter = homeChapter,
+) {
   function upgrade(saved: TravelCheckpoint) {
-    if (saved.contentRevision === chapter.revision) return saved;
+    if (saved.contentRevision >= chapter.revision) return saved;
     const mission = chapter.missions.find((item) => item.id === saved.missionId);
     const stableId =
       saved.stepId ??
-      (saved.contentRevision === 1 && Object.hasOwn(revisionOneSteps, saved.missionId)
-        ? revisionOneSteps[saved.missionId][saved.step]
-        : saved.contentRevision === 2
-          ? mission?.steps[saved.step]?.id
-          : undefined);
+      (chapter.id !== 'home'
+        ? undefined
+        : saved.contentRevision === 1 && Object.hasOwn(revisionOneSteps, saved.missionId)
+          ? revisionOneSteps[saved.missionId][saved.step]
+          : saved.contentRevision === 2
+            ? mission?.steps[saved.step]?.id
+            : undefined);
     const step = mission?.steps.findIndex((item) => item.id === stableId) ?? -1;
     if (step < 0) return saved;
     const answer =
@@ -185,7 +196,12 @@ export function upgradeTravelCheckpoints(travel: TravelState) {
     travel.paused![key] = upgrade(saved);
 }
 
-function checkpoint(missionId: string, step: number, token: string): TravelCheckpoint {
+function checkpoint(
+  chapter: TravelChapter,
+  missionId: string,
+  step: number,
+  token: string,
+): TravelCheckpoint {
   return {
     missionId,
     step,
@@ -212,6 +228,7 @@ export function updateTravel(
   speaking: (target: LearningTarget, practice: SpeechPractice) => void,
   entryStepId?: string,
   activity?: (event: TravelLearningActivity) => void,
+  chapter: TravelChapter = homeChapter,
 ) {
   const input = operationSchema.parse(body);
   if (input.action === 'country') {
@@ -235,7 +252,7 @@ export function updateTravel(
       : 0;
     if (current?.missionId === input.missionId && current.contentRevision === chapter.revision)
       return;
-    if (!canStartTravelMission(travel, input.missionId)) return;
+    if (!canStartTravelMission(travel, input.missionId, chapter)) return;
     const paused = (travel.paused ??= {});
     if (current && !current.finished && current.contentRevision === chapter.revision)
       paused[current.missionId] = current;
@@ -243,7 +260,7 @@ export function updateTravel(
     travel.active =
       saved?.contentRevision === chapter.revision
         ? saved
-        : checkpoint(input.missionId, entry, id());
+        : checkpoint(chapter, input.missionId, entry, id());
     delete paused[input.missionId];
     return;
   }
@@ -267,13 +284,11 @@ export function updateTravel(
     });
   if (input.action === 'word') {
     const word = current.word ?? 0;
-    if (step.type === 'teach' && input.position <= mission.vocabulary.length) {
+    if (step.type === 'teach') {
+      const vocabulary = travelStepVocabulary(mission, step);
+      if (input.position > vocabulary.length) return;
       if (input.position === word + 1)
-        introduce(
-          `${current.token}:word:${word}`,
-          input.translationShown,
-          mission.vocabulary[word].term,
-        );
+        introduce(`${current.token}:word:${word}`, input.translationShown, vocabulary[word].term);
       current.word = input.position;
     }
     return;
@@ -294,7 +309,7 @@ export function updateTravel(
       if (current.retry) aids.push('retry');
       current.result = attempt(
         {
-          lessonId: travelLesson.id,
+          lessonId: step.lessonId ?? travelLesson.id,
           exerciseId: step.exercise.id,
           clientAttemptId: current.token,
           answer: input.answer,
@@ -311,7 +326,7 @@ export function updateTravel(
     }
     if (input.action === 'retry' && current.result && !current.result.correct) {
       travel.active = {
-        ...checkpoint(mission.id, current.step, id()),
+        ...checkpoint(chapter, mission.id, current.step, id()),
         hint: current.result.identityMismatch ? current.hint : true,
         retry: current.result.identityMismatch ? current.retry : true,
         transcript: current.transcript,
@@ -324,7 +339,7 @@ export function updateTravel(
     if (
       !current.result ||
       current.result.identityMismatch ||
-      (step.response === 'personal-introduction' &&
+      ((step.requiredReply || step.response === 'personal-introduction') &&
         !current.result.correct &&
         !current.result.communicationOnly)
     )
@@ -338,7 +353,7 @@ export function updateTravel(
       introduce(current.token, input.translationShown);
   } else return;
   if (current.step + 1 < mission.steps.length) {
-    travel.active = checkpoint(mission.id, current.step + 1, id());
+    travel.active = checkpoint(chapter, mission.id, current.step + 1, id());
     return;
   }
   const date = new Date(now).toISOString();

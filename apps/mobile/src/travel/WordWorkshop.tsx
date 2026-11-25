@@ -36,6 +36,21 @@ export function WordWorkshop({
     difficulty: 1,
     ...(kind === 'matching' ? { matchingPairs: pairs } : { sentence: cloze?.sentence }),
   };
+  function submitAnswer() {
+    if (result !== undefined || !hasAnswer(answer, exercise)) return;
+    Keyboard.dismiss();
+    setResult(
+      judgeAnswer(
+        cloze && kind === 'cloze'
+          ? cloze
+          : {
+              ...exercise,
+              acceptedAnswers: [],
+            },
+        answer,
+      ),
+    );
+  }
   return (
     <View testID="word-workshop" style={{ gap: 12 }}>
       <Notebook title={kind === 'matching' ? 'Une las parejas' : 'Completa el saludo'}>
@@ -44,26 +59,11 @@ export function WordWorkshop({
           exercise={exercise}
           answer={answer}
           setAnswer={setAnswer}
+          onSubmit={submitAnswer}
           disabled={result !== undefined}
         />
         {result === undefined ? (
-          <Button
-            disabled={!hasAnswer(answer, exercise)}
-            onPress={() => {
-              Keyboard.dismiss();
-              setResult(
-                judgeAnswer(
-                  cloze && kind === 'cloze'
-                    ? cloze
-                    : {
-                        ...exercise,
-                        acceptedAnswers: [],
-                      },
-                  answer,
-                ),
-              );
-            }}
-          >
+          <Button disabled={!hasAnswer(answer, exercise)} onPress={submitAnswer}>
             Comprobar parejas y frases
           </Button>
         ) : (

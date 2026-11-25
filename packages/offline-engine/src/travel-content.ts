@@ -1,10 +1,11 @@
 import type { Translation } from '@lingoquest/contracts';
+import type { PrerequisiteReference } from '../../course-pack/src/prerequisites';
 import type { CourseExercise, CourseLesson } from './index';
 import type { LearningTarget } from './travel-learning';
 import { homeChapterDetails } from './travel-route';
 
 interface TravelStoryPrompt {
-  speaker: 'Luz' | 'Sam';
+  speaker: string;
   text: string;
 }
 
@@ -14,7 +15,7 @@ export interface TravelVocabulary {
   kind: string;
   explanation: string;
   example: Translation;
-  exampleBy?: 'Sam' | 'Luz';
+  exampleBy?: string;
   storyPrompt?: TravelStoryPrompt;
 }
 
@@ -28,10 +29,13 @@ export interface TravelExerciseStep {
   type: 'exercise';
   situation: string;
   response?: 'personal-introduction';
+  requiredReply?: true;
   storyPrompt?: TravelStoryPrompt;
-  storyReply?: { speaker: 'Luz' | 'Sam'; line: Translation };
+  storyReply?: { speaker: string; line: Translation };
   activityTitle?: string;
   exercise: CourseExercise;
+  lessonId?: string;
+  requires?: readonly PrerequisiteReference[];
   hint?: string;
   audio?: string;
   transcript?: string;
@@ -44,7 +48,7 @@ export type TravelStep =
   | {
       id: string;
       type: 'dialogue';
-      speaker: 'Luz' | 'Sam' | 'QuestBuddy';
+      speaker: string;
       text: string;
       line?: Translation;
     }
@@ -52,13 +56,19 @@ export type TravelStep =
       id: string;
       type: 'teach';
       title: string;
-      speaker?: 'Luz';
+      speaker?: string;
       exampleLabel?: string;
       text: string;
       examples: Translation[];
       storyPrompt?: TravelStoryPrompt;
       presentation?: 'question-answer' | 'reply-briefing';
       patterns?: TravelPattern[];
+      vocabularyTerms?: readonly string[];
+      instruction?: {
+        lessonId: string;
+        stage: 'vocabulary' | 'grammar' | 'both';
+        references?: readonly PrerequisiteReference[];
+      };
     }
   | TravelExerciseStep
   | {
@@ -94,6 +104,8 @@ export interface TravelChapter {
   collectible: string;
   missions: TravelMission[];
 }
+
+export { travelStepVocabulary } from './travel-vocabulary';
 
 const informalGreetings = ['Hi', 'Hello', 'Hey', 'Hi there', 'Hello there', 'Hey there'];
 export const samGreeting = {

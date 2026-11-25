@@ -9,11 +9,16 @@ import {
   utf8Bytes,
   type ChapterPack,
   type ChapterLessonSource,
+  type CourseLesson,
 } from '@lingoquest/course-pack';
 import { route } from '@lingoquest/offline-engine';
+import { judgeAnswer } from '@lingoquest/contracts';
 import * as courseSource from '../content/source/curriculum';
 import { easternChapterLessons } from '../content/source/chapter-lessons-east';
 import { westernChapterLessons } from '../content/source/chapter-lessons-west';
+import { mexicoChallengePools } from '../content/source/mexico-challenges';
+import { mexicoChapter, mexicoPractice } from '../content/source/mexico-missions';
+import { mexicoAdventure } from '../content/source/mexico-story';
 import { travelChallengePools as unpublishedChallenges } from '../content/source/travel-challenges';
 import { chapterStory } from '../packages/offline-engine/src/chapter-story';
 import { travelChallengePools } from '../packages/offline-engine/src/travel-challenge-pools';
@@ -21,7 +26,12 @@ import {
   chapter,
   travelLesson,
   travelPracticeSteps,
+  travelStepVocabulary,
 } from '../packages/offline-engine/src/travel-content';
+import {
+  teachingReferenceKey,
+  textbookFormalReferences,
+} from '../packages/offline-engine/src/learning-prerequisites';
 import {
   checkPrerequisites,
   prerequisiteFileSchema,
@@ -231,6 +241,84 @@ function counts<T>(rows: readonly T[], key: (row: T) => string) {
   return totals;
 }
 
+function verifyMexicoStory(pack: ChapterPack, lessons: Record<string, CourseLesson>) {
+  const supportingLessons = ['u03_l01', 'u03_l02'].map((id) => lessons[id]);
+  assert.deepEqual(
+    pack.story,
+    JSON.parse(
+      JSON.stringify({
+        chapter: mexicoChapter,
+        adventure: mexicoAdventure,
+        practice: mexicoPractice,
+        supportingLessons,
+        challenges: mexicoChallengePools,
+      }),
+    ),
+    'Mexico story content / Contenido de la historia de México',
+  );
+  const taught = new Set<string>();
+  const practice = [];
+  const checkPrerequisites = ({ id, requires }: (typeof mexicoPractice)[number]) => {
+    assert.ok(requires?.length, id);
+    for (const ref of requires)
+      assert.ok(taught.has(teachingReferenceKey(ref)), `${id} → ${ref.id}`);
+  };
+  for (const mission of mexicoChapter.missions) {
+    for (const step of mission.steps) {
+      if (step.type === 'teach' && step.instruction) {
+        const { lessonId, references } = step.instruction;
+        const lesson = lessons[lessonId];
+        assert.ok(lesson, step.id);
+        const reviewed = textbookFormalReferences(lesson, 'grammar');
+        assert.ok(references?.length, step.id);
+        for (const ref of references) {
+          const match = reviewed.find(({ id }) => id === ref.id);
+          assert.ok(match, `${step.id} → ${ref.id}`);
+          taught.add(teachingReferenceKey(match));
+        }
+        const terms = travelStepVocabulary(mission, step).map(({ term }) => term);
+        if (step.vocabularyTerms) assert.deepEqual(new Set(terms), new Set(step.vocabularyTerms));
+      }
+      if (step.type === 'exercise') {
+        checkPrerequisites(step);
+        if (step.audio) assert.equal(step.transcript, step.audio, step.id);
+        practice.push(step.exercise);
+      }
+    }
+  }
+  for (const step of mexicoPractice) {
+    checkPrerequisites(step);
+    practice.push(step.exercise);
+  }
+  practice.push(...Object.values(mexicoChallengePools).flat());
+  unique(
+    practice.map(({ id }) => id),
+    'Mexico exercise IDs / IDs de ejercicios de México',
+  );
+  let probes = 0;
+  for (const exercise of practice) {
+    if (exercise.options) {
+      for (const { id } of exercise.options) {
+        assert.equal(
+          judgeAnswer(exercise, { optionId: id }),
+          id === exercise.correctOptionId ? 'target' : 'incorrect',
+          exercise.id,
+        );
+        probes++;
+      }
+      continue;
+    }
+    assert.ok(exercise.acceptedAnswers.length, exercise.id);
+    for (const text of exercise.acceptedAnswers) {
+      assert.equal(judgeAnswer(exercise, { text }), 'target', exercise.id);
+      probes++;
+    }
+    assert.equal(judgeAnswer(exercise, { text: ':::?' }), 'incorrect', exercise.id);
+    probes++;
+  }
+  console.log(`Mexico / México: ${practice.length} items/ítems, ${probes} grading checks/pruebas.`);
+}
+
 async function verifyPublishedContent(inventory: boolean) {
   const bundled = parseCoursePack(await read('apps/mobile/src/content/bundled-course.json'));
   const { units, lessons, ...activities } = bundled.payload;
@@ -253,7 +341,9 @@ async function verifyPublishedContent(inventory: boolean) {
   );
 
   const chapterRoot = 'apps/mobile/public/chapter-packs/';
-  const catalog = chapterCatalogSchema.parse(JSON.parse(await read(chapterRoot + CHAPTER_CATALOG_FILE)));
+  const catalog = chapterCatalogSchema.parse(
+    JSON.parse(await read(chapterRoot + CHAPTER_CATALOG_FILE)),
+  );
   const authored: Record<string, ChapterLessonSource> = {
     ...westernChapterLessons,
     ...easternChapterLessons,
@@ -345,6 +435,7 @@ async function verifyPublishedContent(inventory: boolean) {
         'Home story runtime / Historia del lugar de origen',
       );
     }
+    if (id === 'mexico') verifyMexicoStory(pack, lessons);
     if (inventory)
       console.log(
         id,

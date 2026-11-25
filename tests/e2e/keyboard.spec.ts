@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, enterApp, openPlacement, click } from './helpers';
+import { test, expect, enterApp, openPlacement, openTravelWriting, click, exact } from './helpers';
 
 async function installOverlayViewport(page: Page) {
   await page.addInitScript(() => {
@@ -120,4 +120,39 @@ test('an OS-resized window removes the overlap spacer instead of reserving keybo
   await expect
     .poll(async () => (await page.getByTestId('keyboard-spacer').boundingBox())?.height)
     .toBe(414);
+});
+
+test('placement submits a written answer with Enter and allows Shift+Enter for a new line', async ({
+  page,
+}) => {
+  await openShortTextPage(page);
+  const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
+  const question = page.getByText('Pregunta 2 de 6', { exact: true });
+
+  await input.fill('   ');
+  await expect(page.getByRole('button', exact('Siguiente pregunta'))).toBeDisabled();
+  await input.press('Enter');
+  await expect(question).toBeVisible();
+  await expect(input).toHaveValue('   ');
+
+  await input.fill('Hello!');
+  await input.press('Shift+Enter');
+  await page.keyboard.insertText('My name is Ana.');
+  await expect(input).toHaveValue('Hello!\nMy name is Ana.');
+  await input.dispatchEvent('keydown', { key: 'Enter', isComposing: true });
+  await input.dispatchEvent('keydown', { key: 'Enter', repeat: true });
+  await expect(question).toBeVisible();
+
+  await input.press('Enter');
+  await expect(page.getByText('Pregunta 3 de 6', { exact: true })).toBeVisible();
+});
+
+test('Enter checks a travel lesson answer and shows the usual feedback', async ({ page }) => {
+  await enterApp(page);
+  await openTravelWriting(page);
+  const input = page.getByRole('textbox', exact('Tu respuesta en inglés'));
+  await input.fill('Hi! I am Luz.');
+  await input.press('Enter');
+  await expect(page.getByTestId('answer-feedback')).toBeVisible();
+  await expect(page.getByText('¡Muy bien!', { exact: true })).toBeVisible();
 });

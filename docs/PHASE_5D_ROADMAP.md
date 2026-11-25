@@ -1,0 +1,88 @@
+# Phase 5D Curriculum Roadmap
+
+[Español (Latinoamérica)](PHASE_5D_ROADMAP.es-419.md)
+
+Phase 5D starts from `cf1b763`, the merge of Phase 5C into `main`. The catalog at that commit has 20 downloadable chapter cards. The first eight packs also include the 32 published Study lessons. Home is the only fully implemented RPG at that baseline. Phase 5D covers the 24 planned units and 83 objectives across the existing route. The current milestone is 5D-1, Mexico City. [Phase 5C merge](https://github.com/togekk39/LingoQuest/pull/30) · [Master plan](curriculum/curriculum-master-plan.md) · [Baseline chapter catalog](https://github.com/togekk39/LingoQuest/blob/cf1b76369557736ca0b573f2f2618a5641101c43/apps/mobile/public/chapter-packs/catalog-v2.json)
+
+## Baseline inventory
+
+In the objectives column, combine each unit ID with its listed suffixes. **Needs extension** identifies usable integrated or Study materials with gaps in instruction, assessment or transfer. **Card only** identifies a published travel card for the destination. **Pending** identifies work beyond the baseline. **Accepted** requires the chapter's quality review, including its named limits. At this baseline the Phase 5D acceptance column is pending for all stops. Previous releases and Home's existing evidence remain valid within their original scope.
+
+| Stop                            | Core objectives by unit ID                                                                                                                   | Baseline at Phase 5C                                                                          | Milestone |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --------- |
+| 01 · Home (`home`)              | `lq-home-start`: `greet`, `name`, `spell`, `repair`. `lq-home-plaza`: `origins`, `people-things`, `place`, `direction`, `objects-map`, `bag` | RPG implemented, U01 and one card. Needs extension for complete Pre-A1/A1 objective coverage. | 5D-2      |
+| 02 · Mexico City (`mexico`)     | `lq-mexico-routines`: `routine`, `others`, `time`, `routine-ask`                                                                             | U02 and one card need extension. Full RPG pending at baseline.                                | 5D-1      |
+| 03 · Cartagena (`colombia`)     | `lq-cartagena-food`: `likes`, `quantity`, `prices`, `order`                                                                                  | U03 and one card need extension. RPG pending.                                                 | 5D-2      |
+| 04 · Cusco (`peru`)             | `lq-cusco-past`: `past-be`, `past-ed`, `past-irreg`, `past-ask`                                                                              | U04 and one card need extension. RPG pending.                                                 | 5D-2      |
+| 05 · Salvador (`brazil`)        | `lq-salvador-actions`: `now`, `habit-now`, `can-do`, `coordinate`                                                                            | U05 and one card need extension. RPG pending.                                                 | 5D-2      |
+| 06 · Valparaíso (`chile`)       | `lq-valparaiso-plans`: `plans`, `offer`, `reschedule`                                                                                        | U06 and one card need extension. RPG pending.                                                 | 5D-3      |
+| 07 · Miami (`miami`)            | `lq-miami-experiences`: `ever`, `when-past`, `ready`                                                                                         | U07 and one card need extension. RPG pending.                                                 | 5D-3      |
+| 08 · New York (`new-york`)      | `lq-nyc-options`: `compare`, `best-route`, `routes`, `interview`                                                                             | U08 and one card need extension. RPG pending.                                                 | 5D-3      |
+| 09 · Toronto (`toronto`)        | `lq-toronto-signup`: `exist`, `rules`. `lq-toronto-messages`: `book`, `arrangement`, `invite`, `a2-check`                                    | Card only. Core instruction and RPG pending.                                                  | 5D-3      |
+| 10 · London (`london`)          | `lq-london-disruptions`: `notices`, `conditions`, `confirm-info`                                                                             | Card only. Core instruction and RPG pending.                                                  | 5D-4      |
+| 11 · Paris (`paris`)            | `lq-paris-recommendations`: `define`, `recommend`, `agree-view`                                                                              | Card only. Core instruction and RPG pending.                                                  | 5D-4      |
+| 12 · Rome (`rome`)              | `lq-rome-problems`: `background`, `negotiate`, `followup`                                                                                    | Card only. Core instruction and RPG pending.                                                  | 5D-4      |
+| 13 · Cairo (`cairo`)            | `lq-cairo-instructions`: `unless`, `relay`, `adapt`                                                                                          | Card only. Core instruction and RPG pending.                                                  | 5D-4      |
+| 14 · Singapore (`singapore`)    | `lq-singapore-followup`: `duration`, `ongoing`, `checkback`                                                                                  | Card only. Core instruction and RPG pending.                                                  | 5D-4      |
+| 15 · Tokyo (`tokyo`)            | `lq-tokyo-permission`: `permission`, `preference`. `lq-tokyo-collaboration`: `summarize-project`, `handover`, `b1-check`                     | Card only. Core instruction and RPG pending.                                                  | 5D-4      |
+| 16 · Hobart (`australia`)       | `lq-hobart-risk`: `certainty`, `concede`, `recommend-risk`                                                                                   | Card only. Core instruction and RPG pending.                                                  | 5D-5      |
+| 17 · Wellington (`new-zealand`) | `lq-wellington-reporting`: `prior-past`, `attribute`, `long-input`, `proposal`                                                               | Card only. Core instruction and RPG pending.                                                  | 5D-5      |
+| 18 · Nairobi (`kenya`)          | `lq-nairobi-agreements`: `deadline`, `passive`, `participation`, `mediate`                                                                   | Card only. Core instruction and RPG pending.                                                  | 5D-5      |
+| 19 · Cape Town (`south-africa`) | `lq-cape-town-sources`: `source-quality`, `synthesis`, `media-stance`, `argument`                                                            | Card only. Core instruction and RPG pending.                                                  | 5D-5      |
+| 20 · Antarctica (`antarctica`)  | `lq-antarctica-protocol`: `protocol`, `brief`. `lq-antarctica-capstone`: `report-final`, `counterfactual`, `audience`, `b2-check`            | Card only. Core instruction and RPG pending.                                                  | 5D-5      |
+
+## Current milestone progress
+
+Phase 5D-1 is implemented for Mexico City. Pack revision 8 includes five RPG missions, four new guide cards, U02 Study materials, review and remediation, and optional challenge variants. The curriculum and chapter-pack checks passed. A browser scenario completed the chapter offline, recovered an unfinished draft, submitted written answers with Enter, preserved Home progress and displayed the Mexico passport stamp. Chapter acceptance still needs physical Android and learner evaluation. [Mexico City validation](PHASE_5D_MEXICO_VALIDATION.md)
+
+## Reuse of published Study lessons
+
+These are editorial mappings to the approved objectives. They identify materials to retain or adapt and leave the existing lesson, item and learning IDs addressable. Check the construction, vocabulary sense, task dimension and prerequisites before treating any individual item as equivalent. Every row gives partial or supporting coverage. The remaining planned objectives need new material or a reviewed reuse mapping. [Published lesson inventory](curriculum/curriculum-audit.md#textbook-inventory-and-reuse-all-32-lessons) · [Learning registry](PHASE_5C_LEARNING_ARCHITECTURE.md#canonical-registry)
+
+| Published lesson | Approved objective(s)                                             | Material available for reuse                           |
+| ---------------- | ----------------------------------------------------------------- | ------------------------------------------------------ |
+| `u01_l01`        | `lq-home-start.greet`, `lq-home-start.name`                       | Opening dialogue and name patterns                     |
+| `u01_l02`        | `lq-home-plaza.origins`, `lq-home-plaza.people-things`            | Family words and third-person descriptions             |
+| `u01_l03`        | `lq-home-plaza.people-things`, `lq-home-plaza.bag`                | Descriptions with `it` and `they`                      |
+| `u01_l04`        | `lq-home-plaza.origins`                                           | Questions with `be` and origin replies                 |
+| `u02_l01`        | `lq-mexico-routines.routine`                                      | Present-simple routine language                        |
+| `u02_l02`        | `lq-mexico-routines.others`                                       | Third-person agreement and family routines             |
+| `u02_l03`        | `lq-mexico-routines.others`                                       | Frequency and placement of adverbs                     |
+| `u02_l04`        | `lq-mexico-routines.time`                                         | Daily scheduling and `at` plus time                    |
+| `u03_l01`        | `lq-mexico-routines.routine-ask`, `lq-cartagena-food.likes`       | `do` and `does` questions in routine and food contexts |
+| `u03_l02`        | `lq-mexico-routines.routine-ask`, `lq-cartagena-food.likes`       | `don't` and `doesn't` with the base form               |
+| `u03_l03`        | `lq-home-start.repair`, `lq-salvador-actions.can-do`              | Simple requests and requests for repetition            |
+| `u03_l04`        | `lq-home-plaza.place`, `lq-toronto-signup.exist`                  | Location and existence phrases                         |
+| `u04_l01`        | `lq-cusco-past.past-be`                                           | `was` and `were` with past-time anchors                |
+| `u04_l02`        | `lq-cusco-past.past-ed`                                           | Regular past-tense forms                               |
+| `u04_l03`        | `lq-cusco-past.past-irreg`                                        | Market account with frequent irregular verbs           |
+| `u04_l04`        | `lq-cusco-past.past-ask`                                          | `did` with the base verb                               |
+| `u05_l01`        | `lq-salvador-actions.now`, `lq-salvador-actions.habit-now`        | First-person descriptions of current actions           |
+| `u05_l02`        | `lq-salvador-actions.now`, `lq-salvador-actions.coordinate`       | Kitchen actions and third-person agreement             |
+| `u05_l03`        | `lq-salvador-actions.habit-now`, `lq-salvador-actions.coordinate` | Negative progressive forms                             |
+| `u05_l04`        | `lq-salvador-actions.coordinate`                                  | Questions about current actions                        |
+| `u06_l01`        | `lq-valparaiso-plans.plans`                                       | Intentions with `going to`                             |
+| `u06_l02`        | `lq-valparaiso-plans.plans`, `lq-valparaiso-plans.reschedule`     | Questions about plans                                  |
+| `u06_l03`        | `lq-valparaiso-plans.offer`                                       | Offers with `will`                                     |
+| `u06_l04`        | `lq-valparaiso-plans.reschedule`                                  | `won't` and alternatives                               |
+| `u07_l01`        | `lq-miami-experiences.ever`                                       | Experience questions and past participles              |
+| `u07_l02`        | `lq-miami-experiences.ever`                                       | Experience exchanges with `ever`                       |
+| `u07_l03`        | `lq-miami-experiences.ready`                                      | Preparation checks with `yet`                          |
+| `u07_l04`        | `lq-miami-experiences.when-past`                                  | Dated past follow-ups                                  |
+| `u08_l01`        | `lq-cartagena-food.order`, `lq-toronto-messages.book`             | Polite requests with `would like`                      |
+| `u08_l02`        | `lq-home-plaza.direction`, `lq-nyc-options.routes`                | Directions and imperatives                             |
+| `u08_l03`        | `lq-nyc-options.compare`, `lq-nyc-options.best-route`             | Comparatives and route choices                         |
+| `u08_l04`        | `lq-nyc-options.routes`, `lq-nyc-options.interview`               | Reasons with `because` and job examples                |
+
+## Milestones and acceptance
+
+| Milestone                      | Deliverable and acceptance evidence                                                                                                                                                                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 5D-1 · Mexico City             | A1 market adventure, reusable U02 materials, explicit `do`/`does` and negation instruction, independent variants, review/remediation, optional challenges, and an offline pack. Record item and objective coverage in `PHASE_5D_MEXICO_VALIDATION.md`. |
+| 5D-2 · Remaining Pre-A1 and A1 | Complete Home coverage gaps and develop Cartagena, Cusco and Salvador in route order. Check that sound, print, basic repair and early verb forms precede their later use.                                                                              |
+| 5D-3 · A2                      | Develop Valparaíso, Miami, New York and Toronto. Validate the A2 service task in an alternate context.                                                                                                                                                 |
+| 5D-4 · B1                      | Develop London through Tokyo. Verify extended input, clarification, written follow-up, mediation and a new context for the B1 task.                                                                                                                    |
+| 5D-5 · B2                      | Develop Hobart through Antarctica. Check source use, qualification, negotiation and the independent final report.                                                                                                                                      |
+| 5D-6 · Final verification      | Reconcile the matrix against implementation and evidence for all 83 goals. Check route continuity, pack compatibility and each CEFR band's claims against its assessed Can-do descriptors.                                                             |
+
+Develop and review each chapter before beginning formal content for the next chapter. For each chapter, record source and translation checks, instructional prerequisites, accepted and rejected answers, audio and art coverage, story continuity, modality coverage, alternate assessments, remediation and optional challenge gates. Reuse canonical learning IDs, keep independent evidence distinct from practice and self-checks, and check pause/resume, versioned offline install and prior progress. Verify the curriculum and packs, run unit and browser tests, and build Web, Android and APK. Record device checks and human review separately from automated results. [Quality criteria](PHASE_5B_CONTENT_AUDIT.md) · [Learning evidence](PHASE_5C_LEARNING_EVIDENCE.md) · [Adaptive review](PHASE_5C_ADAPTIVE_REVIEW.md)

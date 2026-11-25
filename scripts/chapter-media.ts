@@ -70,7 +70,20 @@ export async function loadChapterImages(chapterId: string): Promise<Record<strin
     if (!/^[a-z]+(?:-[a-z]+)*$/.test(chapterId)) {
       throw new Error(`Invalid chapter ID: ${chapterId}`);
     }
-    return { cover: await readMedia(new URL(`${chapterId}.jpg`, chapterArt), 'image/jpeg') };
+    const cover = await readMedia(new URL(`${chapterId}.jpg`, chapterArt), 'image/jpeg');
+    if (chapterId !== 'mexico') return { cover };
+    return {
+      cover,
+      'mexico-reading-room': await readMedia(
+        new URL('mexico-reading-room.jpg', chapterArt),
+        'image/jpeg',
+      ),
+      'portrait-ines': await readMedia(new URL('mexico-ines.jpg', chapterArt), 'image/jpeg'),
+      'portrait-sam': await readMedia(
+        new URL('journal/story-sam-portrait.png', mobileAssets),
+        'image/png',
+      ),
+    };
   }
 
   return Object.fromEntries(
