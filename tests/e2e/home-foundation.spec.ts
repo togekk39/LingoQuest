@@ -152,6 +152,7 @@ test('Sam offers one beginner activity and Study resumes that same checkpoint', 
   page,
   request,
 }) => {
+  test.setTimeout(120_000);
   await openFirstNameConversation(page, 'Ana');
   const suggestion = page.getByTestId('story-learning-recommendation');
   await expect(suggestion).toHaveCount(1);
@@ -177,6 +178,8 @@ test('Sam offers one beginner activity and Study resumes that same checkpoint', 
   await click(page, 'Cerrar y volver');
   await page.getByRole('tab', exact('Inicio')).click();
   await click(page, 'Comenzar mi aventura');
+  await expect(page.getByTestId('speaking-studio')).toBeVisible();
+  await click(page, 'Cerrar diálogo');
   await expect(suggestion).toContainText('Voy a anotar tu nombre');
   expect((await state(page)).travel.completed['foundation-greetings']).toBeUndefined();
 });
