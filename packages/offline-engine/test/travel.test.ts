@@ -226,10 +226,15 @@ test('travel placement accepts a real or practice name without changing player i
     ['I’m María-José de la Cruz.', true],
     ['My name is J. R. O’Neill.', true],
     ['Hello! You can call me Núria.', true],
+    ['I am Running Deer.', true],
     ['I are María-José de la Cruz.', false],
     ['My name María-José de la Cruz.', false],
     ['I am not Sofía.', false],
     ['Luz is my friend.', false],
+    ['I am running late.', false],
+    ['I am able to help.', false],
+    ['I am first in line.', false],
+    ['I am Ana and.', false],
   ] as const) {
     const { placement, travel } = await engine.request<{
       placement: TravelPlacement;

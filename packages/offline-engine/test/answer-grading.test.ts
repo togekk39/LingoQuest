@@ -227,6 +227,8 @@ test('personal introductions accept real name formats and keep identity separate
     'I am J.R. López.',
     'My name is Wei-Lun Nguyễn.',
     'Hi, I am Lucía!',
+    'I am Running Deer.',
+    'I am Ana Or.',
   ])
     assert.equal(judgeAnswer(exercise, { text }), 'target', text);
   assert.equal(judgeAnswer(exercise, { text: 'You can call me Lucía.' }), 'communication_only');
@@ -240,6 +242,12 @@ test('personal introductions accept real name formats and keep identity separate
     'I am [tu nombre].',
     'I am eating fruit.',
     'I am Ana, I know.',
+    'I’m running late.',
+    'I’m pretty good.',
+    'I am still waiting for the bus.',
+    'I am able to help.',
+    'I am first in line.',
+    'I am Ana and.',
   ])
     assert.equal(judgeAnswer(exercise, { text }), 'incorrect', text);
 });

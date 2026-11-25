@@ -6,6 +6,10 @@ const namePart = /^(?:(?:\p{L}\p{M}*\.)+\p{L}?|\p{L}\p{M}*(?:['-]?\p{L}\p{M}*)*)
 const nonNameWords = /^(?:my|you|your|am|is|are|was|were|called|here|very|from)$/u;
 const nonNameStarts =
   /^(?:not|a|an|the|at|in|on|with|fine|good|okay|ok|happy|ready|tired|doing|looking|going|waiting|trying|learning|working|visiting|eating|drinking|reading|studying|traveling|calling|listening|speaking|sitting|standing|sorry|glad|excited|hungry|thirsty|lost|sick|busy|uh|um|er|ah)$/u;
+const nonNamePhrases =
+  /^(?:running (?:late|early|behind)|(?:able|unable|about|supposed|willing) to|(?:first|second|third|last|next) (?:in|on|at))(?: |$)/u;
+const leadingQualifiers =
+  /^(?:(?:just|still|actually|really|pretty|quite|so|too|almost|already) )+/u;
 
 function isName(value: string | undefined): boolean {
   const spelling = value?.replace(/[’‘ʼ]/g, "'").replace(/[‐‑]/g, '-');
@@ -15,10 +19,14 @@ function isName(value: string | undefined): boolean {
     !spelling.split(' ').every((part) => namePart.test(part))
   )
     return false;
-  const words = spelling.toLowerCase().split(' ');
-  const namesInCoordination = words.slice(1, -1).some((word) => word === 'and' || word === 'or');
+  const normalized = spelling.toLowerCase();
+  const words = normalized.split(' ');
+  const predicate = normalized.replace(leadingQualifiers, '');
+  const namesInCoordination =
+    words.length > 1 && (words.includes('and') || words.slice(1, -1).includes('or'));
   return (
-    !nonNameStarts.test(words[0]) &&
+    !nonNameStarts.test(predicate.split(' ', 1)[0]) &&
+    !nonNamePhrases.test(predicate) &&
     !words.some((word) => nonNameWords.test(word)) &&
     !namesInCoordination
   );

@@ -116,7 +116,7 @@ The textbook trace now checks 238 vocabulary recognition and matching items and 
 
 In `challenge_travel_meeting_reading_0` through `challenge_travel_meeting_reading_3`, the passage moves `next Saturday` to Leo’s travel plan. The earlier `a ticket for next Saturday` required an additional sense of `for`. The date, context and four exercise IDs and keys remain.
 
-The grading regression suite now runs exact examples from the authored course. It checks full and contracted forms, natural word order, explicitly accepted synonyms, initials and multipart names, negation, grammar errors, punctuation that changes meaning, and all four outcome types. The name parser rejects apparent self-introductions that supply two names joined by an English conjunction.
+The grading regression suite now runs exact examples from the authored course. It checks full and contracted forms, natural word order, explicitly accepted synonyms, initials and multipart names, negation, grammar errors, punctuation that changes meaning, and all four outcome types. The name parser rejects two names joined by an English conjunction and status statements such as `I’m running late` or `I am first in line`. It accepts names such as `Running Deer` and the surname `Or`.
 
 ## Verification and remaining evidence
 

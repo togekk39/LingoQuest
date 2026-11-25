@@ -116,7 +116,7 @@ El curso comprueba 238 ítems de reconocimiento y parejas y 144 de práctica con
 
 En `challenge_travel_meeting_reading_0` a `challenge_travel_meeting_reading_3`, el pasaje pasa `next Saturday` al plan de viaje de Leo. Antes, `a ticket for next Saturday` requería otro sentido de `for`. Se conservan la fecha, el contexto y los cuatro identificadores y claves.
 
-Las regresiones de evaluación ahora usan ejemplos exactos del curso publicado. Comprueban formas completas y contraídas, orden natural, sinónimos aceptados explícitamente, iniciales y nombres compuestos, negación, errores gramaticales, puntuación que cambia el sentido y los cuatro resultados. El evaluador rechaza aparentes presentaciones con dos nombres unidos por una conjunción en inglés.
+Las regresiones de evaluación ahora usan ejemplos exactos del curso publicado. Comprueban formas completas y contraídas, orden natural, sinónimos aceptados explícitamente, iniciales y nombres compuestos, negación, errores gramaticales, puntuación que cambia el sentido y los cuatro resultados. El evaluador rechaza dos nombres unidos por una conjunción inglesa y enunciados como `I’m running late` o `I am first in line`. Acepta nombres como `Running Deer` y el apellido `Or`.
 
 ## Verificación y evidencia pendiente
 
