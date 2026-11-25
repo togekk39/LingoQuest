@@ -12,6 +12,7 @@ import { travelPlacementSchema } from './travel-placement';
 import { chapter as homeChapter, travelLesson } from './home-content';
 import type { TravelChapter, TravelStep } from './travel-content';
 import type { TravelExerciseStep } from './travel-content';
+import { eventScenarioReady } from './event-scenario';
 import { travelStepVocabulary } from './travel-vocabulary';
 import type { ReviewInstruction } from './learning-prerequisites';
 import {
@@ -75,6 +76,7 @@ const checkpointSchema = z
     result: savedResultSchema.optional(),
     scenario: scenarioStateSchema.optional(),
     scenarioReply: scenarioReplySchema.optional(),
+    scenarioSpeaker: z.string().min(1).max(100).optional(),
     scenarioDraft: z
       .object({ stepId: z.string().max(100), answer: draftAnswerSchema })
       .strict()
@@ -124,6 +126,7 @@ export function travelStoryReply(
       );
     return step.storyReply;
   }
+  if (step.scenarioTurn?.action === 'inquire') return scenarioReply;
   if (step.exercise.ungradable && result.outcome === 'ungradable') return step.storyReply;
 }
 
@@ -173,6 +176,13 @@ const operationSchema = z.discriminatedUnion('action', [
     })
     .strict(),
   z.object({ action: z.literal('note'), text: z.string().max(500) }).strict(),
+  z
+    .object({
+      action: z.literal('scenarioSpeaker'),
+      token: z.string(),
+      personId: z.string().min(1).max(100),
+    })
+    .strict(),
   z.object({ action: z.literal('draft'), token: z.string(), answer: draftAnswerSchema }).strict(),
   z
     .object({
@@ -250,7 +260,12 @@ export function upgradeTravelCheckpoints(
           : saved.contentRevision === 2
             ? mission?.steps[saved.step]?.id
             : undefined);
-    const step = mission?.steps.findIndex((item) => item.id === stableId) ?? -1;
+    const replacement = stableId ? mission?.replacedSteps?.[stableId] : undefined;
+    const currentId = replacement ?? stableId;
+    const step = mission?.steps.findIndex((item) => item.id === currentId) ?? -1;
+    if (replacement) {
+      saved = { ...saved, answer: {}, result: undefined, scenarioReply: undefined };
+    }
     if (mission?.scenario) {
       const authoredScenario = mission.scenario;
       const compatible = saved.scenario?.definitionDigest === rpgScenarioDigest(authoredScenario);
@@ -302,7 +317,7 @@ export function upgradeTravelCheckpoints(
     return {
       ...saved,
       step,
-      stepId: stableId,
+      stepId: currentId,
       answer,
       ...(chapter.id !== 'home' && mission?.steps[step]?.type === 'teach' && { word: undefined }),
       contentRevision: chapter.revision,
@@ -336,6 +351,7 @@ function checkpoint(
     transcript: false,
     finished: false,
     ...(scenario && { scenario }),
+    ...(previous?.scenarioSpeaker && { scenarioSpeaker: previous.scenarioSpeaker }),
     ...(draft && !resumeDraft && { scenarioDraft: draft }),
   };
 }
@@ -403,6 +419,18 @@ export function updateTravel(
   const mission = chapter.missions.find((item) => item.id === current.missionId);
   const step = mission?.steps[current.step];
   if (!mission || !step) return;
+  const timeline = mission.scenario && 'kind' in mission.scenario ? mission.scenario : undefined;
+  const eventState = current.scenario && 'kind' in current.scenario ? current.scenario : undefined;
+  const inquiry = step.type === 'exercise' && step.scenarioTurn?.action === 'inquire';
+  if (input.action === 'scenarioSpeaker') {
+    if (
+      inquiry &&
+      !current.result &&
+      timeline?.participants.some(({ id }) => id === input.personId)
+    )
+      current.scenarioSpeaker = input.personId;
+    return;
+  }
   const skipKnown =
     input.action === 'skipKnown' &&
     step.type === 'exercise' &&
@@ -463,6 +491,7 @@ export function updateTravel(
               current.scenario,
               step.scenarioTurn,
               input.answer.text,
+              current.scenarioSpeaker ?? timeline?.participants[0].id,
             )
           : undefined;
       current.result = attempt(
@@ -488,10 +517,9 @@ export function updateTravel(
         },
       );
       current.answer = input.answer;
-      if (evaluation?.state && (current.result.correct || current.result.communicationOnly)) {
+      if (evaluation?.state && (current.result.correct || current.result.communicationOnly))
         current.scenario = evaluation.state;
-        current.scenarioReply = evaluation.reply;
-      }
+      if (evaluation?.reply) current.scenarioReply = evaluation.reply;
     }
     if (
       input.action === 'retry' &&
@@ -532,6 +560,10 @@ export function updateTravel(
     if (step.type === 'teach' || (step.type === 'dialogue' && step.line))
       introduce(current.token, input.translationShown);
   } else if (!skipKnown) return;
+  if (inquiry && timeline && !eventScenarioReady(timeline, eventState)) {
+    travel.active = checkpoint(chapter, mission.id, current.step, id(), current);
+    return;
+  }
   if (current.step + 1 < mission.steps.length) {
     travel.active = checkpoint(chapter, mission.id, current.step + 1, id(), current);
     return;

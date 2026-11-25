@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { learningErrorSchema } from '@lingoquest/contracts';
 
 const id = z
   .string()
@@ -66,7 +67,7 @@ function distinct(values: readonly string[]) {
   return new Set(values).size === values.length;
 }
 
-export const scenarioDefinitionSchema = z
+const menuScenarioDefinitionSchema = z
   .object({
     id,
     title: translation,
@@ -145,7 +146,7 @@ export const scenarioEvidenceTargetSchema = z
   })
   .strict();
 
-export const scenarioTurnSchema = z
+const menuScenarioTurnSchema = z
   .object({
     action: scenarioActionSchema,
     targetForms: z.array(scenarioFormSchema).min(1).max(8).readonly(),
@@ -189,6 +190,150 @@ export const scenarioLineSchema = z
   })
   .strict();
 
+export const eventFactSchema = z.enum(['person', 'time', 'place', 'object']);
+const eventValueSchema = z.object({ label: translation, aliases }).strict();
+const timelineEventSchema = z
+  .object({
+    id,
+    personId: id,
+    date: phrase,
+    minute: z.number().int().min(0).max(1439),
+    time: eventValueSchema,
+    place: eventValueSchema,
+    object: eventValueSchema.optional(),
+    base: phrase,
+    past: phrase,
+    complements: z.array(phrase).min(1).max(15).readonly(),
+    statement: translation,
+    note: translation,
+    visible: z.array(eventFactSchema).max(4).readonly(),
+    required: z.array(eventFactSchema).max(4).readonly(),
+    witnesses: z
+      .array(
+        z
+          .object({
+            personId: id,
+            knows: z.array(eventFactSchema).max(4).readonly(),
+          })
+          .strict(),
+      )
+      .max(20)
+      .readonly(),
+  })
+  .strict();
+
+export const eventScenarioDefinitionSchema = z
+  .object({
+    kind: z.literal('timeline'),
+    id,
+    title: translation,
+    subtitle: translation,
+    participants: z.array(participantSchema).min(1).max(20).readonly(),
+    events: z.array(timelineEventSchema).min(2).max(20).readonly(),
+  })
+  .strict()
+  .refine(({ participants, events }) => {
+    const people = new Set(participants.map(({ id }) => id));
+    return (
+      people.size === participants.length &&
+      distinct(events.map(({ id }) => id)) &&
+      events.some(({ required }) => required.length > 0) &&
+      events.every(
+        (event) =>
+          people.has(event.personId) &&
+          distinct(event.visible) &&
+          distinct(event.required) &&
+          distinct(event.witnesses.map(({ personId }) => personId)) &&
+          event.witnesses.every(({ personId, knows }) => people.has(personId) && distinct(knows)) &&
+          event.required.every(
+            (field) =>
+              !event.visible.includes(field) &&
+              (field !== 'object' || !!event.object) &&
+              event.witnesses.some(({ knows }) => knows.includes(field)),
+          ),
+      )
+    );
+  });
+
+const eventFormSchema = z.enum([
+  'did-question',
+  'wh-question',
+  'subject-question',
+  'past-statement',
+  'past-negative',
+]);
+const eventScenarioTurnSchema = z
+  .object({
+    action: z.enum(['inquire', 'record']),
+    focusEventIds: tokens,
+    targetForms: z.array(eventFormSchema).min(1).max(5).readonly(),
+    formTargets: z
+      .array(
+        z
+          .object({
+            form: eventFormSchema,
+            targets: z.array(scenarioEvidenceTargetSchema).min(1).max(20).readonly(),
+          })
+          .strict(),
+      )
+      .max(5)
+      .readonly()
+      .optional(),
+    eventTargets: z
+      .array(
+        z
+          .object({
+            eventId: id,
+            targets: z.array(scenarioEvidenceTargetSchema).min(1).max(20).readonly(),
+          })
+          .strict(),
+      )
+      .max(20)
+      .readonly()
+      .optional(),
+    errorTargets: z
+      .array(
+        z
+          .object({
+            form: eventFormSchema,
+            error: learningErrorSchema,
+            eventId: id.optional(),
+            targets: z.array(scenarioEvidenceTargetSchema).min(1).max(20).readonly(),
+          })
+          .strict(),
+      )
+      .max(20)
+      .readonly()
+      .optional(),
+    feedback: z.record(scenarioFeedbackSchema, phrase).optional(),
+  })
+  .strict()
+  .refine(
+    ({ targetForms, formTargets, eventTargets, errorTargets, action, focusEventIds }) =>
+      !!focusEventIds.length &&
+      distinct(focusEventIds) &&
+      distinct(targetForms) &&
+      distinct((formTargets ?? []).map(({ form }) => form)) &&
+      distinct((eventTargets ?? []).map(({ eventId }) => eventId)) &&
+      distinct(
+        (errorTargets ?? []).map(({ form, error, eventId }) => `${form}:${error}:${eventId ?? ''}`),
+      ) &&
+      (errorTargets ?? []).every(({ eventId }) => !eventId || focusEventIds.includes(eventId)) &&
+      (action === 'record' || !eventTargets?.length),
+  );
+
+export const scenarioDefinitionSchema = z.union([
+  menuScenarioDefinitionSchema,
+  eventScenarioDefinitionSchema,
+]);
+export const scenarioTurnSchema = z.union([menuScenarioTurnSchema, eventScenarioTurnSchema]);
+export type MenuScenarioDefinition = z.infer<typeof menuScenarioDefinitionSchema>;
+export type MenuScenarioTurn = z.infer<typeof menuScenarioTurnSchema>;
+export type EventScenarioDefinition = z.infer<typeof eventScenarioDefinitionSchema>;
+export type EventScenarioTurn = z.infer<typeof eventScenarioTurnSchema>;
+export type EventFact = z.infer<typeof eventFactSchema>;
+export type EventForm = z.infer<typeof eventFormSchema>;
+export type TimelineEvent = z.infer<typeof timelineEventSchema>;
 export type ScenarioDefinition = z.infer<typeof scenarioDefinitionSchema>;
 export type ScenarioItem = z.infer<typeof itemSchema>;
 export type ScenarioAction = z.infer<typeof scenarioActionSchema>;

@@ -233,11 +233,29 @@ export function exactRpgAssessment(
   if (!exactRpgReferences(step.requires, definitions) || !step.targets?.length) return false;
   if (!exactRpgAnswerEvidence(step)) return false;
   const declaredTargets = new Set(step.targets.map(unifiedMasteryKey));
-  for (const { targets } of step.scenarioTurn?.formTargets ?? []) {
+  const eventTurn =
+    step.scenarioTurn && 'eventTargets' in step.scenarioTurn ? step.scenarioTurn : undefined;
+  const errorTargets =
+    step.scenarioTurn && 'errorTargets' in step.scenarioTurn
+      ? (step.scenarioTurn.errorTargets ?? [])
+      : [];
+  for (const { targets } of [
+    ...(step.scenarioTurn?.formTargets ?? []),
+    ...(eventTurn?.eventTargets ?? []),
+    ...errorTargets,
+  ]) {
     const keys = targets.map(unifiedMasteryKey);
     if (new Set(keys).size !== keys.length || keys.some((key) => !declaredTargets.has(key)))
       return false;
   }
+  if (
+    errorTargets.some(({ targets }) =>
+      targets.some(
+        ({ dimension }) => dimension !== 'grammar_production' && dimension !== 'vocabulary_recall',
+      ),
+    )
+  )
+    return false;
   const { exercise } = step;
   const writes =
     !exercise.options?.length && ['short_text', 'cloze', 'correction'].includes(exercise.type);

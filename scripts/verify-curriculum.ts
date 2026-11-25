@@ -48,6 +48,7 @@ import { chapterAdventures, reviewedAdventure } from './chapter-adventures';
 import { inspectAdventurePrerequisites } from './published-adventure-prerequisites';
 import { inspectAdventureChallenges } from './published-adventure-challenges';
 import { evaluateScenarioTurn, startScenario } from '../packages/offline-engine/src/scenario';
+import { cuscoScenarioPaths } from '../content/source/cusco-scenario-review';
 import type { TravelMission } from '../packages/offline-engine/src/travel-content';
 
 const root = new URL('../', import.meta.url);
@@ -251,7 +252,32 @@ function counts<T>(rows: readonly T[], key: (row: T) => string) {
 
 function verifyScenarioAnswers({ scenario, steps }: TravelMission) {
   if (!scenario) return 0;
-  let state = startScenario(scenario);
+  if ('kind' in scenario) {
+    const paths = cuscoScenarioPaths[scenario.id];
+    assert.ok(paths?.length >= 2, scenario.id);
+    const turns = steps.flatMap((step) =>
+      step.type === 'exercise' && step.scenarioTurn ? [step.scenarioTurn] : [],
+    );
+    let probes = 0;
+    for (const path of paths) {
+      let state: ReturnType<typeof startScenario> = startScenario(scenario);
+      for (const { input, person, expected, reply } of path) {
+        const result = evaluateScenarioTurn(scenario, state, turns[person ? 0 : 1], input, person);
+        assert.equal(result.verdict.outcome, expected, `${scenario.id}: ${input}`);
+        if (reply) assert.equal(result.reply?.line.en, reply, input);
+        if (expected === 'target' || expected === 'communication_only') {
+          assert.ok(result.state, input);
+          state = result.state;
+        } else {
+          assert.equal(result.state, undefined, input);
+        }
+        probes++;
+      }
+      assert.equal(state.phase, 'complete', scenario.id);
+    }
+    return probes;
+  }
+  let state: ReturnType<typeof startScenario> = startScenario(scenario);
   let probes = 0;
   for (const step of steps) {
     if (step.type !== 'exercise' || !step.scenarioTurn) continue;

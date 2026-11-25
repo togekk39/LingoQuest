@@ -27,6 +27,14 @@ import {
 import { cartagenaChapter, cartagenaPractice } from '../content/source/cartagena-missions';
 import { cartagenaAdventure } from '../content/source/cartagena-story';
 import { cartagenaLearningDefinitions } from '../content/source/cartagena-prerequisites';
+import { cuscoChapter } from '../content/source/cusco-missions';
+import { cuscoPractice } from '../content/source/cusco-assessments';
+import { cuscoAdventure } from '../content/source/cusco-story';
+import { cuscoDefinitions } from '../content/source/cusco-lessons';
+import { cuscoChallenges } from '../content/source/cusco-challenges';
+import cuscoReview from '../content/source/cusco-rpg-review.json';
+import cuscoChallengeDigests from '../content/source/cusco-challenge-review.json';
+import { eventScenarioPhrases } from '../packages/offline-engine/src/event-scenario';
 import cartagenaReview from '../content/source/cartagena-rpg-review.json';
 import {
   formalDefinitions,
@@ -118,7 +126,8 @@ function adventurePhrases({
   return [
     ...adventure.dialogues.flatMap(({ line }) => (line ? [line.en] : [])),
     ...(adventure.repairPhrases?.map(({ phrase }) => phrase.en) ?? []),
-    ...chapter.missions.flatMap(({ vocabulary, steps }) => [
+    ...chapter.missions.flatMap(({ vocabulary, steps, scenario }) => [
+      ...(scenario && 'kind' in scenario ? eventScenarioPhrases(scenario) : []),
       ...vocabulary.flatMap(({ term, example }) => [term, example.en]),
       ...steps.flatMap((step) => {
         if (step.type === 'dialogue') return step.line ? [step.line.en] : [];
@@ -228,7 +237,41 @@ export const cartagenaStory = {
   },
 };
 
-type AuthoredAdventure = typeof homeStory | typeof mexicoStory | typeof cartagenaStory;
+const cuscoAudit: RpgAdventureAudit = {
+  ...cuscoReview,
+  definitions: [...cuscoDefinitions],
+  challenges: Object.fromEntries(
+    Object.values(cuscoChallenges)
+      .flat()
+      .map(({ exercise, requires }) => [
+        exercise.id,
+        { requires, digest: (cuscoChallengeDigests as Record<string, string>)[exercise.id] },
+      ]),
+  ),
+};
+export const cuscoStory = {
+  chapter: cuscoChapter,
+  adventure: cuscoAdventure,
+  practice: cuscoPractice,
+  supportingLessons: [],
+  challenges: {
+    grammar_rush: cuscoChallenges.grammar_rush.map(({ exercise }) => exercise),
+    cloze_battle: cuscoChallenges.cloze_battle.map(({ exercise }) => exercise),
+    reading_quest: cuscoChallenges.reading_quest.map(({ exercise }) => exercise),
+  },
+  audit: {
+    ...cuscoAudit,
+    definitions: portableDefinitions(
+      cuscoChapter,
+      cuscoPractice,
+      courseUnits.find(({ id }) => id === 'u04')!.lessons.map(({ id }) => id),
+      cuscoAudit,
+    ),
+  },
+};
+
+type AuthoredAdventure =
+  typeof homeStory | typeof mexicoStory | typeof cartagenaStory | typeof cuscoStory;
 
 export function reviewedAdventure(story: AuthoredAdventure) {
   if (!('runtime' in story)) return story;
@@ -299,6 +342,15 @@ export const chapterAdventures = new Map<
         ...adventurePhrases(cartagenaStory),
         ...chapterLessonPhrases([], cartagenaStory.supportingLessons),
       ],
+    },
+  ],
+  [
+    cuscoStory.chapter.id,
+    {
+      story: cuscoStory,
+      properNames: ['Cusco', 'Nora', 'Ana', 'Diego', 'Sam', 'Luz'],
+      reuseAudioFrom: ['home', 'mexico', 'colombia'],
+      phrases: adventurePhrases(cuscoStory),
     },
   ],
 ]);

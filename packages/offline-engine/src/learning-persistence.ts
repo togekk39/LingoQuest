@@ -181,6 +181,7 @@ const archivedPracticeSchema = stepSchema
     storyReplies: travelStoryRepliesSchema.optional(),
     activityTitle: z.string().max(4000).optional(),
     reviewMissionId: identifier.optional(),
+    recommendUnverified: z.literal(true).optional(),
     exercise: archiveExerciseSchema,
     requires: z.array(referenceSchema).min(1).max(150),
     targets: rpgAssessmentTargetsSchema.optional(),

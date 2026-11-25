@@ -1,7 +1,7 @@
 import type { LearningError } from './travel-learning';
 import type {
   ParsedScenarioLine,
-  ScenarioDefinition,
+  MenuScenarioDefinition,
   ScenarioForm,
   ScenarioItem,
   ScenarioLine,
@@ -90,7 +90,7 @@ function withoutPlease(value: string) {
     .trim();
 }
 
-function withRecipient(value: string, definition: ScenarioDefinition) {
+function withRecipient(value: string, definition: MenuScenarioDefinition) {
   const index = value.lastIndexOf(' for ');
   if (index < 0) return { value };
   const recipient = value.slice(index + ' for '.length);
@@ -182,7 +182,7 @@ function readModifiers(value: string, items: readonly ScenarioItem[]) {
   return modifiers;
 }
 
-function matchLine(value: string, definition: ScenarioDefinition): ReadLine {
+function matchLine(value: string, definition: MenuScenarioDefinition): ReadLine {
   const recipient = withRecipient(value, definition);
   const items = [...definition.menu, ...(definition.knownItems ?? [])];
   const quantity = readQuantity(recipient.value);
@@ -229,7 +229,7 @@ function lineFailure(
 }
 
 export function parseScenarioLanguage(
-  definition: ScenarioDefinition,
+  definition: MenuScenarioDefinition,
   action: ScenarioLanguageAction,
   input?: string,
 ): ParsedScenarioLanguage {

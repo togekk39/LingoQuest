@@ -1012,4 +1012,39 @@ test('a mobile learner completes Cartagena and two stateful orders offline', asy
   expect(
     networkGuard.attempted.filter((url) => /\/chapter-packs\/\d+\/colombia\.json$/.test(url)),
   ).toHaveLength(1);
+
+  await click(page, 'Volver al viaje');
+  await click(page, 'Cerrar y volver');
+  await page.getByRole('tab', exact('Inicio')).click();
+  await click(page, 'Abrir pasaporte');
+  const handoff = await progress(page);
+  const peru = await publishedPack(request, 'peru');
+  await context.setOffline(false);
+  await click(page, 'Continuar a Cusco');
+  await expect(page.getByTestId('chapter-lesson-peru')).toBeVisible();
+  await click(page, 'Explorar aventura de este capítulo');
+  await expect(scene(page, 'cusco-past-be-scene')).toBeVisible();
+  await expect(page.getByText(/postal de Alba/)).toBeVisible();
+  expect(
+    networkGuard.attempted.filter((url) =>
+      url.endsWith(`/chapter-packs/${peru.revision}/peru.json`),
+    ),
+  ).toHaveLength(1);
+  await readyOfflineShell(page, context);
+  await page.getByTestId('story-hotspot-cusco-past-be-open').click();
+  await choice(page, 'cusco-past-be-start');
+  await click(page, 'Continuar');
+  await expect(page.getByTestId('grammar-workbench')).toBeVisible();
+  await click(page, 'Probar en la historia');
+  const afterHandoff = await progress(page);
+  expect(afterHandoff.travel).toEqual(handoff.travel);
+  expect(afterHandoff.story).toEqual(handoff.story);
+  expect(afterHandoff.chapterProgress?.mexico).toEqual(handoff.chapterProgress?.mexico);
+  expect(afterHandoff.chapterProgress?.colombia).toEqual(handoff.chapterProgress?.colombia);
+  expect(
+    afterHandoff.unifiedLearning.evidence.slice(0, handoff.unifiedLearning.evidence.length),
+  ).toEqual(handoff.unifiedLearning.evidence);
+  expect(afterHandoff.unifiedLearning.legacySchedules).toEqual(
+    handoff.unifiedLearning.legacySchedules,
+  );
 });

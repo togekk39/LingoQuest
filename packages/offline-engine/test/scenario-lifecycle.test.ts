@@ -9,9 +9,9 @@ import {
   evaluateScenarioTurn,
   scenarioStateSchema,
   startScenario,
-  type ScenarioDefinition,
-  type ScenarioState,
-  type ScenarioTurn,
+  type MenuScenarioDefinition,
+  type MenuScenarioState,
+  type MenuScenarioTurn,
 } from '../src/scenario';
 import { emptyTravel, updateTravel, type TravelOperation } from '../src/travel';
 import type { TravelChapter } from '../src/travel-content';
@@ -23,7 +23,7 @@ const could = target('pattern.fixture.could');
 const would = target('pattern.fixture.would');
 const instead = target('pattern.fixture.instead-of');
 
-const menu: ScenarioTurn = {
+const menu: MenuScenarioTurn = {
   action: 'menu',
   targetForms: ['can-see', 'can-have'],
   formTargets: [
@@ -31,12 +31,12 @@ const menu: ScenarioTurn = {
     { form: 'can-have', targets: [have] },
   ],
 };
-const request: ScenarioTurn = {
+const request: MenuScenarioTurn = {
   action: 'request',
   targetForms: ['would-like'],
   formTargets: [{ form: 'would-like', targets: [would] }],
 };
-const replace: ScenarioTurn = {
+const replace: MenuScenarioTurn = {
   action: 'replace',
   targetForms: ['would-like', 'can-have', 'could-have'],
   formTargets: [
@@ -45,21 +45,25 @@ const replace: ScenarioTurn = {
     { form: 'could-have', targets: [could, instead] },
   ],
 };
-const confirm: ScenarioTurn = { action: 'confirm', targetForms: ['confirm'] };
-const finish: ScenarioTurn = { action: 'finish', targetForms: ['finish'] };
-const check: ScenarioTurn = { action: 'bill', targetForms: ['price', 'can-have'] };
+const confirm: MenuScenarioTurn = { action: 'confirm', targetForms: ['confirm'] };
+const finish: MenuScenarioTurn = { action: 'finish', targetForms: ['finish'] };
+const check: MenuScenarioTurn = { action: 'bill', targetForms: ['price', 'can-have'] };
 
-function conversation(definition: ScenarioDefinition) {
+function conversation(definition: MenuScenarioDefinition) {
   let state = startScenario(definition);
   return {
-    turn(turn: ScenarioTurn, answer: string) {
+    turn(turn: MenuScenarioTurn, answer: string) {
       const previous = JSON.stringify(state);
       const result = evaluateScenarioTurn(definition, state, turn, answer);
       assert.equal(JSON.stringify(state), previous);
-      if (result.state) state = scenarioStateSchema.parse(JSON.parse(JSON.stringify(result.state)));
+      if (result.state) {
+        const restored = scenarioStateSchema.parse(JSON.parse(JSON.stringify(result.state)));
+        assert.ok(!('kind' in restored));
+        state = restored;
+      }
       return result;
     },
-    read: (): ScenarioState => state,
+    read: (): MenuScenarioState => state,
   };
 }
 

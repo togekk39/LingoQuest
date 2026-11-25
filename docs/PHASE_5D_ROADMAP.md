@@ -15,8 +15,8 @@ In the objectives column, combine each unit ID with its listed suffixes. **Needs
 | 01 · Home (`home`)              | `lq-home-start`: `greet`, `name`, `spell`, `repair`. `lq-home-plaza`: `origins`, `people-things`, `place`, `direction`, `objects-map`, `bag` | RPG implemented, U01 and one card. Needs extension for complete Pre-A1/A1 objective coverage.                          | 5D-2A     |
 | 02 · Mexico City (`mexico`)     | `lq-mexico-routines`: `routine`, `others`, `time`, `routine-ask`                                                                             | U02 and one card need extension. Full RPG pending at baseline.                                                         | 5D-1      |
 | 03 · Cartagena (`colombia`)     | `lq-cartagena-food`. `likes`, `quantity`, `prices`, `order`                                                                                  | Five RPG missions and shared Study and review activities in revision 13. Acceptance tracked in the chapter validation. | 5D-2B     |
-| 04 · Cusco (`peru`)             | `lq-cusco-past`: `past-be`, `past-ed`, `past-irreg`, `past-ask`                                                                              | U04 and one card need extension. RPG pending.                                                                          | 5D-2      |
-| 05 · Salvador (`brazil`)        | `lq-salvador-actions`: `now`, `habit-now`, `can-do`, `coordinate`                                                                            | U05 and one card need extension. RPG pending.                                                                          | 5D-2      |
+| 04 · Cusco (`peru`)             | `lq-cusco-past`: `past-be`, `past-ed`, `past-irreg`, `past-ask`                                                                              | Five missions and two journals in validation.                                                                          | 5D-2C     |
+| 05 · Salvador (`brazil`)        | `lq-salvador-actions`: `now`, `habit-now`, `can-do`, `coordinate`                                                                            | U05 and one card need extension. RPG pending.                                                                          | 5D-2D     |
 | 06 · Valparaíso (`chile`)       | `lq-valparaiso-plans`: `plans`, `offer`, `reschedule`                                                                                        | U06 and one card need extension. RPG pending.                                                                          | 5D-3      |
 | 07 · Miami (`miami`)            | `lq-miami-experiences`: `ever`, `when-past`, `ready`                                                                                         | U07 and one card need extension. RPG pending.                                                                          | 5D-3      |
 | 08 · New York (`new-york`)      | `lq-nyc-options`: `compare`, `best-route`, `routes`, `interview`                                                                             | U08 and one card need extension. RPG pending.                                                                          | 5D-3      |
@@ -37,44 +37,46 @@ In the objectives column, combine each unit ID with its listed suffixes. **Needs
 
 Mexico City opened with five RPG missions and four new guide cards in revision 8. Revision 9 applies the Phase 5D-1 correction with reviewed prior instruction, contextual assessment and shared offline learning. Phase 5D-2A adds short from-zero lessons to the existing Home adventure and Study. Its ten objective mappings, item-level checks and remaining acceptance work are recorded in the Home validation. Phase 5D-2B builds the market, menu and restaurant adventure on the Phase 5D-2A merge through PR #32. Cartagena revision 13 uses catalog v8 and adds persistent orders, order changes and evidence for the forms used in each response. [Cartagena validation](PHASE_5D_CARTAGENA_VALIDATION.md) [Home validation](PHASE_5D_HOME_FOUNDATION_VALIDATION.md) · [Mexico City validation](PHASE_5D_MEXICO_VALIDATION.md) · [Chapter standard](PHASE_5D_CHAPTER_STANDARD.md)
 
+Cusco revision 15 extends all four U04 objectives in five missions. Catalog v10 supplies the offline pack. The journals allow more than one inquiry order, while optional Review fills individual evidence gaps. The validation records evidence and open acceptance work. [Cusco validation](PHASE_5D_CUSCO_VALIDATION.md)
+
 ## Reuse of published Study lessons
 
 These are editorial mappings to the approved objectives. They identify materials to retain or adapt and leave the existing lesson, item and learning IDs addressable. Check the construction, vocabulary sense, task dimension and prerequisites before treating any individual item as equivalent. Every row gives partial or supporting coverage. The remaining planned objectives need new material or a reviewed reuse mapping. [Published lesson inventory](curriculum/curriculum-audit.md#textbook-inventory-and-reuse-all-32-lessons) · [Learning registry](PHASE_5C_LEARNING_ARCHITECTURE.md#canonical-registry)
 
-| Published lesson | Approved objective(s)                                             | Material available for reuse                           |
-| ---------------- | ----------------------------------------------------------------- | ------------------------------------------------------ |
-| `u01_l01`        | `lq-home-start.greet`, `lq-home-start.name`                       | Opening dialogue and name patterns                     |
-| `u01_l02`        | `lq-home-plaza.origins`, `lq-home-plaza.people-things`            | Family words and third-person descriptions             |
-| `u01_l03`        | `lq-home-plaza.people-things`, `lq-home-plaza.bag`                | Descriptions with `it` and `they`                      |
-| `u01_l04`        | `lq-home-plaza.origins`                                           | Questions with `be` and origin replies                 |
-| `u02_l01`        | `lq-mexico-routines.routine`                                      | Present-simple routine language                        |
-| `u02_l02`        | `lq-mexico-routines.others`                                       | Third-person agreement and family routines             |
-| `u02_l03`        | `lq-mexico-routines.others`                                       | Frequency and placement of adverbs                     |
-| `u02_l04`        | `lq-mexico-routines.time`                                         | Daily scheduling and `at` plus time                    |
-| `u03_l01`        | `lq-mexico-routines.routine-ask`, `lq-cartagena-food.likes`       | `do` and `does` questions in routine and food contexts |
-| `u03_l02`        | `lq-mexico-routines.routine-ask`, `lq-cartagena-food.likes`       | `don't` and `doesn't` with the base form               |
-| `u03_l03`        | `lq-home-start.repair`, `lq-salvador-actions.can-do`              | Simple requests and requests for repetition            |
-| `u03_l04`        | `lq-home-plaza.place`, `lq-toronto-signup.exist`                  | Location and existence phrases                         |
-| `u04_l01`        | `lq-cusco-past.past-be`                                           | `was` and `were` with past-time anchors                |
-| `u04_l02`        | `lq-cusco-past.past-ed`                                           | Regular past-tense forms                               |
-| `u04_l03`        | `lq-cusco-past.past-irreg`                                        | Market account with frequent irregular verbs           |
-| `u04_l04`        | `lq-cusco-past.past-ask`                                          | `did` with the base verb                               |
-| `u05_l01`        | `lq-salvador-actions.now`, `lq-salvador-actions.habit-now`        | First-person descriptions of current actions           |
-| `u05_l02`        | `lq-salvador-actions.now`, `lq-salvador-actions.coordinate`       | Kitchen actions and third-person agreement             |
-| `u05_l03`        | `lq-salvador-actions.habit-now`, `lq-salvador-actions.coordinate` | Negative progressive forms                             |
-| `u05_l04`        | `lq-salvador-actions.coordinate`                                  | Questions about current actions                        |
-| `u06_l01`        | `lq-valparaiso-plans.plans`                                       | Intentions with `going to`                             |
-| `u06_l02`        | `lq-valparaiso-plans.plans`, `lq-valparaiso-plans.reschedule`     | Questions about plans                                  |
-| `u06_l03`        | `lq-valparaiso-plans.offer`                                       | Offers with `will`                                     |
-| `u06_l04`        | `lq-valparaiso-plans.reschedule`                                  | `won't` and alternatives                               |
-| `u07_l01`        | `lq-miami-experiences.ever`                                       | Experience questions and past participles              |
-| `u07_l02`        | `lq-miami-experiences.ever`                                       | Experience exchanges with `ever`                       |
-| `u07_l03`        | `lq-miami-experiences.ready`                                      | Preparation checks with `yet`                          |
-| `u07_l04`        | `lq-miami-experiences.when-past`                                  | Dated past follow-ups                                  |
-| `u08_l01`        | `lq-cartagena-food.order`, `lq-toronto-messages.book`             | Polite requests with `would like`                      |
-| `u08_l02`        | `lq-home-plaza.direction`, `lq-nyc-options.routes`                | Directions and imperatives                             |
-| `u08_l03`        | `lq-nyc-options.compare`, `lq-nyc-options.best-route`             | Comparatives and route choices                         |
-| `u08_l04`        | `lq-nyc-options.routes`, `lq-nyc-options.interview`               | Reasons with `because` and job examples                |
+| Published lesson | Approved objective(s)                                             | Material available for reuse                                    |
+| ---------------- | ----------------------------------------------------------------- | --------------------------------------------------------------- |
+| `u01_l01`        | `lq-home-start.greet`, `lq-home-start.name`                       | Opening dialogue and name patterns                              |
+| `u01_l02`        | `lq-home-plaza.origins`, `lq-home-plaza.people-things`            | Family words and third-person descriptions                      |
+| `u01_l03`        | `lq-home-plaza.people-things`, `lq-home-plaza.bag`                | Descriptions with `it` and `they`                               |
+| `u01_l04`        | `lq-home-plaza.origins`                                           | Questions with `be` and origin replies                          |
+| `u02_l01`        | `lq-mexico-routines.routine`                                      | Present-simple routine language                                 |
+| `u02_l02`        | `lq-mexico-routines.others`                                       | Third-person agreement and family routines                      |
+| `u02_l03`        | `lq-mexico-routines.others`                                       | Frequency and placement of adverbs                              |
+| `u02_l04`        | `lq-mexico-routines.time`                                         | Daily scheduling and `at` plus time                             |
+| `u03_l01`        | `lq-mexico-routines.routine-ask`, `lq-cartagena-food.likes`       | `do` and `does` questions in routine and food contexts          |
+| `u03_l02`        | `lq-mexico-routines.routine-ask`, `lq-cartagena-food.likes`       | `don't` and `doesn't` with the base form                        |
+| `u03_l03`        | `lq-home-start.repair`, `lq-salvador-actions.can-do`              | Simple requests and requests for repetition                     |
+| `u03_l04`        | `lq-home-plaza.place`, `lq-toronto-signup.exist`                  | Location and existence phrases                                  |
+| `u04_l01`        | `lq-cusco-past.past-be`                                           | `was` and `were` with past-time anchors in ¿Dónde estabas ayer? |
+| `u04_l02`        | `lq-cusco-past.past-ed`                                           | Regular past forms and -ed sounds in Lo que hicimos ayer        |
+| `u04_l03`        | `lq-cusco-past.past-irreg`                                        | Recuerdos del mercado with individual forms and event order     |
+| `u04_l04`        | `lq-cusco-past.past-ask`                                          | `did` with the base verb in El detalle que falta                |
+| `u05_l01`        | `lq-salvador-actions.now`, `lq-salvador-actions.habit-now`        | First-person descriptions of current actions                    |
+| `u05_l02`        | `lq-salvador-actions.now`, `lq-salvador-actions.coordinate`       | Kitchen actions and third-person agreement                      |
+| `u05_l03`        | `lq-salvador-actions.habit-now`, `lq-salvador-actions.coordinate` | Negative progressive forms                                      |
+| `u05_l04`        | `lq-salvador-actions.coordinate`                                  | Questions about current actions                                 |
+| `u06_l01`        | `lq-valparaiso-plans.plans`                                       | Intentions with `going to`                                      |
+| `u06_l02`        | `lq-valparaiso-plans.plans`, `lq-valparaiso-plans.reschedule`     | Questions about plans                                           |
+| `u06_l03`        | `lq-valparaiso-plans.offer`                                       | Offers with `will`                                              |
+| `u06_l04`        | `lq-valparaiso-plans.reschedule`                                  | `won't` and alternatives                                        |
+| `u07_l01`        | `lq-miami-experiences.ever`                                       | Experience questions and past participles                       |
+| `u07_l02`        | `lq-miami-experiences.ever`                                       | Experience exchanges with `ever`                                |
+| `u07_l03`        | `lq-miami-experiences.ready`                                      | Preparation checks with `yet`                                   |
+| `u07_l04`        | `lq-miami-experiences.when-past`                                  | Dated past follow-ups                                           |
+| `u08_l01`        | `lq-cartagena-food.order`, `lq-toronto-messages.book`             | Polite requests with `would like`                               |
+| `u08_l02`        | `lq-home-plaza.direction`, `lq-nyc-options.routes`                | Directions and imperatives                                      |
+| `u08_l03`        | `lq-nyc-options.compare`, `lq-nyc-options.best-route`             | Comparatives and route choices                                  |
+| `u08_l04`        | `lq-nyc-options.routes`, `lq-nyc-options.interview`               | Reasons with `because` and job examples                         |
 
 ## Home foundation and existing material
 
@@ -100,7 +102,8 @@ The goals are unchanged. Story and Study open the same reviewed foundation mater
 | 5D-1 · Mexico City and correction | Deliver the A1 market adventure and apply the chapter standard to each reviewed prerequisite, assessment, remediation path and challenge. Complete revision 9 verification and record the results in the Mexico validation.                                                                                                                                      |
 | 5D-2A · Home Pre-A1 foundation    | After accepting the Mexico correction, strengthen Chapter 1 with A–Z and name spelling, basic digits, listening and pronunciation, common instructions, requests for repetition and everyday vocabulary. Practice across the ten existing `lq-home-start` and `lq-home-plaza` objectives. Record uncovered modes and remaining trials before starting Cartagena. |
 | 5D-2B · Cartagena                 | Review the five missions, verified prior teaching, contextual English responses, remediation and compatible offline packs. Record the device and learner checks before starting Cusco.                                                                                                                                                                           |
-| 5D-2 · Remaining A1               | Continue with Cusco and Salvador in route order after Cartagena. Check the prerequisite path for past forms, current actions and basic repair.                                                                                                                                                                                                                   |
+| 5D-2C · Cusco                     | Verify both journals, exact evidence and error repair, challenge eligibility, delayed retention, and offline handoff. Record physical Android and learner checks.                                                                                                                                                                                                |
+| 5D-2D · Salvador                  | Start after accepting Cusco. Check prerequisites for describing current actions and coordinating tasks.                                                                                                                                                                                                                                                          |
 | 5D-3 · A2                         | Develop Valparaíso, Miami, New York and Toronto. Validate the A2 service task in an alternate context.                                                                                                                                                                                                                                                           |
 | 5D-4 · B1                         | Develop London through Tokyo. Verify extended input, clarification, written follow-up, mediation and a new context for the B1 task.                                                                                                                                                                                                                              |
 | 5D-5 · B2                         | Develop Hobart through Antarctica. Check source use, qualification, negotiation and the independent final report.                                                                                                                                                                                                                                                |

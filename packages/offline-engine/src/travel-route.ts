@@ -106,6 +106,7 @@ export const route: Destination[] = [
     band: 'A1',
     position: [-72, -13],
     unitId: 'u04',
+    storyPublished: true,
   },
   {
     id: 'brazil',

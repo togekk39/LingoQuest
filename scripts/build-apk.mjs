@@ -159,7 +159,7 @@ if (
   throw new Error('APK embeds chapter art or audio. These files belong in chapter packs.');
 const bundle = await run('unzip', ['-p', apk, 'assets/index.android.bundle'], repo, true);
 const chapterPacks = join(mobile, 'public/chapter-packs');
-const chapterCatalog = 'catalog-v8.json';
+const chapterCatalog = 'catalog-v10.json';
 const bundleContains = (value) =>
   bundle.includes(Buffer.from(value)) || bundle.includes(Buffer.from(value, 'utf16le'));
 if (!bundleContains(chapterCatalog))
@@ -182,6 +182,9 @@ const cartagena = JSON.parse(
     'utf8',
   ),
 ).story;
+const cuscoPack = JSON.parse(
+  await readFile(join(chapterPacks, String(catalog.chapters.peru.revision), 'peru.json'), 'utf8'),
+);
 const textbook = JSON.parse(
   await readFile(join(mobile, 'src/content/bundled-course.json'), 'utf8'),
 );
@@ -197,6 +200,9 @@ const payloadMarkers = [
   mexico.chapter.missions
     .find(({ id }) => id === 'mexico-transfer')
     ?.steps.find(({ id }) => id === 'mexico-transfer-write')?.exercise.promptEs,
+  cuscoPack.story.chapter.missions
+    .find(({ id }) => id === 'cusco-past-ask')
+    ?.steps.find(({ id }) => id === 'cusco-market-inquire')?.exercise.promptEs,
   cartagena.chapter.missions
     .find(({ id }) => id === 'cartagena-transfer')
     ?.steps.find(({ type, exercise }) => type === 'exercise' && exercise.promptEs.length >= 20)

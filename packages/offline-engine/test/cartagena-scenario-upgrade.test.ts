@@ -107,7 +107,12 @@ test('an unfinished revision 12 order keeps its draft when the scenario is intro
   assert.equal(travel.active?.stepId, mission.steps[firstTurn].id);
   assert.equal(travel.active?.contentRevision, revision);
   assert.notEqual(travel.active?.token, oldToken);
-  assert.deepEqual(travel.active?.scenario?.lines, []);
+  assert.deepEqual(
+    travel.active?.scenario && 'lines' in travel.active.scenario
+      ? travel.active.scenario.lines
+      : undefined,
+    [],
+  );
   assert.deepEqual(travel.completed, before.chapterProgress?.colombia.travel.completed);
   assert.deepEqual(savedState().unifiedLearning.evidence, before.unifiedLearning.evidence);
   const staleAttempt = await request({ action: 'answer', token: oldToken, answer: draft });
@@ -120,7 +125,12 @@ test('an unfinished revision 12 order keeps its draft when the scenario is intro
   assert.equal(travel.active?.stepId, orderStep);
   assert.deepEqual(travel.active?.answer, draft);
   assert.equal(travel.active?.scenario?.phase, 'menu');
-  assert.deepEqual(travel.active?.scenario?.lines, []);
+  assert.deepEqual(
+    travel.active?.scenario && 'lines' in travel.active.scenario
+      ? travel.active.scenario.lines
+      : undefined,
+    [],
+  );
 
   const requestStep = mission.steps[requestTurn];
   assert.equal(requestStep.type, 'exercise');
@@ -132,7 +142,12 @@ test('an unfinished revision 12 order keeps its draft when the scenario is intro
   };
   const accepted = await request(submission);
   assert.equal(accepted.active?.result?.outcome, 'target');
-  assert.equal(accepted.active?.scenario?.lines.length, 2);
+  assert.equal(
+    accepted.active?.scenario && 'lines' in accepted.active.scenario
+      ? accepted.active.scenario.lines.length
+      : undefined,
+    2,
+  );
   assert.deepEqual((await request(submission)).active, accepted.active);
   assert.equal(savedState().unifiedLearning.evidence.filter(({ id }) => id === token).length, 1);
 });

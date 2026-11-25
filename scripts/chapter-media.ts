@@ -57,6 +57,20 @@ const storyImages = new Map<string, Record<string, URL>>([
       'portrait-luz': new URL('journal/story-luz-portrait.png', mobileAssets),
     },
   ],
+  [
+    'peru',
+    {
+      'cusco-plaza': new URL('cusco-plaza.jpg', chapterArt),
+      'cusco-courtyard': new URL('cusco-courtyard.jpg', chapterArt),
+      'cusco-market': new URL('cusco-market.jpg', chapterArt),
+      'cusco-museum': new URL('cusco-museum.jpg', chapterArt),
+      'portrait-nora': new URL('cusco-nora.jpg', chapterArt),
+      'portrait-diego': new URL('cusco-diego.jpg', chapterArt),
+      'portrait-ana': new URL('cusco-ana.jpg', chapterArt),
+      'portrait-sam': new URL('journal/story-sam-portrait.png', mobileAssets),
+      'portrait-luz': new URL('journal/story-luz-portrait.png', mobileAssets),
+    },
+  ],
 ]);
 
 const recordedPhrases = new Map([
