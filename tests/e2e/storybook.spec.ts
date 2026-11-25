@@ -558,6 +558,7 @@ test('an offline storybook preserves its dialogue, evidence and passport across 
   await expect(learning.getByTestId('exercise-travel_hello_recognize')).toBeVisible();
   await click(page, 'Escuchar el saludo de Sam');
   await expect.poll(() => clipPlays('sam-listening')).toBe(1);
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
   await answerTravelChoice(page, 'travel_hello_recognize', 'Hola');
   await expect(learning.getByRole('heading', exact('Luz'))).toBeVisible();
   await answerTravelReorder(page, 'travel_hello_build', ['I', 'am', 'Ana O’Connor']);
@@ -719,6 +720,7 @@ test('an offline storybook preserves its dialogue, evidence and passport across 
   await finishVocabulary(page);
   await click(page, 'Escuchar a Sam');
   await expect.poll(() => page.evaluate(() => document.body.dataset.played)).toBe('line-4');
+  await expect.poll(async () => (await state(page)).travel.active?.audioPlayed).toBe(true);
   await click(page, 'Leer la transcripción');
   await answerTravelChoice(page, 'travel_bus_listen', 'La parada de bus');
   await answerTravelReorder(page, 'travel_bus_direction', ['It’s', 'next', 'to', 'the', 'park']);
