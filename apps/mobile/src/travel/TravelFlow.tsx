@@ -12,6 +12,7 @@ import { Check, Compass, RotateCcw, Stamp, Volume2 } from 'lucide-react-native';
 import {
   chapter as homeChapter,
   travelStepVocabulary,
+  travelStoryReply,
   type TravelChapter,
   type TravelCheckpoint,
   type TravelMission,
@@ -44,6 +45,7 @@ import {
 import { useTheme } from '../theme';
 import { Celebration } from '../motion';
 import { useChapterAudio } from './useChapterAudio';
+import { ScenarioBoard } from './ScenarioBoard';
 import { illustrations, placeIllustration } from './illustrations';
 import {
   GrammarWorkbench,
@@ -65,7 +67,7 @@ import {
 
 const english = Platform.OS === 'web' ? { lang: 'en-US' } : { accessibilityLanguage: 'en-US' };
 
-function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: string) => void }) {
+function Phrase({ en, es, play }: { en: string; es: string; play?: (phrase: string) => void }) {
   const s = useStyles();
   return (
     <JournalLeaf testID="travel-reference-phrase" style={s.phrase}>
@@ -74,9 +76,11 @@ function Phrase({ en, es, play }: { en: string; es: string; play: (phrase: strin
         {en}
       </Text>
       <Text style={s.phraseSpanish}>{es}</Text>
-      <Button variant="secondary" icon={Volume2} onPress={() => play(en)} style={s.listen}>
-        Escuchar frase
-      </Button>
+      {play && (
+        <Button variant="secondary" icon={Volume2} onPress={() => play(en)} style={s.listen}>
+          Escuchar frase
+        </Button>
+      )}
     </JournalLeaf>
   );
 }
@@ -220,8 +224,10 @@ export function TravelFlow({
         : '/v1/travel'
       : `/v1/travel?chapter=${encodeURIComponent(chapter.id)}&source=${inline ? 'story' : 'study'}`;
   const briefing = inline && step.type === 'teach' && step.presentation === 'reply-briefing';
+  const scenarioTurn = step.type === 'exercise' ? step.scenarioTurn : undefined;
   const requiredReply =
-    step.type === 'exercise' && (step.requiredReply || step.response === 'personal-introduction');
+    step.type === 'exercise' &&
+    (step.requiredReply || scenarioTurn || step.response === 'personal-introduction');
   const selfCheck = step.type === 'exercise' && !!step.exercise.ungradable;
   const cue = inline ? travelStoryCue(mission, current) : undefined;
   const speaker = cue?.speaker;
@@ -286,18 +292,22 @@ export function TravelFlow({
     !step.response &&
     !step.acceptedPhrases?.length &&
     !step.learning.guided;
+  const scenarioResultAccepted = current.result?.correct || current.result?.communicationOnly;
+  const planningOrder = scenarioTurn?.action === 'request' && !scenarioResultAccepted;
+  const showScenarioMenu =
+    planningOrder ||
+    (scenarioTurn?.action === 'replace' && !scenarioResultAccepted) ||
+    (current.scenario?.phase === 'menu' && step.type === 'exercise' && !step.exercise.passage);
   const storyReply =
-    embedded &&
-    step.type === 'exercise' &&
-    (current.result?.correct ||
-      current.result?.communicationOnly ||
-      (selfCheck && current.result?.outcome === 'ungradable'))
-      ? step.storyReply
+    step.type === 'exercise' && (embedded || step.storyReplies || scenarioTurn)
+      ? travelStoryReply(step, current)
       : undefined;
-  const line = !current.finished && step.type === 'dialogue' ? step.line : storyReply?.line;
+  const replyAudio = current.scenarioReply ? undefined : storyReply?.line.en;
+  const dialogueAudio = !current.finished && step.type === 'dialogue' ? step.line?.en : undefined;
+  const lineAudio = dialogueAudio ?? replyAudio;
   const referenceAudio =
     word?.term ??
-    line?.en ??
+    lineAudio ??
     (!current.finished && !prerequisiteBlocked && step.type === 'exercise'
       ? step.audio
       : undefined);
@@ -307,9 +317,9 @@ export function TravelFlow({
   const { revealItem } = useContext(InputViewportContext);
   const hasFeedback = !!current.result;
   useEffect(() => {
-    const text = word?.term ?? line?.en;
+    const text = word?.term ?? lineAudio;
     if (text) void play(text, inline);
-  }, [inline, line, play, word]);
+  }, [current.token, inline, lineAudio, play, word]);
   useEffect(() => {
     if (embedded?.translationsVisible && (step.type === 'teach' || step.type === 'dialogue'))
       lastTranslation.current = translationKey;
@@ -461,16 +471,18 @@ export function TravelFlow({
   ) : step.type === 'exercise' ? (
     current.result ? (
       <View style={{ gap: 8 }}>
-        {!current.result.correct && !selfCheck && (
-          <Action
-            journal
-            secondary
-            disabled={busy}
-            onPress={() => void act({ action: 'retry', token: current.token })}
-          >
-            Intentar otra vez
-          </Action>
-        )}
+        {!current.result.correct &&
+          !selfCheck &&
+          !(scenarioTurn && current.result.communicationOnly) && (
+            <Action
+              journal
+              secondary
+              disabled={busy}
+              onPress={() => void act({ action: 'retry', token: current.token })}
+            >
+              Intentar otra vez
+            </Action>
+          )}
         {!current.result.identityMismatch &&
           (!requiredReply || current.result.correct || current.result.communicationOnly) && (
             <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
@@ -547,16 +559,23 @@ export function TravelFlow({
             : current.answer
         }
       />
-      {storyReply && embedded && (
+      {storyReply && (
         <View testID="travel-story-reply" style={s.dialogue}>
           <StorySpeaker name={storyReply.speaker} portrait={portraits?.[storyReply.speaker]} />
-          <StoryPhrase
-            line={storyReply.line}
-            showTranslation={embedded.translationsVisible}
-            onToggleTranslation={embedded.onToggleTranslation}
-            onListen={() => void play(storyReply.line.en, true)}
-            disabled={busy}
-          />
+          {embedded ? (
+            <StoryPhrase
+              line={storyReply.line}
+              showTranslation={embedded.translationsVisible}
+              onToggleTranslation={embedded.onToggleTranslation}
+              onListen={replyAudio ? () => void play(replyAudio, true) : undefined}
+              disabled={busy}
+            />
+          ) : (
+            <Phrase
+              {...storyReply.line}
+              play={replyAudio ? (text) => void play(text) : undefined}
+            />
+          )}
         </View>
       )}
       {review &&
@@ -593,6 +612,16 @@ export function TravelFlow({
           <Compass size={19} color={C.teal} />
           <Label style={{ flex: 1 }}>Retomamos donde lo dejaste. {mission.objective}</Label>
         </JournalLeaf>
+      )}
+      {!prerequisiteBlocked && mission.scenario && (
+        <ScenarioBoard
+          key={mission.scenario.id}
+          definition={mission.scenario}
+          state={current.scenario}
+          showMenu={showScenarioMenu}
+          planning={planningOrder}
+          disabled={busy || !!current.result}
+        />
       )}
       <View
         key={current.token}

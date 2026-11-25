@@ -75,6 +75,7 @@ function refreshCourse() {
 
 async function activate(pack: ChapterPack) {
   if ((activated.get(pack.chapterId) ?? 0) >= pack.revision) return homeReady;
+  if (pack.chapterId !== 'home' && !(await getInstalledChapter(pack.chapterId))) return homeReady;
   const { story, unit } = pack;
   const home = homeContentFromPack(pack);
   if (home && story?.runtime) {
@@ -92,10 +93,25 @@ async function activate(pack: ChapterPack) {
   return homeReady;
 }
 
-export function applyDownloadedContent(pack: ChapterPack) {
-  const operation = activationTail.then(() => activate(pack));
+function queueCourseChange(change: () => Promise<boolean>) {
+  const operation = activationTail.then(change);
   activationTail = operation.catch(() => {});
   return operation;
+}
+
+export function applyDownloadedContent(pack: ChapterPack) {
+  return queueCourseChange(() => activate(pack));
+}
+
+export function removeDownloadedContent(chapterId: string) {
+  return queueCourseChange(async () => {
+    if (chapterId !== 'home' && !(await getInstalledChapter(chapterId))) {
+      installedUnits.delete(chapterId);
+      activated.delete(chapterId);
+      refreshCourse();
+    }
+    return homeReady;
+  });
 }
 
 export async function restoreDownloadedContent() {

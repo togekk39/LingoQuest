@@ -13,3 +13,7 @@ export async function applyDownloadedContent(pack: ChapterPack): Promise<boolean
   if (home?.audit && home.chapter.revision > chapter.revision) installHomeContent(home);
   return true;
 }
+
+export async function removeDownloadedContent(_chapterId: string): Promise<boolean> {
+  return true;
+}

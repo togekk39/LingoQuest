@@ -23,11 +23,13 @@ import { referenceKey, type PrerequisiteReference } from '../../course-pack/src/
 import type { CourseData, CourseExercise, CourseLesson } from './index';
 import {
   recordUnifiedEvidence,
+  unifiedMasteryKey,
   type LearningEvidence,
   type UnifiedEvidenceTarget,
   type UnifiedLearningState,
 } from './learning-evidence';
 import { canonicalLearningId, exerciseEvidenceTargets } from './learning-registry';
+import { exactRpgAnswerEvidence } from './rpg-answer-evidence';
 import type { TravelExerciseStep, TravelStep, TravelVocabulary } from './travel-content';
 
 export type TeachingReference = PrerequisiteReference;
@@ -229,6 +231,13 @@ export function exactRpgAssessment(
   definitions: ReadonlyMap<string, FormalDefinition>,
 ) {
   if (!exactRpgReferences(step.requires, definitions) || !step.targets?.length) return false;
+  if (!exactRpgAnswerEvidence(step)) return false;
+  const declaredTargets = new Set(step.targets.map(unifiedMasteryKey));
+  for (const { targets } of step.scenarioTurn?.formTargets ?? []) {
+    const keys = targets.map(unifiedMasteryKey);
+    if (new Set(keys).size !== keys.length || keys.some((key) => !declaredTargets.has(key)))
+      return false;
+  }
   const { exercise } = step;
   const writes =
     !exercise.options?.length && ['short_text', 'cloze', 'correction'].includes(exercise.type);

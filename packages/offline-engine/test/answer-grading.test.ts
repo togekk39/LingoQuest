@@ -9,12 +9,72 @@ import {
   type AttemptResult,
   type ExerciseType,
 } from '@lingoquest/contracts';
+import {
+  cartagenaAssessmentSteps,
+  cartagenaPractice,
+} from '../../../content/source/cartagena-assessments';
+import { cartagenaCafeScenario } from '../../../content/source/cartagena-scenarios';
 import { lessons } from '../../../content/source/curriculum';
 import { OfflineEngine, type CourseData, type CourseExercise } from '../src/index';
+import { evaluateScenarioTurn, startScenario } from '../src/scenario';
 
 function key(type: ExerciseType, ...acceptedAnswers: string[]): AnswerKey & { type: ExerciseType } {
   return { type, acceptedAnswers };
 }
+
+test('Cartagena orders recognize the prompt, the menu conditions and natural alternatives', () => {
+  const menu = cartagenaAssessmentSteps.order.find(({ id }) => id === 'cartagena-order-menu');
+  const step = cartagenaAssessmentSteps.order.find(({ id }) => id === 'cartagena-order-write');
+  assert.ok(menu?.scenarioTurn && step?.scenarioTurn);
+  const { state } = evaluateScenarioTurn(
+    cartagenaCafeScenario,
+    startScenario(cartagenaCafeScenario),
+    menu.scenarioTurn,
+    'Can I see the menu, please?',
+  );
+  assert.ok(state);
+  const submit = (text: string) =>
+    evaluateScenarioTurn(cartagenaCafeScenario, state, step.scenarioTurn!, text);
+  const samples: Array<[string, AnswerOutcome]> = [
+    ["I'd like fish with rice and some water, please.", 'target'],
+    ['I would like a cup of coffee and chicken with rice please.', 'target'],
+    ['Can I have fish with rice and a bottle of water, please?', 'communication_only'],
+    ["I'd like eggs with cheese and water, please.", 'context_mismatch'],
+    ["I'd like chicken with rice.", 'context_mismatch'],
+    ["I'd likes fish with rice and some water, please.", 'incorrect'],
+  ];
+  for (const [text, outcome] of samples) assert.equal(submit(text).verdict.outcome, outcome, text);
+  const order = 'I would like a bottle of water and fish with rice, please.';
+  assert.equal(
+    submit(order).reply?.line.en,
+    'A bottle of water and fish with rice. Is that right?',
+  );
+});
+
+test('Cartagena distinguishes counted servings, contextual quantities and open self-checks', () => {
+  const coffee = cartagenaPractice.find(({ id }) => id === 'cartagena-review-order-coffee-confirm');
+  const quantity = cartagenaAssessmentSteps.quantity.find(
+    ({ id }) => id === 'cartagena-quantity-write',
+  );
+  const open = cartagenaAssessmentSteps.transfer.find(({ id }) => id === 'cartagena-transfer-open');
+  assert.ok(coffee && quantity && open);
+  assert.equal(judgeAnswer(coffee.exercise, { text: 'I’d like two coffees, please.' }), 'target');
+  assert.equal(
+    judgeAnswer(coffee.exercise, { text: 'I would like two cups of coffee.' }),
+    'target',
+  );
+  assert.equal(judgeAnswer(coffee.exercise, { text: "I'd like two coffee." }), 'incorrect');
+  assert.equal(
+    judgeAnswer(coffee.exercise, { text: "I'd like three coffees." }),
+    'context_mismatch',
+  );
+  assert.equal(judgeAnswer(quantity.exercise, { text: 'How much water?' }), 'context_mismatch');
+  assert.equal(judgeAnswer(quantity.exercise, { text: 'How many water?' }), 'incorrect');
+  assert.equal(
+    judgeAnswer(open.exercise, { text: "I'd like chicken. Does it have milk?" }),
+    'ungradable',
+  );
+});
 
 test('equivalent written answers preserve grammar and meaning', () => {
   const equivalent = [

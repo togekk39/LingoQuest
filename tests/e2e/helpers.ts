@@ -228,7 +228,7 @@ export async function labelFirstChapterAudio(
   phrases: Record<string, string>,
 ) {
   const catalog: ChapterCatalog = await (
-    await request.get('/chapter-packs/catalog-v6.json')
+    await request.get(`/chapter-packs/${CHAPTER_CATALOG_FILE}`)
   ).json();
   const path = `/chapter-packs/${catalog.chapters.home.revision}/home.json`;
   const { audio }: ChapterPack = await (await request.get(path)).json();

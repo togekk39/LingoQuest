@@ -21,6 +21,14 @@ import { mexicoLearningDefinitions } from '../content/source/mexico-prerequisite
 import { mexicoChallengeReviews } from '../content/source/prerequisites/mexico-challenges';
 import mexicoReview from '../content/source/mexico-rpg-review.json';
 import {
+  cartagenaChallengePools,
+  cartagenaChallengeReviews,
+} from '../content/source/cartagena-challenges';
+import { cartagenaChapter, cartagenaPractice } from '../content/source/cartagena-missions';
+import { cartagenaAdventure } from '../content/source/cartagena-story';
+import { cartagenaLearningDefinitions } from '../content/source/cartagena-prerequisites';
+import cartagenaReview from '../content/source/cartagena-rpg-review.json';
+import {
   formalDefinitions,
   teachingReferenceKey,
 } from '../packages/offline-engine/src/learning-prerequisites';
@@ -116,9 +124,11 @@ function adventurePhrases({
         if (step.type === 'dialogue') return step.line ? [step.line.en] : [];
         if (step.type === 'teach') return step.examples.map(({ en }) => en);
         if (step.type === 'speak') return [step.phrase];
-        return [step.audio, step.storyReply?.line.en].filter(
-          (phrase): phrase is string => !!phrase,
-        );
+        return [
+          step.audio,
+          step.storyReply?.line.en,
+          ...(step.storyReplies?.map(({ line }) => line.en) ?? []),
+        ].filter((phrase): phrase is string => !!phrase);
       }),
     ]),
     ...practice.flatMap(({ audio }) => (audio ? [audio] : [])),
@@ -187,7 +197,40 @@ export const mexicoStory = {
   },
 };
 
-export function reviewedAdventure(story: typeof homeStory | typeof mexicoStory) {
+const cartagenaSupportingLessonIds = ['u08_l01'];
+const cartagenaAudit: RpgAdventureAudit = {
+  ...cartagenaReview,
+  definitions: [...cartagenaLearningDefinitions],
+  challenges: Object.fromEntries(
+    Object.entries(cartagenaChallengeReviews).map(([id, entry]) => [
+      id,
+      { ...entry, requires: [...entry.requires] },
+    ]),
+  ),
+};
+export const cartagenaStory = {
+  chapter: cartagenaChapter,
+  adventure: cartagenaAdventure,
+  practice: cartagenaPractice,
+  supportingLessons: cartagenaSupportingLessonIds.map((id) => courseLessons[id]),
+  challenges: cartagenaChallengePools,
+  audit: {
+    ...cartagenaAudit,
+    definitions: portableDefinitions(
+      cartagenaChapter,
+      cartagenaPractice,
+      [
+        ...(courseUnits.find(({ id }) => id === 'u03')?.lessons.map(({ id }) => id) ?? []),
+        ...cartagenaSupportingLessonIds,
+      ],
+      cartagenaAudit,
+    ),
+  },
+};
+
+type AuthoredAdventure = typeof homeStory | typeof mexicoStory | typeof cartagenaStory;
+
+export function reviewedAdventure(story: AuthoredAdventure) {
   if (!('runtime' in story)) return story;
   const legacyPracticeIds = new Set(travelPracticeSteps.map(({ id }) => id));
   return {
@@ -202,7 +245,12 @@ export function reviewedAdventure(story: typeof homeStory | typeof mexicoStory) 
 
 export const chapterAdventures = new Map<
   string,
-  { story: typeof homeStory | typeof mexicoStory; phrases: string[]; properNames?: string[] }
+  {
+    story: AuthoredAdventure;
+    phrases: string[];
+    properNames?: string[];
+    reuseAudioFrom?: string[];
+  }
 >([
   [
     homeStory.chapter.id,
@@ -228,6 +276,28 @@ export const chapterAdventures = new Map<
       phrases: [
         ...adventurePhrases(mexicoStory),
         ...chapterLessonPhrases([], mexicoStory.supportingLessons),
+      ],
+    },
+  ],
+  [
+    cartagenaStory.chapter.id,
+    {
+      story: cartagenaStory,
+      properNames: [
+        'Cartagena',
+        'Cusco',
+        'Colombia',
+        'Colombian',
+        'Sam',
+        'Luz',
+        'Mar',
+        'Alba',
+        'Leo',
+      ],
+      reuseAudioFrom: ['home', 'mexico'],
+      phrases: [
+        ...adventurePhrases(cartagenaStory),
+        ...chapterLessonPhrases([], cartagenaStory.supportingLessons),
       ],
     },
   ],

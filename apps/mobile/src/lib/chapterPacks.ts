@@ -14,6 +14,7 @@ import {
   chapterMediaUri,
   readChapterPack,
   readCurrentChapter,
+  removeChapterPack,
   writeChapterPack,
   writeCurrentChapter,
 } from './chapterStorage';
@@ -44,6 +45,7 @@ type Download = {
   listeners: Set<ProgressListener>;
 };
 const downloads = new Map<string, Download>();
+const removals = new Map<string, Promise<void>>();
 let lastRead: { text: string; pack: ChapterPack } | undefined;
 
 function parseStored(id: string, text: string | null) {
@@ -59,22 +61,25 @@ function parseStored(id: string, text: string | null) {
 }
 
 export async function getInstalledChapter(id: string) {
-  if (!destinations.has(id)) return null;
-  return parseStored(id, await readChapterPack(id));
+  if (!destinations.has(id) || removals.has(id)) return null;
+  const text = await readChapterPack(id);
+  return removals.has(id) ? null : parseStored(id, text);
 }
 
 export async function getCurrentChapter() {
-  return (await readCurrentChapter()) === secondChapter.id ? secondChapter : firstChapter;
+  return destinations.get((await readCurrentChapter()) ?? '') ?? firstChapter;
 }
 
 export function setCurrentChapter(id: string) {
   return writeCurrentChapter(id);
 }
 
-async function saveChapter(id: string, text: string, pack: ChapterPack) {
+async function saveChapter(id: string, text: string, pack: ChapterPack, installedOnly: boolean) {
   let installed = pack;
   const committed = await writeChapterPack(id, text, (previous) => {
     const current = parseStored(id, previous);
+    if (!current && installedOnly)
+      throw new ChapterDownloadError('Descarga el capítulo para actualizarlo.');
     if (!current || current.revision < pack.revision) return true;
     if (current.revision === pack.revision && current.sha256 !== pack.sha256)
       throw new ChapterDownloadError('Ya tienes un paquete diferente con esta versión.');
@@ -162,12 +167,19 @@ async function fetchCatalog() {
   return catalog.data;
 }
 
-async function fetchChapter(id: string, onProgress: ProgressListener, catalog?: ChapterCatalog) {
+async function fetchChapter(
+  id: string,
+  onProgress: ProgressListener,
+  catalog: ChapterCatalog | undefined,
+  installedOnly: boolean,
+) {
   const destination = destinations.get(id);
   if (!destination) throw new ChapterDownloadError('No encontramos este capítulo.');
   const entry = (catalog ?? (await fetchCatalog())).chapters[id];
   if (!entry) throw new ChapterDownloadError('Este capítulo no está disponible para descargar.');
   const installed = await getInstalledChapter(id);
+  if (!installed && installedOnly)
+    throw new ChapterDownloadError('Descarga el capítulo para actualizarlo.');
   if (installed && installed.revision >= entry.revision) return installed;
   const totalBytes = entry.sizeBytes;
   onProgress({ receivedBytes: 0, totalBytes });
@@ -192,7 +204,7 @@ async function fetchChapter(id: string, onProgress: ProgressListener, catalog?: 
     );
   if (pack.unit?.id !== destination.unitId)
     throw new ChapterDownloadError('El contenido del paquete no corresponde a este capítulo.');
-  return saveChapter(id, text, pack);
+  return saveChapter(id, text, pack, installedOnly);
 }
 
 export function downloadChapter(
@@ -200,6 +212,17 @@ export function downloadChapter(
   onProgress?: ProgressListener,
   catalog?: ChapterCatalog,
 ): Promise<ChapterPack> {
+  return startChapterDownload(id, onProgress, catalog, false);
+}
+
+function startChapterDownload(
+  id: string,
+  onProgress: ProgressListener | undefined,
+  catalog: ChapterCatalog | undefined,
+  installedOnly: boolean,
+): Promise<ChapterPack> {
+  if (removals.has(id))
+    return Promise.reject(new ChapterDownloadError('Espera a que se retiren los archivos.'));
   let download = downloads.get(id);
   if (!download) {
     const listeners = new Set<ProgressListener>();
@@ -212,6 +235,7 @@ export function downloadChapter(
           for (const listener of listeners) listener(progress);
         },
         catalog,
+        installedOnly,
       ).finally(() => downloads.delete(id)),
     };
     download = transfer;
@@ -222,6 +246,25 @@ export function downloadChapter(
     if (download.progress) onProgress(download.progress);
   }
   return download.operation;
+}
+
+export function removeInstalledChapter(id: string): Promise<void> {
+  if (id === firstChapter.id || !destinations.has(id))
+    return Promise.reject(
+      new ChapterDownloadError('No se pueden retirar los archivos de este capítulo.'),
+    );
+  const removal = removals.get(id);
+  if (removal) return removal;
+  const pending = downloads.get(id)?.operation;
+  const operation = (pending ?? Promise.resolve())
+    .catch(() => {})
+    .then(() => removeChapterPack(id))
+    .finally(() => {
+      if (lastRead?.pack.chapterId === id) lastRead = undefined;
+      removals.delete(id);
+    });
+  removals.set(id, operation);
+  return operation;
 }
 
 export async function refreshInstalledChapters() {
@@ -236,7 +279,7 @@ export async function refreshInstalledChapters() {
   const catalog = await fetchCatalog();
   for (const [id, revision] of installed) {
     if ((catalog.chapters[id]?.revision ?? 0) <= revision) continue;
-    await downloadChapter(id, undefined, catalog).catch(() => {});
+    await startChapterDownload(id, undefined, catalog, true).catch(() => {});
   }
 }
 
@@ -246,6 +289,7 @@ export function chapterForUnit(unitId: string) {
 
 export async function getChapterAudio(id: string, phrase: string) {
   const pack = await getInstalledChapter(id);
-  const media = pack && Object.hasOwn(pack.audio, phrase) ? pack.audio[phrase] : undefined;
+  const media =
+    pack && !removals.has(id) && Object.hasOwn(pack.audio, phrase) ? pack.audio[phrase] : undefined;
   return media ? chapterMediaUri(id, media.mimeType, media.dataBase64) : undefined;
 }

@@ -70,6 +70,16 @@ export async function writeChapterPack(
   });
 }
 
+export async function removeChapterPack(chapterId: string) {
+  const db = await openDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    transaction.objectStore(storeName).delete(chapterId);
+    transaction.oncomplete = () => resolve();
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
 export async function chapterMediaUri(_chapterId: string, mimeType: string, dataBase64: string) {
   return `data:${mimeType};base64,${dataBase64}`;
 }

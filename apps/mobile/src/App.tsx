@@ -52,12 +52,16 @@ import {
   getCurrentChapter,
   getInstalledChapter,
   refreshInstalledChapters,
-  secondChapter,
+  removeInstalledChapter,
   setCurrentChapter,
   type ChapterDownloadProgress,
 } from './lib/chapterPacks';
 import { chapterMediaUri } from './lib/chapterStorage';
-import { applyDownloadedContent, restoreDownloadedContent } from './lib/downloadedContent';
+import {
+  applyDownloadedContent,
+  removeDownloadedContent,
+  restoreDownloadedContent,
+} from './lib/downloadedContent';
 import { TravelFlow } from './travel/TravelFlow';
 import { StoryAdventure } from './travel/StoryAdventure';
 import { storyGuideKey, type StoryGuideStage } from './travel/StoryGuide';
@@ -139,6 +143,10 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [tab, setTab] = useState<Tab>('Inicio');
   const [travel, setTravel] = useState<TravelState>({ completed: {}, stamps: {} });
   const [mission, setMission] = useState<TravelCheckpoint | null>(null);
+  const [chapterMission, setChapterMission] = useState<{
+    chapter: TravelChapter;
+    checkpoint: TravelCheckpoint;
+  }>();
   const [adventure, setAdventure] = useState<{
     response: StoryResponse;
     content?: AdventureContent;
@@ -150,6 +158,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   const [destination, setDestination] = useState('home');
   const [homeReady, setHomeReady] = useState(Platform.OS === 'web');
   const [currentChapterId, setCurrentChapterId] = useState(firstChapter.id);
+  const chapterIndex = route.findIndex(({ id }) => id === currentChapterId);
+  const currentChapter = route[chapterIndex] ?? firstChapter;
   const [chapterTransfer, setChapterTransfer] = useState<ChapterTransfer>();
   const transferring = useRef(false);
   const [openedChapter, setOpenedChapter] = useState<string>();
@@ -186,15 +196,23 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
     setChapterTransfer({ id, open });
     try {
       const installed = await getInstalledChapter(id);
+      const needsAdventure = open && route.some((entry) => entry.id === id && entry.storyPublished);
       const pack =
-        installed && (id !== firstChapter.id || installed.story?.runtime)
+        installed &&
+        (id !== firstChapter.id || installed.story?.runtime) &&
+        (!needsAdventure || installed.story)
           ? installed
-          : await downloadChapter(id, (progress) => setChapterTransfer({ id, open, progress }));
+          : await downloadChapter(id, (progress) =>
+              setChapterTransfer({ id, open, progress }),
+            ).catch((error) => {
+              if (installed && id !== firstChapter.id) return installed;
+              throw error;
+            });
       if (id === firstChapter.id && !pack.story?.runtime)
         throw new ChapterDownloadError('La aventura todavía no está disponible. Vuelve más tarde.');
 
       const ready = await applyDownloadedContent(pack);
-      if (open && id === secondChapter.id) {
+      if (open && id !== firstChapter.id && pack.story) {
         await setCurrentChapter(id);
         setCurrentChapterId(id);
       }
@@ -324,6 +342,24 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
   }
   function openChapter(id: string) {
     void prepareChapter(id, true);
+  }
+
+  async function startChapterMission(travelChapter: TravelChapter, missionId: string) {
+    const journey = await api<TravelState>(
+      `/v1/travel?chapter=${encodeURIComponent(travelChapter.id)}&source=study`,
+      { action: 'start', missionId },
+    );
+    if (journey.active?.missionId !== missionId)
+      throw new Error('Completa la misión anterior para continuar.');
+    setChapterMission({ chapter: travelChapter, checkpoint: journey.active });
+  }
+
+  async function discardChapterDownload(id: string) {
+    await removeInstalledChapter(id);
+    setHomeReady(await removeDownloadedContent(id));
+    setOpenedChapter(undefined);
+    setNotice('Recursos descargados eliminados. Tu progreso sigue guardado.');
+    await refresh().catch((error) => setNotice(error.message));
   }
 
   function showChapterMap(id = firstChapter.id) {
@@ -583,6 +619,34 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
       {nameSheet}
     </>
   );
+  if (chapterMission) {
+    const { chapter: travelChapter, checkpoint } = chapterMission;
+    const close = () => {
+      setChapterMission(undefined);
+      void refresh().catch((error) => setNotice(error.message));
+    };
+    return withSheets(
+      <TravelFlow
+        key={`${travelChapter.id}:${checkpoint.missionId}`}
+        chapter={travelChapter}
+        initial={checkpoint}
+        playerName={playerName}
+        onEditName={editPlayerName}
+        onUpdate={() => {}}
+        onClose={close}
+        onVoiceSettings={openVoiceSettings}
+        onReview={(missionId) => {
+          close();
+          openQuickReview(missionId, travelChapter.id);
+        }}
+        onPassport={() => {
+          close();
+          setOpenedChapter(undefined);
+          setPassport(true);
+        }}
+      />,
+    );
+  }
   if (mission)
     return withSheets(
       <TravelFlow
@@ -665,6 +729,8 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
             ? (pack) => void startChapterStory(pack)
             : undefined
         }
+        onStudyMission={startChapterMission}
+        onRemoveDownload={openedChapter === firstChapter.id ? undefined : discardChapterDownload}
         onOpenTextbookUnit={(unitId) => {
           setTextbookUnit(unitId);
           setFlow('textbook');
@@ -881,12 +947,11 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                   }}
                 />
               </View>
-            ) : currentChapterId === secondChapter.id &&
-              (tab === 'Inicio' || (tab === 'Aprender' && !homeReady)) ? (
+            ) : chapterIndex > 0 && (tab === 'Inicio' || (tab === 'Aprender' && !homeReady)) ? (
               <JournalLeaf style={{ gap: 12 }}>
-                <Heading>{secondChapter.name}</Heading>
-                <Button icon={BookOpen} onPress={() => openChapter(secondChapter.id)}>
-                  Continuar capítulo 2
+                <Heading>{currentChapter.name}</Heading>
+                <Button icon={BookOpen} onPress={() => openChapter(currentChapter.id)}>
+                  {`Continuar capítulo ${chapterIndex + 1}`}
                 </Button>
                 {!homeReady && (
                   <Button variant="secondary" onPress={() => openChapter(firstChapter.id)}>
@@ -906,7 +971,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                     )}
                     <Button
                       variant="secondary"
-                      onPress={() => openQuickReview(undefined, secondChapter.id)}
+                      onPress={() => openQuickReview(undefined, currentChapter.id)}
                     >
                       Repaso rápido
                     </Button>
@@ -959,20 +1024,34 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
                 onOpenChapter={openChapter}
               />
             ) : tab === 'Aprender' ? (
-              <TravelGuide
-                travel={travel}
-                onLessons={() =>
-                  startMission(nextTravelMission(travel)?.id ?? chapter.missions[0].id, true)
-                }
-                onMission={startMission}
-                onAssessment={startPlacement}
-                onVoiceSettings={openVoiceSettings}
-                onSpeech={() => setFlow('speech')}
-                onGrammar={() => setFlow('grammar')}
-                onReview={() => setFlow('skills')}
-                onFoundationReview={(id) => openQuickReview(id, chapter.id)}
-                onLegacy={() => setFlow('textbook')}
-              />
+              <>
+                {chapterIndex > 0 && (
+                  <JournalLeaf style={{ gap: 12 }}>
+                    <Heading>{currentChapter.name}</Heading>
+                    <Button
+                      icon={BookOpen}
+                      variant="secondary"
+                      onPress={() => openChapter(currentChapter.id)}
+                    >
+                      {`Estudiar en ${currentChapter.name}`}
+                    </Button>
+                  </JournalLeaf>
+                )}
+                <TravelGuide
+                  travel={travel}
+                  onLessons={() =>
+                    startMission(nextTravelMission(travel)?.id ?? chapter.missions[0].id, true)
+                  }
+                  onMission={startMission}
+                  onAssessment={startPlacement}
+                  onVoiceSettings={openVoiceSettings}
+                  onSpeech={() => setFlow('speech')}
+                  onGrammar={() => setFlow('grammar')}
+                  onReview={() => setFlow('skills')}
+                  onFoundationReview={(id) => openQuickReview(id, chapter.id)}
+                  onLegacy={() => setFlow('textbook')}
+                />
+              </>
             ) : tab === 'Desafíos' ? (
               <ChallengesScreen
                 onLearn={() => go('Aprender')}

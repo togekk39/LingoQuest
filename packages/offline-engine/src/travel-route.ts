@@ -42,6 +42,7 @@ export interface Destination {
   band: 'Desde cero' | 'A1' | 'A2' | 'B1' | 'B2';
   position: [longitude: number, latitude: number];
   unitId?: string;
+  storyPublished?: true;
 }
 
 export const homeChapterDetails = {
@@ -77,17 +78,23 @@ export const route: Destination[] = [
     band: 'A1',
     position: [-99, 19],
     unitId: 'u02',
+    storyPublished: true,
   },
   {
     id: 'colombia',
     name: 'Cartagena',
     location: 'Colombia',
     continent: 'América del Sur',
-    description: 'En un intercambio de idiomas, acuerda dónde comer y qué pedir.',
-    goals: ['Pedir comida y bebida', 'Consultar qué hay disponible'],
+    description: 'Recorre el mercado con Sam y Luz, compara los precios y pidan algo para comer.',
+    goals: [
+      'Hablar de gustos y cantidades',
+      'Leer un menú y sus precios',
+      'Pedir y confirmar un plato',
+    ],
     band: 'A1',
     position: [-76, 10],
     unitId: 'u03',
+    storyPublished: true,
   },
   {
     id: 'peru',

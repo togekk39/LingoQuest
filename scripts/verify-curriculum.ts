@@ -47,6 +47,8 @@ import { inspectOptionalPrerequisites } from './published-optional-prerequisites
 import { chapterAdventures, reviewedAdventure } from './chapter-adventures';
 import { inspectAdventurePrerequisites } from './published-adventure-prerequisites';
 import { inspectAdventureChallenges } from './published-adventure-challenges';
+import { evaluateScenarioTurn, startScenario } from '../packages/offline-engine/src/scenario';
+import type { TravelMission } from '../packages/offline-engine/src/travel-content';
 
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
@@ -247,6 +249,40 @@ function counts<T>(rows: readonly T[], key: (row: T) => string) {
   return totals;
 }
 
+function verifyScenarioAnswers({ scenario, steps }: TravelMission) {
+  if (!scenario) return 0;
+  let state = startScenario(scenario);
+  let probes = 0;
+  for (const step of steps) {
+    if (step.type !== 'exercise' || !step.scenarioTurn) continue;
+    const { exercise, scenarioTurn } = step;
+    const cases = [
+      ['target', exercise.acceptedAnswers],
+      ['communication_only', exercise.communicationOnly?.answers ?? []],
+      ['context_mismatch', exercise.contextMismatch?.answers ?? []],
+      ['ungradable', [':::?']],
+    ] as const;
+    assert.ok(exercise.acceptedAnswers[0], step.id);
+    for (const [expected, samples] of cases) {
+      for (const answer of samples) {
+        const result = evaluateScenarioTurn(scenario, state, scenarioTurn, answer);
+        assert.equal(result.verdict.outcome, expected, `${step.id}: ${answer}`);
+        assert.equal(
+          !!result.state,
+          expected === 'target' || expected === 'communication_only',
+          step.id,
+        );
+        probes++;
+      }
+    }
+    const result = evaluateScenarioTurn(scenario, state, scenarioTurn, exercise.acceptedAnswers[0]);
+    assert.ok(result.state, step.id);
+    state = result.state;
+  }
+  assert.equal(state.phase, 'complete', scenario.id);
+  return probes;
+}
+
 function verifyAdventure(
   pack: ChapterPack,
   authored: NonNullable<ReturnType<typeof chapterAdventures.get>>,
@@ -329,8 +365,19 @@ function verifyAdventure(
     practice.map(({ id }) => id),
     `${label} Exercise IDs / IDs de ejercicios`,
   );
-  let probes = 0;
+  const scenarioItems = new Set(
+    story.chapter.missions.flatMap(({ steps }) =>
+      steps.flatMap((step) =>
+        step.type === 'exercise' && step.scenarioTurn ? [step.exercise.id] : [],
+      ),
+    ),
+  );
+  let probes = story.chapter.missions.reduce(
+    (count, mission) => count + verifyScenarioAnswers(mission),
+    0,
+  );
   for (const exercise of practice) {
+    if (scenarioItems.has(exercise.id)) continue;
     if (exercise.ungradable) {
       assert.equal(
         judgeAnswer(exercise, { text: 'I work in the morning.' }),
@@ -371,6 +418,14 @@ function verifyAdventure(
       assert.equal(judgeAnswer(exercise, { text }), 'target', exercise.id);
       probes++;
     }
+    for (const text of exercise.communicationOnly?.answers ?? []) {
+      assert.equal(judgeAnswer(exercise, { text }), 'communication_only', exercise.id);
+      probes++;
+    }
+    for (const text of exercise.contextMismatch?.answers ?? []) {
+      assert.equal(judgeAnswer(exercise, { text }), 'context_mismatch', `${exercise.id}: ${text}`);
+      probes++;
+    }
     assert.equal(judgeAnswer(exercise, { text: ':::?' }), 'incorrect', exercise.id);
     probes++;
   }
@@ -380,7 +435,10 @@ function verifyAdventure(
   return audit.taught;
 }
 
-async function verifyPublishedContent(inventory: boolean, homeObjectives: readonly string[]) {
+async function verifyPublishedContent(
+  inventory: boolean,
+  unitsByDestination: ReturnType<typeof readPlan>['units'],
+) {
   const bundled = parseCoursePack(await read('apps/mobile/src/content/bundled-course.json'));
   const { units, lessons, ...activities } = bundled.payload;
   assert.deepEqual(
@@ -447,7 +505,7 @@ async function verifyPublishedContent(inventory: boolean, homeObjectives: readon
   const activeChapters = new Map<string, ChapterPack>();
   let priorTeaching: ReadonlySet<string> = new Set();
   const studyLessons: CourseLesson[] = [];
-  for (const { id, unitId } of route) {
+  for (const { id, unitId, storyPublished } of route) {
     const entry = catalog.chapters[id];
     const bytes = await read(chapterRoot + entry.revision + '/' + id + '.json');
     const pack = parseChapterPack(bytes, id);
@@ -481,8 +539,21 @@ async function verifyPublishedContent(inventory: boolean, homeObjectives: readon
       );
     }
     const adventure = chapterAdventures.get(id);
+    if (id !== chapter.id) assert.equal(!!adventure, !!storyPublished, id);
     if (adventure) {
       priorTeaching = verifyAdventure(pack, adventure, studyLessons, priorTeaching);
+      const missionObjectives = adventure.story.chapter.missions.flatMap(({ objectiveId }) =>
+        objectiveId ? [objectiveId] : [],
+      );
+      if (missionObjectives.length)
+        assert.deepEqual(
+          missionObjectives.sort(),
+          unitsByDestination
+            .filter(({ stop }) => stop === id)
+            .flatMap(({ lessonIds }) => lessonIds)
+            .sort(),
+          `Chapter objective coverage / Cobertura de objetivos del capítulo: ${id}`,
+        );
       if (id === chapter.id) {
         const foundation = reviewedAdventure(adventure.story);
         assert.deepEqual(
@@ -491,7 +562,10 @@ async function verifyPublishedContent(inventory: boolean, homeObjectives: readon
               foundation.chapter.missions.map(({ foundationObjectiveId }) => foundationObjectiveId),
             ),
           ].sort(),
-          [...homeObjectives].sort(),
+          unitsByDestination
+            .filter(({ stop }) => stop === id)
+            .flatMap(({ lessonIds }) => lessonIds)
+            .sort(),
           'Home foundation objective coverage / Cobertura de objetivos de bases',
         );
         const home = adventure.story;
@@ -675,10 +749,7 @@ async function main() {
     console.log('Planned focal entries / Entradas clave previstas:', focalEntries);
   }
   await verifyPrerequisiteAnnotations(plan);
-  await verifyPublishedContent(
-    inventory,
-    plan.units.filter(({ stop }) => stop === 'home').flatMap(({ lessonIds }) => lessonIds),
-  );
+  await verifyPublishedContent(inventory, plan.units);
   console.log(
     'Curriculum verified / Currículo verificado: ' +
       plan.units.length +

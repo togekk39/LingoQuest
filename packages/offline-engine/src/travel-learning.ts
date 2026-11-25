@@ -99,6 +99,14 @@ export const learningErrorFeedback: Record<LearningError, string> = {
   letter_order: 'Compara las letras una por una, de izquierda a derecha, y conserva el orden.',
   false_friend: 'Esta palabra se parece a una del español, pero su significado en inglés cambia.',
   vocabulary_sense: 'Compara el significado de esta palabra con el ejemplo de la situación.',
+  countability: 'Fíjate en qué estás contando. Si hace falta, cuenta vasos, tazas o porciones.',
+  quantity_question: 'Usa how many para unidades y how much para una cantidad sin unidades.',
+  quantity_count_question: 'Para contar unidades, usa how many y nombra la unidad en plural.',
+  quantity_mass_question: 'Para preguntar cuánto hay sin contar envases, usa how much seguido del alimento o la bebida.',
+  price_question: 'Para preguntar el precio, usa how much is con un producto y how much are con varios.',
+  request_form: 'Para hacer un pedido, empieza con una petición cortés como I’d like.',
+  replacement_form: 'Di primero qué quieres recibir. Después de instead of, nombra lo que vas a cambiar.',
+  vocabulary_form: 'Fíjate si la situación pide el singular o el plural de esa palabra.',
 };
 
 function tokens(value: string) {
