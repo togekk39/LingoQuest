@@ -361,7 +361,17 @@ test('Cusco shares an offline travel journal and language evidence between Study
   await expect(page.getByTestId('story-scene-salvador-now-scene')).toBeVisible();
   const afterSalvador = await saved(page);
   expect(afterSalvador.chapterProgress?.peru).toEqual(beforeSalvador.chapterProgress?.peru);
-  expect(afterSalvador.unifiedLearning).toEqual(beforeSalvador.unifiedLearning);
+  const { evidence: previousEvidence, ...previousLearning } = beforeSalvador.unifiedLearning;
+  const { evidence: nextEvidence, ...nextLearning } = afterSalvador.unifiedLearning;
+  expect(nextLearning).toEqual(previousLearning);
+  expect(nextEvidence.slice(0, previousEvidence.length)).toEqual(previousEvidence);
+  expect(nextEvidence.slice(previousEvidence.length)).toEqual([
+    expect.objectContaining({
+      activity: 'introduced',
+      materialId: 'published.brazil.card-1',
+      independent: false,
+    }),
+  ]);
 });
 
 test('the Peru travel card keeps its evidence when the Cusco adventure is installed', async ({
