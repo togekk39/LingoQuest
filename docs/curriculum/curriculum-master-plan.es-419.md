@@ -487,7 +487,7 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 
 ### `lq-nyc-options` · Hong Kong · Compara rutas y explica decisiones (`new-york`, A2)
 
-**Historia** · El jugador entrevista a los viajeros sobre tiempo, costo y acceso, compara el MTR, el ferry y un taxi, y explica cómo llegar a Central.
+**Historia** · El jugador entrevista a los viajeros sobre tiempo, costo y acceso, compara el MTR, el ferry y un taxi, y explica cómo llegar a Central. La situación de transferencia con un turno de voluntariado verifica el interés, la disponibilidad y un ejemplo anterior.
 
 **Transferencia** · Elegir una clase o un turno de voluntariado a partir de un anuncio.
 
@@ -528,8 +528,6 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **W** · Envía un aviso con el motivo y la nueva hora de llegada.
 
 #### `lq-nyc-options.interview` · Explica por qué te interesa
-
-En Hong Kong, practica preguntas sobre restricciones del viaje. Usa un turno de voluntariado como situación de transferencia para evaluar el interés, la disponibilidad y un ejemplo anterior.
 
 - **Requisitos** · `lq-nyc-options.routes:form`, `lq-miami-experiences.when-past:s`, `lq-mexico-routines.routine:s`
 - **Nuevo** · job, volunteer, shift, team, customer, experience

@@ -487,7 +487,7 @@ Build longer exposure in the same subject areas. The B1 project unit includes mu
 
 ### `lq-nyc-options` · Hong Kong · Compare routes and explain choices (`new-york`, A2)
 
-**Story** · The player interviews travelers about time, cost and access, compares the MTR, ferry and taxi, and explains how to reach Central.
+**Story** · The player interviews travelers about time, cost and access, compares the MTR, ferry and taxi, and explains how to reach Central. The volunteer-shift transfer checks interest, availability and a past example.
 
 **Transfer** · Choosing a class or volunteer shift using a listing.
 
@@ -528,8 +528,6 @@ Build longer exposure in the same subject areas. The B1 project unit includes mu
 - **W** · Send a route update with reason and revised arrival time.
 
 #### `lq-nyc-options.interview` · Explain your interest
-
-In Hong Kong, practice interviewing travelers about their constraints. Use a volunteer shift as a transfer setting to assess interest, availability and a past example.
 
 - **Prerequisites** · `lq-nyc-options.routes:form`, `lq-miami-experiences.when-past:s`, `lq-mexico-routines.routine:s`
 - **New** · job, volunteer, shift, team, customer, experience
