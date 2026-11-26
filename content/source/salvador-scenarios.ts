@@ -48,6 +48,7 @@ const rice = task(
   'cooks rice',
   'active',
   'rafa',
+  { aliases: ['cook'] },
 );
 const set = task(
   'set',
@@ -89,6 +90,30 @@ const bowls = task(
   undefined,
   { after: ['bread'] },
 );
+const prepLunch = {
+  ...task(
+    'group-lunch',
+    'prepare lunch',
+    'preparar el almuerzo',
+    'preparing lunch',
+    'preparando el almuerzo',
+    'prepares lunch',
+    'unassigned',
+  ),
+  hidden: true,
+};
+const together = {
+  ...task(
+    'group-together',
+    'work together',
+    'trabajar juntos',
+    'working together',
+    'trabajando juntos',
+    'works together',
+    'unassigned',
+  ),
+  hidden: true,
+};
 const prepare = task(
   'prepare',
   'prepare the bowls',
@@ -121,12 +146,24 @@ export const observeLunch: TeamScenarioDefinition = {
       availability: 'busy',
     },
   ],
-  tasks: [wash, rice, { ...set, status: 'done' }],
+  tasks: [
+    { ...wash, labelEs: 'Primera tanda' },
+    rice,
+    { ...set, status: 'done' },
+    prepLunch,
+    together,
+  ],
+  groups: [
+    { id: 'hosts', members: ['jo', 'rafa'], activeTaskId: 'group-lunch' },
+    { id: 'our-team', members: ['player', 'jo', 'rafa'], activeTaskId: 'group-together' },
+  ],
 };
 
 export const compareLunch: TeamScenarioDefinition = {
   ...kitchen,
   id: 'salvador-lunch-routine',
+  snapshot: 'historical',
+  subtitle: pair('This morning’s record', 'Registro de esta mañana'),
   participants: [
     {
       id: 'jo',
@@ -151,13 +188,15 @@ export const compareLunch: TeamScenarioDefinition = {
 export const coordinateLunch: TeamScenarioDefinition = {
   ...kitchen,
   id: 'salvador-lunch-work',
+  carryFrom: observeLunch.id,
+  requiredWork: ['wash', 'rice', 'wash-final', 'stir', 'bread', 'bowls'],
   participants: [
     {
       id: 'jo',
       name: 'Jo',
       pronoun: 'she',
       usualTaskId: 'set',
-      canDo: ['wash', 'set', 'bread', 'bowls'],
+      canDo: ['wash', 'wash-final', 'set', 'bread', 'bowls'],
       availability: 'busy',
     },
     {
@@ -165,7 +204,7 @@ export const coordinateLunch: TeamScenarioDefinition = {
       name: 'Rafa',
       pronoun: 'he',
       usualTaskId: 'wash',
-      canDo: ['stir', 'wash', 'bread'],
+      canDo: ['stir', 'rice', 'wash', 'bread'],
       availability: 'busy',
       needsHelp: true,
     },
@@ -194,12 +233,22 @@ export const coordinateLunch: TeamScenarioDefinition = {
       availability: 'on-break',
     },
   ],
-  tasks: [wash, stir, { ...set, status: 'done' }, prepare, bread, bowls],
+  tasks: [
+    { ...wash, status: 'done', recordOnly: true, labelEs: 'Primera tanda' },
+    { ...rice, status: 'done', recordOnly: true },
+    { ...wash, id: 'wash-final', labelEs: 'Última tanda' },
+    stir,
+    { ...set, status: 'done' },
+    prepare,
+    bread,
+    bowls,
+  ],
 };
 
 export const coordinateDisplay: TeamScenarioDefinition = {
   kind: 'team',
   id: 'salvador-display-work',
+  requiredWork: ['move', 'labels'],
   title: pair('The photo display', 'La muestra de fotos'),
   subtitle: pair('Salvador · Community room', 'Salvador · Sala comunitaria'),
   participants: [

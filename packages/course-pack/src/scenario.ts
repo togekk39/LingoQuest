@@ -9,7 +9,7 @@ export type {
   TeamPerson,
   TeamStatus,
 } from './team-scenario.ts';
-export { teamStatusSchema } from './team-scenario.ts';
+export { teamStatusSchema, teamFactKindSchema } from './team-scenario.ts';
 
 const id = z
   .string()

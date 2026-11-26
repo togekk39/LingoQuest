@@ -52,3 +52,5 @@ U04 and the Cusco chapter include comprehension of past locations and events, wr
 ### A1 evidence in Salvador
 
 U05 and the Salvador chapter cover action descriptions and questions, habit contrasts, ability, polite requests and ordered instructions. Installed listening checks cover action updates, ability and availability. The photo display checks written transfer in a different team. Independent text review can verify retention after the delay. The handover and speaking comparison use self-checks. Device and educator review remain open. [Salvador validation](../PHASE_5D_SALVADOR_VALIDATION.md) · [A1 development coverage](../PHASE_5D_A1_COVERAGE.md)
+
+The A1 development audit records all 26 Pre-A1 and A1 objectives through Salvador, their prerequisites and the assessment modalities sampled. A small optional written note checks past, habitual and current actions and a request independently. Human observation, playback and learner trials remain part of acceptance. [Salvador validation](../PHASE_5D_SALVADOR_VALIDATION.md)

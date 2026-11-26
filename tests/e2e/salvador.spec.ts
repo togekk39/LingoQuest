@@ -107,7 +107,9 @@ test('Salvador coordinates two offline teams and restores a selected teammate, s
   const pack: ChapterPack = await (
     await request.get(`/chapter-packs/${catalog.chapters.brazil.revision}/brazil.json`)
   ).json();
-  const missions = pack.story!.chapter.missions as unknown as TravelMission[];
+  const missions = (pack.story!.chapter.missions as unknown as TravelMission[]).filter(
+    ({ optional }) => !optional,
+  );
   await page.goto('/');
   await page
     .getByRole('button', exact('Explorar primero'))
@@ -328,4 +330,47 @@ test('Brazil card evidence survives updating from catalog v10', async ({
   await click(page, 'Explorar aventura de este capítulo');
   await expect(page.getByTestId('story-scene-salvador-now-scene')).toBeVisible();
   expect(((await state(page)) as OfflineState).unifiedLearning.evidence).toContainEqual(before);
+});
+
+test('the optional next-lunch note opens offline in Study and evaluates four answers separately', async ({
+  page,
+  context,
+  request,
+}) => {
+  const catalog: ChapterCatalog = await (
+    await request.get(`/chapter-packs/${CHAPTER_CATALOG_FILE}`)
+  ).json();
+  const pack: ChapterPack = await (
+    await request.get(`/chapter-packs/${catalog.chapters.brazil.revision}/brazil.json`)
+  ).json();
+  const optional = (pack.story!.chapter.missions as unknown as TravelMission[]).find(
+    ({ optional }) => optional,
+  )!;
+  await page.goto('/');
+  await page
+    .getByRole('button', exact('Explorar primero'))
+    .click({ timeout: initialChapterTimeout });
+  await map(page);
+  await click(page, 'Cerrar y volver');
+  await readyOfflineShell(page, context);
+  await page.getByRole('tab', exact('Aprender')).click();
+  await click(page, 'Estudiar en Salvador');
+  await click(page, 'Practicar las misiones');
+  await click(page, optional.title);
+  await play(page, optional, async () => false);
+  const saved = (await state(page)) as OfflineState;
+  expect(saved.chapterProgress?.brazil?.travel.stamps.brazil).toBeUndefined();
+  const answers = saved.unifiedLearning.evidence.filter(
+    ({ exerciseId, activity }) =>
+      exerciseId.startsWith('salvador-a1-production-') && activity === 'answer',
+  );
+  expect(answers).toHaveLength(4);
+  for (const item of optional.steps) {
+    if (item.type !== 'exercise') continue;
+    const event = answers.find(({ exerciseId }) => exerciseId === item.id);
+    expect(event).toMatchObject({ outcome: 'target', independent: true, source: 'study' });
+    expect(new Set(event!.targets.map(({ targetId }) => targetId))).toEqual(
+      new Set([item.exercise.skillId]),
+    );
+  }
 });

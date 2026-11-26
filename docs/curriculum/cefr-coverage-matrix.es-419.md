@@ -52,3 +52,5 @@ U04 y el capítulo de Cusco incluyen comprensión de lugares y hechos pasados, e
 ### Evidencia A1 en Salvador
 
 U05 y el capítulo de Salvador cubren descripciones y preguntas sobre acciones, contrastes con hábitos, capacidad, peticiones corteses e instrucciones ordenadas. Los audios instalados comprueban avisos de trabajo, capacidad y disponibilidad. La muestra de fotos comprueba transferencia escrita con otro equipo. El repaso independiente de texto puede verificar retención después del intervalo. La nota y la comparación oral usan autoevaluación. Queda pendiente la revisión con dispositivos y docentes. [Validación de Salvador](../PHASE_5D_SALVADOR_VALIDATION.es-419.md) · [Cobertura de desarrollo A1](../PHASE_5D_A1_COVERAGE.es-419.md)
+
+La auditoría de desarrollo registra los 26 objetivos de Pre-A1 y A1 hasta Salvador, sus requisitos y las modalidades evaluadas. Una nota escrita optativa comprueba por separado el pasado, el hábito, la acción en curso y una petición. La observación humana, la reproducción y las pruebas con estudiantes siguen pendientes. [Validación de Salvador](../PHASE_5D_SALVADOR_VALIDATION.es-419.md)

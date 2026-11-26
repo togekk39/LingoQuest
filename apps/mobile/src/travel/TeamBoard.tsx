@@ -104,6 +104,7 @@ export function TeamBoard({
           >
             <Label>
               {statuses[status]} · {task.command.en}
+              {task.labelEs ? ` · ${task.labelEs}` : ''}
             </Label>
           </View>
         ) : null;

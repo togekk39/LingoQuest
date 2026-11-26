@@ -207,36 +207,31 @@ const agreement = production(g.agreement);
 const context = production(g.team);
 const availability = production(g.availability);
 const order = production(g.order);
-const wrong = (error: LearningError, value: Target, taskId?: string) => ({
-  error,
-  targets: [value],
-  ...(taskId && { taskId }),
-});
+const syntax = (ref: Ref) => [production(ref), writing(ref)];
 const formChecks = {
-  'progressive-positive': [production(p.now), production(g.now), agreement, writing(p.now)],
-  'progressive-negative': [production(p.negative), production(g.negative), writing(p.negative)],
-  'progressive-question': [production(g.question), writing(g.question)],
-  habit: [production(g.third), writing(g.third)],
-  'habit-contrast': [
-    production(g.habit),
-    production(g.third),
-    production(g.now),
-    production(p.now),
-    agreement,
-    writing(g.habit),
-  ],
-  'ability-question': [production(p.can), production(g.canBase), writing(p.can)],
-  'ability-positive': [production(p.can), production(g.canBase), writing(p.can)],
-  'ability-negative': [production(p.can), production(g.canBase), writing(p.can)],
-  'help-request': [production(p.request), production(g.canBase), writing(p.request)],
-  'help-offer': [production(g.offer), writing(g.offer)],
-  instruction: [order, writing(g.order)],
-  sequence: [order, writing(g.order)],
+  'progressive-positive': [...syntax(g.now), agreement],
+  'progressive-negative': [...syntax(p.negative), production(g.negative), agreement],
+  'progressive-question': syntax(g.question),
+  'progressive-information': syntax(p.question),
+  'progressive-yes-no': syntax(p.yesNo),
+  habit: syntax(g.habit),
+  'habit-contrast': [...syntax(g.habit), production(g.now), agreement],
+  'ability-question': [...syntax(p.canQuestion), production(g.canBase)],
+  'ability-positive': [...syntax(p.can), production(g.canBase)],
+  'ability-negative': [...syntax(p.canNegative), production(g.canBase)],
+  'help-request': [...syntax(p.request), production(g.canBase)],
+  'availability-question': syntax(p.availability),
+  'owner-question': [],
+  'completion-question': [],
+  'help-offer': syntax(g.offer),
+  instruction: syntax(p.instruction),
+  sequence: syntax(g.order),
+  handover: [...syntax(p.handover), production(g.now), production(p.instruction), agreement],
 } satisfies Record<TeamScenarioTurn['targetForms'][number], Target[]>;
 
 type TeamOptions = Pick<
   TeamScenarioTurn,
-  'descriptions' | 'check' | 'checkPerson' | 'assign' | 'sequence' | 'event' | 'complete'
+  'descriptions' | 'confirmAny' | 'assign' | 'sequence' | 'handover' | 'event' | 'complete'
 > & {
   mayUse?: TeamScenarioTurn['targetForms'];
   forms?: TeamScenarioTurn['targetForms'];
@@ -252,43 +247,90 @@ export function teamTurn(
   pattern: Ref,
   { forms, mayUse, terms = {}, extra = [], transfer, ...goal }: TeamOptions,
 ) {
-  const targetForms =
+  const targetForms: TeamScenarioTurn['targetForms'] =
     forms ??
     (goal.assign
       ? ['help-request']
       : goal.sequence
         ? ['sequence']
-        : goal.check
-          ? ['progressive-question']
-          : ['progressive-positive']);
+        : goal.handover
+          ? ['handover']
+          : goal.confirmAny
+            ? ['progressive-information', 'progressive-yes-no']
+            : ['progressive-positive']);
   const supported = [...new Set([...targetForms, ...(mayUse ?? [])])];
-  const formTargets = supported.map((form) => ({ form, targets: formChecks[form] }));
+  const formTargets = supported.flatMap((form) =>
+    formChecks[form].length ? [{ form, targets: formChecks[form] as Target[] }] : [],
+  );
   const taskTargets = Object.entries(terms).map(([taskId, form]) => ({
     taskId,
     targets: [target(form, 'vocabulary_recall')],
   }));
+  const wrong = (
+    error: LearningError,
+    targets: Target[],
+    form?: (typeof supported)[number],
+    taskId?: string,
+  ) => ({
+    error,
+    targets,
+    ...(form && { form }),
+    ...(taskId && { taskId }),
+  });
   const errorTargets = [
-    wrong('team_state', context),
-    ...(supported.some((form) => form.startsWith('progressive') || form === 'habit-contrast')
-      ? [wrong('be_omission', production(p.now)), wrong('be_agreement', agreement)]
-      : []),
-    ...(supported.includes('progressive-question')
-      ? [wrong('word_order', production(g.question))]
-      : []),
-    ...(supported.includes('progressive-negative')
-      ? [wrong('progressive_negative', production(p.negative))]
-      : []),
-    ...(supported.includes('habit-contrast')
-      ? [wrong('third_person', production(g.third)), wrong('tense', production(g.habit))]
-      : []),
-    ...(supported.some((form) => form.startsWith('ability') || form === 'help-request')
-      ? [wrong('can_base', production(g.canBase)), wrong('team_availability', availability)]
-      : []),
-    ...(goal.assign || goal.sequence ? [wrong('team_order', order)] : []),
+    wrong('team_state', [context]),
+    ...(goal.assign ? [wrong('team_availability', [availability])] : []),
+    ...(goal.assign || goal.sequence || goal.handover ? [wrong('team_order', [order])] : []),
+    ...supported.flatMap((form) => {
+      switch (form) {
+        case 'handover':
+        case 'progressive-positive':
+          return [
+            wrong('be_omission', [production(g.now)], 'progressive-positive'),
+            wrong('be_agreement', [agreement], 'progressive-positive'),
+          ];
+        case 'progressive-information':
+        case 'progressive-yes-no': {
+          const question = production(form === 'progressive-information' ? p.question : p.yesNo);
+          return [
+            wrong('be_omission', [question], form),
+            wrong('word_order', [question], form),
+            wrong('be_agreement', [agreement, question], form),
+          ];
+        }
+        case 'progressive-negative':
+          return [
+            wrong('progressive_negative', [production(p.negative)], form),
+            wrong('be_agreement', [agreement, production(p.negative)], form),
+            wrong('be_omission', [production(p.negative)], form),
+          ];
+        case 'habit':
+        case 'habit-contrast':
+          return [
+            wrong('third_person', [production(g.third)], form),
+            wrong('tense', [production(g.habit)], form),
+            wrong('be_agreement', [agreement], form),
+            wrong('be_omission', [production(g.habit)], form),
+          ];
+        case 'ability-positive':
+        case 'ability-negative':
+        case 'ability-question':
+        case 'help-request':
+          return [wrong('can_base', [formChecks[form][0], production(g.canBase)], form)];
+        default:
+          return [];
+      }
+    }),
     ...Object.entries(terms).map(([task, form]) =>
-      wrong('progressive_spelling', target(form, 'vocabulary_recall'), task),
+      wrong('progressive_spelling', [target(form, 'vocabulary_recall')], undefined, task),
     ),
-  ];
+  ].filter(
+    (entry, index, entries) =>
+      entries.findIndex(
+        (other) =>
+          other.error === entry.error && other.form === entry.form && other.taskId === entry.taskId,
+      ) === index,
+  );
   const turn: TeamScenarioTurn = {
     action: 'team',
     targetForms,
@@ -328,7 +370,7 @@ export function teamTurn(
         ? 'Usa Can you + verbo base para pedir ayuda a quien seleccionaste.'
         : goal.sequence
           ? 'Escribe una instrucción con First y otra con Then o Next.'
-          : goal.check
+          : goal.confirmAny
             ? 'Empieza con What + is/are, o con Is/Are si esperas una respuesta de sí o no.'
             : 'Usa el sujeto, am/is/are y la forma del verbo en -ing.',
     },

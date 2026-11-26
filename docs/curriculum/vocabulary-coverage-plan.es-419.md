@@ -98,3 +98,5 @@ Cusco recicla pronombres, lugares, horarios, números y compras de mercado. U04 
 ## Trabajo en curso en Salvador
 
 Salvador reutiliza las formas de acción de U05, las rutinas de U02, las peticiones de U03, los sentidos de alimentos y las expresiones de secuencia anteriores. Añade formas concretas para la cocina y la muestra de fotos. La ficha original de Brasil conserva el vocabulario y diálogo del almuerzo. En la aventura, cut/cutting y put/putting tienen producción y refuerzo independiente por separado. Can de capacidad y el patrón de petición Can you se enseñan según su propósito. [Auditoría por ítem de Salvador](../PHASE_5D_SALVADOR_VALIDATION.items.tsv)
+
+La revisión 17 conserva los sentidos revisados de alimentos y tareas y separa la gramática de capacidad, disponibilidad y petición. Cada refuerzo conserva la forma exacta cuando cambia el lugar o el objeto. La nota optativa reutiliza el vocabulario de alimentos, horarios y acciones ya enseñado. [Validación de Salvador](../PHASE_5D_SALVADOR_VALIDATION.es-419.md)

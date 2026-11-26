@@ -249,6 +249,34 @@ function pattern(id: string, template: string, example: Translation) {
 }
 
 export const p = {
+  canNegative: pattern(
+    'can-negative',
+    'sujeto + cannot o can’t + verbo base',
+    pair("He can't carry the table.", 'Él no puede cargar la mesa.'),
+  ),
+  canQuestion: pattern(
+    'can-ability-question',
+    'Can + sujeto + verbo base para preguntar por capacidad',
+    pair('Can you cook?', '¿Sabes cocinar?'),
+  ),
+  availability: pattern(
+    'availability-question',
+    'Can you help right now? o Are you busy?',
+    pair('Can you help right now?', '¿Puedes ayudar ahora mismo?'),
+  ),
+  instruction: pattern(
+    'next-instruction',
+    'Then o Next + verbo base',
+    pair('Then put the bowls on the table.', 'Luego pon los tazones en la mesa.'),
+  ),
+  handover: pattern(
+    'live-handover',
+    'Tarea en curso + siguiente instrucción',
+    pair(
+      'Sam is cutting the bread. Then put the bowls on the table.',
+      'Sam está cortando el pan. Luego pon los tazones en la mesa.',
+    ),
+  ),
   now: studyPattern('u05_l02', 'singular'),
   habit: pattern(
     'habit-now',

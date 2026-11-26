@@ -33,6 +33,8 @@ const task = z
     personId: id.optional(),
     after: ids.optional(),
     hidden: z.boolean().optional(),
+    recordOnly: z.boolean().optional(),
+    labelEs: text.optional(),
   })
   .strict();
 
@@ -45,9 +47,25 @@ export const teamScenarioDefinitionSchema = z
     subtitle: phrase,
     participants: z.array(person).min(1).max(20),
     tasks: z.array(task).min(1).max(20),
+    groups: z
+      .array(
+        z
+          .object({
+            id,
+            members: ids.min(2),
+            usualTaskId: id.optional(),
+            activeTaskId: id.optional(),
+          })
+          .strict(),
+      )
+      .max(8)
+      .optional(),
+    snapshot: z.literal('historical').optional(),
+    carryFrom: id.optional(),
+    requiredWork: ids.min(1).optional(),
   })
   .strict()
-  .refine(({ participants, tasks }) => {
+  .refine(({ participants, tasks, groups = [], requiredWork = [], snapshot, carryFrom }) => {
     const taskIds = tasks.map(({ id }) => id);
     const knownTasks = (references: string[]) =>
       unique(references) && references.every((value) => taskIds.includes(value));
@@ -58,13 +76,26 @@ export const teamScenarioDefinitionSchema = z
       unique(participants.map(({ id }) => id)) &&
       unique(participants.map(({ name }) => name.toLowerCase())) &&
       unique(taskIds) &&
+      knownTasks(requiredWork) &&
+      !(snapshot && carryFrom) &&
+      unique(groups.map(({ id }) => id)) &&
+      groups.every(
+        (group) =>
+          unique(group.members) &&
+          group.members.every(
+            (member) => member === 'player' || participants.some(({ id }) => id === member),
+          ) &&
+          [group.usualTaskId, group.activeTaskId].every((id) => !id || taskIds.includes(id)),
+      ) &&
       unique(activePeople) &&
       unique(
-        tasks.flatMap(({ command, progressive, aliases = [] }) => [
-          command.en.toLowerCase(),
-          progressive.en.toLowerCase(),
-          ...aliases.map((alias) => alias.toLowerCase()),
-        ]),
+        tasks
+          .filter(({ recordOnly }) => !recordOnly)
+          .flatMap(({ command, progressive, aliases = [] }) => [
+            command.en.toLowerCase(),
+            progressive.en.toLowerCase(),
+            ...aliases.map((alias) => alias.toLowerCase()),
+          ]),
       ) &&
       participants.every(
         ({ usualTaskId, canDo }) => taskIds.includes(usualTaskId) && knownTasks(canDo),
@@ -89,15 +120,21 @@ export const teamFormSchema = z.enum([
   'progressive-positive',
   'progressive-negative',
   'progressive-question',
+  'progressive-information',
+  'progressive-yes-no',
   'habit',
   'habit-contrast',
   'ability-positive',
   'ability-negative',
   'ability-question',
   'help-request',
+  'availability-question',
+  'owner-question',
+  'completion-question',
   'help-offer',
   'instruction',
   'sequence',
+  'handover',
 ]);
 const target = z
   .object({
@@ -121,22 +158,48 @@ const transition = z
     status: z.enum(['active', 'done']),
   })
   .strict();
+export const teamFactKindSchema = z.enum([
+  'work',
+  'ability',
+  'availability',
+  'owner',
+  'done',
+  'agreement',
+]);
+const confirmation = z
+  .object({
+    kind: teamFactKindSchema,
+    personId: id.optional(),
+    taskId: id.optional(),
+  })
+  .strict();
 export const teamScenarioTurnSchema = z
   .object({
     action: z.literal('team'),
-    targetForms: z.array(teamFormSchema).min(1).max(12),
-    formTargets: z.array(z.object({ form: teamFormSchema, targets }).strict()).max(12),
+    targetForms: z.array(teamFormSchema).min(1).max(20),
+    formTargets: z.array(z.object({ form: teamFormSchema, targets }).strict()).max(20),
     taskTargets: z
       .array(z.object({ taskId: id, targets }).strict())
       .max(20)
       .optional(),
     errorTargets: z
-      .array(z.object({ error: learningErrorSchema, taskId: id.optional(), targets }).strict())
-      .max(20)
+      .array(
+        z
+          .object({
+            error: learningErrorSchema,
+            form: teamFormSchema.optional(),
+            taskId: id.optional(),
+            targets,
+          })
+          .strict(),
+      )
+      .max(70)
       .optional(),
     descriptions: ids.optional(),
     check: z.union([z.literal(true), id]).optional(),
     checkPerson: id.optional(),
+    confirmAny: z.array(confirmation).min(1).max(8).optional(),
+    handover: z.object({ current: id, next: id }).strict().optional(),
     assign: ids.optional(),
     sequence: ids.min(2).optional(),
     event: z.array(transition).min(1).max(10).optional(),
@@ -144,7 +207,14 @@ export const teamScenarioTurnSchema = z
   })
   .strict()
   .refine((turn) => {
-    const goals = [turn.descriptions, turn.check, turn.assign, turn.sequence].filter(Boolean);
+    const goals = [
+      turn.descriptions,
+      turn.check,
+      turn.confirmAny,
+      turn.assign,
+      turn.sequence,
+      turn.handover,
+    ].filter(Boolean);
     return (
       goals.length === 1 &&
       (!turn.checkPerson || !!turn.check) &&
@@ -155,7 +225,11 @@ export const teamScenarioTurnSchema = z
       unique(turn.formTargets.map(({ form }) => form)) &&
       unique((turn.taskTargets ?? []).map(({ taskId }) => taskId)) &&
       unique((turn.event ?? []).map(({ taskId }) => taskId)) &&
-      unique((turn.errorTargets ?? []).map(({ error, taskId }) => `${error}:${taskId ?? ''}`))
+      unique(
+        (turn.errorTargets ?? []).map(
+          ({ error, form, taskId }) => `${error}:${form ?? ''}:${taskId ?? ''}`,
+        ),
+      )
     );
   });
 
@@ -168,9 +242,14 @@ export function validTeamTurns(
     turns.every(
       (turn, index) =>
         !!turn.complete === (index === turns.length - 1) &&
+        (turn.confirmAny ?? []).every(
+          ({ personId }) => !personId || definition.participants.some(({ id }) => id === personId),
+        ) &&
         (!turn.checkPerson || definition.participants.some(({ id }) => id === turn.checkPerson)) &&
         [
           ...(typeof turn.check === 'string' ? [turn.check] : []),
+          ...(turn.confirmAny ?? []).flatMap(({ taskId }) => (taskId ? [taskId] : [])),
+          ...(turn.handover ? [turn.handover.current, turn.handover.next] : []),
           ...(turn.descriptions ?? []),
           ...(turn.assign ?? []),
           ...(turn.sequence ?? []),

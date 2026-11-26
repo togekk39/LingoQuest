@@ -1,4 +1,5 @@
 import type { TeamScenarioDefinition } from '@lingoquest/course-pack';
+import { grammar } from './mexico-prerequisites';
 import type {
   TravelChapter,
   TravelMission,
@@ -12,6 +13,7 @@ import {
   nowChecks,
   teamChecks,
   teamTurn,
+  write,
 } from './salvador-assessments';
 import {
   basic,
@@ -204,6 +206,8 @@ const teachAbility = teach(
   g.can,
   g.canBase,
   p.can,
+  p.canNegative,
+  p.canQuestion,
   g.canPolarity,
 );
 const teachRequests = teach(
@@ -245,11 +249,13 @@ const teachRequests = teach(
       'Take a break. I can carry out a task.',
       'Toma un descanso. Puedo encargarme de una tarea.',
     ),
+    pair('Can you help right now? Are you busy?', '¿Puedes ayudar ahora mismo? ¿Tienes una tarea?'),
     pair('Can you speak slowly, please?', '¿Puedes hablar despacio, por favor?'),
   ],
   g.can,
   g.offer,
   p.request,
+  p.availability,
   g.availability,
 );
 const teachSequence = teach(
@@ -275,11 +281,17 @@ const teachSequence = teach(
       'Sam is cutting the bread. Luz is putting the bowls on the table.',
       'Sam está cortando el pan. Luz está poniendo los tazones en la mesa.',
     ),
+    pair(
+      'Sam is cutting the bread. Then put the bowls on the table.',
+      'Sam está cortando el pan. Luego pon los tazones en la mesa.',
+    ),
     pair('Can you put the bowls on the table?', '¿Puedes poner los tazones en la mesa?'),
   ],
   g.order,
   g.spelling,
   p.order,
+  p.instruction,
+  p.handover,
 );
 const teachDisplay = teach(
   'display',
@@ -343,9 +355,99 @@ function mission(
   };
 }
 
+const recapPast = grammar('grammar.past_regular');
+const recapTerms = [
+  w.yesterday,
+  w.cooked,
+  w.rice,
+  w.usually,
+  w.prepares,
+  w.lunch,
+  w.atTwelve,
+  w.now,
+  w.is,
+  w.washing,
+  w.the,
+  w.vegetable,
+  w.can,
+  w.you,
+  w.set,
+  w.please,
+];
+const recap: TravelMission = {
+  ...mission(
+    'a1-production',
+    'La nota del próximo almuerzo',
+    'La sala comunitaria',
+    'Escribe cuatro mensajes breves para el equipo.',
+    'El equipo ya tiene los cuatro mensajes.',
+    recapTerms,
+    [
+      teach(
+        'a1-production',
+        'habit',
+        'Cuatro mensajes para el equipo',
+        'Yesterday sitúa lo que pasó. Usually marca una rutina. Ahora usa is con -ing para la acción en curso. Pide ayuda con Can you y un verbo base.',
+        recapTerms,
+        [
+          pair('Yesterday Sam cooked rice.', 'Ayer Sam cocinó arroz.'),
+          pair(
+            'Luz usually prepares lunch at noon.',
+            'Luz suele preparar el almuerzo al mediodía.',
+          ),
+          pair('Jo is washing the vegetables now.', 'Jo está lavando las verduras ahora.'),
+          pair('Can you set the table, please?', '¿Puedes poner la mesa, por favor?'),
+        ],
+        recapPast,
+        g.third,
+        g.now,
+        p.now,
+        p.request,
+      ),
+      write(
+        'a1-production-past',
+        'habit',
+        'La nota dice: ayer Jo cocinó arroz. Escríbelo en inglés.',
+        ['Yesterday Jo cooked rice.', 'Jo cooked rice yesterday.'],
+        'Cooked cuenta lo que pasó ayer.',
+        recapPast,
+      ),
+      write(
+        'a1-production-habit',
+        'habit',
+        'Sam normalmente prepara el almuerzo al mediodía. Escríbelo en inglés.',
+        ['Sam usually prepares lunch at noon.'],
+        'Usa usually y prepares para la rutina de Sam.',
+        g.third,
+      ),
+      write(
+        'a1-production-now',
+        'now',
+        'Luz está lavando las verduras ahora. Escríbelo en inglés.',
+        ['Luz is washing the vegetables now.', 'Luz is washing the vegetables.'],
+        'Usa is washing para la acción en curso.',
+        p.now,
+      ),
+      write(
+        'a1-production-request',
+        'can',
+        'Pídele a Rafa que ponga la mesa. Ya estás hablando con él.',
+        [
+          'Can you set the table, please?',
+          'Can you set the table?',
+          'Rafa, can you set the table?',
+        ],
+        'Usa Can you con set en forma base.',
+        p.request,
+      ),
+    ],
+  ),
+  optional: true,
+};
+
 export const salvadorChapter: TravelChapter = {
   id: 'brazil',
-  revision: 16,
+  revision: 17,
   title: 'Salvador',
   stamp: 'Salvador',
   postcard: 'El almuerzo en equipo',
@@ -378,14 +480,17 @@ export const salvadorChapter: TravelChapter = {
           p.now,
           {
             descriptions: ['wash', 'rice'],
-            event: [{ taskId: 'wash', status: 'done' }],
+            event: [
+              { taskId: 'wash', status: 'done' },
+              { taskId: 'rice', status: 'done' },
+            ],
             terms: { wash: w.washing.teaches[0], rice: w.cooking.teaches[0] },
           },
         ),
         dialogue(
           'wash-finished',
           'Jo',
-          'Jo termina de lavar las verduras. Comprueba cómo cambió el trabajo de la cocina.',
+          'Jo termina la primera tanda de verduras y Rafa termina el arroz. Comprueba qué hace Jo ahora.',
         ),
         teachQuestions,
         teamTurn(
@@ -395,8 +500,7 @@ export const salvadorChapter: TravelChapter = {
           ['What are you doing?', 'What is Jo doing?'],
           g.question,
           {
-            check: true,
-            checkPerson: 'jo',
+            confirmAny: [{ kind: 'work', personId: 'jo' }],
             complete: true,
             extra: [p.question, p.yesNo, w.still.teaches[0]],
           },
@@ -486,7 +590,7 @@ export const salvadorChapter: TravelChapter = {
         dialogue(
           'team-opening',
           'Rafa',
-          'Rafa ya preparó el arroz. Jo está lavando las últimas verduras. La nota le pide a Sam revolver la sopa, pero quizá alguien ya se está encargando. Confírmalo en inglés.',
+          'La primera tanda y el arroz ya están listos. Jo empieza a lavar la última tanda de verduras. La nota le pide a Sam revolver la sopa, pero quizá alguien ya se está encargando. Confírmalo en inglés.',
         ),
         teachSequence,
         ...teamChecks,
@@ -497,8 +601,11 @@ export const salvadorChapter: TravelChapter = {
           ['What is Rafa doing?', 'What are you doing?', 'Is Rafa stirring the soup?'],
           g.question,
           {
-            check: 'stir',
-            event: [{ taskId: 'wash', status: 'done' }],
+            confirmAny: [
+              { kind: 'work', personId: 'rafa', taskId: 'stir' },
+              { kind: 'owner', personId: 'rafa', taskId: 'stir' },
+            ],
+            event: [{ taskId: 'wash-final', status: 'done' }],
             extra: [p.question, p.yesNo],
           },
         ),
@@ -520,19 +627,34 @@ export const salvadorChapter: TravelChapter = {
           {
             assign: ['bread'],
             event: [{ taskId: 'bread', status: 'active' }],
-            mayUse: ['ability-question', 'help-offer', 'progressive-question'],
+            mayUse: [
+              'ability-question',
+              'ability-positive',
+              'ability-negative',
+              'help-offer',
+              'availability-question',
+              'progressive-information',
+            ],
           },
         ),
         teamTurn(
           'lunch-bread-live',
           'team',
-          'El trabajo acordado ya empezó. Escribe qué está haciendo la persona que aceptó cortar el pan.',
-          ['Sam is cutting the bread.', 'Jo is cutting the bread.'],
-          p.now,
+          'Entrega un relevo. Di quién está cortando el pan ahora. Luego indica que pongan los tazones en la mesa cuando el pan esté listo.',
+          [
+            'Sam is cutting the bread. Then put the bowls on the table.',
+            'Jo is cutting the bread. Then put the bowls on the table.',
+          ],
+          p.handover,
           {
-            descriptions: ['bread'],
+            handover: { current: 'bread', next: 'bowls' },
             terms: { bread: w.cutting.teaches[0] },
-            mayUse: ['progressive-negative', 'progressive-question'],
+            mayUse: [
+              'progressive-negative',
+              'progressive-information',
+              'progressive-yes-no',
+              'instruction',
+            ],
             event: [{ taskId: 'bread', status: 'done' }],
           },
         ),
@@ -553,13 +675,13 @@ export const salvadorChapter: TravelChapter = {
           {
             assign: ['bowls'],
             event: [{ taskId: 'bowls', status: 'active' }],
-            mayUse: ['ability-question', 'progressive-question'],
+            mayUse: ['ability-question', 'progressive-information', 'availability-question'],
           },
         ),
         teamTurn(
           'lunch-handover',
           'team',
-          'Deja el orden de trabajo para el próximo turno. Escribe dos instrucciones. El pan tiene que estar listo antes de poner los tazones.',
+          'Escribe el procedimiento para el próximo equipo. Explica el orden que siguieron para preparar el pan y poner los tazones.',
           [
             'First, cut the bread. Then put the bowls on the table.',
             'First cut the bread. Next put the bowls on the table.',
@@ -583,7 +705,7 @@ export const salvadorChapter: TravelChapter = {
       'Una nueva actividad',
       'La sala comunitaria',
       'Ayuda a un equipo diferente a preparar la muestra y deja una nota en inglés.',
-      'La muestra está lista. Bia te invita a dejar un recuerdo del viaje y te entrega una postal.',
+      'Terminaste de coordinar la mesa y las etiquetas. Bia y Leo siguen con sus propias tareas. Bia te deja una postal.',
       [...displayWords, w.yesterday, w.cooked, w.atTwelve],
       [
         dialogue(
@@ -607,10 +729,17 @@ export const salvadorChapter: TravelChapter = {
         teamTurn(
           'display-check',
           'team',
-          'Antes de hacer una petición, confirma qué hace alguien o si sabe mover la mesa.',
+          'Antes de pedir ayuda, confirma si Nina sabe mover la mesa o averigua qué está haciendo Bia.',
           ['What is Bia doing?', 'Can Nina move the table?'],
           g.question,
-          { check: true, forms: ['progressive-question', 'ability-question'], transfer: true },
+          {
+            confirmAny: [
+              { kind: 'work', personId: 'bia', taskId: 'hang' },
+              { kind: 'ability', personId: 'nina', taskId: 'move' },
+            ],
+            forms: ['progressive-information', 'progressive-yes-no', 'ability-question'],
+            transfer: true,
+          },
         ),
         teamTurn(
           'display-move',
@@ -647,7 +776,7 @@ export const salvadorChapter: TravelChapter = {
         teamTurn(
           'display-order',
           'team',
-          'Escribe los dos pasos en el orden que necesita la muestra.',
+          'Deja para el próximo equipo un procedimiento con los dos pasos que siguieron en la muestra.',
           ['First, move the table. Then put the labels on the table.'],
           g.order,
           {
@@ -680,5 +809,6 @@ export const salvadorChapter: TravelChapter = {
       undefined,
       coordinateDisplay,
     ),
+    recap,
   ],
 };

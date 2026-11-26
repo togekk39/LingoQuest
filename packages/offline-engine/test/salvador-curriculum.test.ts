@@ -55,8 +55,8 @@ const practice = [
 );
 const definitions = formalDefinitions(content, [], pack.story!.audit!.definitions);
 
-function learner() {
-  let currentPack: typeof pack | null = pack;
+function learner(initial = pack) {
+  let currentPack: typeof pack | null = initial;
   let now = Date.UTC(2026, 10, 26, 17);
   let sequence = 0;
   const values = new Map<string, string>();
@@ -87,6 +87,9 @@ function learner() {
     removePack: () => {
       currentPack = null;
     },
+    upgrade: () => {
+      currentPack = pack;
+    },
     restart: () => {
       engine = makeEngine();
     },
@@ -116,6 +119,11 @@ const response = (token: string, text: string) => ({ action: 'answer', token, an
 async function play(player: Learner, mission: TravelMission, route = 0, checkResume = false) {
   let state = await player.travel({ action: 'start', missionId: mission.id });
   const path = mission.scenario ? salvadorScenarioPaths[mission.scenario.id][route] : [];
+  if (mission.id === 'salvador-team') {
+    assert.equal(team(state).work.find(({ taskId }) => taskId === 'wash')?.status, 'done');
+    assert.equal(team(state).work.find(({ taskId }) => taskId === 'wash-final')?.status, 'active');
+  }
+  const priorWorld = state.teamHistory?.['salvador-lunch-observe'];
   let probeIndex = 0;
   for (const step of mission.steps) {
     assert.equal(state.active?.stepId, step.id);
@@ -194,6 +202,14 @@ async function play(player: Learner, mission: TravelMission, route = 0, checkRes
   }
   assert.ok(state.completed[mission.id], mission.id);
   if (mission.scenario) assert.equal(team(state).phase, 'complete');
+  if (mission.scenario && 'snapshot' in mission.scenario && mission.scenario.snapshot)
+    assert.deepEqual(state.teamHistory?.['salvador-lunch-observe'], priorWorld);
+  if (mission.id === 'salvador-display') {
+    assert.deepEqual(
+      team(state).work.map(({ status }) => status),
+      ['active', 'active', 'done', 'done'],
+    );
+  }
   assert.equal(probeIndex, path.length);
   return state;
 }
@@ -211,6 +227,19 @@ test('Salvador gates every challenge and completes two distinct team paths with 
       items.map(({ id }) => id),
     );
   for (const mission of missions) await play(player, mission, 0, true);
+  const optional = missions.find(({ optional }) => optional)!;
+  for (const step of optional.steps) {
+    if (step.type !== 'exercise') continue;
+    const event = player
+      .saved()
+      .unifiedLearning.evidence.find(
+        ({ exerciseId, activity }) => exerciseId === step.id && activity === 'answer',
+      );
+    assert.deepEqual(
+      new Set(event?.targets.map(({ targetId }) => targetId)),
+      new Set([step.exercise.skillId]),
+    );
+  }
   assert.ok((await player.travel()).stamps.brazil);
   const first = player
     .saved()
@@ -218,7 +247,7 @@ test('Salvador gates every challenge and completes two distinct team paths with 
       ({ exerciseId, activity, outcome }) =>
         exerciseId === 'salvador-observe' && activity === 'answer' && outcome === 'target',
     )!;
-  assert.ok(first.targets.some(({ targetId }) => targetId === p.now.id));
+  assert.ok(first.targets.some(({ targetId }) => targetId === g.now.id));
   assert.ok(first.targets.some(({ targetId }) => targetId === w.washing.teaches[0].id));
   assert.ok(
     !first.targets.some(({ targetId }) =>
@@ -231,7 +260,7 @@ test('Salvador gates every challenge and completes two distinct team paths with 
       ({ exerciseId, activity }) => exerciseId === 'salvador-ask-bread' && activity === 'answer',
     )!;
   assert.ok(request.targets.some(({ targetId }) => targetId === p.request.id));
-  assert.ok(!request.targets.some(({ targetId }) => targetId === p.now.id));
+  assert.ok(!request.targets.some(({ targetId }) => targetId === g.now.id));
   for (const [mode, items] of pools) assert.equal(player.gate(mode, items).ready, true, mode);
 
   const before = player.mastery(g.order, 'writing');
@@ -269,6 +298,25 @@ test('Salvador review repairs the exact -ing form using archived text after the 
   const player = learner();
   for (const mission of missions.slice(0, 3)) await play(player, mission);
   await play(player, missions[3], 1);
+  assert.ok(player.mastery(p.question, 'grammar_production').pendingErrors.includes('be_omission'));
+  const questionKey = `grammar_production:${p.question.id}`;
+  const questionGuide = await player.review(questionKey);
+  assert.equal(questionGuide.exercise.id, 'salvador-repair-question-be-guide');
+  await player.review(questionKey, response(questionGuide.token, 'is'));
+  assert.ok(player.mastery(p.question, 'grammar_production').pendingErrors.includes('be_omission'));
+  const questionCheck = await player.review(questionKey, {
+    action: 'continue',
+    token: questionGuide.token,
+  });
+  assert.equal(questionCheck.exercise.id, 'salvador-repair-question-be-check');
+  const repairedQuestion = await player.review(
+    questionKey,
+    response(questionCheck.token, 'What is Luz doing?'),
+  );
+  assert.equal(repairedQuestion.result?.outcome, 'target');
+  assert.ok(
+    !player.mastery(p.question, 'grammar_production').pendingErrors.includes('be_omission'),
+  );
   const cut = w.cutting.teaches[0];
   assert.ok(
     player.mastery(cut, 'vocabulary_recall').pendingErrors.includes('progressive_spelling'),
@@ -292,10 +340,79 @@ test('Salvador review repairs the exact -ing form using archived text after the 
   assert.equal(confirmation.exercise.id, 'salvador-repair-cutting-check');
   const checked = await player.review(
     key,
-    response(confirmation.token, 'Luz is cutting the bread.'),
+    response(confirmation.token, 'Luz is cutting the vegetables.'),
   );
   assert.equal(checked.result?.outcome, 'target');
   assert.ok(
     !player.mastery(cut, 'vocabulary_recall').pendingErrors.includes('progressive_spelling'),
   );
+});
+
+test('revision 16 in-progress lunch upgrades with its selected NPC, draft, assignment and prior evidence', async () => {
+  const old = packAt(16);
+  const player = learner(old);
+  const previous = old.story!.chapter.missions as unknown as TravelMission[];
+  const send = (token: string, action: string, data = {}) =>
+    player.travel({ action, token, ...data });
+  let state = await player.travel();
+  for (const mission of previous.slice(0, 4)) {
+    state = await player.travel({ action: 'start', missionId: mission.id });
+    for (const step of mission.steps) {
+      const token = state.active!.token;
+      assert.equal(state.active?.stepId, step.id);
+      if (step.id === 'salvador-lunch-bread-live') break;
+      if (step.type === 'teach') {
+        for (const [index] of travelStepVocabulary(mission, step).entries())
+          await send(token, 'word', { position: index + 1 });
+      }
+      if (step.type === 'exercise') {
+        if (step.audio) await send(token, 'listened');
+        const { correctOptionId, acceptedAnswers } = step.exercise;
+        if (step.id === 'salvador-lunch-check')
+          await send(token, 'scenarioSpeaker', { personId: 'rafa' });
+        if (step.id === 'salvador-lunch-bread')
+          await send(token, 'scenarioSpeaker', { personId: 'sam' });
+        state = await send(token, 'answer', {
+          answer: correctOptionId
+            ? { optionId: correctOptionId }
+            : {
+                text:
+                  step.id === 'salvador-lunch-check' ? 'What is Rafa doing?' : acceptedAnswers[0],
+              },
+        });
+        assert.equal(state.active?.result?.outcome, 'target', step.id);
+        if (step.id === 'salvador-observe') {
+          state = await send(token, 'advance');
+          const again = state.active!.token;
+          state = await send(again, 'answer', { answer: { text: 'Rafa is cooking rice.' } });
+          assert.equal(state.active?.result?.outcome, 'target');
+        }
+      }
+      state = await send(state.active!.token, 'advance');
+    }
+  }
+  const draft = 'Sam is cutting the bread.';
+  await send(state.active!.token, 'draft', { answer: { text: draft } });
+  const evidence = player.saved().unifiedLearning.evidence;
+  assert.equal(team(state).work.find(({ taskId }) => taskId === 'bread')?.status, 'active');
+  player.upgrade();
+  player.restart();
+  const upgraded = await player.travel(undefined, 'story');
+  assert.equal(upgraded.active?.stepId, 'salvador-lunch-bread-live');
+  assert.equal(upgraded.active?.contentRevision, pack.revision);
+  assert.equal(upgraded.active?.scenarioSpeaker, 'sam');
+  assert.equal(upgraded.active?.answer.text, draft);
+  assert.equal(team(upgraded).work.find(({ taskId }) => taskId === 'bread')?.status, 'active');
+  assert.equal(team(upgraded).work.find(({ taskId }) => taskId === 'wash')?.status, 'done');
+  assert.equal(team(upgraded).work.find(({ taskId }) => taskId === 'wash-final')?.status, 'done');
+  assert.deepEqual(player.saved().unifiedLearning.evidence, evidence);
+  const token = upgraded.active!.token;
+  if (upgraded.active?.prerequisiteInstruction) await send(token, 'prepare');
+  const answer = await send(token, 'answer', {
+    answer: { text: draft + ' Then put the bowls on the table.' },
+  });
+  assert.equal(answer.active?.result?.outcome, 'target');
+  const next = await send(token, 'advance');
+  assert.equal(team(next).work.find(({ taskId }) => taskId === 'bread')?.status, 'done');
+  assert.equal(team(next).work.find(({ taskId }) => taskId === 'bowls')?.status, 'unassigned');
 });

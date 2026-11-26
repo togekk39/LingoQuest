@@ -39,7 +39,7 @@ const stops = [
     description: 'Bia abre la sala comunitaria. El grupo te pide ayuda para preparar la muestra.',
   },
 ];
-const missions = salvadorChapter.missions;
+const missions = salvadorChapter.missions.filter(({ optional }) => !optional);
 const completed = (id: string): StoryCondition => ({ type: 'completedMission', id });
 const missing = (condition: StoryCondition): StoryCondition => ({ ...condition, not: true });
 const go = (id: string): StoryEffect => ({ type: 'scene', id: `${id}-scene` });
