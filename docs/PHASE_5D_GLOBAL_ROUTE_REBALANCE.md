@@ -70,6 +70,7 @@ All five entries below use chapter pack revision 19, schema 1, in catalog v14. T
 | `npm run curriculum:verify` | Passed. Checked 24 planned units, 83 formal objectives, 20 stops, published prerequisites and chapter assessment audits. |
 | `npm run packs:verify` | Passed. Verified immutable course 2.2.1. |
 | `npm run packs:chapters -- --verify` | Passed. Verified all 20 entries in each of 14 catalogs, including file checksums, pack checksums and media format. |
+| `npm run check`, `npm test` | Passed locally. Type checks and lint passed, along with 191 tests across the native speech, API, course-pack and offline-engine suites. |
 | Salvador upgrade regression | Passed locally. Completed revision 18 through the learning engine, read the postcard, resumed under revision 19 and restored its format 2 backup. Stamp, scenario state, evidence, review and challenge eligibility carried over. |
 | `npm run build:web`, `npm run build:android` | Both exports succeeded locally. |
 | Push and pull request CI | The workflow records type checks, lint, unit tests, full Playwright, Web and Android exports for each tested revision. [CI runs](https://github.com/togekk39/LingoQuest/actions/workflows/ci.yml) |

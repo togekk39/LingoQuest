@@ -257,7 +257,7 @@ test('Salvador coordinates two offline teams and restores a selected teammate, s
     ),
   ).toMatchObject({ outcome: 'target', independent: true });
   await click(page, 'Pasaporte');
-  await expect(page.getByRole('heading', exact('Postal para Lisboa'))).toBeVisible();
+  await expect(page.getByText('Postal para Lisboa', { exact: true })).toBeVisible();
   await context.setOffline(false);
   await click(page, 'Continuar a Lisboa');
   await expect(page.getByRole('heading', exact('Un nuevo plan en Lisboa'))).toBeVisible();

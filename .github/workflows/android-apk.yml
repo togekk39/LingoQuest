@@ -59,6 +59,7 @@ jobs:
       - run: npm run check
       - run: npm test
       - name: Build standalone preview APK
+        shell: bash
         env:
           EXPO_PUBLIC_CHAPTER_PACK_REF: ${{ (github.ref != 'refs/heads/main' || !inputs.release_version) && env.LINGOQUEST_BUILD_COMMIT || '' }}
           EXPO_PUBLIC_CHAPTER_PACK_REPOSITORY: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.repository }}

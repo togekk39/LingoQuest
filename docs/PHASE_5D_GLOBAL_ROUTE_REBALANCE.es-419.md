@@ -70,6 +70,7 @@ Las cinco entradas siguientes usan la revisión 19 y el esquema 1 del paquete de
 | `npm run curriculum:verify` | Aprobado. Verificó las 24 unidades planificadas, los 83 objetivos formales, las 20 paradas, los requisitos publicados y las auditorías de evaluación. |
 | `npm run packs:verify` | Aprobado. Verificó el curso inmutable 2.2.1. |
 | `npm run packs:chapters -- --verify` | Aprobado. Verificó las 20 entradas de cada uno de los 14 catálogos, incluidas las sumas de archivos y paquetes y los formatos de recursos. |
+| `npm run check`, `npm test` | Aprobados localmente. Pasaron las comprobaciones de tipos y estilo y 191 pruebas de voz nativa, API, paquetes del curso y motor sin conexión. |
 | Regresión de actualización de Salvador | Aprobada localmente. Completó la revisión 18 con el motor, leyó la postal, reanudó con la revisión 19 y restauró un respaldo de formato 2. Se conservaron el sello, el estado del escenario, la evidencia, el repaso y el acceso a los desafíos. |
 | `npm run build:web`, `npm run build:android` | Ambas exportaciones terminaron localmente. |
 | CI de push y pull request | El flujo registra tipos, estilo, pruebas unitarias, Playwright completo y las exportaciones de Web y Android de cada revisión probada. [Ejecuciones de CI](https://github.com/togekk39/LingoQuest/actions/workflows/ci.yml) |
