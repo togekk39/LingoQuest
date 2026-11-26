@@ -34,10 +34,11 @@ The repair bank has distinct guides and confirmations for be omission or agreeme
 | ------------- | -------- | --------: | ------------------------------------------------------------------ |
 | `brazil.json` | 16       | 4,234,832 | `200c9df3668344798a5cf37f2133aace4b73bcf50a063eb52e25c456223bb0f8` |
 | `brazil.json` | 17       | 4,374,159 | `1e187bf0491ff239adbe8f27de537601e55b426f3159a86334f113c54c272cb9` |
+| `brazil.json` | 18       | 4,374,328 | `d95dcfd91feaa5284162bbcf7a877a30b3dace252ab6c6d7441bc712865a437d` |
 
-Catalog v12 provides Brazil 17 and catalog v11 preserves Brazil 16. Catalog v10 and earlier catalogs continue to serve their respective packs. Installed speech uses the existing player with replay and reduced speed, optional meaning and transcript, and record-and-compare. The pack includes a finite set of NPC replies. Other valid dynamic replies can be read in the dialogue. [Pack](../apps/mobile/public/chapter-packs/17/brazil.json) · [Catalog](../apps/mobile/public/chapter-packs/catalog-v12.json) · [Voice architecture](TRAVEL_ARCHITECTURE.md)
+Catalog v13 provides Brazil 18. Catalogs v11 and v12 retain revisions 16 and 17. Catalog v10 and earlier catalogs continue to serve their respective packs. Installed speech uses the existing player with replay and reduced speed, optional meaning and transcript, and record-and-compare. The pack includes a finite set of NPC replies. Other valid dynamic replies can be read in the dialogue. [Pack](../apps/mobile/public/chapter-packs/18/brazil.json) · [Catalog](../apps/mobile/public/chapter-packs/catalog-v13.json) · [Voice architecture](TRAVEL_ARCHITECTURE.md)
 
-## Revision 17 final corrections
+## Final corrections in revisions 17 and 18
 
 The first regression tests reproduced three problems. She selected the addressee as its referent, an ability inquiry could satisfy a work check, and Can you was treated as a request in an ability turn. The evaluator distinguishes the player, addressee, named third parties and defined groups. He and she require an explicit antecedent from the clause or dialogue. We and they require group facts. Habit and be agreement follow grammatical person. Contractions, natural time positions and complete polite variants are supported. Ambiguous and incomplete claims receive clarification.
 
@@ -49,9 +50,11 @@ The evaluator separates positive and negative statements, information and yes/no
 
 Revision 16 upgrades by stable step and assignment identity. The fourth mission's wash becomes the final batch. Owner, status, selected teammate and draft are retained. An already answered confirmation or handoff can be repeated with recorded support when its requirement changed. Historical receipts and evidence keep their original revision. [Engine tests](../packages/offline-engine/test/salvador-curriculum.test.ts) · [Language cases](../packages/offline-engine/test/team-language.test.ts)
 
+Revision 18 teaches table as a separate word in the optional note. A learner who starts there in Study can meet the final request’s exact prerequisites on that route.
+
 ## Reproduction and human acceptance
 
-The curriculum verifier checks 11 teaching stages, including the optional recap, 107 assessment and review items, 12 challenge items and 287 grading cases. The pack verifier checks catalog v12 and the prior catalogs. Brazil 17 carries the 282 original clips and seven new clips.
+The curriculum verifier checks 11 teaching stages, including the optional recap, 107 assessment and review items, 12 challenge items and 287 grading cases. The pack verifier checks catalog v13 and the prior catalogs. Brazil 18 carries the 282 original clips and seven new clips.
 
 Run `npm run curriculum:verify`, `npm run packs:verify`, `npm run packs:chapters -- --verify`, `npm run check`, `npm test`, `npm run build:web`, `npm run test:e2e`, `npm run build:android` and `npm run build:apk`. Verify the candidate's push and pull request workflows and the signed APK artifact. The engine regression follows the published pack through instruction, saved turns, both lunch routes, exact spelling repair, challenge eligibility and delayed review. The browser regression uses Enter, installed audio, offline navigation, Story and Study, restart and backup, the passport, and an upgrade from the Brazil card. [Engine tests](../packages/offline-engine/test/salvador-curriculum.test.ts) · [Browser tests](../tests/e2e/salvador.spec.ts) · [CI](../.github/workflows/ci.yml) · [Android APK](../.github/workflows/android-apk.yml)
 

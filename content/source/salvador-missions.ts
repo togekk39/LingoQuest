@@ -372,6 +372,7 @@ const recapTerms = [
   w.can,
   w.you,
   w.set,
+  w.table,
   w.please,
 ];
 const recap: TravelMission = {
@@ -447,7 +448,7 @@ const recap: TravelMission = {
 
 export const salvadorChapter: TravelChapter = {
   id: 'brazil',
-  revision: 17,
+  revision: 18,
   title: 'Salvador',
   stamp: 'Salvador',
   postcard: 'El almuerzo en equipo',

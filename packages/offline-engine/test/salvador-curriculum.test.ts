@@ -226,20 +226,8 @@ test('Salvador gates every challenge and completes two distinct team paths with 
       player.gate(mode, items).missingTeaching,
       items.map(({ id }) => id),
     );
-  for (const mission of missions) await play(player, mission, 0, true);
-  const optional = missions.find(({ optional }) => optional)!;
-  for (const step of optional.steps) {
-    if (step.type !== 'exercise') continue;
-    const event = player
-      .saved()
-      .unifiedLearning.evidence.find(
-        ({ exerciseId, activity }) => exerciseId === step.id && activity === 'answer',
-      );
-    assert.deepEqual(
-      new Set(event?.targets.map(({ targetId }) => targetId)),
-      new Set([step.exercise.skillId]),
-    );
-  }
+  for (const mission of missions.filter(({ optional }) => !optional))
+    await play(player, mission, 0, true);
   assert.ok((await player.travel()).stamps.brazil);
   const first = player
     .saved()
@@ -415,4 +403,23 @@ test('revision 16 in-progress lunch upgrades with its selected NPC, draft, assig
   const next = await send(token, 'advance');
   assert.equal(team(next).work.find(({ taskId }) => taskId === 'bread')?.status, 'done');
   assert.equal(team(next).work.find(({ taskId }) => taskId === 'bowls')?.status, 'unassigned');
+});
+
+test('the optional lunch note has complete prerequisite teaching on a fresh Study route', async () => {
+  const player = learner();
+  const optional = missions.find(({ optional }) => optional)!;
+  await play(player, optional);
+  assert.equal((await player.travel()).stamps.brazil, undefined);
+  for (const step of optional.steps) {
+    if (step.type !== 'exercise') continue;
+    const event = player
+      .saved()
+      .unifiedLearning.evidence.find(
+        ({ exerciseId, activity }) => exerciseId === step.id && activity === 'answer',
+      );
+    assert.deepEqual(
+      new Set(event?.targets.map(({ targetId }) => targetId)),
+      new Set([step.exercise.skillId]),
+    );
+  }
 });

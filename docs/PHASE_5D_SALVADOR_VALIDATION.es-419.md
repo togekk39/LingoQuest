@@ -34,10 +34,11 @@ El banco tiene guías y confirmaciones distintas para omitir be o elegir su form
 | ------------- | -------- | --------: | ------------------------------------------------------------------ |
 | `brazil.json` | 16       | 4,234,832 | `200c9df3668344798a5cf37f2133aace4b73bcf50a063eb52e25c456223bb0f8` |
 | `brazil.json` | 17       | 4,374,159 | `1e187bf0491ff239adbe8f27de537601e55b426f3159a86334f113c54c272cb9` |
+| `brazil.json` | 18       | 4,374,328 | `d95dcfd91feaa5284162bbcf7a877a30b3dace252ab6c6d7441bc712865a437d` |
 
-El catálogo v12 ofrece Brasil 17 y el catálogo v11 conserva Brasil 16. El catálogo v10 y los anteriores conservan sus paquetes. Los audios instalados usan reproducción normal o lenta, traducción y transcripción opcionales, y grabación para comparar. El paquete incluye un conjunto limitado de respuestas de los personajes. Las demás respuestas dinámicas válidas aparecen como texto. [Paquete](../apps/mobile/public/chapter-packs/17/brazil.json) · [Catálogo](../apps/mobile/public/chapter-packs/catalog-v12.json) · [Arquitectura de voz](TRAVEL_ARCHITECTURE.es-419.md)
+El catálogo v13 ofrece Brasil 18. Los catálogos v11 y v12 conservan las revisiones 16 y 17. El catálogo v10 y los anteriores conservan sus paquetes. Los audios instalados usan reproducción normal o lenta, traducción y transcripción opcionales, y grabación para comparar. El paquete incluye un conjunto limitado de respuestas de los personajes. Las demás respuestas dinámicas válidas aparecen como texto. [Paquete](../apps/mobile/public/chapter-packs/18/brazil.json) · [Catálogo](../apps/mobile/public/chapter-packs/catalog-v13.json) · [Arquitectura de voz](TRAVEL_ARCHITECTURE.es-419.md)
 
-## Correcciones finales de la revisión 17
+## Correcciones finales en las revisiones 17 y 18
 
 Las pruebas iniciales reprodujeron tres problemas: she tomaba a la persona seleccionada como referente, una pregunta de capacidad podía satisfacer una comprobación de trabajo y Can you se interpretaba como petición en un turno de capacidad. El motor distingue a la persona que juega, el interlocutor, la persona mencionada y los grupos definidos. He y she se apoyan en un antecedente explícito de la frase o del diálogo. We y they requieren datos del grupo. La concordancia y la forma habitual se comprueban por sujeto gramatical. Se aceptan contracciones, posiciones naturales de tiempo y variantes corteses completas. Las frases ambiguas o incompletas reciben aclaración.
 
@@ -49,9 +50,11 @@ El motor separa oraciones afirmativas y negativas, preguntas informativas y de s
 
 Al actualizar desde la revisión 16, los pasos conservan su ID. El lavado de la cuarta misión pasa a la última tanda. Se conservan responsable, estado, persona seleccionada y borrador. Un turno de verificación o relevo con resultado previo puede repetirse con apoyo registrado cuando cambió la evaluación. Los recibos y evidencia históricos siguen asociados a su revisión. [Pruebas del motor](../packages/offline-engine/test/salvador-curriculum.test.ts) · [Casos de idioma](../packages/offline-engine/test/team-language.test.ts)
 
+La revisión 18 enseña table por separado en la nota optativa. Así, se puede entrar desde Estudio y cumplir todos los requisitos de la última petición sin haber visitado la cocina.
+
 ## Reproducción y aceptación humana
 
-El verificador de currículo comprueba 11 etapas de enseñanza, incluida la actividad optativa, 107 ítems de evaluación y repaso, 12 retos y 287 casos de calificación. El verificador de paquetes comprueba el catálogo v12 y los anteriores. Brasil 17 conserva los 282 audios originales y añade siete.
+El verificador de currículo comprueba 11 etapas de enseñanza, incluida la actividad optativa, 107 ítems de evaluación y repaso, 12 retos y 287 casos de calificación. El verificador de paquetes comprueba el catálogo v13 y los anteriores. Brasil 18 conserva los 282 audios originales y añade siete.
 
 Ejecuta `npm run curriculum:verify`, `npm run packs:verify`, `npm run packs:chapters -- --verify`, `npm run check`, `npm test`, `npm run build:web`, `npm run test:e2e`, `npm run build:android` y `npm run build:apk`. Verifica los flujos del commit candidato y el APK firmado. La regresión del motor usa el paquete publicado para comprobar la enseñanza, los turnos guardados, ambos repartos, el refuerzo de ortografía, los requisitos de los retos y el repaso diferido. La regresión del navegador usa Enter, audio instalado, navegación sin conexión, Historia y Estudio, reinicio, respaldo, pasaporte y actualización desde la ficha de Brasil. [Pruebas del motor](../packages/offline-engine/test/salvador-curriculum.test.ts) · [Pruebas del navegador](../tests/e2e/salvador.spec.ts) · [CI](../.github/workflows/ci.yml) · [APK de Android](../.github/workflows/android-apk.yml)
 

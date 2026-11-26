@@ -1,0 +1,106 @@
+{
+  "format": "lingoquest-chapter-catalog",
+  "schemaVersion": 1,
+  "chapters": {
+    "home": {
+      "revision": 11,
+      "sizeBytes": 8169348,
+      "sha256": "98b8caa6b763c34afd43d6bfcf6301eea3397b697d2d2f7d5122e8ce755cebf4"
+    },
+    "mexico": {
+      "revision": 10,
+      "sizeBytes": 4392225,
+      "sha256": "01653051ee898d0374ba38ddfcadee138fdec7f2550822deb4385869d7df90ba"
+    },
+    "colombia": {
+      "revision": 13,
+      "sizeBytes": 4069366,
+      "sha256": "bfaf79f1f7268180037e6068e0c8be52acdcaf85d0f40605d56c161307c07882"
+    },
+    "peru": {
+      "revision": 15,
+      "sizeBytes": 3704087,
+      "sha256": "68c5e2442ef1d2ea4d6ee90d9ab423e297bd39d4fb1c31c817f644d9d0d787be"
+    },
+    "brazil": {
+      "revision": 18,
+      "sizeBytes": 4374328,
+      "sha256": "d95dcfd91feaa5284162bbcf7a877a30b3dace252ab6c6d7441bc712865a437d"
+    },
+    "chile": {
+      "revision": 7,
+      "sizeBytes": 1150514,
+      "sha256": "f4337d40fb93e247518927f23a20923e7bc3228eaa232d3b7c8d34b4e2112031"
+    },
+    "miami": {
+      "revision": 7,
+      "sizeBytes": 1125453,
+      "sha256": "7ae3679ee234a8e3519a89a8efb72cab04fe3e1d8ecb45c6aae9878e6740b86d"
+    },
+    "new-york": {
+      "revision": 7,
+      "sizeBytes": 1302117,
+      "sha256": "64febd4fa6677c20f0ddb6942a0ccd1a6397d93df6fe2701266c1a8c64719d3c"
+    },
+    "toronto": {
+      "revision": 6,
+      "sizeBytes": 430770,
+      "sha256": "4579f6077da943e8a7384685b3a3b81d930150e646f61f21bdbe180efef4af9a"
+    },
+    "london": {
+      "revision": 6,
+      "sizeBytes": 404922,
+      "sha256": "92c66e77bc55500b643528d17eba0056c2e9a715139255412fc864123979d864"
+    },
+    "paris": {
+      "revision": 6,
+      "sizeBytes": 346674,
+      "sha256": "e908820504b71fa93bf9ccc3c6c28b0092fec1d892f8006399021bb90269b970"
+    },
+    "rome": {
+      "revision": 6,
+      "sizeBytes": 326887,
+      "sha256": "bbfb296aa67bff9671692cf28375daca1e7cf14778e7f6f657fd13265e933499"
+    },
+    "cairo": {
+      "revision": 6,
+      "sizeBytes": 324060,
+      "sha256": "315dee1c1283c18fb7ee83d2eb184569d32788cde86ea190e502d6852f7af7f0"
+    },
+    "singapore": {
+      "revision": 6,
+      "sizeBytes": 335367,
+      "sha256": "a1919411141c64e5129ba3a631d9041126d4d7936c6bfc1027101210404dc468"
+    },
+    "tokyo": {
+      "revision": 6,
+      "sizeBytes": 353333,
+      "sha256": "43ae1e2a00065887156ddb220b1ff88652fcd2ca8888ce0dbb512382a11bec10"
+    },
+    "australia": {
+      "revision": 6,
+      "sizeBytes": 383510,
+      "sha256": "ca95babec4a6cd0f4eea75abeb4c555bdb082033aeb4cfebc3a721bd0f542d0f"
+    },
+    "new-zealand": {
+      "revision": 6,
+      "sizeBytes": 376674,
+      "sha256": "3acd4d9c2712e62f104f9686059375ace05fe6c2dac56145cf68c83c6cbcbf21"
+    },
+    "kenya": {
+      "revision": 6,
+      "sizeBytes": 376038,
+      "sha256": "81bfe5f511b25a47ccbdddd54db984b1e777611a4fcb15aebb108ac09e3ea65f"
+    },
+    "south-africa": {
+      "revision": 7,
+      "sizeBytes": 438225,
+      "sha256": "f3c067e1a016506abfda057875fb9332b38d9f4a50a4b22d6d482ce8d68c122c"
+    },
+    "antarctica": {
+      "revision": 6,
+      "sizeBytes": 388799,
+      "sha256": "e246adfd2a746e346738f3357fcabfd044e7095520685dd7de85d6dbc181c711"
+    }
+  }
+}
