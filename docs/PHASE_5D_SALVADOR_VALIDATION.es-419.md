@@ -4,6 +4,8 @@
 
 Sam y Luz llegan con la postal de Nora desde Cusco. La persona que juega ayuda a Jo y Rafa a preparar un almuerzo de intercambio y a otro equipo a montar una muestra de fotos. El último encuentro entrega el sello de Salvador y abre una postal para Valparaíso. El centro histórico de Salvador y Pelourinho dan contexto a la ciudad. La cocina y la sala son ilustraciones originales de lugares ficticios. El portugués es el idioma oficial de Brasil. El equipo usa el inglés para comunicarse. [Historia](../content/source/salvador-story.ts) · [UNESCO](https://whc.unesco.org/en/list/309/) · [Artículo 13](https://portal.stf.jus.br/constituicao-supremo/artigo.asp?abrirArtigo=13&abrirBase=CF)
 
+La descripción anterior corresponde a la revisión 18. En la ruta vigente, la revisión 19 y la vista compatible de la revisión anterior muestran **Postal para Lisboa**. [Validación de la ruta global](PHASE_5D_GLOBAL_ROUTE_REBALANCE.es-419.md)
+
 ## Enseñanza y evaluación
 
 | Objetivo                         | Misión               | Enseñanza y evidencia                                                                                                                                                                                                                                        |

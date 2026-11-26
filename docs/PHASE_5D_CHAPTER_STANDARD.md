@@ -6,6 +6,8 @@ Use this standard for each new or revised Phase 5D adventure. Keep the destinati
 
 A chapter that starts from zero should offer one evidence-based activity in context. Diagnostic answers can guide order. Require visible instruction for the exact knowledge a graded task needs. For generated assessment banks record the target, exact requirements, distractors and support for every generated item. Keep record by ability and individual letter or number.
 
+For a destination change, separate the city label and art from stable chapter, unit and learning IDs. Verify geography and local context against primary sources. Mark simulated schedules, prices, notices and safety conditions as fictional. Keep contextual evidence tied to its original material, version and context. Test the preserved passport item and unmodified learning progress with the prior pack still installed. [Global route validation](PHASE_5D_GLOBAL_ROUTE_REBALANCE.md)
+
 ## Chapter data and instruction
 
 | Record                         | Required material                                                                                                                                                                                                                                                                                                          |

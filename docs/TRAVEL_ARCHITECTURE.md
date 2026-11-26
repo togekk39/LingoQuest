@@ -16,6 +16,8 @@
 | `apps/mobile/src/travel`                           | Welcome, assessment, home, map, mission reader, guide, passport, quick review, and bundled audio    |
 | `content/source` and `packages/course-pack`        | A1–A2 textbook sources and LQP validation                                                           |
 
+The atlas, passport, and chapter reader resolve the current city from the stable route ID. Catalog v14 updates four cards while retaining the installed revision as an explicitly labeled offline archive until its replacement is downloaded. Salvador’s postcard uses the same saved item and quest facts across revisions. The older story is rendered with the Lisbon handoff without editing its package or saved state. [Global route validation](PHASE_5D_GLOBAL_ROUTE_REBALANCE.md)
+
 ## Phase 3 audit
 
 | Area                    | Starting point at `198c884`                                                                                                                                                  | Phase 3 change                                                                                                                                                                                                                         |

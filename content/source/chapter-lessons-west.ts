@@ -263,56 +263,57 @@ export const westernChapterLessons = {
     },
   },
   chile: {
-    title: 'Un plan bajo techo',
-    objectiveEs: 'Explica un plan anterior y ofrece una solución cuando cambia el pronóstico.',
+    title: 'Un nuevo plan en Lisboa',
+    objectiveEs: 'Confirma cómo cambia un encuentro en Belém y ofrece avisar al grupo. El pronóstico y los horarios son ficticios.',
     dialogue: [
       {
-        speaker: 'Sol',
-        en: 'We’re going to meet by the waterfront at four.',
-        es: 'Vamos a reunirnos junto al mar a las cuatro.',
+        speaker: 'Luz',
+        en: 'We’re going to take the tram to Belém and meet you by the waterfront at four.',
+        es: 'Vamos a tomar el tranvía a Belém y nos vemos contigo junto al río a las cuatro.',
       },
       {
-        speaker: 'Ari',
+        speaker: 'Inês',
         en: 'The forecast says it’s going to rain at three. The cultural center is open until six.',
         es: 'El pronóstico dice que va a llover a las tres. El centro cultural está abierto hasta las seis.',
       },
       {
-        speaker: 'Sol',
-        en: 'Let’s meet inside the cultural center at four, then.',
-        es: 'Entonces reunámonos dentro del centro cultural a las cuatro.',
+        speaker: 'Sam',
+        en: 'Let’s meet inside the cultural center at four, then. We won’t wait by the river.',
+        es: 'Entonces reunámonos dentro del centro cultural a las cuatro. No esperaremos junto al río.',
       },
       {
-        speaker: 'Ari',
-        en: 'I’ll text the group now.',
-        es: 'Ahora mismo le mandaré un mensaje al grupo.',
+        speaker: 'Luz',
+        en: 'I’ll text the group now. See you inside at four!',
+        es: 'Ahora mismo le mandaré un mensaje al grupo. ¡Nos vemos adentro a las cuatro!',
       },
     ],
     vocabulary: [
-      { en: 'by the waterfront', es: 'junto al mar, en este caso' },
+      { en: 'by the waterfront', es: 'junto a la orilla del río, en este caso el Tajo' },
       { en: 'forecast', es: 'pronóstico' },
       { en: 'until six', es: 'hasta las seis' },
       { en: 'inside', es: 'dentro de' },
       { en: 'text the group', es: 'mandarle un mensaje al grupo' },
       { en: 'library', es: 'biblioteca' },
+      { en: 'tram', es: 'tranvía' },
     ],
     grammarEs:
-      'Para un plan ya acordado, usa «be going to» más el verbo base: «We’re going to meet at four». También se usa para una predicción basada en lo que sabes: «It’s going to rain». Para proponer un cambio, di «Let’s» y el verbo base: «Let’s meet inside». Para ofrecer ayuda en el momento, di «I’ll» y el verbo base: «I’ll text the group». «I’ll» es la forma corta de «I will».',
+      'Para un plan ya acordado, usa «be going to» más el verbo base: «We’re going to meet at four». También sirve para una predicción basada en lo que sabes: «It’s going to rain». «Let’s meet inside» es una propuesta. Para una decisión o una oferta en el momento, usa «will»: «I’ll text the group». «I’ll» significa «I will» y «won’t» significa «will not».',
     question: {
-      promptEs: '¿Dónde y a qué hora se reunirán al final?',
+      promptEs: '¿Dónde y a qué hora se encontrarán en Belém?',
       options: [
         'Dentro del centro cultural a las cuatro',
-        'Junto al mar a las cuatro',
+        'Junto al río a las cuatro',
         'Dentro del centro cultural a las seis',
       ],
       answerIndex: 0,
       feedbackEs:
-        'El pronóstico cambia el lugar de la reunión. Las seis es la hora de cierre. La reunión sigue a las cuatro.',
+        'Sam dice «Let’s meet inside the cultural center at four». El centro cierra a las seis, pero el encuentro sigue a las cuatro.',
     },
     practiceEs:
-      'El grupo planea reunirse en un parque a las cinco, pero va a llover. Explica el plan original con «going to». Propón verse en la biblioteca a las cinco y ofrece avisar al grupo.',
+      'En Alfama, el grupo planea reunirse en una plaza a las cinco, pero va a llover. Explica el plan con «going to», propón la biblioteca a la misma hora y ofrece avisar al grupo.',
     model: {
-      en: 'We’re going to meet in the park at five, but it’s going to rain. Let’s meet at the library at five instead. I’ll text the group.',
-      es: 'Vamos a reunirnos en el parque a las cinco, pero va a llover. Mejor reunámonos en la biblioteca a las cinco. Le mandaré un mensaje al grupo.',
+      en: 'We’re going to meet in the square at five, but it’s going to rain. Let’s meet at the library at five instead. I’ll text the group.',
+      es: 'Vamos a reunirnos en la plaza a las cinco, pero va a llover. Mejor reunámonos en la biblioteca a las cinco. Le mandaré un mensaje al grupo.',
     },
   },
   miami: {
@@ -368,28 +369,38 @@ export const westernChapterLessons = {
     },
   },
   'new-york': {
-    title: 'La mejor ruta a la entrevista',
-    objectiveEs: 'Compara dos trayectos y explica cuál cumple tus necesidades.',
+    title: 'Encontrar la mejor ruta',
+    objectiveEs: 'Pregunta qué necesita el grupo y compara tres rutas entre Kowloon y la isla de Hong Kong. Los tiempos, precios y avisos son ficticios.',
     dialogue: [
       {
-        speaker: 'Riley',
-        en: 'The subway is faster than the bus. It takes twenty minutes.',
-        es: 'El metro es más rápido que el bus. Tarda veinte minutos.',
+        speaker: 'Sam',
+        en: 'We’re meeting in Central. What matters most to you: time, cost, or step-free access?',
+        es: 'Nos vemos en Central. ¿Qué te importa más: el tiempo, el costo o el acceso sin escalones?',
       },
       {
-        speaker: 'Jo',
-        en: 'Is there an elevator at the subway station near the office?',
-        es: '¿Hay un elevador en la estación de metro que queda cerca de la oficina?',
+        speaker: 'Luz',
+        en: 'I need step-free access. I’m traveling with a heavy suitcase.',
+        es: 'Necesito acceso sin escalones. Viajo con una maleta pesada.',
       },
       {
-        speaker: 'Riley',
-        en: 'The elevator is out of service today. The bus takes thirty minutes, but it has a ramp.',
-        es: 'El elevador está fuera de servicio hoy. El bus tarda treinta minutos, pero tiene una rampa.',
+        speaker: 'Mei',
+        en: 'The MTR takes ten minutes and costs twelve Hong Kong dollars. It’s the fastest option, but our elevator is out of service. The ferry takes twenty minutes and costs five dollars. The pier has a ramp.',
+        es: 'El metro tarda diez minutos y cuesta doce dólares de Hong Kong. Es la opción más rápida, pero nuestro elevador está fuera de servicio. El ferry tarda veinte minutos y cuesta cinco dólares. El muelle tiene una rampa.',
       },
       {
-        speaker: 'Jo',
-        en: 'I’ll take the bus because I need step-free access. It’s slower, so I’ll leave earlier.',
-        es: 'Tomaré el bus porque necesito un acceso sin escalones. Es más lento, así que saldré antes.',
+        speaker: 'Sam',
+        en: 'A taxi takes fifteen minutes and costs sixty dollars. The Star Ferry is the cheapest option. Let’s take it because the pier has a ramp.',
+        es: 'Un taxi tarda quince minutos y cuesta sesenta dólares. El Star Ferry es la opción más barata. Tomémoslo porque el muelle tiene una rampa.',
+      },
+      {
+        speaker: 'Luz',
+        en: 'It’s slower, so I’ll leave earlier. Which way is the pier?',
+        es: 'Es más lento, así que saldré antes. ¿Por dónde se llega al muelle?',
+      },
+      {
+        speaker: 'Mei',
+        en: 'Walk toward the waterfront and follow the signs for the Star Ferry.',
+        es: 'Camina hacia el puerto y sigue los letreros del Star Ferry.',
       },
     ],
     vocabulary: [
@@ -398,25 +409,27 @@ export const westernChapterLessons = {
       { en: 'out of service', es: 'fuera de servicio' },
       { en: 'ramp', es: 'rampa' },
       { en: 'step-free access', es: 'acceso sin escalones' },
+      { en: 'pier', es: 'muelle' },
+      { en: 'ferry', es: 'ferry, transbordador' },
     ],
     grammarEs:
-      'Compara con «faster than», «slower than» o «more accessible than». Después de «because», indica un motivo. Después de «so», indica un resultado («It’s slower, so I’ll leave earlier»).',
+      'Compara dos opciones con «faster than», «slower than» o «more accessible than». Para destacar una opción de un grupo, usa «the fastest» o «the cheapest». Después de «because», indica un motivo. Después de «so», indica un resultado («It’s slower, so I’ll leave earlier»).',
     question: {
-      promptEs: '¿Por qué Jo elige el bus?',
+      promptEs: '¿Por qué el grupo elige el Star Ferry en este viaje?',
       options: [
-        'El bus llega diez minutos antes',
-        'El bus tiene rampa y el elevador del metro está fuera de servicio',
-        'El metro tarda treinta minutos y Jo prefiere salir tarde',
+        'Es el medio más rápido y los otros dos están fuera de servicio',
+        'El muelle tiene rampa y el elevador de la estación de metro está fuera de servicio',
+        'El taxi cuesta menos que el ferry y el grupo tiene prisa',
       ],
       answerIndex: 1,
       feedbackEs:
-        'El metro tarda menos, pero el elevador no funciona. La rampa del bus le permite viajar sin usar escaleras.',
+        'El metro tarda menos, pero en este caso el elevador no funciona. Sam elige el ferry porque Luz necesita acceso sin escalones y el muelle tiene una rampa.',
     },
     practiceEs:
-      'Avisa a la oficina que tomarás el bus. Di que es más lento que el metro. Elige una hora de salida y presenta esa decisión como una consecuencia con «so».',
+      'Entrevista a otro viajero. Pregúntale si prefiere ahorrar dinero o llegar antes. Imagina que tiene tiempo y quiere ahorrar. Compara el ferry con el metro y el taxi, y explica tu recomendación.',
     model: {
-      en: 'I’ll take the bus. It’s slower than the subway, so I’ll leave at eight to get to the interview on time.',
-      es: 'Tomaré el bus. Es más lento que el metro, así que saldré a las ocho para llegar a tiempo a la entrevista.',
+      en: 'What matters most to you: time or cost? The ferry is slower than the MTR, but it’s the cheapest option. I’d take the ferry because you want to save money.',
+      es: '¿Qué te importa más: el tiempo o el costo? El ferry es más lento que el metro, pero es la opción más barata. Tomaría el ferry porque quieres ahorrar.',
     },
   },
   toronto: {

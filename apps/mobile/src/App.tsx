@@ -731,6 +731,7 @@ function AppContent({ onMotionPreference }: { onMotionPreference: (value: boolea
         }
         onStudyMission={startChapterMission}
         onRemoveDownload={openedChapter === firstChapter.id ? undefined : discardChapterDownload}
+        onUpdate={async (pack) => setHomeReady(await applyDownloadedContent(pack))}
         onOpenTextbookUnit={(unitId) => {
           setTextbookUnit(unitId);
           setFlow('textbook');

@@ -4,6 +4,8 @@
 
 Sam and Luz arrive with Nora’s postcard from Cusco. The player helps Jo and Rafa prepare an exchange lunch and helps a new team set up a photo display. The last encounter awards the Salvador stamp and opens a postcard for Valparaíso. The city setting draws on the historic center of Salvador and Pelourinho. The kitchen and display room are original illustrations of fictional spaces. Portuguese is Brazil’s official language. English is the team's shared language. [Story](../content/source/salvador-story.ts) · [UNESCO](https://whc.unesco.org/en/list/309/) · [Article 13](https://portal.stf.jus.br/constituicao-supremo/artigo.asp?abrirArtigo=13&abrirBase=CF)
 
+The description above records revision 18. On the current route, revision 19 and the compatible view of the prior revision show **Postal para Lisboa**. [Global route validation](PHASE_5D_GLOBAL_ROUTE_REBALANCE.md)
+
 ## Instruction and assessment
 
 | Objective                        | Mission              | Instruction and evidence                                                                                                                                                                                                               |

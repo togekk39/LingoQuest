@@ -6,6 +6,8 @@ Usa este estándar para cada aventura nueva o revisada de la fase 5D. Conserva l
 
 Un capítulo desde cero debe ofrecer una actividad contextual basada en evidencia. Las respuestas diagnósticas pueden orientar el orden. Requiere enseñanza visible del conocimiento exacto que se evalúa. Registra el objetivo, los requisitos, los distractores y el apoyo de cada actividad generada. Conserva el registro por habilidad y por letra o número.
 
+Cuando cambies un destino, separa el nombre y las ilustraciones de los ID estables de capítulo, unidad y aprendizaje. Verifica la geografía y el contexto local con fuentes primarias. Marca como ficticios los horarios, precios, avisos y condiciones de seguridad simulados. Conserva cada evidencia contextual ligada a su material, versión y situación originales. Prueba el objeto del pasaporte y el progreso conservado con el paquete anterior todavía instalado. [Validación de la ruta global](PHASE_5D_GLOBAL_ROUTE_REBALANCE.es-419.md)
+
 ## Datos del capítulo y enseñanza
 
 | Registro                          | Material requerido                                                                                                                                                                                                                                                                                                                                                     |

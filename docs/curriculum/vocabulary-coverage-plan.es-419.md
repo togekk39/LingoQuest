@@ -6,6 +6,8 @@ Las 83 lecciones del [plan maestro](curriculum-master-plan.es-419.md) definen la
 
 El banco de repaso de Casa asigna un objetivo a cada letra y conserva para los números los mismos ID `lex.number.<n>` que Ciudad de México. Los distractores requieren las letras o palabras numéricas que la persona ha visto en la enseñanza. Reconocer mayúsculas y minúsculas, identificar por audio y escribir un dictado son comprobaciones distintas.
 
+La ruta retoma horarios e invitaciones en Lisboa, costo y acceso en Hong Kong, reservas y confirmaciones en Estambul, y matices, fuentes y riesgos en Sídney. Los nombres locales de lugares y transportes aportan contexto. El vocabulario y la pronunciación siguen el inglés estadounidense con explicaciones en es-419. [Validación de la ruta global](../PHASE_5D_GLOBAL_ROUTE_REBALANCE.es-419.md)
+
 ## Progresión léxica
 
 Cada entrada registra un **lema con sentido definido** o una **expresión de varias palabras con función definida**. Registra flexiones y contracciones bajo esa entrada e indica cuáles se enseñaron. Distingue reconocimiento y producción por modalidad. La columna de elementos clave cuenta las entradas separadas por comas en el campo Nuevo del plan maestro e incluye formas agrupadas y expresiones. Las 425 entradas clave reflejan el alcance de la autoría previo a editar por sentidos. Reproduce los conteos con `npm run curriculum:verify -- --inventory`. Los rangos acumulados son estimaciones provisionales de capacidad para entradas enseñadas y recicladas en materiales principales y complementarios. Sirven para calcular trabajo editorial y carga de repaso. La cantidad de entradas no determina un nivel del MCER.

@@ -8,6 +8,12 @@ import type { ChapterMedia } from '@lingoquest/course-pack';
 const run = promisify(execFile);
 const mobileAssets = new URL('../apps/mobile/assets/', import.meta.url);
 const chapterArt = new URL('../content/media/chapters/', import.meta.url);
+const cityCovers = new Map([
+  ['chile', 'lisbon'],
+  ['new-york', 'hong-kong'],
+  ['rome', 'istanbul'],
+  ['australia', 'sydney'],
+]);
 const homeImages = {
   cover: 'travel/hometown.jpg',
   world: 'travel/world.png',
@@ -147,7 +153,8 @@ async function readMedia(url: URL, mimeType: ChapterMedia['mimeType']): Promise<
 
 export async function loadChapterImages(chapterId: string): Promise<Record<string, ChapterMedia>> {
   if (!/^[a-z]+(?:-[a-z]+)*$/.test(chapterId)) throw new Error(`Invalid chapter ID: ${chapterId}`);
-  const images = { cover: new URL(`${chapterId}.jpg`, chapterArt), ...storyImages.get(chapterId) };
+  const cover = cityCovers.get(chapterId) ?? chapterId;
+  const images = { cover: new URL(`${cover}.jpg`, chapterArt), ...storyImages.get(chapterId) };
   return Object.fromEntries(
     await Promise.all(
       Object.entries(images).map(async ([id, file]) => [
@@ -184,7 +191,7 @@ function speechText(phrase: string) {
     .replace(/\bExcuse(?= me\b)/g, 'Excuze')
     .replace(/\bCartagena\b/gi, 'car-tah-hay-nah')
     .replace(/\bpatacones\b/gi, 'pah-tah-cone-ess')
-    .replace(/\b(?:COP|USD)\b/g, (code) => [...code].join(' '))
+    .replace(/\b(?:COP|USD|MTR)\b/g, (code) => [...code].join(' '))
     .replace(/[–—]/g, ', ')
     .replace(/\s*→\s*/g, ', ');
 }

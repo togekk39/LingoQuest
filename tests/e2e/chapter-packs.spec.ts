@@ -23,6 +23,157 @@ import {
 
 const catalogUrl = `/chapter-packs/${CHAPTER_CATALOG_FILE}`;
 
+test('the atlas and offline cards use the rebalanced route without promoting historical evidence', async ({
+  page,
+  context,
+  request,
+}) => {
+  const stops = [
+    'Mi lugar de origen',
+    'Ciudad de México',
+    'Cartagena',
+    'Cusco',
+    'Salvador',
+    'Lisboa',
+    'Miami',
+    'Hong Kong',
+    'Toronto',
+    'Londres',
+    'París',
+    'Estambul',
+    'El Cairo',
+    'Singapur',
+    'Tokio',
+    'Sídney',
+    'Wellington',
+    'Nairobi',
+    'Ciudad del Cabo',
+    'Antártida',
+  ];
+  const replacements = [
+    {
+      number: 6,
+      id: 'chile',
+      name: 'Lisboa',
+      previous: 'Valparaíso',
+      position: [-9.1393, 38.7223],
+      unit: 'u06',
+    },
+    {
+      number: 8,
+      id: 'new-york',
+      name: 'Hong Kong',
+      previous: 'Nueva York',
+      position: [114.1694, 22.3193],
+      unit: 'u08',
+    },
+    { number: 12, id: 'rome', name: 'Estambul', previous: 'Roma', position: [28.9784, 41.0082] },
+    {
+      number: 16,
+      id: 'australia',
+      name: 'Sídney',
+      previous: 'Hobart',
+      position: [151.2093, -33.8688],
+    },
+  ];
+  const legacy: ChapterCatalog = await (
+    await request.get('/chapter-packs/catalog-v13.json')
+  ).json();
+  const current: ChapterCatalog = await (await request.get(catalogUrl)).json();
+  const catalogRoute = `**${catalogUrl}`;
+  await context.route(catalogRoute, (route) => route.fulfill({ json: legacy }));
+  await enterApp(page, { chooseOrigin: false });
+  await page.getByRole('tab', exact('Mapa')).click();
+  const atlas = page.getByTestId('world-atlas');
+  const stopButtons = atlas.getByRole('button', { name: /^\d+\. / });
+  await expect(stopButtons).toHaveCount(stops.length);
+  for (const [index, stop] of stops.entries())
+    await expect(stopButtons.nth(index)).toHaveAccessibleName(`${index + 1}. ${stop}`);
+
+  const open = async (number: number, name: string) => {
+    await click(page, `${number}. ${name}`);
+    await click(page, 'Abrir capítulo');
+  };
+  const answer = async (pack: ChapterPack) => {
+    const card = page.getByTestId(`chapter-lesson-${pack.chapterId}`);
+    await card
+      .getByRole('radio', exact(pack.lesson.question.options[pack.lesson.question.answerIndex]))
+      .click();
+    await click(page, 'Comprobar respuesta');
+    await expect(card.getByText(/^¡Muy bien!/)).toBeVisible();
+  };
+  const oldEvidence = [];
+  for (const { number, id, name, previous, position } of replacements) {
+    const old: ChapterPack = await (
+      await request.get(`/chapter-packs/${legacy.chapters[id].revision}/${id}.json`)
+    ).json();
+    await click(page, `${number}. ${name}`);
+    const pin = await page.getByTestId(`map-pin-${id}`).evaluate((element) => ({
+      left: Number.parseFloat(element.style.left),
+      top: Number.parseFloat(element.style.top),
+    }));
+    expect(pin.left).toBeCloseTo((position[0] + 180) / 3.6, 3);
+    expect(pin.top).toBeCloseTo((90 - position[1]) / 1.8, 3);
+    await click(page, 'Abrir capítulo');
+    await expect(page.getByText(`Tarjeta archivada · ${previous}`, { exact: true })).toBeVisible();
+    await answer(old);
+    const evidence = (await state(page)).unifiedLearning.evidence.find(
+      ({ exerciseId }) => exerciseId === `published.${id}.card-1.question`,
+    );
+    expect(evidence).toMatchObject({
+      materialVersion: `${id}:${old.revision}`,
+      contextId: `published.${id}.card-1`,
+      independent: false,
+    });
+    oldEvidence.push(evidence);
+    await click(page, 'Cerrar y volver');
+  }
+
+  await context.unroute(catalogRoute);
+  await readyOfflineShell(page, context);
+  await page.getByRole('tab', exact('Mapa')).click();
+  await open(6, 'Lisboa');
+  await expect(page.getByText('Tarjeta archivada · Valparaíso', { exact: true })).toBeVisible();
+  await click(page, 'Descargar tarjeta de Lisboa');
+  await expect(page.getByRole('alert')).toContainText('Revisa tu conexión');
+  await click(page, 'Cerrar y volver');
+  await context.setOffline(false);
+
+  for (const { number, id, name, unit } of replacements) {
+    const revised: ChapterPack = await (
+      await request.get(`/chapter-packs/${current.chapters[id].revision}/${id}.json`)
+    ).json();
+    expect(revised.unit?.id).toBe(unit);
+    expect(revised.story).toBeUndefined();
+    await open(number, name);
+    await click(page, `Descargar tarjeta de ${name}`);
+    await expect(page.getByRole('heading', exact(revised.lesson.title))).toBeVisible();
+    await expect(page.getByText(`Paquete sin conexión · ${name}`, { exact: true })).toBeVisible();
+    await expect(page.getByTestId(`chapter-cover-${id}`)).toBeVisible();
+    await expect(page.getByRole('button', exact('Explorar aventura de este capítulo'))).toHaveCount(
+      0,
+    );
+    await answer(revised);
+    const evidence = (await state(page)).unifiedLearning.evidence.filter(
+      ({ exerciseId }) => exerciseId === `published.${id}.card-1.question`,
+    );
+    expect(evidence).toEqual([
+      oldEvidence[replacements.findIndex((stop) => stop.id === id)],
+      expect.objectContaining({
+        materialVersion: `${id}:${revised.revision}`,
+        contextId: `published.${id}.card-1.route-19`,
+        independent: false,
+      }),
+    ]);
+    await click(page, 'Cerrar y volver');
+  }
+
+  await readyOfflineShell(page, context);
+  await page.getByRole('tab', exact('Mapa')).click();
+  await open(6, 'Lisboa');
+  await expect(page.getByRole('heading', exact('Un nuevo plan en Lisboa'))).toBeVisible();
+});
+
 function expectProgressWithChapterExposure(
   before: Awaited<ReturnType<typeof state>>,
   after: Awaited<ReturnType<typeof state>>,

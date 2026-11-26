@@ -236,7 +236,12 @@ function reviewedAdventurePractice(
     const answer = savedAnswer(state, event);
     if (!answer || judgeAnswer(item.exercise, answer) !== 'target') return [];
     const lesson = content.lessons[item.lessonId];
-    if (item.version && event.materialVersion !== item.version) return [];
+    // Brazil 19 revises the postcard. Its reviewed exercises and prerequisites match Brazil 18.
+    // Brasil 19 actualiza la postal. Sus ejercicios y requisitos revisados coinciden con Brasil 18.
+    const sameSalvadorAssessment =
+      item.version === 'brazil:19' && event.materialVersion === 'brazil:18';
+    if (item.version && event.materialVersion !== item.version && !sameSalvadorAssessment)
+      return [];
     const requires = item.version
       ? item.requires
       : lesson &&

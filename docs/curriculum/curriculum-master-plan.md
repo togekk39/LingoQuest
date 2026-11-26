@@ -10,9 +10,9 @@ The proposed core has **83 lessons in 24 units across 20 stops**. A lesson is a 
 | ------ | ----- | ------- | ------------------------------------------------------------------- |
 | Pre-A1 | 1     | 4       | Home, `lq-home-start.greet` (lesson 1)                              |
 | A1     | 5     | 22      | Home through Salvador, `lq-home-plaza.origins` (lesson 5)           |
-| A2     | 5     | 16      | Valparaíso through Toronto, `lq-valparaiso-plans.plans` (lesson 27) |
+| A2     | 5     | 16      | Lisbon through Toronto, `lq-valparaiso-plans.plans` (lesson 27) |
 | B1     | 7     | 20      | London through Tokyo, `lq-london-disruptions.notices` (lesson 43)   |
-| B2     | 6     | 21      | Hobart through Antarctica, `lq-hobart-risk.certainty` (lesson 63)   |
+| B2     | 6     | 21      | Sydney through Antarctica, `lq-hobart-risk.certainty` (lesson 63)   |
 
 The route is the recommended sequence. Start at Pre-A1 without prior English, or use a low-stakes diagnostic and a sample output to recommend a starting point for each skill. Earlier material remains available. A learner may sample later content or follow the story with support. A milestone records the skills actually observed.
 
@@ -401,9 +401,9 @@ Build longer exposure in the same subject areas. The B1 project unit includes mu
 - **R** · Identify a missed task on a two-column checklist.
 - **W** · Write a handover with one current action and two steps.
 
-### `lq-valparaiso-plans` · Plans and changes (`chile`, A2)
+### `lq-valparaiso-plans` · Lisbon · Plans and changes (`chile`, A2)
 
-**Story** · An outdoor meetup needs a backup venue.
+**Story** · Sam, Luz and the player arrive from Salvador. A changed forecast sends the group to a backup meeting point in Belém.
 
 **Transfer** · Rescheduling a family or club gathering.
 
@@ -485,9 +485,9 @@ Build longer exposure in the same subject areas. The B1 project unit includes mu
 - **R** · Reconcile a packing list and short message.
 - **W** · Write a three-item update distinguishing recent and pending actions.
 
-### `lq-nyc-options` · Compare routes and explain choices (`new-york`, A2)
+### `lq-nyc-options` · Hong Kong · Compare routes and explain choices (`new-york`, A2)
 
-**Story** · The player chooses an accessible route to an interview and explains their interest.
+**Story** · The player interviews travelers about time, cost and access, compares the MTR, ferry and taxi, and explains how to reach Central.
 
 **Transfer** · Choosing a class or volunteer shift using a listing.
 
@@ -528,6 +528,8 @@ Build longer exposure in the same subject areas. The B1 project unit includes mu
 - **W** · Send a route update with reason and revised arrival time.
 
 #### `lq-nyc-options.interview` · Explain your interest
+
+In Hong Kong, practice interviewing travelers about their constraints. Use a volunteer shift as a transfer setting to assess interest, availability and a past example.
 
 - **Prerequisites** · `lq-nyc-options.routes:form`, `lq-miami-experiences.when-past:s`, `lq-mexico-routines.routine:s`
 - **New** · job, volunteer, shift, team, customer, experience
@@ -707,9 +709,9 @@ Build longer exposure in the same subject areas. The B1 project unit includes mu
 - **R** · Distinguish a necessary description from a parenthetical detail.
 - **W** · Summarize both preferences and the group's decision.
 
-### `lq-rome-problems` · Incidents and service solutions (`rome`, B1)
+### `lq-rome-problems` · Istanbul · Incidents and service solutions (`rome`, B1)
 
-**Story** · A room issue needs a clear account and a fair solution.
+**Story** · After crossing the Bosphorus, the group compares the booking with the rooms on offer, negotiates, and confirms the agreement in writing.
 
 **Transfer** · Asking for help with a missing delivery or a facility issue.
 
@@ -905,9 +907,9 @@ Build longer exposure in the same subject areas. The B1 project unit includes mu
 - **R** · Reconcile a change notice with an email and identify an open question.
 - **W** · Write a connected rationale with a change, evidence and next steps.
 
-### `lq-hobart-risk` · Interpret risk and defend a decision (`australia`, B2)
+### `lq-hobart-risk` · Sydney · Interpret risk and defend a decision (`australia`, B2)
 
-**Story** · Two weather and access updates affect a group walk.
+**Story** · The group compares a fictional Bondi forecast and advisory and assesses a Circular Quay ferry as a backup.
 
 **Transfer** · Deciding whether to move a public or school event indoors.
 

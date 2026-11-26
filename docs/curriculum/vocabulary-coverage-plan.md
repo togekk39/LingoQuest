@@ -6,6 +6,8 @@ The 83 lessons in the [master plan](curriculum-master-plan.md) define the initia
 
 The Home review bank gives each letter its own target and keeps number prompts on the same `lex.number.<n>` IDs as Mexico City. Distractors require the letters or number words actually shown in teaching. Case recognition, identification from audio and written dictation are separate checks.
 
+The route recycles time and invitations in Lisbon, cost and access in Hong Kong, booking and follow-up language in Istanbul, and qualified source and risk language in Sydney. Local terms such as place and transit names establish context. The taught vocabulary and pronunciation target stay in American English, with explanations in es-419. [Global route validation](../PHASE_5D_GLOBAL_ROUTE_REBALANCE.md)
+
 ## Lexical progression
 
 A tracked entry is a **lemma with a specified sense** or a **multiword expression with a specified function**. Record inflected and contracted forms under that entry, with the forms actually taught. Mark recognition and productive use separately by modality. The focal column counts comma-separated New entries in the master plan (including grouped inflections or expressions), before sense-level editing. Reproduce these counts with `npm run curriculum:verify -- --inventory`. The 425 focal entries describe authoring scope. The wider cumulative ranges are provisional capacity estimates for taught and recycled entries in core and companion materials. Use them to estimate editorial work and review load. The number of entries has no role in awarding a CEFR level.

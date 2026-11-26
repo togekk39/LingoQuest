@@ -55,6 +55,33 @@ export const homeChapterDetails = {
   collectible: 'La postal de Sam',
 };
 
+export const salvadorLisbonHandoff = {
+  destinationId: 'chile',
+  postcardId: 'salvador-valparaiso-postcard',
+  name: 'Postal para Lisboa',
+  description: 'Bia te invita a cruzar el Atlántico y continuar el viaje en Lisboa, Portugal.',
+  goal: 'Recoge la postal para Lisboa.',
+  hotspot: 'Ver la postal para Lisboa',
+  dialogue:
+    'Junto a las fotos, Bia deja una postal para Lisboa. «En Portugal también se habla portugués. Una amiga nos invita a conocer su barrio al otro lado del Atlántico».',
+  choice: 'Guardar la postal para Lisboa',
+  message:
+    'En Salvador usamos inglés para ponernos de acuerdo. La postal de Bia nos invita a cruzar el Atlántico y encontrarnos con su amiga en Lisboa, Portugal.',
+};
+
+export const routeCardRevisions: Readonly<
+  Record<string, { revision: number; previousName: string }>
+> = {
+  chile: { revision: 19, previousName: 'Valparaíso' },
+  'new-york': { revision: 19, previousName: 'Nueva York' },
+  rome: { revision: 19, previousName: 'Roma' },
+  australia: { revision: 19, previousName: 'Hobart' },
+};
+
+export function routeCardUpdate(chapterId: string) {
+  return Object.hasOwn(routeCardRevisions, chapterId) ? routeCardRevisions[chapterId] : undefined;
+}
+
 export const route: Destination[] = [
   {
     id: homeChapterDetails.id,
@@ -121,15 +148,15 @@ export const route: Destination[] = [
     storyPublished: true,
   },
   {
-    id: 'chile',
-    name: 'Valparaíso',
-    location: 'Chile',
-    continent: 'América del Sur',
+    id: salvadorLisbonHandoff.destinationId,
+    name: 'Lisboa',
+    location: 'Portugal',
+    continent: 'Europa',
     description:
-      'Arma una salida con un grupo de intercambio y ajusta el plan si cambia el tiempo.',
-    goals: ['Planear un encuentro', 'Ofrecer ayuda'],
+      'Cruza el Atlántico desde Salvador para tomar un tranvía hacia Belém. Si cambia el tiempo, acuerda otro punto de encuentro.',
+    goals: ['Planear un encuentro', 'Ofrecer ayuda', 'Confirmar un plan alternativo'],
     band: 'A2',
-    position: [-72, -33],
+    position: [-9.1393, 38.7223],
     unitId: 'u06',
   },
   {
@@ -146,14 +173,14 @@ export const route: Destination[] = [
   },
   {
     id: 'new-york',
-    name: 'Nueva York',
-    location: 'Estados Unidos',
-    continent: 'América del Norte',
+    name: 'Hong Kong',
+    location: 'Región administrativa especial de China',
+    continent: 'Asia',
     description:
-      'Busca una ruta accesible y explica en una entrevista por qué te interesa un trabajo.',
-    goals: ['Comparar opciones', 'Explicar motivos'],
+      'Pregunta qué necesita cada viajero y compara cómo cruzar el puerto Victoria en metro o ferry.',
+    goals: ['Comparar rutas', 'Preguntar por las necesidades del grupo', 'Justificar una elección'],
     band: 'A2',
-    position: [-74, 41],
+    position: [114.1694, 22.3193],
     unitId: 'u08',
   },
   {
@@ -188,13 +215,14 @@ export const route: Destination[] = [
   },
   {
     id: 'rome',
-    name: 'Roma',
-    location: 'Italia',
+    name: 'Estambul',
+    location: 'Türkiye',
     continent: 'Europa',
-    description: 'Acuerda una solución en un alojamiento que atiende a viajeros internacionales.',
-    goals: ['Describir un problema', 'Negociar una solución'],
+    description:
+      'Después de cruzar el Bósforo, aclara una reserva con recepción y confirma por escrito el nuevo acuerdo.',
+    goals: ['Describir un problema', 'Negociar una solución', 'Confirmar el acuerdo por escrito'],
     band: 'B1',
-    position: [12, 42],
+    position: [28.9784, 41.0082],
   },
   {
     id: 'cairo',
@@ -229,13 +257,18 @@ export const route: Destination[] = [
   },
   {
     id: 'australia',
-    name: 'Hobart',
+    name: 'Sídney',
     location: 'Australia',
     continent: 'Oceanía',
-    description: 'Lee el pronóstico y prepara con tu grupo una caminata junto a la costa.',
-    goals: ['Interpretar avisos', 'Proponer cambios según el clima'],
+    description:
+      'Contrasta un pronóstico y un aviso de la costa de Bondi. Escucha al equipo y decide si conviene cambiar la caminata por un paseo en el puerto.',
+    goals: [
+      'Comparar fuentes',
+      'Sopesar riesgos y puntos de vista',
+      'Justificar una recomendación',
+    ],
     band: 'B2',
-    position: [147, -43],
+    position: [151.2093, -33.8688],
   },
   {
     id: 'new-zealand',

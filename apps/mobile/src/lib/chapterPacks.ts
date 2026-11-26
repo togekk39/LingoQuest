@@ -1,6 +1,6 @@
 import { fetch as nativeFetch } from 'expo/fetch';
 import { Platform } from 'react-native';
-import { route } from '@lingoquest/offline-engine';
+import { route, routeCardUpdate } from '@lingoquest/offline-engine';
 import {
   CHAPTER_CATALOG_FILE,
   MAX_CHAPTER_CATALOG_BYTES,
@@ -278,7 +278,12 @@ export async function refreshInstalledChapters() {
 
   const catalog = await fetchCatalog();
   for (const [id, revision] of installed) {
-    if ((catalog.chapters[id]?.revision ?? 0) <= revision) continue;
+    const routeUpdate = routeCardUpdate(id);
+    if (
+      (catalog.chapters[id]?.revision ?? 0) <= revision ||
+      (routeUpdate && revision < routeUpdate.revision)
+    )
+      continue;
     await startChapterDownload(id, undefined, catalog, true).catch(() => {});
   }
 }
