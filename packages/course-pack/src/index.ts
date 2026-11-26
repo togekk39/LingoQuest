@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { equivalentAnswerText } from '@lingoquest/contracts';
 import { sha256Hex, utf8Bytes } from './hash.ts';
 import { scenarioDefinitionSchema, scenarioTurnSchema } from './scenario.ts';
+import { validTeamTurns } from './team-scenario.ts';
 export { sha256Hex, utf8Bytes } from './hash.ts';
 export * from './scenario.ts';
 export const COURSE_PACK_FORMAT = 'lingoquest-course-pack' as const;
@@ -250,7 +251,7 @@ export type CourseLesson = CoursePayload['lessons'][string];
 
 export const CHAPTER_PACK_FORMAT = 'lingoquest-chapter-pack' as const;
 export const CHAPTER_PACK_SCHEMA_VERSION = 1 as const;
-export const CHAPTER_CATALOG_FILE = 'catalog-v10.json';
+export const CHAPTER_CATALOG_FILE = 'catalog-v13.json';
 export const MAX_CHAPTER_PACK_BYTES = 8 * 1024 * 1024;
 export const MAX_CHAPTER_CATALOG_BYTES = 64 * 1024;
 const chapterIdSchema = z.string().regex(/^[a-z][a-z-]{0,39}$/);
@@ -516,6 +517,14 @@ export const chapterPackSchema = z
                       scenarioTurn ? [scenarioTurn.action] : [],
                     );
                     if (!scenario) return !turns.length;
+                    if ('kind' in scenario && scenario.kind === 'team') {
+                      const teamTurns = steps.flatMap(({ scenarioTurn }) =>
+                        scenarioTurn?.action === 'team' ? [scenarioTurn] : [],
+                      );
+                      return (
+                        teamTurns.length === turns.length && validTeamTurns(scenario, teamTurns)
+                      );
+                    }
                     if ('kind' in scenario) {
                       return (
                         turns.length === 2 &&

@@ -1,0 +1,640 @@
+{
+  "teaching": {
+    "salvador-look-teach": "742a240cad120ceb0a1bd797691483e5412199ce4740e274857dd5d5a5487be1",
+    "salvador-more-actions-teach": "27e5aa54e99aa6c3be5297836328711bfd7102cee7a02612a890649ec1035908",
+    "salvador-questions-teach": "6eb8553fa22ac60d19917a7a8026f24bdfb507f6b02c9ba050f17c23a9243447",
+    "salvador-routine-teach": "0821d70cdea3ed77de2918e18c339a1126dd3d8cb28a785a3e41e101ac8fc3f4",
+    "salvador-states-teach": "d994f9215b8d56ca73f5fc4b6ad5462a88f9fa17a848cf2ac194e42063a225f1",
+    "salvador-ability-teach": "6966e9b4a2bd225389b1d9056e1b63269ec76c967646028270a23ebf64fcd875",
+    "salvador-requests-teach": "0e2692948dbc42778901d30e7109077ccfbf3e61cfa3e8b8defc8a44bce06dc0",
+    "salvador-sequence-teach": "90674322d00a0ebb156fdc5905cd1d4daec357ba6505cae815c3a3c63a625427",
+    "salvador-display-teach": "dee1f440f57a2fc1ca2b33b2cca4b1fcdfbcda001c1dfea9ece9b7dfeb87e74c",
+    "salvador-a1-recap-teach": "e19fa8ff13d1acca80a91b5a3b04fc130de9b010b7179ea73ea09d44de354bf4",
+    "salvador-a1-production-teach": "ead9f5a0340e5a6997d81bc91ddd9d8e8c0febfd6652fb2900acba638c2a4066"
+  },
+  "assessments": {
+    "salvador-hear-jo": "884ff5bfb9ae84e294bbc6882302e36599d22cb6cb2f7a78acaa22876ee38fce",
+    "salvador-hear-rafa": "17c0ab5984c4f7bb988ba24a4967a66156235aa7db6f093db4dfb12358dd0124",
+    "salvador-hear-sam": "fcc9bfb3e255aa30bdd08dc8832d39ac26407ce77763ee4f12d628ec3da562d0",
+    "salvador-read-current": "d4331199b7b6b910c5850160236cffba1ed9b006fdde0d719f4797d097d2eff1",
+    "salvador-make-lunch": "bdf6c032aba83fbdc6b8a00780643c91a141c1e61d0e8d1ed20ab51614af53eb",
+    "salvador-observe": "c55d56f07ed507d4541f7d1cf864498dbadfa3eafe842958731fdb9bd0a1d507",
+    "salvador-observe-update": "14be916f7dfaa08f46cfccf4340c7196a83d328f019ad3b6714137eebed096be",
+    "salvador-read-routine": "802e69530c6e77a47f0207ab694c4fd99f2eb0fba343421b92b83af2228adf77",
+    "salvador-hear-routine": "96383be9b8bac4c018d7aa4f9c1f9ca43405c4fad21e3a136404a48163c0224c",
+    "salvador-hear-today": "0d4e00e19c666baaabcc56b8b88f748c4d54765d2fddbd6db75ac090a4d7db2c",
+    "salvador-state-today": "cddc167b9b4e3c507f997c9e2088c7a96e7efdc145aab4a6d8369e7d7cd39b8c",
+    "salvador-habit-rafa": "f388e5d6ecb7b1a0885c31b8c9fbbc8ac8e5112490e637d4d566eaef55dc7196",
+    "salvador-state-need": "a489b310655b66a655948f5bfdfb916edfdabc7db5e5d4ac090574d18e92dcc1",
+    "salvador-routine-contrast": "6f83d2a0bf9cd455dcb2aae43b686ede7f5667b019e58d601e9200781373cc61",
+    "salvador-hear-cut": "fcecb527ee8a2d04bf1f6d582fd2a75bb589e4cfb85af9d1442de631bd06d1fa",
+    "salvador-hear-cook": "36234b0dbf67e577f6ace499a77900dcf3ee8b75497d4f4d05a057e232ac540c",
+    "salvador-hear-help": "00cff694c2127f14e5fb3a890df9689532c896db94ce5dd9bc252675b1de3d7e",
+    "salvador-read-helper": "620fb18a33afc689b51cdbc2667c87c79f179b61bafd03fd555d5246bf1ad0f4",
+    "salvador-ask-bread": "b23dcae7145f631020a802744d71bfb0534f4e66cbcd3a0d4d71588d3ac36868",
+    "salvador-offer-help": "099de27d98d051ae2367347713a48dc42af336bcb54fc5287596cfe56d4e6b54",
+    "salvador-hear-order": "9d16a4a78fe1bd914460646b6ef35634c0c50a444e174eb9eb922676970fc41b",
+    "salvador-hear-helpers": "17cd91536c0fdf408e6bf54479afbd9efa8c67071686ddd0f2c13e17b02e3f9e",
+    "salvador-read-next": "069ed81ffe1c6a07bd50dab645bbdf2b55125b2e533b33d380f1647fe417b7f9",
+    "salvador-write-order": "782ff3c20441b2600abde77f80d9dd458311860e9c1e3a6fc280a3f2c8f1208a",
+    "salvador-ask-current": "b0065d66801e41879d18a21a50fc990d6bd62f33539ad02707df08ef30dfeb29",
+    "salvador-negative-current": "cd7fbaa44e51974bb5c017c52453b44e5adbdb8bca5a34f1039d555a53bfb54a",
+    "salvador-lunch-check": "edd0fcbc665d290a43a7d13cce3497886efe2e52e992860d7366a83734b2999f",
+    "salvador-lunch-bread": "ee08cd880326a847f08821147f9c3b04185d597c494491a7e3c81053d6526598",
+    "salvador-lunch-bread-live": "095c96ec77e2e9854ea6a56fb054b39451844bc334f648446799d49f3d5bdba4",
+    "salvador-lunch-bowls": "523ea85d76b949a89190f2c1eed7468e9a56020ec7a48f4258ed0203f30f2a5d",
+    "salvador-lunch-handover": "44c82ef0d5d7025b8cf60dfa985e869be2f6511910be3065ee0d9f8a8d2349f5",
+    "salvador-display-observe": "efaa94807b81b733cbfdfae334c4223930ba75c2e4164292e274c99c76651240",
+    "salvador-display-check": "21443f11f25c3c5e84abc5e6bbe0ed8558ce553d26af812ac30fe5ad3367cc57",
+    "salvador-display-move": "818eb67690666542c71ce7c9112d897d2ceaa0904f685e2135909dd2d8a83303",
+    "salvador-display-move-live": "5c84685e24655807128578b00216f36524e37d8a815ae898ee4fa0e5f1f0d462",
+    "salvador-display-labels": "2ca2d9cb45e33b380cfbce2c31a2dac0af12d09cc64c0c33cf5f7acb460226b4",
+    "salvador-display-order": "ab913f771ec5789056efd94cc8fc56f2d5dfa4a544ec7b44837cc46e74c7a999",
+    "salvador-display-handover": "22fffd49fd2976ca348a01abd74f9018eea57c76c8a07ababca323bb859de3e6",
+    "salvador-a1-time": "95962556dc40d882d930a05b67e2270de94a2c180a688a2a99087c7a5c645b0e",
+    "salvador-a1-production-past": "776a45aaeb69d9c7f7431694360818cb5f97dca278b4dea5836f125ba6178325",
+    "salvador-a1-production-habit": "ec1e453d479add04fbd761718877842cc14ff3fd51ce933422787a0217c644f8",
+    "salvador-a1-production-now": "e8c62384f661523656f80b31c51c0d49a696f10e1510a90e997039d443c36dd3",
+    "salvador-a1-production-request": "2b81e9bcf62e56e823e878789578303977950b353cfefeb5b8a63d6828dfb78b",
+    "salvador-repair-be-guide": "efe03aa13aea4111c03f72b4e7681a06158bba4a3e709c21a95a0307a7d9dd6c",
+    "salvador-repair-be-check": "7cb3b3b8f35dd9a52da09f046998dc8d85d27012cbf635a2fe7327c0baf1a9e2",
+    "salvador-repair-agreement-guide": "2ff9008ef31b7b48f7a902315b41b1281a47472dc0ed8ca3b497b77f360fa89d",
+    "salvador-repair-agreement-check": "212df196e4a24f2cf4272c3a501c0c9af8963e651fb9ed928314bfad1df2edae",
+    "salvador-repair-habit-guide": "8f91a72eca0d16d719be747bd0068031cdf191d29737afe2c1a5299d0f1b441e",
+    "salvador-repair-habit-check": "fa0fec0d6ffb89f5b1d87ca8665b29e33cc09da7adbf5a47076e0a851fba63ed",
+    "salvador-repair-third-guide": "d91bff3139aed4f197eb3d82252c909edf14649a49b5eab32b128175b9f1b2ed",
+    "salvador-repair-third-check": "e31f710e6977fa08b4e39fe23ec0f8051da5284a6160ccb2bb1a015154d0202c",
+    "salvador-repair-state-guide": "71bdbacd9b1b98fa6ee8d7ff432bdd72c31de68212af50f66383c264a227e091",
+    "salvador-repair-state-check": "74caf24c9a8d89d785105de0312ce9dc0770241335d46fd95753f7e31d61ef0f",
+    "salvador-repair-question-guide": "33c7081346d575151f824d677c8f50fc0fb46cea9c940e3809c799437fa850c1",
+    "salvador-repair-question-check": "2fc511f4b33438257bc099cd70bf02ebd267138376d667bd89615a203aac7c1f",
+    "salvador-repair-question-be-guide": "51506a634601034edcce5d37919e65f37748bbb2cdaeedcb93347f0fe44ecdfa",
+    "salvador-repair-question-be-check": "7abf133448846a96a7e075a9295037405e491ac572ba30899aa774bdaeee9fdf",
+    "salvador-repair-yes-no-be-guide": "8861a8b9e9ca00e8a94dbe0b9c3bb1f290974312310954dccaff666d39bdd178",
+    "salvador-repair-yes-no-be-check": "1a1a22f122a7ad6e2aaec09e287b26e59297955329902f20e4d78602ffe1a989",
+    "salvador-repair-can-question-base-guide": "7d340e541a085195ccbb7903533f011b2a3a53102ecf17f6533e06bdba34712d",
+    "salvador-repair-can-question-base-check": "fb00aa6cb21713319b2209ec8c36e54ac62d0f84558882455742b4e35ac49a4d",
+    "salvador-repair-can-negative-base-guide": "5dd11f0136f64e9d679ec3335b83cae61763437cc1dfdef71d4d834929fa3649",
+    "salvador-repair-can-negative-base-check": "db7a31f9a0fe27989a1187ead696a41b596f2f0b990f3d65ed63931a9455512b",
+    "salvador-repair-can-request-base-guide": "dcc6027954eefd98ce0f31899d54acdd2767923cc1eb57a0b6fdc94c2c2c8298",
+    "salvador-repair-can-request-base-check": "4bf04dea4de05b0e4cbbb5e70a9a5476b56ef731b8e01248d59c573c772943bc",
+    "salvador-repair-can-positive-base-guide": "b5e18dfa381be6e5f71a1d5f74c78482b4b44576e6a75a7cf5314b03278d9615",
+    "salvador-repair-can-positive-base-check": "10b0dd47eb1ee70965226277cee4714840d61719c0907a9d67b09c24cc4d7a97",
+    "salvador-repair-negative-guide": "eb1513237884d8e4eadf020aefe0287557c57d520fa6f5959f5d58e729fea213",
+    "salvador-repair-negative-check": "8b2affb01da5e2e8f91a486f0c0558d05ac1b389c792ba0094293437600c2e80",
+    "salvador-repair-can-base-guide": "2adfc850a4c9bdd4874d57c70cbf7340c70b3a5c24f82fb4506217aaf44eccce",
+    "salvador-repair-can-base-check": "2dd4b9016e97733369f934b31ab7960fcc39f9a66146baa0179427c0292a36c7",
+    "salvador-repair-availability-guide": "fe38bb6c0233c5d95bc6962b77e3cba6efd31f626c32af03d13110c11948d803",
+    "salvador-repair-availability-check": "5a602d819f767e310de31a482cce89dc0abac2b2ce57fe4e26f7ad92fc8c5595",
+    "salvador-repair-status-guide": "bd3c1eed74847b31664626da2bde7a9c302b86da0c4ddd62631339c914acc073",
+    "salvador-repair-status-check": "25b617a7a3f47fbbae19e7eb6443af9faaaec5ef6157123f7caea143a7b8081a",
+    "salvador-repair-order-guide": "127716714402962670f18a3e22cc6c7f3afe8ed51ca16026e37194a8ba17189f",
+    "salvador-repair-order-check": "cbc76ba6119cdce39ba0ef0095e591bbde4b3889aa68b812d491117689453883",
+    "salvador-repair-washing-guide": "8eb41794ad468b67740c3e0badeb6d16fcbccda41aed0f279f794fda97847bc9",
+    "salvador-repair-washing-check": "472454af622155b0c532d7c9dcf29e0e81106bffbc1e431e29acbd08c0c9aeda",
+    "salvador-repair-cooking-guide": "44098575e2216f3df12ab502aea2613f9f85d9d70457c1130e60990387b314cd",
+    "salvador-repair-cooking-check": "b5f5146ecebfe28cd274e9a4ae14193cf27e525490a97ae8ce5b03e3f7286bb3",
+    "salvador-repair-making-guide": "823ebce0f606aa72ac38dad0e773b6c9623a3b8fc7cdd8a492069a06eab052ee",
+    "salvador-repair-making-check": "4d549a34d9d737a01e2dc52e57315fc887c42fb5804a890fa03b816538086949",
+    "salvador-repair-reading-guide": "7dddee1b9e62574a159d268a3166be76dc9750c4e23cd973f66d5af9fa3c413f",
+    "salvador-repair-reading-check": "7dbed38b8e62e9fdbedde52db419f233911826501b7e8767f9fdcef4ef14c212",
+    "salvador-repair-cutting-guide": "107feb9cacc95778840cfa3a7bf9b9c3a34c3c459e53e305b28d1c897ae0a4e4",
+    "salvador-repair-cutting-check": "5b74b545788cf672e0e5cbb7a7c3818759d163f8644213d2b8d9e062edb5a2be",
+    "salvador-repair-stirring-guide": "07c1486a1794d5f52ee9a7dcdf50d7f193ab6fd1b787b9741b24762190335fa7",
+    "salvador-repair-stirring-check": "c3cc4deb698b4acc4e5f316b69cebc8ec802994c7fef3596baeea1492637fd77",
+    "salvador-repair-putting-guide": "4b2da0abec432f0d30cbfdf1c5799bbeeff350c28e8e0587e661e4d757be7c32",
+    "salvador-repair-putting-check": "a40207d2e7816ae71cb1fe46aec5830589001521ed8e1e0aab129672acd3e389",
+    "salvador-repair-setting-guide": "696d5715f6700ca93f76951516d38fa7c400175249885cfc610470551d2cacaf",
+    "salvador-repair-setting-check": "4b8b0b02f9556360b1d038f066a1814d5d62f00e2e7c3f95e24ff8ea88fb76bb",
+    "salvador-repair-moving-guide": "a3ff7c2759d46421cc4926a7c3efdc105927107f45c19613e5c0fd07acd3fba8",
+    "salvador-repair-moving-check": "7112061d1e5f11100dd3ee1e828a70b7a291312e065146b82085f2dbf2d0fafa",
+    "salvador-repair-hanging-guide": "7d398ac4e3300948941df505565c0adfacd377cbba4f7cc7cb90469b35938be7",
+    "salvador-repair-hanging-check": "384d9f3a2e3351ec1f3403a625f101333047fbc0b845a6c3276456f319e07610",
+    "salvador-repair-polarity-guide": "898a11cd46623f40d802d1935dfa0c2ebdf58755675c31cc2515230e484c5649",
+    "salvador-repair-polarity-check": "d93d3b242aa185885bc533e615029addbd2670e05e7e6955b31cfec20b90415d",
+    "salvador-review-negative-can": "8d77e76038e46925a18033c37e7d47a1c7789689454287774eb99ab243a4d60d",
+    "salvador-review-ability": "8f4414ae1e048653059960c452c5c784f2f1d184d7bf980b0871bf6712452c35",
+    "salvador-review-agreement-i": "9e84b14ff6f7b49637994fcd66846d626db01f920b49e28c8228c2ec3012df16",
+    "salvador-review-request": "10ca09379759e836b87c3ab125bafbe292af0806f10b5694c497aa975e00866f",
+    "salvador-review-ability-positive": "19b3df1349bce2fc17ef51a0dc26668d8f4372c4289681c5ee184221a7028166",
+    "salvador-review-availability": "4f43ae3ca83b31927f5a03fe7cc41d8d4e62ffd56013b2ef516200d725ec80ee",
+    "salvador-review-live-handover": "e2835a31fc780fbed154f2951d645e1a3fd8dee017a9a394a6eee7acb2428f01",
+    "salvador-review-instruction": "8478190a6b02b7fcb74760153bf498bdafd9f9b4c6e5492e0bfb6f69184cc328"
+  },
+  "scenarios": {
+    "salvador-lunch-observe": "55484ccbfa196b98778789dc512f1864dd8134b6ca216fe876ffc854ad5e3da1",
+    "salvador-lunch-routine": "c9f98af7ada958d2376cd247d7aede7b533ea6ab71323360748d71d82daca3df",
+    "salvador-lunch-work": "83a5891055c0c8c1bd1e22ed0d43a0bec3e0b4241151d61037f1182456d06f87",
+    "salvador-display-work": "269e711ce95d1c6780638f98ed9a0fb6ca41ce2435cd9248195eaf3e369afb0f"
+  },
+  "challenges": {
+    "challenge_salvador_grammar_rush_now": {
+      "requires": [
+        {
+          "id": "lex.salvador.reading",
+          "form": "reading"
+        },
+        {
+          "id": "form.u05_l01.9",
+          "form": "a"
+        },
+        {
+          "id": "lex.u01_l03_v01",
+          "form": "book"
+        },
+        {
+          "id": "form.u05_l02.11",
+          "form": "is"
+        },
+        {
+          "id": "form.u05_l02.15",
+          "form": "are"
+        },
+        {
+          "id": "grammar.continuous_others"
+        },
+        {
+          "id": "pattern.u05_l02.singular",
+          "form": "he / she + is + verbo en -ing"
+        }
+      ],
+      "digest": "01f671aad45fa8065ba918c07a0da908900c0d12569f73d8450b4e2d46bade42"
+    },
+    "challenge_salvador_grammar_rush_habit": {
+      "requires": [
+        {
+          "id": "lex.u02_l03_v02",
+          "form": "usually"
+        },
+        {
+          "id": "form.u05_l02.13",
+          "form": "the"
+        },
+        {
+          "id": "lex.u05_l02_v06",
+          "form": "table"
+        },
+        {
+          "id": "lex.salvador.but",
+          "form": "but"
+        },
+        {
+          "id": "lex.u03_l02_v06",
+          "form": "today"
+        },
+        {
+          "id": "form.u05_l02.9",
+          "form": "she"
+        },
+        {
+          "id": "form.u05_l02.11",
+          "form": "is"
+        },
+        {
+          "id": "form.u05_l02.1",
+          "form": "cooking"
+        },
+        {
+          "id": "lex.u03_l01_v05",
+          "form": "rice"
+        },
+        {
+          "id": "lex.salvador.sets",
+          "form": "sets"
+        },
+        {
+          "id": "lex.salvador.setting",
+          "form": "setting"
+        },
+        {
+          "id": "grammar.salvador.habit-now"
+        },
+        {
+          "id": "pattern.salvador.habit-now",
+          "form": "sujeto + usually + presente simple, but today + be + -ing"
+        }
+      ],
+      "digest": "84a9970308fae7c2af25cb69af13a67c8b41afe95502e345653c27d78d20bba8"
+    },
+    "challenge_salvador_grammar_rush_can": {
+      "requires": [
+        {
+          "id": "form.u03_l03.1",
+          "form": "can"
+        },
+        {
+          "id": "lex.u01_l01_v05",
+          "form": "you"
+        },
+        {
+          "id": "form.u05_l02.13",
+          "form": "the"
+        },
+        {
+          "id": "lex.food.vegetable",
+          "form": "vegetables"
+        },
+        {
+          "id": "lex.u03_l03_v04",
+          "form": "please"
+        },
+        {
+          "id": "lex.u05_l02_v02",
+          "form": "wash"
+        },
+        {
+          "id": "lex.salvador.washes",
+          "form": "washes"
+        },
+        {
+          "id": "grammar.can"
+        },
+        {
+          "id": "pattern.u03_l03.request",
+          "form": "Can you + verbo base (+ please)?"
+        }
+      ],
+      "digest": "c8344235e90f165c9d790268a7c35aadef845c4b2919be4d9012d26bf6105e8b"
+    },
+    "challenge_salvador_grammar_rush_team": {
+      "requires": [
+        {
+          "id": "lex.salvador.move",
+          "form": "move"
+        },
+        {
+          "id": "form.u05_l02.13",
+          "form": "the"
+        },
+        {
+          "id": "lex.u05_l02_v06",
+          "form": "table"
+        },
+        {
+          "id": "form.u08_l02.2",
+          "form": "then"
+        },
+        {
+          "id": "lex.salvador.put",
+          "form": "put"
+        },
+        {
+          "id": "form.portion.cup.plural",
+          "form": "cups"
+        },
+        {
+          "id": "form.u05_l02.5",
+          "form": "on"
+        },
+        {
+          "id": "published.mexico.card-2.word-10",
+          "form": "first"
+        },
+        {
+          "id": "lex.salvador.next",
+          "form": "next"
+        },
+        {
+          "id": "grammar.salvador.sequence"
+        },
+        {
+          "id": "pattern.salvador.first-then",
+          "form": "First + verbo base, Then + verbo base"
+        }
+      ],
+      "digest": "440cd9fd37db36f2d60c495566ece99d6c3c9c6c826e61f3f7fcc934311f93f0"
+    },
+    "challenge_salvador_cloze_battle_now": {
+      "requires": [
+        {
+          "id": "lex.salvador.reading",
+          "form": "reading"
+        },
+        {
+          "id": "form.u05_l01.9",
+          "form": "a"
+        },
+        {
+          "id": "lex.u01_l03_v01",
+          "form": "book"
+        },
+        {
+          "id": "form.u05_l02.11",
+          "form": "is"
+        },
+        {
+          "id": "grammar.continuous_others"
+        },
+        {
+          "id": "pattern.u05_l02.singular",
+          "form": "he / she + is + verbo en -ing"
+        }
+      ],
+      "digest": "8c39abc4be9bd27bccb75a55c3f0ddb064a20db88e00855afe547c950b3d09e2"
+    },
+    "challenge_salvador_cloze_battle_habit": {
+      "requires": [
+        {
+          "id": "lex.u02_l03_v02",
+          "form": "usually"
+        },
+        {
+          "id": "form.u05_l02.13",
+          "form": "the"
+        },
+        {
+          "id": "lex.u05_l02_v06",
+          "form": "table"
+        },
+        {
+          "id": "lex.salvador.but",
+          "form": "but"
+        },
+        {
+          "id": "lex.u03_l02_v06",
+          "form": "today"
+        },
+        {
+          "id": "form.u05_l02.9",
+          "form": "she"
+        },
+        {
+          "id": "form.u05_l02.11",
+          "form": "is"
+        },
+        {
+          "id": "form.u05_l02.1",
+          "form": "cooking"
+        },
+        {
+          "id": "lex.u03_l01_v05",
+          "form": "rice"
+        },
+        {
+          "id": "lex.salvador.sets",
+          "form": "sets"
+        },
+        {
+          "id": "grammar.salvador.habit-now"
+        },
+        {
+          "id": "pattern.salvador.habit-now",
+          "form": "sujeto + usually + presente simple, but today + be + -ing"
+        }
+      ],
+      "digest": "a8b56496cf999716b8b69f1b5b2bccfad9cb8fd70f8ece45738df6ee192720c9"
+    },
+    "challenge_salvador_cloze_battle_can": {
+      "requires": [
+        {
+          "id": "form.u03_l03.1",
+          "form": "can"
+        },
+        {
+          "id": "lex.u01_l01_v05",
+          "form": "you"
+        },
+        {
+          "id": "form.u05_l02.13",
+          "form": "the"
+        },
+        {
+          "id": "lex.food.vegetable",
+          "form": "vegetables"
+        },
+        {
+          "id": "lex.u03_l03_v04",
+          "form": "please"
+        },
+        {
+          "id": "lex.u05_l02_v02",
+          "form": "wash"
+        },
+        {
+          "id": "grammar.can"
+        },
+        {
+          "id": "pattern.u03_l03.request",
+          "form": "Can you + verbo base (+ please)?"
+        }
+      ],
+      "digest": "09bb4e51933a97ff0dea51e521f574d294e0d6762ae8bbad997b048934afef33"
+    },
+    "challenge_salvador_cloze_battle_team": {
+      "requires": [
+        {
+          "id": "lex.salvador.move",
+          "form": "move"
+        },
+        {
+          "id": "form.u05_l02.13",
+          "form": "the"
+        },
+        {
+          "id": "lex.u05_l02_v06",
+          "form": "table"
+        },
+        {
+          "id": "form.u08_l02.2",
+          "form": "then"
+        },
+        {
+          "id": "lex.salvador.put",
+          "form": "put"
+        },
+        {
+          "id": "form.portion.cup.plural",
+          "form": "cups"
+        },
+        {
+          "id": "form.u05_l02.5",
+          "form": "on"
+        },
+        {
+          "id": "published.mexico.card-2.word-10",
+          "form": "first"
+        },
+        {
+          "id": "grammar.salvador.sequence"
+        },
+        {
+          "id": "pattern.salvador.first-then",
+          "form": "First + verbo base, Then + verbo base"
+        }
+      ],
+      "digest": "bc8ae96fb7170835af2e315e92f0e691d7f32e1fdd6baebb04e9285d8922ae79"
+    },
+    "challenge_salvador_reading_quest_now": {
+      "requires": [
+        {
+          "id": "form.u05_l02.11",
+          "form": "is"
+        },
+        {
+          "id": "lex.salvador.preparing",
+          "form": "preparing"
+        },
+        {
+          "id": "lex.u04_l03_v04",
+          "form": "lunch"
+        },
+        {
+          "id": "lex.salvador.reading",
+          "form": "reading"
+        },
+        {
+          "id": "form.u05_l01.9",
+          "form": "a"
+        },
+        {
+          "id": "lex.u01_l03_v01",
+          "form": "book"
+        },
+        {
+          "id": "grammar.continuous_others"
+        },
+        {
+          "id": "pattern.u05_l02.singular",
+          "form": "he / she + is + verbo en -ing"
+        }
+      ],
+      "digest": "f22e149f33f63d16c10bebcec2fdbd6be05e613bbef767292aa7be76aa0650be"
+    },
+    "challenge_salvador_reading_quest_habit": {
+      "requires": [
+        {
+          "id": "lex.u02_l03_v02",
+          "form": "usually"
+        },
+        {
+          "id": "lex.salvador.sets",
+          "form": "sets"
+        },
+        {
+          "id": "form.u05_l02.13",
+          "form": "the"
+        },
+        {
+          "id": "lex.u05_l02_v06",
+          "form": "table"
+        },
+        {
+          "id": "lex.u03_l02_v06",
+          "form": "today"
+        },
+        {
+          "id": "form.u05_l02.9",
+          "form": "she"
+        },
+        {
+          "id": "form.u05_l02.11",
+          "form": "is"
+        },
+        {
+          "id": "form.u05_l02.1",
+          "form": "cooking"
+        },
+        {
+          "id": "lex.u03_l01_v05",
+          "form": "rice"
+        },
+        {
+          "id": "grammar.salvador.habit-now"
+        },
+        {
+          "id": "pattern.salvador.habit-now",
+          "form": "sujeto + usually + presente simple, but today + be + -ing"
+        }
+      ],
+      "digest": "7a2a23dbcfe41025dc74752136ab25508e4baa972767949a54c670eb90e32495"
+    },
+    "challenge_salvador_reading_quest_can": {
+      "requires": [
+        {
+          "id": "form.u03_l03.3",
+          "form": "can't"
+        },
+        {
+          "id": "lex.u03_l03_v01",
+          "form": "help"
+        },
+        {
+          "id": "lex.u05_l01_v01",
+          "form": "now"
+        },
+        {
+          "id": "form.u03_l03.1",
+          "form": "can"
+        },
+        {
+          "id": "lex.u05_l01_v06",
+          "form": "right now"
+        },
+        {
+          "id": "grammar.can"
+        },
+        {
+          "id": "pattern.u03_l03.request",
+          "form": "Can you + verbo base (+ please)?"
+        }
+      ],
+      "digest": "0b419e235279a4b030f303057b94d6f208a2a6df5be7d5bab9e9113322a74ea6"
+    },
+    "challenge_salvador_reading_quest_team": {
+      "requires": [
+        {
+          "id": "published.mexico.card-2.word-10",
+          "form": "first"
+        },
+        {
+          "id": "lex.salvador.put",
+          "form": "put"
+        },
+        {
+          "id": "form.u05_l02.13",
+          "form": "the"
+        },
+        {
+          "id": "lex.salvador.bowls",
+          "form": "bowls"
+        },
+        {
+          "id": "form.u05_l02.5",
+          "form": "on"
+        },
+        {
+          "id": "lex.u05_l02_v06",
+          "form": "table"
+        },
+        {
+          "id": "form.u08_l02.2",
+          "form": "then"
+        },
+        {
+          "id": "lex.salvador.cut",
+          "form": "cut"
+        },
+        {
+          "id": "lex.u03_l02_v02",
+          "form": "bread"
+        },
+        {
+          "id": "published.brazil.card-1.word-3",
+          "form": "cut the bread"
+        },
+        {
+          "id": "published.brazil.card-1.word-4",
+          "form": "put the bowls on the table"
+        },
+        {
+          "id": "grammar.salvador.sequence"
+        },
+        {
+          "id": "pattern.salvador.first-then",
+          "form": "First + verbo base, Then + verbo base"
+        }
+      ],
+      "digest": "1a634945b23336ddecfef19c7d298d9b24c888896195d63dd4f10568f369979f"
+    }
+  }
+}

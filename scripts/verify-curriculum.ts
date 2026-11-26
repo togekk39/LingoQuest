@@ -48,6 +48,8 @@ import { chapterAdventures, reviewedAdventure } from './chapter-adventures';
 import { inspectAdventurePrerequisites } from './published-adventure-prerequisites';
 import { inspectAdventureChallenges } from './published-adventure-challenges';
 import { evaluateScenarioTurn, startScenario } from '../packages/offline-engine/src/scenario';
+import { salvadorScenarioPaths } from '../content/source/salvador-scenario-review';
+import { advanceTeamTurn, teamTurnReady } from '../packages/offline-engine/src/team-scenario';
 import { cuscoScenarioPaths } from '../content/source/cusco-scenario-review';
 import type { TravelMission } from '../packages/offline-engine/src/travel-content';
 
@@ -252,6 +254,40 @@ function counts<T>(rows: readonly T[], key: (row: T) => string) {
 
 function verifyScenarioAnswers({ scenario, steps }: TravelMission) {
   if (!scenario) return 0;
+  if ('kind' in scenario && scenario.kind === 'team') {
+    const paths = salvadorScenarioPaths[scenario.id];
+    assert.ok(paths?.length, scenario.id);
+    const turns = steps.flatMap((step) =>
+      step.type === 'exercise' && step.scenarioTurn?.action === 'team' ? [step.scenarioTurn] : [],
+    );
+    let probes = 0;
+    for (const path of paths) {
+      let state = startScenario(scenario);
+      let index = 0;
+      for (const { input, person, expected = 'target', reply, advance } of path) {
+        const turn = turns[index];
+        assert.ok(turn, input);
+        const result = evaluateScenarioTurn(scenario, state, turn, input, person);
+        assert.equal(result.verdict.outcome, expected, `${scenario.id}: ${input}`);
+        if (reply) assert.equal(result.reply?.line.en, reply, input);
+        if (expected === 'target' || expected === 'communication_only') {
+          assert.ok(result.state && 'kind' in result.state && result.state.kind === 'team', input);
+          state = result.state;
+        } else assert.equal(result.state, undefined, input);
+        if (advance) {
+          assert.ok(teamTurnReady(turn, state), input);
+          const advanced = advanceTeamTurn(scenario, turn, state);
+          assert.ok(advanced, input);
+          state = advanced;
+          index++;
+        }
+        probes++;
+      }
+      assert.equal(index, turns.length);
+      assert.equal(state.phase, 'complete', scenario.id);
+    }
+    return probes;
+  }
   if ('kind' in scenario) {
     const paths = cuscoScenarioPaths[scenario.id];
     assert.ok(paths?.length >= 2, scenario.id);

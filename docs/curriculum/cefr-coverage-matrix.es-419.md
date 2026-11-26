@@ -48,3 +48,9 @@ La tabla distingue las actividades disponibles de los capítulos y la evaluació
 ### Evidencia A1 en Cusco
 
 U04 y el capítulo de Cusco incluyen comprensión de lugares y hechos pasados, escritura de acciones en orden y preguntas para confirmar datos. La visita al museo aporta una comprobación independiente de transferencia para las preguntas admitidas y las afirmaciones en pasado. Un ítem distinto en un día posterior evalúa la retención. Las preguntas de sí o no, informativas y con Who registran evidencia separada. La producción oral y el relato libre del museo se revisan con criterios de autoevaluación. Quedan pendientes la observación del habla y los ensayos con estudiantes. [Validación de Cusco](../PHASE_5D_CUSCO_VALIDATION.es-419.md)
+
+### Evidencia A1 en Salvador
+
+U05 y el capítulo de Salvador cubren descripciones y preguntas sobre acciones, contrastes con hábitos, capacidad, peticiones corteses e instrucciones ordenadas. Los audios instalados comprueban avisos de trabajo, capacidad y disponibilidad. La muestra de fotos comprueba transferencia escrita con otro equipo. El repaso independiente de texto puede verificar retención después del intervalo. La nota y la comparación oral usan autoevaluación. Queda pendiente la revisión con dispositivos y docentes. [Validación de Salvador](../PHASE_5D_SALVADOR_VALIDATION.es-419.md) · [Cobertura de desarrollo A1](../PHASE_5D_A1_COVERAGE.es-419.md)
+
+La auditoría de desarrollo registra los 26 objetivos de Pre-A1 y A1 hasta Salvador, sus requisitos y las modalidades evaluadas. Una nota escrita optativa comprueba por separado el pasado, el hábito, la acción en curso y una petición. La observación humana, la reproducción y las pruebas con estudiantes siguen pendientes. [Validación de Salvador](../PHASE_5D_SALVADOR_VALIDATION.es-419.md)

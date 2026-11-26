@@ -114,6 +114,14 @@ export const learningErrorSchema = z.enum([
   'past_ending',
   'past_order',
   'vocabulary_form',
+  'progressive_spelling',
+  'progressive_negative',
+  'habit_state',
+  'can_base',
+  'can_polarity',
+  'team_availability',
+  'team_state',
+  'team_order',
 ]);
 export type LearningError = z.infer<typeof learningErrorSchema>;
 export interface Translation {

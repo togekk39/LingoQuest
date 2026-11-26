@@ -117,6 +117,18 @@ export const learningErrorFeedback: Record<LearningError, string> = {
   past_ending:
     'Escucha el último sonido. Solo la terminación que sigue a /t/ o /d/ añade una sílaba.',
   past_order: 'Busca qué evento ocurrió antes. After indica lo que pasó después.',
+  progressive_spelling:
+    'Compara el verbo base con la forma en -ing. Revisa si pierde la e final o duplica la última consonante.',
+  progressive_negative:
+    'Pon not entre la forma de be y el verbo en -ing. También puedes usar isn’t o aren’t.',
+  habit_state:
+    'Usa el presente simple para expresar lo que sabes, quieres, necesitas o te gusta en estas frases.',
+  can_base: 'Después de can o can’t usa el verbo base, sin -s, -ing ni to.',
+  can_polarity:
+    'Escucha la frase completa. Can suele sonar débil antes del verbo. Can’t suele llevar énfasis.',
+  team_availability: 'Comprueba qué sabe hacer la persona y si está libre ahora.',
+  team_state: 'Compara tu frase con las tareas y su estado en este momento.',
+  team_order: 'First introduce el primer paso. Then o next introduce el paso que sigue.',
   vocabulary_form: 'Fíjate si la situación pide el singular o el plural de esa palabra.',
 };
 

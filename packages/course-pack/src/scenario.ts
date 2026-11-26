@@ -1,5 +1,15 @@
 import { z } from 'zod';
 import { learningErrorSchema } from '@lingoquest/contracts';
+import { teamScenarioDefinitionSchema, teamScenarioTurnSchema } from './team-scenario.ts';
+export type {
+  TeamScenarioDefinition,
+  TeamScenarioTurn,
+  TeamForm,
+  TeamTask,
+  TeamPerson,
+  TeamStatus,
+} from './team-scenario.ts';
+export { teamStatusSchema, teamFactKindSchema } from './team-scenario.ts';
 
 const id = z
   .string()
@@ -325,8 +335,13 @@ const eventScenarioTurnSchema = z
 export const scenarioDefinitionSchema = z.union([
   menuScenarioDefinitionSchema,
   eventScenarioDefinitionSchema,
+  teamScenarioDefinitionSchema,
 ]);
-export const scenarioTurnSchema = z.union([menuScenarioTurnSchema, eventScenarioTurnSchema]);
+export const scenarioTurnSchema = z.union([
+  menuScenarioTurnSchema,
+  eventScenarioTurnSchema,
+  teamScenarioTurnSchema,
+]);
 export type MenuScenarioDefinition = z.infer<typeof menuScenarioDefinitionSchema>;
 export type MenuScenarioTurn = z.infer<typeof menuScenarioTurnSchema>;
 export type EventScenarioDefinition = z.infer<typeof eventScenarioDefinitionSchema>;

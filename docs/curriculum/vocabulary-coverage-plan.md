@@ -94,3 +94,9 @@ The weekly entries are workload examples, with review inside sessions where usef
 ## Travel memories and questions in Cusco
 
 Cusco recycles pronouns, places, clock time, numbers and market purchases. U04 retains its IDs for forms such as was, were, visited, went, bought, took and did. The notes teach specific senses such as taking a photo, taking a bus, finishing and leaving a place, along with first, then, before and after. Cusco reuses the shared sense for see/saw and existing IDs for question words, places, first/then and clock expressions. The photo and transit senses of take have exact references. Each assessment declares its forms and senses. Revision 14 evidence keeps its original scope. [Cusco validation](../PHASE_5D_CUSCO_VALIDATION.md)
+
+## Current work in Salvador
+
+Salvador reuses U05 action forms, U02 routines, U03 requests, earlier food senses and sequence expressions. It adds distinct forms for the kitchen and photo display. The original Brazil card still provides the team lunch vocabulary and dialogue. In the adventure, cut/cutting and put/putting each have their own production and independent repair paths. Can for capability and the Can you request pattern are taught with their different purposes. [Salvador item audit](../PHASE_5D_SALVADOR_VALIDATION.items.tsv)
+
+Revision 17 keeps the reviewed food and task senses and separates the grammar of ability, availability and requests. Each spelling repair retains the exact form when a new place or object changes the context. The optional lunch note reuses taught food, time and activity vocabulary. [Salvador validation](../PHASE_5D_SALVADOR_VALIDATION.md)

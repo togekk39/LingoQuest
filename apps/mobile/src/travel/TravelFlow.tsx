@@ -12,6 +12,7 @@ import { Check, Compass, RotateCcw, Stamp, Volume2 } from 'lucide-react-native';
 import {
   chapter as homeChapter,
   eventScenarioReady,
+  teamTurnReady,
   travelStepVocabulary,
   travelStoryReply,
   type TravelChapter,
@@ -48,6 +49,7 @@ import { Celebration } from '../motion';
 import { getAvailableChapterAudio } from '../features/offlineSpeech';
 import { useChapterAudio } from './useChapterAudio';
 import { EventJournal } from './EventJournal';
+import { TeamBoard } from './TeamBoard';
 import { ScenarioBoard } from './ScenarioBoard';
 import { illustrations, placeIllustration } from './illustrations';
 import {
@@ -296,10 +298,23 @@ export function TravelFlow({
     !step.acceptedPhrases?.length &&
     !step.learning.guided;
   const scenarioResultAccepted = current.result?.correct || current.result?.communicationOnly;
-  const timeline = mission.scenario && 'kind' in mission.scenario ? mission.scenario : undefined;
-  const eventState = current.scenario && 'kind' in current.scenario ? current.scenario : undefined;
+  const scenario = mission.scenario;
+  const timeline =
+    scenario && 'kind' in scenario && scenario.kind === 'timeline' ? scenario : undefined;
+  const team = scenario && 'kind' in scenario && scenario.kind === 'team' ? scenario : undefined;
+  const teamState =
+    current.scenario && 'kind' in current.scenario && current.scenario.kind === 'team'
+      ? current.scenario
+      : undefined;
+  const teamTurn = scenarioTurn?.action === 'team' ? scenarioTurn : undefined;
+  const eventState =
+    current.scenario && 'kind' in current.scenario && current.scenario.kind === 'timeline'
+      ? current.scenario
+      : undefined;
   const isInquiry = scenarioTurn?.action === 'inquire';
-  const moreQuestions = !!(isInquiry && timeline && !eventScenarioReady(timeline, eventState));
+  const moreQuestions =
+    !!(isInquiry && timeline && !eventScenarioReady(timeline, eventState)) ||
+    !!(teamTurn && !teamTurnReady(teamTurn, teamState));
   const planningOrder = scenarioTurn?.action === 'request' && !scenarioResultAccepted;
   const showScenarioMenu =
     planningOrder ||
@@ -310,7 +325,7 @@ export function TravelFlow({
       ? travelStoryReply(step, current)
       : undefined;
   const replyPhrase = storyReply?.line.en;
-  const dynamicPhrase = timeline && current.scenarioReply ? replyPhrase : undefined;
+  const dynamicPhrase = (timeline || team) && current.scenarioReply ? replyPhrase : undefined;
   const [availableReply, setAvailableReply] = useState<string>();
   useEffect(() => {
     if (!dynamicPhrase) return;
@@ -516,7 +531,9 @@ export function TravelFlow({
             <Action journal busy={busy} onPress={advance} style={inline && s.storyAction}>
               {current.result.correct || current.result.communicationOnly || selfCheck
                 ? moreQuestions
-                  ? 'Hacer otra pregunta'
+                  ? teamTurn
+                    ? 'Seguir conversando'
+                    : 'Hacer otra pregunta'
                   : 'Seguir la historia'
                 : 'Usar la respuesta de QuestBuddy'}
             </Action>
@@ -653,6 +670,23 @@ export function TravelFlow({
           disabled={busy || !!current.result}
         />
       )}
+      {team &&
+        teamState &&
+        !prerequisiteBlocked &&
+        (teamTurn || teamState.phase === 'complete') && (
+          <TeamBoard
+            definition={team}
+            state={teamState}
+            selectedId={current.scenarioSpeaker ?? team.participants[0].id}
+            onSelect={
+              teamTurn && !current.result && !teamTurn.sequence
+                ? (personId) =>
+                    void act({ action: 'scenarioSpeaker', token: current.token, personId })
+                : undefined
+            }
+            disabled={busy}
+          />
+        )}
       {timeline &&
         !prerequisiteBlocked &&
         (scenarioTurn || eventState?.phase === 'complete') &&

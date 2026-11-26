@@ -34,6 +34,12 @@ import { cuscoDefinitions } from '../content/source/cusco-lessons';
 import { cuscoChallenges } from '../content/source/cusco-challenges';
 import cuscoReview from '../content/source/cusco-rpg-review.json';
 import cuscoChallengeDigests from '../content/source/cusco-challenge-review.json';
+import { salvadorChapter } from '../content/source/salvador-missions';
+import { salvadorAdventure } from '../content/source/salvador-story';
+import { salvadorDefinitions } from '../content/source/salvador-lessons';
+import { salvadorChallenges, salvadorPractice } from '../content/source/salvador-practice';
+import salvadorReview from '../content/source/salvador-rpg-review.json';
+import { teamScenarioPhrases } from '../packages/offline-engine/src/team-scenario';
 import { eventScenarioPhrases } from '../packages/offline-engine/src/event-scenario';
 import cartagenaReview from '../content/source/cartagena-rpg-review.json';
 import {
@@ -127,7 +133,11 @@ function adventurePhrases({
     ...adventure.dialogues.flatMap(({ line }) => (line ? [line.en] : [])),
     ...(adventure.repairPhrases?.map(({ phrase }) => phrase.en) ?? []),
     ...chapter.missions.flatMap(({ vocabulary, steps, scenario }) => [
-      ...(scenario && 'kind' in scenario ? eventScenarioPhrases(scenario) : []),
+      ...(scenario && 'kind' in scenario
+        ? scenario.kind === 'team'
+          ? teamScenarioPhrases(scenario)
+          : eventScenarioPhrases(scenario)
+        : []),
       ...vocabulary.flatMap(({ term, example }) => [term, example.en]),
       ...steps.flatMap((step) => {
         if (step.type === 'dialogue') return step.line ? [step.line.en] : [];
@@ -270,8 +280,41 @@ export const cuscoStory = {
   },
 };
 
+const salvadorSupportingLessonIds = ['u03_l03'];
+const salvadorAudit: RpgAdventureAudit = {
+  ...salvadorReview,
+  definitions: salvadorDefinitions,
+};
+export const salvadorStory = {
+  chapter: salvadorChapter,
+  adventure: salvadorAdventure,
+  practice: salvadorPractice,
+  supportingLessons: salvadorSupportingLessonIds.map((id) => courseLessons[id]),
+  challenges: {
+    grammar_rush: salvadorChallenges.grammar_rush.map(({ exercise }) => exercise),
+    cloze_battle: salvadorChallenges.cloze_battle.map(({ exercise }) => exercise),
+    reading_quest: salvadorChallenges.reading_quest.map(({ exercise }) => exercise),
+  },
+  audit: {
+    ...salvadorAudit,
+    definitions: portableDefinitions(
+      salvadorChapter,
+      salvadorPractice,
+      [
+        ...courseUnits.find(({ id }) => id === 'u05')!.lessons.map(({ id }) => id),
+        ...salvadorSupportingLessonIds,
+      ],
+      salvadorAudit,
+    ),
+  },
+};
+
 type AuthoredAdventure =
-  typeof homeStory | typeof mexicoStory | typeof cartagenaStory | typeof cuscoStory;
+  | typeof homeStory
+  | typeof mexicoStory
+  | typeof cartagenaStory
+  | typeof cuscoStory
+  | typeof salvadorStory;
 
 export function reviewedAdventure(story: AuthoredAdventure) {
   if (!('runtime' in story)) return story;
@@ -351,6 +394,17 @@ export const chapterAdventures = new Map<
       properNames: ['Cusco', 'Nora', 'Ana', 'Diego', 'Sam', 'Luz'],
       reuseAudioFrom: ['home', 'mexico', 'colombia'],
       phrases: adventurePhrases(cuscoStory),
+    },
+  ],
+  [
+    salvadorStory.chapter.id,
+    {
+      story: salvadorStory,
+      reuseAudioFrom: ['home', 'mexico', 'colombia', 'peru'],
+      phrases: [
+        ...adventurePhrases(salvadorStory),
+        ...chapterLessonPhrases([], salvadorStory.supportingLessons),
+      ],
     },
   ],
 ]);

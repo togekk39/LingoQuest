@@ -347,6 +347,31 @@ test('Cusco shares an offline travel journal and language evidence between Study
     materialVersion: `peru:${pack.revision}`,
   });
   expect((await saved(page)).chapterProgress?.peru?.travel.stamps.peru).toBeTruthy();
+
+  await click(page, 'Volver al viaje');
+  await click(page, 'Cerrar y volver');
+  await context.setOffline(false);
+  const beforeSalvador = await saved(page);
+  await page.getByRole('tab', exact('Mapa')).click();
+  await click(page, '5. Salvador');
+  await click(page, 'Abrir capítulo');
+  await expect(page.getByTestId('chapter-lesson-brazil')).toBeVisible();
+  await context.setOffline(true);
+  await click(page, 'Explorar aventura de este capítulo');
+  await expect(page.getByTestId('story-scene-salvador-now-scene')).toBeVisible();
+  const afterSalvador = await saved(page);
+  expect(afterSalvador.chapterProgress?.peru).toEqual(beforeSalvador.chapterProgress?.peru);
+  const { evidence: previousEvidence, ...previousLearning } = beforeSalvador.unifiedLearning;
+  const { evidence: nextEvidence, ...nextLearning } = afterSalvador.unifiedLearning;
+  expect(nextLearning).toEqual(previousLearning);
+  expect(nextEvidence.slice(0, previousEvidence.length)).toEqual(previousEvidence);
+  expect(nextEvidence.slice(previousEvidence.length)).toEqual([
+    expect.objectContaining({
+      activity: 'introduced',
+      materialId: 'published.brazil.card-1',
+      independent: false,
+    }),
+  ]);
 });
 
 test('the Peru travel card keeps its evidence when the Cusco adventure is installed', async ({

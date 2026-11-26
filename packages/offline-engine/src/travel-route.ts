@@ -118,6 +118,7 @@ export const route: Destination[] = [
     band: 'A1',
     position: [-38, -13],
     unitId: 'u05',
+    storyPublished: true,
   },
   {
     id: 'chile',

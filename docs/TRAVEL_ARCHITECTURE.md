@@ -40,3 +40,11 @@ Extend a destination with a versioned chapter and stable mission, step, and exer
 ## Event journals and witness audio
 
 The event journals use a versioned definition and checkpoint. The build prepares the finite witness replies for Cusco and the installed chapter plays them through its regular voice controls. The journal inquiry assesses the written question. Listening evidence depends on an audio exercise and its playback and support conditions. After pack removal, archived text practice retains the facts it needs. [Cusco validation](PHASE_5D_CUSCO_VALIDATION.md)
+
+## Team work and dynamic replies
+
+The team scenario uses the existing mission checkpoint and definition digest. Its records track an assignee, task phase, observations, confirmations and assignment history. Asking about a person observes the scenario. A request can create an agreement after checking the addressed person and the task’s conditions. An authored event starts or completes the work, and later replies read the resulting state. The same backup schema carries the speaker selection, draft and work history. [Team scenario](../packages/offline-engine/src/team-scenario.ts)
+
+The pack builder includes a bounded list of team replies and the independent audio assessment prompts. A generated reply is playable when its exact phrase exists in the installed pack. Other replies appear as text. Text turns use written evidence. The separate can/can’t checks use installed audio and the regular listening and assistance rules. [Voice and skill validation](PHASE_5D_SALVADOR_VALIDATION.md)
+
+A team turn declares required fact kinds and identities. Work, ability, availability, ownership, completion and agreement persist separately. The live checkpoint carries an explicit referent and the first completed work record can seed a later mission. A historical snapshot uses its own definition and leaves current work intact. The next batch uses a new task ID. Completion verifies required work after authored events. Revision 16 migrations retain stable assignments and the saved learner response. [Salvador validation](PHASE_5D_SALVADOR_VALIDATION.md)

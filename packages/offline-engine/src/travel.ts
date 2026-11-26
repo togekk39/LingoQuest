@@ -12,6 +12,7 @@ import { travelPlacementSchema } from './travel-placement';
 import { chapter as homeChapter, travelLesson } from './home-content';
 import type { TravelChapter, TravelStep } from './travel-content';
 import type { TravelExerciseStep } from './travel-content';
+import { advanceTeamTurn, teamTurnReady, teamScenarioStateSchema } from './team-scenario';
 import { eventScenarioReady } from './event-scenario';
 import { travelStepVocabulary } from './travel-vocabulary';
 import type { ReviewInstruction } from './learning-prerequisites';
@@ -95,6 +96,7 @@ export const travelStateSchema = z
     placement: travelPlacementSchema.optional(),
     cleared: z.array(z.enum(['hello', 'bus', 'bag'])).optional(),
     completed: z.record(z.string().datetime()),
+    teamHistory: z.record(teamScenarioStateSchema).optional(),
     stamps: z.record(z.string().datetime()),
     note: z.string().max(500).optional(),
   })
@@ -126,7 +128,8 @@ export function travelStoryReply(
       );
     return step.storyReply;
   }
-  if (step.scenarioTurn?.action === 'inquire') return scenarioReply;
+  if (step.scenarioTurn?.action === 'inquire' || step.scenarioTurn?.action === 'team')
+    return scenarioReply;
   if (step.exercise.ungradable && result.outcome === 'ungradable') return step.storyReply;
 }
 
@@ -269,6 +272,56 @@ export function upgradeTravelCheckpoints(
     if (mission?.scenario) {
       const authoredScenario = mission.scenario;
       const compatible = saved.scenario?.definitionDigest === rpgScenarioDigest(authoredScenario);
+      if (
+        saved.contentRevision === 16 &&
+        chapter.id === 'brazil' &&
+        step >= 0 &&
+        'kind' in authoredScenario &&
+        authoredScenario.kind === 'team' &&
+        saved.scenario &&
+        'kind' in saved.scenario &&
+        saved.scenario.kind === 'team'
+      ) {
+        const previous = saved.scenario;
+        const fresh = startScenario(authoredScenario);
+        const rename = (taskId: string) =>
+          authoredScenario.carryFrom && taskId === 'wash' ? 'wash-final' : taskId;
+        const oldWork = previous.work.map((entry) => ({ ...entry, taskId: rename(entry.taskId) }));
+        const migrated = {
+          ...previous,
+          definitionDigest: fresh.definitionDigest,
+          work: fresh.work.map((item) => {
+            if (item.taskId === 'wash' && authoredScenario.carryFrom) return item;
+            const prior = oldWork.find(({ taskId }) => taskId === item.taskId);
+            if (
+              authoredScenario.groups &&
+              item.taskId === 'rice' &&
+              prior &&
+              oldWork.some(({ taskId, status }) => taskId === 'wash' && status === 'done')
+            )
+              return { ...prior, status: 'done' as const };
+            return prior ?? item;
+          }),
+          history: previous.history.map((entry) => ({ ...entry, taskId: rename(entry.taskId) })),
+          confirmed: previous.confirmed.map(rename),
+          observations: previous.observations.map(rename),
+          checked: false,
+        };
+        const current = mission.steps[step];
+        const changedTurn =
+          current.type === 'exercise' &&
+          current.scenarioTurn?.action === 'team' &&
+          (current.scenarioTurn.confirmAny || current.scenarioTurn.handover);
+        const retry = !saved.finished && changedTurn && !!saved.result;
+        return {
+          ...saved,
+          scenario: migrated,
+          step,
+          stepId: currentId,
+          contentRevision: chapter.revision,
+          ...(retry && { token: id(), result: undefined, scenarioReply: undefined, retry: true }),
+        };
+      }
       const firstTurn = mission.steps.findIndex(
         (entry) => entry.type === 'exercise' && entry.scenarioTurn,
       );
@@ -407,6 +460,30 @@ export function updateTravel(
       saved?.contentRevision === chapter.revision
         ? saved
         : checkpoint(chapter, input.missionId, entry, id());
+    const next = travel.active;
+    const definition = mission?.scenario;
+    if (
+      !saved &&
+      definition &&
+      'kind' in definition &&
+      definition.kind === 'team' &&
+      definition.carryFrom &&
+      next.scenario &&
+      'kind' in next.scenario &&
+      next.scenario.kind === 'team'
+    ) {
+      const earlier = travel.teamHistory?.[definition.carryFrom];
+      if (earlier?.phase === 'complete') {
+        const continued = next.scenario;
+        continued.work = continued.work.map((task) =>
+          definition.tasks.some(({ id, recordOnly }) => id === task.taskId && recordOnly)
+            ? (earlier.work.find(
+                ({ taskId, status }) => taskId === task.taskId && status === 'done',
+              ) ?? task)
+            : task,
+        );
+      }
+    }
     delete paused[input.missionId];
     return;
   }
@@ -419,14 +496,28 @@ export function updateTravel(
   const mission = chapter.missions.find((item) => item.id === current.missionId);
   const step = mission?.steps[current.step];
   if (!mission || !step) return;
-  const timeline = mission.scenario && 'kind' in mission.scenario ? mission.scenario : undefined;
-  const eventState = current.scenario && 'kind' in current.scenario ? current.scenario : undefined;
+  const scenario = mission.scenario;
+  const timeline =
+    scenario && 'kind' in scenario && scenario.kind === 'timeline' ? scenario : undefined;
+  const team = scenario && 'kind' in scenario && scenario.kind === 'team' ? scenario : undefined;
+  const teamState =
+    current.scenario && 'kind' in current.scenario && current.scenario.kind === 'team'
+      ? current.scenario
+      : undefined;
+  const teamTurn =
+    step.type === 'exercise' && step.scenarioTurn?.action === 'team'
+      ? step.scenarioTurn
+      : undefined;
+  const eventState =
+    current.scenario && 'kind' in current.scenario && current.scenario.kind === 'timeline'
+      ? current.scenario
+      : undefined;
   const inquiry = step.type === 'exercise' && step.scenarioTurn?.action === 'inquire';
   if (input.action === 'scenarioSpeaker') {
     if (
-      inquiry &&
+      (inquiry || teamTurn) &&
       !current.result &&
-      timeline?.participants.some(({ id }) => id === input.personId)
+      (team ?? timeline)?.participants.some(({ id }) => id === input.personId)
     )
       current.scenarioSpeaker = input.personId;
     return;
@@ -491,7 +582,7 @@ export function updateTravel(
               current.scenario,
               step.scenarioTurn,
               input.answer.text,
-              current.scenarioSpeaker ?? timeline?.participants[0].id,
+              current.scenarioSpeaker ?? (team ?? timeline)?.participants[0].id,
             )
           : undefined;
       current.result = attempt(
@@ -564,6 +655,15 @@ export function updateTravel(
     travel.active = checkpoint(chapter, mission.id, current.step, id(), current);
     return;
   }
+  if (teamTurn && team && teamState) {
+    if (!teamTurnReady(teamTurn, teamState)) {
+      travel.active = checkpoint(chapter, mission.id, current.step, id(), current);
+      return;
+    }
+    const advanced = advanceTeamTurn(team, teamTurn, teamState);
+    if (!advanced) return;
+    current.scenario = advanced;
+  }
   if (current.step + 1 < mission.steps.length) {
     travel.active = checkpoint(chapter, mission.id, current.step + 1, id(), current);
     return;
@@ -577,5 +677,14 @@ export function updateTravel(
     )
   )
     travel.stamps[chapter.id] ??= date;
+  if (
+    team &&
+    !team.snapshot &&
+    current.scenario &&
+    'kind' in current.scenario &&
+    current.scenario.kind === 'team' &&
+    current.scenario.phase === 'complete'
+  )
+    (travel.teamHistory ??= {})[team.id] ??= current.scenario;
   current.finished = true;
 }
