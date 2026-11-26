@@ -242,6 +242,7 @@ export function exactRpgAssessment(
   for (const { targets } of [
     ...(step.scenarioTurn?.formTargets ?? []),
     ...(eventTurn?.eventTargets ?? []),
+    ...(step.scenarioTurn?.action === 'team' ? (step.scenarioTurn.taskTargets ?? []) : []),
     ...errorTargets,
   ]) {
     const keys = targets.map(unifiedMasteryKey);

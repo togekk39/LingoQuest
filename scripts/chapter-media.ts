@@ -71,6 +71,15 @@ const storyImages = new Map<string, Record<string, URL>>([
       'portrait-luz': new URL('journal/story-luz-portrait.png', mobileAssets),
     },
   ],
+  [
+    'brazil',
+    {
+      'salvador-kitchen': new URL('salvador-kitchen.jpg', chapterArt),
+      'salvador-display': new URL('salvador-display.jpg', chapterArt),
+      'portrait-sam': new URL('journal/story-sam-portrait.png', mobileAssets),
+      'portrait-luz': new URL('journal/story-luz-portrait.png', mobileAssets),
+    },
+  ],
 ]);
 
 const recordedPhrases = new Map([

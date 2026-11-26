@@ -207,7 +207,11 @@ test('Cusco story permits Who and When, offers the missing Did form, and qualifi
   }
   assert.ok((await player.travel()).stamps.peru);
   const restarted = await player.travel({ action: 'start', missionId: player.missions[3].id });
-  assert.ok(restarted.active?.scenario && 'kind' in restarted.active.scenario);
+  assert.ok(
+    restarted.active?.scenario &&
+      'kind' in restarted.active.scenario &&
+      restarted.active.scenario.kind === 'timeline',
+  );
   assert.deepEqual(restarted.active.scenario.confirmed, []);
   assert.deepEqual(restarted.active.scenario.answers, []);
   assert.deepEqual(restarted.active.scenario.submitted, []);

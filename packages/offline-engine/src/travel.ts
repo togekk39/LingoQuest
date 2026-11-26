@@ -12,6 +12,7 @@ import { travelPlacementSchema } from './travel-placement';
 import { chapter as homeChapter, travelLesson } from './home-content';
 import type { TravelChapter, TravelStep } from './travel-content';
 import type { TravelExerciseStep } from './travel-content';
+import { advanceTeamTurn, teamTurnReady } from './team-scenario';
 import { eventScenarioReady } from './event-scenario';
 import { travelStepVocabulary } from './travel-vocabulary';
 import type { ReviewInstruction } from './learning-prerequisites';
@@ -126,7 +127,8 @@ export function travelStoryReply(
       );
     return step.storyReply;
   }
-  if (step.scenarioTurn?.action === 'inquire') return scenarioReply;
+  if (step.scenarioTurn?.action === 'inquire' || step.scenarioTurn?.action === 'team')
+    return scenarioReply;
   if (step.exercise.ungradable && result.outcome === 'ungradable') return step.storyReply;
 }
 
@@ -419,14 +421,28 @@ export function updateTravel(
   const mission = chapter.missions.find((item) => item.id === current.missionId);
   const step = mission?.steps[current.step];
   if (!mission || !step) return;
-  const timeline = mission.scenario && 'kind' in mission.scenario ? mission.scenario : undefined;
-  const eventState = current.scenario && 'kind' in current.scenario ? current.scenario : undefined;
+  const scenario = mission.scenario;
+  const timeline =
+    scenario && 'kind' in scenario && scenario.kind === 'timeline' ? scenario : undefined;
+  const team = scenario && 'kind' in scenario && scenario.kind === 'team' ? scenario : undefined;
+  const teamState =
+    current.scenario && 'kind' in current.scenario && current.scenario.kind === 'team'
+      ? current.scenario
+      : undefined;
+  const teamTurn =
+    step.type === 'exercise' && step.scenarioTurn?.action === 'team'
+      ? step.scenarioTurn
+      : undefined;
+  const eventState =
+    current.scenario && 'kind' in current.scenario && current.scenario.kind === 'timeline'
+      ? current.scenario
+      : undefined;
   const inquiry = step.type === 'exercise' && step.scenarioTurn?.action === 'inquire';
   if (input.action === 'scenarioSpeaker') {
     if (
-      inquiry &&
+      (inquiry || teamTurn) &&
       !current.result &&
-      timeline?.participants.some(({ id }) => id === input.personId)
+      (team ?? timeline)?.participants.some(({ id }) => id === input.personId)
     )
       current.scenarioSpeaker = input.personId;
     return;
@@ -491,7 +507,7 @@ export function updateTravel(
               current.scenario,
               step.scenarioTurn,
               input.answer.text,
-              current.scenarioSpeaker ?? timeline?.participants[0].id,
+              current.scenarioSpeaker ?? (team ?? timeline)?.participants[0].id,
             )
           : undefined;
       current.result = attempt(
@@ -563,6 +579,15 @@ export function updateTravel(
   if (inquiry && timeline && !eventScenarioReady(timeline, eventState)) {
     travel.active = checkpoint(chapter, mission.id, current.step, id(), current);
     return;
+  }
+  if (teamTurn && team && teamState) {
+    if (!teamTurnReady(teamTurn, teamState)) {
+      travel.active = checkpoint(chapter, mission.id, current.step, id(), current);
+      return;
+    }
+    const advanced = advanceTeamTurn(team, teamTurn, teamState);
+    if (!advanced) return;
+    current.scenario = advanced;
   }
   if (current.step + 1 < mission.steps.length) {
     travel.active = checkpoint(chapter, mission.id, current.step + 1, id(), current);

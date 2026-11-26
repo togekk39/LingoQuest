@@ -40,3 +40,9 @@ Amplía un destino con un capítulo versionado e identificadores estables de mis
 ## Diarios y audios de los testigos
 
 Los diarios usan una definición y un punto de guardado versionados. Las respuestas posibles de los testigos de Cusco se preparan durante el empaquetado y se reproducen con los controles de audio del capítulo instalado. La consulta del diario mide la pregunta escrita. La evidencia de escucha depende de un ejercicio con audio y de sus condiciones de reproducción y apoyo. Al quitar el paquete, se conservan los ejercicios de texto archivados con sus datos mínimos. [Validación de Cusco](PHASE_5D_CUSCO_VALIDATION.es-419.md)
+
+## Trabajo en equipo y respuestas dinámicas
+
+La situación de equipo usa el punto guardado de la misión y el resumen criptográfico de la definición. Sus registros incluyen responsable, estado, observaciones, confirmaciones e historial de encargos. Una pregunta sobre una persona consulta la situación. Una petición puede crear un acuerdo si la persona y la tarea cumplen las condiciones. Un evento inicia o termina el trabajo y las respuestas posteriores consultan el resultado. El mismo respaldo conserva la persona seleccionada, el borrador y el historial. [Situación de equipo](../packages/offline-engine/src/team-scenario.ts)
+
+La generación del paquete incluye una lista limitada de respuestas y los mensajes de evaluación auditiva independiente. Se puede reproducir una respuesta cuando su frase exacta está en el paquete instalado. Las demás aparecen como texto. Los turnos escritos aportan evidencia de escritura. Las pruebas separadas de can y can’t usan audios instalados y las reglas habituales de escucha y apoyo. [Validación de voz y habilidades](PHASE_5D_SALVADOR_VALIDATION.es-419.md)

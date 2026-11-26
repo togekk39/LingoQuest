@@ -68,3 +68,7 @@ When extending an existing adventure, keep historical receipts tied to the exact
 | Human and device review              | Review every bilingual cue, prompt, rubric, key and media link. Check interaction targets at phone size and verify language, context, device audio and airplane mode with the resulting installed chapter. Use educator and learner review to support teaching and CEFR claims.                       |
 
 Document item-level findings with the exact item ID, assessed target, prior teaching, at least one acceptable and one relevant incorrect example, grading or practice classification, and a reproducible test or review reference. Group findings by release milestone and keep the acceptance record current. [Mexico City validation example](PHASE_5D_MEXICO_VALIDATION.md)
+
+## Live work and team agreements
+
+Give people stable abilities and tasks explicit conditions. Distinguish observed facts, open questions, accepted assignments, work in progress and completed work. Use an explicit story event to start or complete a task. Confirm a valid request with a reply that reflects the current assignee, ability and availability. Test two full assignments, a dependent task, a duplicate and a stale statement. Preserve the same board and selected person in Story, Study and backup. Keep different-context repair facts in the archived text item. [Salvador validation](PHASE_5D_SALVADOR_VALIDATION.md)

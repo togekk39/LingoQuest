@@ -94,3 +94,7 @@ Las semanas ejemplifican un ritmo repetible e incluyen repaso dentro de las sesi
 ## Recuerdos y preguntas en Cusco
 
 Cusco recicla pronombres, lugares, horarios, números y compras de mercado. U04 conserva sus identificadores para formas como was, were, visited, went, bought, took y did. Las notas introducen sentidos concretos como sacar una foto, tomar el autobús, terminar y salir de un lugar, junto con first, then, before y after. Cusco reutiliza el sentido compartido de see/saw y los identificadores existentes de las palabras interrogativas, los lugares, first/then y las expresiones de hora. Los sentidos de fotografía y transporte de take tienen referencias precisas. Cada evaluación declara sus formas y sentidos. La evidencia de la revisión 14 conserva su alcance original. [Validación de Cusco](../PHASE_5D_CUSCO_VALIDATION.es-419.md)
+
+## Trabajo en curso en Salvador
+
+Salvador reutiliza las formas de acción de U05, las rutinas de U02, las peticiones de U03, los sentidos de alimentos y las expresiones de secuencia anteriores. Añade formas concretas para la cocina y la muestra de fotos. La ficha original de Brasil conserva el vocabulario y diálogo del almuerzo. En la aventura, cut/cutting y put/putting tienen producción y refuerzo independiente por separado. Can de capacidad y el patrón de petición Can you se enseñan según su propósito. [Auditoría por ítem de Salvador](../PHASE_5D_SALVADOR_VALIDATION.items.tsv)

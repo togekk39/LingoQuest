@@ -12,6 +12,7 @@ import {
   type ScenarioItem,
   type ScenarioLine,
   type ScenarioTurn,
+  type TeamScenarioDefinition,
 } from '@lingoquest/course-pack';
 import { unifiedMasteryKey, type UnifiedEvidenceTarget } from './learning-evidence';
 import {
@@ -19,6 +20,12 @@ import {
   eventScenarioStateSchema,
   type EventScenarioState,
 } from './event-scenario';
+import {
+  evaluateTeamTurn,
+  startTeamScenario,
+  teamScenarioStateSchema,
+  type TeamScenarioState,
+} from './team-scenario';
 import { parseScenarioLanguage } from './scenario-language';
 import type { LearningError } from './travel-learning';
 
@@ -31,6 +38,7 @@ export type {
   MenuScenarioDefinition,
   MenuScenarioTurn,
   EventScenarioDefinition,
+  TeamScenarioDefinition,
   ScenarioTurn,
 } from '@lingoquest/course-pack';
 
@@ -58,7 +66,11 @@ const menuScenarioStateSchema = z
   })
   .strict();
 
-export const scenarioStateSchema = z.union([menuScenarioStateSchema, eventScenarioStateSchema]);
+export const scenarioStateSchema = z.union([
+  menuScenarioStateSchema,
+  eventScenarioStateSchema,
+  teamScenarioStateSchema,
+]);
 export type MenuScenarioState = z.infer<typeof menuScenarioStateSchema>;
 export type ScenarioState = z.infer<typeof scenarioStateSchema>;
 export type ScenarioReply = z.infer<typeof scenarioReplySchema>;
@@ -75,9 +87,12 @@ export function rpgScenarioDigest(definition: ScenarioDefinition) {
 
 export function startScenario(definition: MenuScenarioDefinition): MenuScenarioState;
 export function startScenario(definition: EventScenarioDefinition): EventScenarioState;
+export function startScenario(definition: TeamScenarioDefinition): TeamScenarioState;
 export function startScenario(definition: ScenarioDefinition): ScenarioState;
 export function startScenario(definition: ScenarioDefinition): ScenarioState {
   const identity = { scenarioId: definition.id, definitionDigest: rpgScenarioDigest(definition) };
+  if ('kind' in definition && definition.kind === 'team')
+    return startTeamScenario(definition, identity);
   if ('kind' in definition)
     return {
       ...identity,
@@ -264,7 +279,7 @@ function validateSelection(
   return { allowed: true, lines: accepted };
 }
 
-type ScenarioEvaluation<State = ScenarioState> = {
+export type ScenarioEvaluation<State = ScenarioState> = {
   verdict: ScenarioVerdict;
   state?: State;
   reply?: ScenarioReply;
@@ -470,9 +485,28 @@ export function evaluateScenarioTurn(
         feedbackEs: 'Vuelve a abrir la actividad para recuperar su contexto.',
       },
     };
-  if ('kind' in definition && 'kind' in state && 'focusEventIds' in turn)
+  if (
+    'kind' in definition &&
+    definition.kind === 'team' &&
+    'kind' in state &&
+    state.kind === 'team' &&
+    turn.action === 'team'
+  )
+    return evaluateTeamTurn(definition, state, turn, input, personId);
+  if (
+    'kind' in definition &&
+    definition.kind === 'timeline' &&
+    'kind' in state &&
+    state.kind === 'timeline' &&
+    'focusEventIds' in turn
+  )
     return evaluateEventTurn(definition, state, turn, input, personId);
-  if (!('kind' in definition) && !('kind' in state) && !('focusEventIds' in turn))
+  if (
+    !('kind' in definition) &&
+    !('kind' in state) &&
+    !('focusEventIds' in turn) &&
+    turn.action !== 'team'
+  )
     return evaluateMenuTurn(definition, state, turn, input);
   return { verdict: { outcome: 'ungradable' } };
 }

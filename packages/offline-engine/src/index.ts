@@ -202,10 +202,17 @@ export {
   type MenuScenarioDefinition,
   type MenuScenarioState,
   type EventScenarioDefinition,
+  type TeamScenarioDefinition,
   type ScenarioLine,
   type ScenarioState,
   type ScenarioTurn,
 } from './scenario';
+export {
+  teamAvailability,
+  teamWorkVisible,
+  teamTurnReady,
+  type TeamScenarioState,
+} from './team-scenario';
 export { confirmedEventFact, eventScenarioReady, type EventScenarioState } from './event-scenario';
 export type {
   TravelPlacement,
