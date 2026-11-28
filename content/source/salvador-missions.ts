@@ -1,4 +1,5 @@
 import type { TeamScenarioDefinition } from '@lingoquest/course-pack';
+import { salvadorLisbonHandoff as handoff } from '../../packages/offline-engine/src/travel-route';
 import { grammar } from './mexico-prerequisites';
 import type {
   TravelChapter,
@@ -452,9 +453,8 @@ export const salvadorChapter: TravelChapter = {
   title: 'Salvador',
   stamp: 'Salvador',
   postcard: 'El almuerzo en equipo',
-  collectible: 'Postal para Valparaíso',
-  message:
-    'En Salvador usamos inglés para ponernos de acuerdo. El equipo dejó una postal para Valparaíso, Chile.',
+  collectible: handoff.name,
+  message: handoff.message,
   missions: [
     mission(
       'now',

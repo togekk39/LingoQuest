@@ -1,4 +1,5 @@
 import { homeFoundationStory } from '../../packages/offline-engine/src/chapter-story';
+import { salvadorLisbonHandoff as handoff } from '../../packages/offline-engine/src/travel-route';
 import type {
   StoryCondition,
   StoryDefinition,
@@ -75,10 +76,10 @@ export const salvadorAdventure = {
       description: 'La invitación que leíste con Nora en Cusco.',
     },
     {
-      id: 'salvador-valparaiso-postcard',
+      id: handoff.postcardId,
       kind: 'souvenir',
-      name: 'Postal para Valparaíso',
-      description: 'Bia te invita a continuar el viaje en Valparaíso, Chile.',
+      name: handoff.name,
+      description: handoff.description,
     },
   ],
   quests: missions.map(({ id, title, objective }, index) => ({
@@ -90,11 +91,11 @@ export const salvadorAdventure = {
     goals: [
       { id: 'activity', label: objective, requires: [completed(id)] },
       ...(index === stops.length - 1
-        ? [{ id: 'postcard', label: 'Recoge la postal para Valparaíso.', requires: [readPostcard] }]
+        ? [{ id: 'postcard', label: handoff.goal, requires: [readPostcard] }]
         : []),
     ],
     ...(index === 0 && { rewardItems: ['salvador-arrival-postcard'] }),
-    ...(index === stops.length - 1 && { rewardItems: ['salvador-valparaiso-postcard'] }),
+    ...(index === stops.length - 1 && { rewardItems: [handoff.postcardId] }),
   })),
   scenes: missions.map(({ id, place }, index) => {
     const { art, npc, label, description } = stops[index];
@@ -127,7 +128,7 @@ export const salvadorAdventure = {
           : {
               id: 'salvador-display-postcard',
               kind: 'object',
-              label: 'Ver la postal para Valparaíso',
+              label: handoff.hotspot,
               position: { x: 76, y: 70 },
               requires: [completed(id), missing(readPostcard)],
               effects: [show('salvador-postcard')],
@@ -185,11 +186,11 @@ export const salvadorAdventure = {
     {
       id: 'salvador-postcard',
       npcId: 'bia',
-      text: 'Junto a las fotos, Bia deja una postal para tu próxima parada: Valparaíso, Chile.',
+      text: handoff.dialogue,
       choices: [
         {
           id: 'salvador-take-postcard',
-          label: 'Guardar la postal para Valparaíso',
+          label: handoff.choice,
           requires: [missing(readPostcard)],
           effects: [
             { type: 'startQuest', id: 'salvador-display-quest' },

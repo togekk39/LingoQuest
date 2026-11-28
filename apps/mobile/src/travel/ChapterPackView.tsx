@@ -4,6 +4,8 @@ import { BookOpen, Compass, Square, Volume2 } from 'lucide-react-native';
 import type { ChapterPack } from '@lingoquest/course-pack';
 import {
   canStartTravelMission,
+  route,
+  routeCardUpdate,
   type TravelChapter,
   type TravelState,
 } from '@lingoquest/offline-engine';
@@ -11,7 +13,7 @@ import { ErrorCard, FlowFrame, useFeatureStyles } from '../features/FeatureUI';
 import { getSpeechPreferences } from '../features/offlineSpeech';
 import { JournalLeaf, JournalPostcardFrame } from '../Journal';
 import { api, newId } from '../lib/api';
-import { getInstalledChapter } from '../lib/chapterPacks';
+import { downloadChapter, getInstalledChapter } from '../lib/chapterPacks';
 import { chapterMediaUri } from '../lib/chapterStorage';
 import { useTheme } from '../theme';
 import { Button, Heading, Label } from '../ui';
@@ -35,6 +37,7 @@ export function ChapterPackView({
   onOpenTextbookUnit,
   onStudyMission,
   onRemoveDownload,
+  onUpdate,
 }: {
   chapterId: string;
   onClose: () => void;
@@ -44,6 +47,7 @@ export function ChapterPackView({
   onOpenTextbookUnit?: (unitId: string) => void;
   onStudyMission?: (chapter: TravelChapter, missionId: string) => Promise<void>;
   onRemoveDownload?: (chapterId: string) => Promise<void>;
+  onUpdate: (pack: ChapterPack) => Promise<void>;
 }) {
   const { colors } = useTheme();
   const player = useClipPlayer();
@@ -60,6 +64,8 @@ export function ChapterPackView({
   const [confirmRemoval, setConfirmRemoval] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
 
   useEffect(() => {
     let current = true;
@@ -127,6 +133,9 @@ export function ChapterPackView({
   }
 
   const pack = content?.pack;
+  const destination = route.find(({ id }) => id === chapterId);
+  const routeUpdate = routeCardUpdate(chapterId);
+  const archived = pack && routeUpdate && pack.revision < routeUpdate.revision;
   const travelChapter = pack?.story?.chapter as unknown as TravelChapter | undefined;
   const lessons = pack ? [pack.lesson, ...pack.additionalLessons] : [];
   const lesson = lessons[lessonIndex] ?? pack?.lesson;
@@ -180,6 +189,23 @@ export function ChapterPackView({
     setLessonIndex(index);
   }
 
+  async function updateRouteCard() {
+    if (!routeUpdate || updating) return;
+    setUpdating(true);
+    setUpdateError('');
+    try {
+      const next = await downloadChapter(chapterId);
+      if (next.revision < routeUpdate.revision)
+        throw new Error('La nueva tarjeta todavía no está disponible.');
+      await onUpdate(next);
+      setReload((value) => value + 1);
+    } catch (error) {
+      setUpdateError((error as Error).message);
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   function renderSections(card: ChapterPack['lesson']) {
     const sections = {
       dialogue: card.dialogue.map(renderLine),
@@ -224,7 +250,13 @@ export function ChapterPackView({
   return (
     <FlowFrame
       title={lesson?.title ?? 'Capítulo descargado'}
-      eyebrow="Paquete sin conexión"
+      eyebrow={
+        archived
+          ? `Tarjeta archivada · ${routeUpdate.previousName}`
+          : routeUpdate && destination
+            ? `Paquete sin conexión · ${destination.name}`
+            : 'Paquete sin conexión'
+      }
       onClose={onClose}
       stepKey={String(lessonIndex)}
       journal={{}}
@@ -242,6 +274,18 @@ export function ChapterPackView({
         <ActivityIndicator color={colors.teal} accessibilityLabel="Abriendo capítulo" />
       ) : (
         <View testID={`chapter-lesson-${chapterId}`} style={sectionLayout}>
+          {archived && destination && (
+            <JournalLeaf style={sectionLayout}>
+              <Label>
+                La nueva parada es {destination.name}. Puedes seguir practicando con esta tarjeta
+                guardada sin conexión.
+              </Label>
+              <Button variant="secondary" loading={updating} onPress={updateRouteCard}>
+                {`Descargar tarjeta de ${destination.name}`}
+              </Button>
+              {!!updateError && <ErrorCard message={updateError} />}
+            </JournalLeaf>
+          )}
           {content.cover && (
             <JournalPostcardFrame taped>
               <Image

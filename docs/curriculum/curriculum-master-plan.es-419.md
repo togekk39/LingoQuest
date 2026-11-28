@@ -10,9 +10,9 @@ La propuesta central tiene **83 lecciones en 24 unidades repartidas en 20 parada
 | ------ | -------- | --------- | ------------------------------------------------------------------- |
 | Pre-A1 | 1        | 4         | Lugar de origen, `lq-home-start.greet` (lección 1)                  |
 | A1     | 5        | 22        | Del lugar de origen a Salvador, `lq-home-plaza.origins` (lección 5) |
-| A2     | 5        | 16        | De Valparaíso a Toronto, `lq-valparaiso-plans.plans` (lección 27)   |
+| A2     | 5        | 16        | De Lisboa a Toronto, `lq-valparaiso-plans.plans` (lección 27)   |
 | B1     | 7        | 20        | De Londres a Tokio, `lq-london-disruptions.notices` (lección 43)    |
-| B2     | 6        | 21        | De Hobart a la Antártida, `lq-hobart-risk.certainty` (lección 63)   |
+| B2     | 6        | 21        | De Sídney a la Antártida, `lq-hobart-risk.certainty` (lección 63)   |
 
 La ruta ofrece la secuencia recomendada. Se puede empezar en Pre-A1 sin conocimientos de inglés. Un diagnóstico sin consecuencias y una muestra de producción pueden orientar el punto de partida por habilidad. El material anterior queda disponible. También se puede explorar material posterior o seguir la historia con apoyos. Cada hito registra las habilidades que se observaron.
 
@@ -401,9 +401,9 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **R** · Identifica una tarea pendiente en una lista de dos columnas.
 - **W** · Escribe un mensaje de relevo con una acción actual y dos pasos.
 
-### `lq-valparaiso-plans` · Planes y cambios (`chile`, A2)
+### `lq-valparaiso-plans` · Lisboa · Planes y cambios (`chile`, A2)
 
-**Historia** · Un encuentro al aire libre necesita una sede alternativa.
+**Historia** · Sam, Luz y el grupo llegan desde Salvador. Un cambio en el pronóstico obliga a confirmar un punto de encuentro alternativo en Belém.
 
 **Transferencia** · Reprogramar una reunión familiar o de un club.
 
@@ -485,9 +485,9 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **R** · Concilia una lista de equipaje con un mensaje breve.
 - **W** · Escribe un aviso de tres puntos que distinga lo reciente de lo pendiente.
 
-### `lq-nyc-options` · Compara rutas y explica decisiones (`new-york`, A2)
+### `lq-nyc-options` · Hong Kong · Compara rutas y explica decisiones (`new-york`, A2)
 
-**Historia** · El jugador elige una ruta accesible para una entrevista y explica su interés.
+**Historia** · El jugador entrevista a los viajeros sobre tiempo, costo y acceso, compara el MTR, el ferry y un taxi, y explica cómo llegar a Central. La situación de transferencia con un turno de voluntariado verifica el interés, la disponibilidad y un ejemplo anterior.
 
 **Transferencia** · Elegir una clase o un turno de voluntariado a partir de un anuncio.
 
@@ -707,9 +707,9 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **R** · Distingue una descripción necesaria de un dato entre comas.
 - **W** · Resume ambas preferencias y la decisión del grupo.
 
-### `lq-rome-problems` · Incidentes y soluciones de servicio (`rome`, B1)
+### `lq-rome-problems` · Estambul · Incidentes y soluciones de servicio (`rome`, B1)
 
-**Historia** · Un problema en el alojamiento requiere un relato claro y una solución justa.
+**Historia** · Después de cruzar el Bósforo, el grupo compara la reserva con lo que ofrece el alojamiento, negocia y confirma el acuerdo por escrito.
 
 **Transferencia** · Pedir ayuda por una entrega que falta o un problema en una instalación.
 
@@ -905,9 +905,9 @@ Incluye exposición más extensa dentro de los temas. La unidad de proyectos B1 
 - **R** · Concilia un aviso de cambio con un correo e identifica una pregunta abierta.
 - **W** · Escribe una justificación cohesionada con un cambio, evidencia y próximos pasos.
 
-### `lq-hobart-risk` · Interpreta riesgos y defiende una decisión (`australia`, B2)
+### `lq-hobart-risk` · Sídney · Interpreta riesgos y defiende una decisión (`australia`, B2)
 
-**Historia** · Dos actualizaciones sobre el clima y acceso afectan una caminata grupal.
+**Historia** · El grupo contrasta un pronóstico y un aviso ficticios de Bondi y evalúa un ferry de Circular Quay como alternativa.
 
 **Transferencia** · Decidir si un encuentro público o escolar se traslada bajo techo.
 

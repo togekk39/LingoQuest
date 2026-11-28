@@ -18,6 +18,8 @@ import {
   type CourseData,
   type OfflineState,
   type QuickReviewState,
+  type StoryOperation,
+  type StoryResponse,
   type TravelMission,
   type TravelState,
 } from '../src';
@@ -82,6 +84,10 @@ function learner(initial = pack) {
     );
   return {
     travel,
+    story: (body?: StoryOperation) =>
+      engine.request<StoryResponse>('/v1/story?chapter=brazil', body),
+    exportBackup: () => engine.request('/v1/me/export'),
+    importBackup: (backup: unknown) => engine.request('/v1/me/import', { backup }),
     saved,
     review,
     removePack: () => {
@@ -213,6 +219,65 @@ async function play(player: Learner, mission: TravelMission, route = 0, checkRes
   assert.equal(probeIndex, path.length);
   return state;
 }
+
+test('a completed revision 18 Salvador backup keeps the Lisbon handoff, stamp, team state and evidence', async () => {
+  const old = packAt(18);
+  const oldPostcard = old.story!.adventure.items.find(
+    ({ id }) => id === 'salvador-valparaiso-postcard',
+  )!;
+  assert.equal(oldPostcard.name, 'Postal para Valparaíso');
+  assert.deepEqual(pack.story!.chapter.missions, old.story!.chapter.missions);
+  assert.deepEqual(pack.story!.audit, old.story!.audit);
+  const player = learner(old);
+  for (const mission of missions.filter(({ optional }) => !optional)) await play(player, mission);
+  let visit = await player.story();
+  for (const mission of missions.filter(({ optional }) => !optional).slice(0, -1)) {
+    visit = await player.story({
+      action: 'interact',
+      turn: visit.story.turn,
+      hotspotId: `${mission.id}-next`,
+    });
+  }
+  visit = await player.story({
+    action: 'interact',
+    turn: visit.story.turn,
+    hotspotId: 'salvador-display-postcard',
+  });
+  assert.match(visit.story.dialogue!.text, /Lisboa/);
+  visit = await player.story({
+    action: 'choose',
+    turn: visit.story.turn,
+    choiceId: 'salvador-take-postcard',
+  });
+  assert.equal(
+    visit.story.inventory.find(({ id }) => id === oldPostcard.id)?.name,
+    'Postal para Lisboa',
+  );
+  const before = player.saved();
+  const pools = Object.entries(pack.story!.challenges!) as unknown as [
+    ChallengeType,
+    CourseData['challengePools'][ChallengeType],
+  ][];
+  const backup = await player.exportBackup();
+  const restored = learner();
+  await restored.importBackup(backup);
+  for (const device of [player, restored]) {
+    device.upgrade();
+    device.restart();
+    const resumed = await device.story();
+    assert.equal(resumed.firstVisit, undefined);
+    assert.equal(resumed.story.inventory.filter(({ id }) => id === oldPostcard.id).length, 1);
+    assert.equal(
+      resumed.story.inventory.find(({ id }) => id === oldPostcard.id)?.name,
+      'Postal para Lisboa',
+    );
+    assert.deepEqual(device.saved().chapterProgress?.brazil, before.chapterProgress?.brazil);
+    assert.deepEqual(device.saved().unifiedLearning, before.unifiedLearning);
+    for (const [mode, items] of pools) assert.equal(device.gate(mode, items).ready, true, mode);
+    const review = await device.review(`writing:${g.order.id}`);
+    assert.equal(review.chapterId, 'brazil');
+  }
+});
 
 test('Salvador gates every challenge and completes two distinct team paths with saved work and precise evidence', async () => {
   const player = learner();
@@ -387,7 +452,7 @@ test('revision 16 in-progress lunch upgrades with its selected NPC, draft, assig
   player.restart();
   const upgraded = await player.travel(undefined, 'story');
   assert.equal(upgraded.active?.stepId, 'salvador-lunch-bread-live');
-  assert.equal(upgraded.active?.contentRevision, pack.revision);
+  assert.equal(upgraded.active?.contentRevision, pack.story!.chapter.revision);
   assert.equal(upgraded.active?.scenarioSpeaker, 'sam');
   assert.equal(upgraded.active?.answer.text, draft);
   assert.equal(team(upgraded).work.find(({ taskId }) => taskId === 'bread')?.status, 'active');

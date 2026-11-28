@@ -239,7 +239,9 @@ test('Salvador coordinates two offline teams and restores a selected teammate, s
   }
   await choice(page, 'salvador-take-postcard');
   await click(page, 'Mochila');
-  await expect(page.getByTestId('story-inventory-salvador-valparaiso-postcard')).toBeVisible();
+  await expect(page.getByTestId('story-inventory-salvador-valparaiso-postcard')).toContainText(
+    'Postal para Lisboa',
+  );
   const saved = (await state(page)) as OfflineState;
   expect(saved.chapterProgress?.brazil?.travel.stamps.brazil).toBeTruthy();
   const evidence = saved.unifiedLearning.evidence;
@@ -254,6 +256,11 @@ test('Salvador coordinates two offline teams and restores a selected teammate, s
       ({ exerciseId, activity }) => exerciseId === 'salvador-hear-cook' && activity === 'answer',
     ),
   ).toMatchObject({ outcome: 'target', independent: true });
+  await click(page, 'Pasaporte');
+  await expect(page.getByText('Postal para Lisboa', { exact: true })).toBeVisible();
+  await context.setOffline(false);
+  await click(page, 'Continuar a Lisboa');
+  await expect(page.getByRole('heading', exact('Un nuevo plan en Lisboa'))).toBeVisible();
 });
 
 test('Brazil card evidence survives updating from catalog v10', async ({

@@ -35,7 +35,7 @@ import {
   type RunView,
   type User,
 } from '@lingoquest/contracts';
-import { route as travelRoute } from './travel-route';
+import { route as travelRoute, salvadorLisbonHandoff } from './travel-route';
 import {
   chapter,
   chapterStory,
@@ -189,7 +189,14 @@ export type {
   SpeechPractice,
   TravelLearningState,
 } from './travel-learning';
-export { homeCountries, route, type Destination, type HomeCountry } from './travel-route';
+export {
+  homeCountries,
+  route,
+  routeCardUpdate,
+  salvadorLisbonHandoff,
+  type Destination,
+  type HomeCountry,
+} from './travel-route';
 export type { TravelChapter, TravelMission, TravelStep, TravelVocabulary } from './travel-content';
 export { travelStepVocabulary } from './travel-vocabulary';
 export { canStartTravelMission, nextTravelMission, travelStoryReply } from './travel';
@@ -399,9 +406,54 @@ function reviewedAdventure(
 
 function installedAdventure(pack: ChapterContent | null): InstalledAdventure | undefined {
   if (!pack?.story || !pack.unit) return;
+  let chapter = pack.story.chapter as unknown as TravelChapter;
+  let definition = pack.story.adventure as unknown as StoryDefinition;
+  if (pack.chapterId === 'brazil' && pack.revision < 19) {
+    const handoff = salvadorLisbonHandoff;
+    chapter = { ...chapter, collectible: handoff.name, message: handoff.message };
+    definition = {
+      ...definition,
+      items: definition.items.map((item) =>
+        item.id === handoff.postcardId
+          ? { ...item, name: handoff.name, description: handoff.description }
+          : item,
+      ),
+      quests: definition.quests.map((quest) =>
+        quest.rewardItems?.includes(handoff.postcardId)
+          ? {
+              ...quest,
+              goals: quest.goals.map((goal) =>
+                goal.id === 'postcard' ? { ...goal, label: handoff.goal } : goal,
+              ),
+            }
+          : quest,
+      ),
+      scenes: definition.scenes.map((scene) => ({
+        ...scene,
+        hotspots: scene.hotspots.map((hotspot) =>
+          hotspot.id === 'salvador-display-postcard'
+            ? { ...hotspot, label: handoff.hotspot }
+            : hotspot,
+        ),
+      })),
+      dialogues: definition.dialogues.map((dialogue) =>
+        dialogue.id === 'salvador-postcard'
+          ? {
+              ...dialogue,
+              text: handoff.dialogue,
+              choices: dialogue.choices.map((choice) =>
+                choice.id === 'salvador-take-postcard'
+                  ? { ...choice, label: handoff.choice }
+                  : choice,
+              ),
+            }
+          : dialogue,
+      ),
+    };
+  }
   return reviewedAdventure(
-    pack.story.chapter as unknown as TravelChapter,
-    pack.story.adventure as unknown as StoryDefinition,
+    chapter,
+    definition,
     [...pack.unit.lessons, ...(pack.story.supportingLessons ?? [])],
     pack.story.practice as TravelExerciseStep[],
     `${pack.chapterId}:${pack.revision}`,

@@ -17,6 +17,10 @@ import {
   NotebookPen,
   RotateCcw,
   Stamp,
+  Ship,
+  TrainFront,
+  Hotel,
+  Waves,
 } from 'lucide-react-native';
 import {
   chapter,
@@ -24,6 +28,7 @@ import {
   nextTravelMission,
   homeCountries,
   route,
+  salvadorLisbonHandoff,
   type Destination,
   type HomeCountry,
   type TravelState,
@@ -48,6 +53,12 @@ const displayNumber = (n: number) => String(n).padStart(2, '0');
 const homeName = (state: TravelState) =>
   state.country ? homeCountries[state.country] : 'Tu lugar de origen';
 const missionIcons = [MapPin, BusFront, Backpack];
+const routeIcons = new Map([
+  ['chile', TrainFront],
+  ['new-york', Ship],
+  ['rome', Hotel],
+  ['australia', Waves],
+]);
 
 export function TravelHome({
   travel,
@@ -325,9 +336,9 @@ function PracticeRow({
 const mapGroups: { name: string; target: string; position: [number, number] }[] = [
   { name: 'América del Norte', target: 'home', position: [-100, 33] },
   { name: 'América del Sur', target: 'colombia', position: [-58, -21] },
-  { name: 'Europa', target: 'london', position: [12, 55] },
+  { name: 'Europa', target: 'chile', position: [12, 55] },
   { name: 'África', target: 'cairo', position: [21, 3] },
-  { name: 'Asia', target: 'singapore', position: [107, 41] },
+  { name: 'Asia', target: 'new-york', position: [107, 41] },
   { name: 'Oceanía', target: 'australia', position: [145, -27] },
   { name: 'Antártida', target: 'antarctica', position: [-62, -72] },
 ];
@@ -375,6 +386,7 @@ export function TravelRoute({
   const selectedContinent = isHome && homeIsInSouthAmerica ? 'América del Sur' : selected.continent;
   const horizon = width < 800 || fontScale > 1.25;
   const active = travel.active;
+  const DestinationIcon = routeIcons.get(selected.id) ?? MapPin;
   return (
     <View testID="world-atlas" style={{ gap: 15 }}>
       <JournalSpread
@@ -406,6 +418,7 @@ export function TravelRoute({
             />
             {!isHome && (
               <View
+                testID={`map-pin-${selected.id}`}
                 pointerEvents="none"
                 style={[
                   s.destinationPin,
@@ -458,7 +471,7 @@ export function TravelRoute({
           ]}
         >
           <View style={s.row}>
-            <MapPin size={19} color={C.teal} />
+            <DestinationIcon size={19} color={C.teal} />
             <Text style={s.meta}>{isHome ? homeName(travel) : selected.location}</Text>
           </View>
           <Heading style={{ fontSize: 30 }}>{isHome ? chapter.title : selected.name}</Heading>
@@ -735,6 +748,12 @@ export function Passport({
           </Button>
         )}
       </Notebook>
+      {stamps.brazil && (
+        <JournalLeaf style={s.routeDetail}>
+          <Heading>{salvadorLisbonHandoff.name}</Heading>
+          <Label style={s.copy}>{salvadorLisbonHandoff.message}</Label>
+        </JournalLeaf>
+      )}
       {stamp && (
         <>
           <JournalLeaf style={s.routeDetail}>

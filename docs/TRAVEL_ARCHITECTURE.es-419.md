@@ -16,6 +16,8 @@
 | `apps/mobile/src/travel`                           | Bienvenida, prueba, inicio, mapa, misiones, guía, pasaporte, repaso rápido y audio incluido |
 | `content/source` y `packages/course-pack`          | Fuentes del curso A1–A2 y validación de LQP                                                 |
 
+El mapa, el pasaporte y el lector consultan la ciudad vigente mediante el ID estable de la ruta. El catálogo v14 actualiza cuatro tarjetas y conserva la revisión instalada como archivo sin conexión identificado hasta descargar su reemplazo. La postal de Salvador usa el mismo objeto guardado y los mismos datos de misión en todas las revisiones. La historia anterior muestra la transición a Lisboa sin editar su paquete ni los datos guardados. [Validación de la ruta global](PHASE_5D_GLOBAL_ROUTE_REBALANCE.es-419.md)
+
 ## Diagnóstico de la fase 3
 
 | Área                    | Punto de partida en `198c884`                                                                                                                                                   | Cambio de la fase 3                                                                                                                                                                                                                                                      |

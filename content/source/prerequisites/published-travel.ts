@@ -760,7 +760,10 @@ export const chapterPatterns: Readonly<Record<string, ChapterPatterns>> = {
   rome: {
     question: {},
     practice: {
-      interruption: ['I was unpacking when water started dripping'],
+      interruption: [
+        'I was unpacking when water started dripping',
+        'I was crossing the Bosphorus when I got your message',
+      ],
       request: ['Could you', 'Would it be possible to'],
     },
   },

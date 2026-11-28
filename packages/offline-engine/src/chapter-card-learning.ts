@@ -6,6 +6,7 @@ import {
   type UnifiedLearningAid,
 } from './learning-evidence';
 import { chapterCardEvidenceTargets } from './learning-registry';
+import { routeCardUpdate } from './travel-route';
 
 export const chapterCardEventSchema = z
   .object({
@@ -46,12 +47,17 @@ export function recordChapterCardEvent(
   if (input.stage === 'practice') aids.push('answer_shown');
   if (input.stage === 'vocabulary') aids.push('translation');
   const materialId = `published.${pack.chapterId}.card-${input.cardNumber}`;
+  const update = routeCardUpdate(pack.chapterId);
+  const contextId =
+    update && pack.revision >= update.revision
+      ? `${materialId}.route-${update.revision}`
+      : materialId;
   const recorded = recordUnifiedEvidence(state, {
     id: `chapter-card:${input.id}`,
     source: 'study',
     materialId,
     exerciseId: `${materialId}.${input.stage}`,
-    contextId: materialId,
+    contextId,
     materialVersion: `${pack.chapterId}:${pack.revision}`,
     timestamp: now,
     format: question ? 'single_choice' : 'instruction',

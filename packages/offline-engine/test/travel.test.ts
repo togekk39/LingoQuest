@@ -111,7 +111,18 @@ test('the twenty-stage route covers every continent and references real curricul
   assert.equal(new Set(route.map((item) => item.continent)).size, 7);
   assert.equal(route[19].id, 'antarctica');
   assert.match(route[19].location, /Ushuaia/);
-  assert.ok(route.filter((item) => item.continent === 'América del Sur').length >= 4);
+  assert.deepEqual(
+    route.filter((item) => item.continent === 'América del Sur').map(({ id }) => id),
+    ['colombia', 'peru', 'brazil'],
+  );
+  assert.equal(
+    route.findIndex(({ continent }) => continent === 'Europa'),
+    5,
+  );
+  assert.equal(
+    route.findIndex(({ continent }) => continent === 'Asia'),
+    7,
+  );
   for (const stop of route)
     assert.ok(!stop.unitId || content.units.some((unit) => unit.id === stop.unitId));
   const skills = new Set(

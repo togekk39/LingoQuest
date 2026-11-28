@@ -55,55 +55,59 @@ export const easternChapterLessons = {
     },
   },
   rome: {
-    title: 'Un cambio de habitación',
-    objectiveEs:
-      'Explica cuándo ocurrió un problema en tu alojamiento y acuerda una solución con recepción.',
+    title: 'Resolver un problema durante el viaje',
+    objectiveEs: 'Aclara una reserva en un alojamiento en Estambul, negocia una alternativa y confirma el acuerdo por escrito.',
     dialogue: [
       {
         speaker: 'Maya',
-        en: 'I was unpacking when water started dripping from the ceiling. Could you take a look?',
-        es: 'Estaba sacando cosas de la maleta cuando empezó a gotear agua del techo. ¿Podría venir a revisar?',
+        en: 'I was crossing the Bosphorus when I got your message about a repair. Could you check my booking? I booked a double room for two nights.',
+        es: 'Estaba cruzando el Bósforo cuando recibí su mensaje sobre una reparación. ¿Podría revisar mi reserva? Reservé una habitación doble para dos noches.',
       },
       {
-        speaker: 'Luca',
-        en: 'I can send someone upstairs, but the repair might take an hour.',
-        es: 'Puedo mandar a alguien arriba, pero la reparación podría tardar una hora.',
+        speaker: 'Deniz',
+        en: 'The repair won’t be finished today. I can offer a single room here tonight or a double room nearby for both nights.',
+        es: 'La reparación no terminará hoy. Puedo ofrecerle una habitación individual aquí para hoy, o una doble cerca para las dos noches.',
       },
       {
         speaker: 'Maya',
-        en: 'I have to leave in twenty minutes. Would it be possible to move to another room now?',
-        es: 'Tengo que salir en veinte minutos. ¿Sería posible cambiarme de habitación ahora?',
+        en: 'Would it be possible to take the double room nearby at the original price?',
+        es: '¿Sería posible quedarme con la habitación doble de aquí cerca al precio original?',
       },
       {
-        speaker: 'Luca',
-        en: 'Of course. There is a room ready on the second floor. I can give you the key now.',
-        es: 'Claro. Hay una habitación lista en el segundo piso. Puedo darle la llave ahora mismo.',
+        speaker: 'Deniz',
+        en: 'Yes. I’ll send you the address and confirm both nights at the original price.',
+        es: 'Sí. Le enviaré la dirección y le confirmaré las dos noches al precio original.',
+      },
+      {
+        speaker: 'Maya',
+        en: 'Thank you. I’m writing to confirm the double room for two nights at the original price.',
+        es: 'Gracias. Escribo para confirmar la habitación doble por dos noches al precio original.',
       },
     ],
     vocabulary: [
-      { en: 'unpack', es: 'sacar las cosas de la maleta' },
-      { en: 'ceiling', es: 'techo' },
-      { en: 'drip', es: 'gotear' },
+      { en: 'booking', es: 'reserva' },
+      { en: 'double room', es: 'habitación doble' },
+      { en: 'original price', es: 'precio original' },
       { en: 'repair', es: 'reparación' },
     ],
     grammarEs:
-      'Usa was o were más un verbo en -ing para la acción de fondo y pasado simple para el hecho que la interrumpe. Combínalos con when, como en I was unpacking when water started dripping. Usa Could you…? o Would it be possible to…? para pedir una solución con cortesía.',
+      'Usa «was» o «were» más un verbo en «-ing» para el contexto y el pasado simple para el hecho que ocurrió en ese momento: «I was crossing the Bosphorus when I got your message». Otro ejemplo es «I was unpacking when water started dripping». Usa «Could you…?» o «Would it be possible to…?» para pedir una solución con cortesía. En el mensaje final, usa «I’m writing to confirm…» y repite los datos acordados.',
     question: {
-      promptEs: '¿Qué solución ofrece Luca al final?',
+      promptEs: '¿Qué acuerdan Maya y Deniz mientras sigue la reparación?',
       options: [
-        'Reparar el techo en veinte minutos.',
-        'Pedirle a Maya que vuelva en una hora.',
-        'Darle enseguida la llave de otra habitación.',
+        'Una habitación individual en el mismo alojamiento para las dos noches.',
+        'Una habitación doble en otro alojamiento por una sola noche.',
+        'Una habitación doble cerca por dos noches al precio original.',
       ],
       answerIndex: 2,
       feedbackEs:
-        'Luca puede mandar a alguien a revisar la gotera, pero eso llevaría tiempo. Al final le ofrece a Maya una llave para cambiarse de habitación de inmediato.',
+        'La reparación sigue pendiente. Deniz acepta la habitación doble cerca y se compromete a confirmar las dos noches al precio original.',
     },
     practiceEs:
-      'Estabas revisando tus boletos cuando notaste que los asientos de tu tren no estaban juntos. Explícale qué pasó a la persona de la ventanilla y pregunta con cortesía si puede cambiar uno de los asientos.',
+      'Estabas leyendo el mensaje de una reserva de tren cuando viste que los asientos no estaban juntos. Explica qué pasó, pide un cambio y escribe una frase para confirmar los nuevos asientos 12A y 12B.',
     model: {
-      en: 'I was checking our tickets when I noticed that our seats weren’t together. Would it be possible to change one of them?',
-      es: 'Estaba revisando nuestros boletos cuando noté que los asientos no estaban juntos. ¿Sería posible cambiar uno de ellos?',
+      en: 'I was reading the booking email when I noticed our seats weren’t together. Would it be possible to change one of them? I’m writing to confirm seats twelve A and twelve B.',
+      es: 'Estaba leyendo el correo de la reserva cuando noté que nuestros asientos no estaban juntos. ¿Sería posible cambiar uno? Escribo para confirmar los asientos doce A y doce B.',
     },
   },
   cairo: {
@@ -263,55 +267,60 @@ export const easternChapterLessons = {
     },
   },
   australia: {
-    title: 'Un pronóstico que cambia',
-    objectiveEs:
-      'Compara un pronóstico con un aviso nuevo y justifica una ruta alternativa en Hobart.',
+    title: 'Una decisión junto al mar',
+    objectiveEs: 'Sopesa dos fuentes y recomienda un plan para el equipo en Sídney. Los pronósticos, avisos y trayectos del ejercicio son ficticios.',
     dialogue: [
       {
         speaker: 'Radio',
-        en: 'Here’s the morning forecast. Showers are likely after noon, but winds should stay light along the coast.',
-        es: 'Este es el pronóstico de la mañana. Es probable que haya chubascos después del mediodía, pero el viento debería mantenerse leve en la costa.',
+        en: 'Here’s the morning forecast for Bondi. Showers are likely after noon, but winds should stay light along the coast.',
+        es: 'Este es el pronóstico de la mañana para Bondi. Es probable que haya chubascos después del mediodía, pero el viento debería mantenerse leve en la costa.',
       },
       {
-        speaker: 'Guide',
-        en: 'Here’s the latest advisory. Gusts could hit the headland as early as eleven, and the exposed trail is closed.',
-        es: 'Este es el aviso más reciente. Podría haber ráfagas en el promontorio desde las once y el sendero expuesto al viento está cerrado.',
+        speaker: 'Guía',
+        en: 'The latest advisory says gusts could hit the coast at eleven. The exposed part of the trail is closed, but the sheltered trail is still open.',
+        es: 'El aviso más reciente dice que podría haber ráfagas en la costa a las once. El tramo expuesto del sendero está cerrado, pero el sendero resguardado sigue abierto.',
       },
       {
-        speaker: 'Linh',
-        en: 'Although we may miss the rain, I’d switch to the sheltered trail. We shouldn’t go to the headland even if the sky clears.',
-        es: 'Aunque quizá evitemos la lluvia, yo elegiría el sendero resguardado. No deberíamos ir al promontorio, aunque se despeje el cielo.',
+        speaker: 'Sam',
+        en: 'Although we may miss the rain, I’m worried about the wind. Even if the sky clears, part of the trail is still closed.',
+        es: 'Aunque quizá evitemos la lluvia, me preocupa el viento. Aunque se despeje, parte del sendero sigue cerrada.',
       },
       {
-        speaker: 'Guide',
-        en: 'Agreed. Let’s postpone the walk if the next advisory closes the sheltered trail as well.',
-        es: 'De acuerdo. Aplacemos la caminata si en el próximo aviso también cierran el sendero resguardado.',
+        speaker: 'Luz',
+        en: 'I see your point. Given the advisory and how tired the group is, I’d recommend taking a harbor ferry from Circular Quay if it’s running.',
+        es: 'Entiendo tu punto. Por el aviso y porque el grupo está cansado, recomendaría tomar un ferry por el puerto desde Circular Quay si está en servicio.',
+      },
+      {
+        speaker: 'Guía',
+        en: 'I’ll check the ferry service. If it’s suspended, let’s postpone the outing.',
+        es: 'Voy a confirmar el servicio del ferry. Si se suspende, aplacemos la salida.',
       },
     ],
     vocabulary: [
       { en: 'gust', es: 'ráfaga' },
-      { en: 'headland', es: 'promontorio costero' },
       { en: 'sheltered trail', es: 'sendero resguardado' },
       { en: 'postpone', es: 'aplazar' },
+      { en: 'advisory', es: 'aviso' },
+      { en: 'harbor ferry', es: 'ferry del puerto' },
     ],
     grammarEs:
-      'Usa may o could cuando algo es posible y likely cuando lo consideras probable. Although introduce un factor que reconoces antes de dar tu conclusión. Even if presenta una situación hipotética que no cambia tu decisión, como en We won’t go even if the sky clears.',
+      'Usa «may» o «could» para una posibilidad y «likely» para algo probable. Separa lo posible de lo confirmado. «Although» reconoce otro punto antes de tu conclusión. «Even if» presenta una circunstancia que no cambia la decisión. Con «Given the advisory, I’d recommend…» explicas en qué te basas antes de recomendar algo.',
     question: {
-      promptEs: '¿Por qué proponen cambiar de sendero antes de que empiece a llover?',
+      promptEs: '¿Qué aporta el aviso más reciente a la decisión del grupo?',
       options: [
-        'El aviso nuevo prevé posibles ráfagas y confirma el cierre del sendero expuesto.',
-        'El pronóstico de la mañana anuncia que ambos senderos cerraron.',
-        'El aviso nuevo confirma que ya está lloviendo en el sendero resguardado.',
+        'Advierte que podría haber ráfagas antes de los chubascos y que solo sigue abierto el sendero resguardado.',
+        'Confirma que ambos senderos cerraron y que todos los ferris están suspendidos.',
+        'Confirma que la lluvia ya empezó y que el viento será leve durante toda la salida.',
       ],
       answerIndex: 0,
       feedbackEs:
-        'El pronóstico habla de chubascos después del mediodía. El aviso posterior añade la posibilidad de ráfagas desde antes y confirma que el sendero expuesto cerró.',
+        'El aviso distingue un riesgo posible, las ráfagas, de un cierre confirmado. El sendero resguardado está abierto y el equipo aún tiene que comprobar si opera el ferry.',
     },
     practiceEs:
-      'Planeabas caminar por la orilla de un río. Un aviso dice que el agua podría subir por la tarde y recomienda un sendero más alto. Justifica el cambio con «although» y explica qué harás si también cierran el sendero más alto.',
+      'Un pronóstico ficticio anuncia buen tiempo en un valle, pero la guía dice que el sendero bajo podría inundarse. Reconoce el atractivo de esa ruta, recomienda el sendero alto y explica cuándo aplazarías la salida.',
     model: {
-      en: 'Although the sky is clear, the river could rise this afternoon, so I’ll take the higher trail. If that trail closes too, I’ll postpone the walk.',
-      es: 'Aunque el cielo está despejado, el río podría subir esta tarde, así que tomaré el sendero más alto. Si también cierran ese sendero, aplazaré la caminata.',
+      en: 'Although the lower trail has better views, it could flood. Given the guide’s report, I’d recommend the higher trail. If that trail closes too, I’ll postpone the walk.',
+      es: 'Aunque el sendero bajo tiene mejores vistas, podría inundarse. Según el informe de la guía, recomendaría el sendero alto. Si también lo cierran, aplazaré la caminata.',
     },
   },
   'new-zealand': {
